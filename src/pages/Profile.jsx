@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,22 +6,18 @@ import {
   RefreshCw,
   LifeBuoy,
   LogOut,
-  Mail,
-  Phone,
-  Globe2,
   Clock,
-  Loader2,
   Copy,
   CheckCircle2,
   User,
   Lock,
-  History,
   Gift,
   ExternalLink,
   ChevronRight,
   Upload,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,21 +30,21 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 import { fetchCurrentUser, updateCurrentUser } from "@/api/functions";
 import { base44 } from "@/api/base44Client";
@@ -93,7 +89,10 @@ const translations = {
     copySuccess: "Copied to clipboard",
     logout: "Log Out",
     refresh: "Refresh Data",
-    support: "Contact Support"
+    support: "Contact Support",
+    updateSuccess: "Profile updated successfully",
+    updateError: "Failed to update profile",
+    loadError: "Failed to load user data"
   },
   ar: {
     heroTitle: "مركز الحساب",
@@ -133,7 +132,10 @@ const translations = {
     copySuccess: "تم النسخ إلى الحافظة",
     logout: "تسجيل الخروج",
     refresh: "تحديث البيانات",
-    support: "الدعم الفني"
+    support: "الدعم الفني",
+    updateSuccess: "تم تحديث الملف الشخصي بنجاح",
+    updateError: "فشل تحديث الملف الشخصي",
+    loadError: "فشل تحميل بيانات المستخدم"
   }
 };
 
@@ -153,54 +155,101 @@ const normalizeUserProfile = (user = {}) => {
 };
 
 const InfoPill = ({ label, value, icon: Icon }) => (
-  <div className="flex flex-col gap-1 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-    <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-      {Icon && <Icon className="h-3.5 w-3.5" />}
-      <span>{label}</span>
-    </div>
-    <p className="text-lg font-bold text-slate-900">{value}</p>
-  </div>
+  <Card className="border-slate-200 shadow-sm transition-shadow hover:shadow-md">
+    <CardContent className="p-5">
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-600 mb-2">
+        {Icon && <Icon className="h-4 w-4 text-blue-600" />}
+        <span>{label}</span>
+      </div>
+      <p className="text-2xl font-bold text-slate-900">{value}</p>
+    </CardContent>
+  </Card>
 );
 
-const SecurityItem = ({ title, status, actionLabel, icon: Icon, statusColor = "text-slate-500" }) => (
-  <div className="flex items-center justify-between py-4 border-b border-slate-100 last:border-0">
+InfoPill.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+  icon: PropTypes.elementType
+};
+
+const SecurityItem = ({ 
+  title, 
+  status, 
+  actionLabel, 
+  icon: Icon, 
+  statusColor = "text-slate-600",
+  onAction 
+}) => (
+  <div className="flex items-center justify-between py-5 border-b border-slate-100 last:border-0 transition-colors hover:bg-slate-50">
     <div className="flex items-center gap-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
-        <Icon className="h-5 w-5 text-slate-600" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+        <Icon className="h-6 w-6 text-blue-600" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className={`text-xs ${statusColor}`}>{status}</p>
+        <p className="text-sm font-semibold text-slate-900 mb-1">{title}</p>
+        <p className={`text-xs font-medium ${statusColor}`}>{status}</p>
       </div>
     </div>
-    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={onAction}
+      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+    >
       {actionLabel} <ChevronRight className="ml-1 h-4 w-4" />
     </Button>
   </div>
 );
 
+SecurityItem.propTypes = {
+  title: PropTypes.string.isRequired,
+  status: PropTypes.string.isRequired,
+  actionLabel: PropTypes.string.isRequired,
+  icon: PropTypes.elementType.isRequired,
+  statusColor: PropTypes.string,
+  onAction: PropTypes.func
+};
+
 const VoucherCard = ({ title, condition, expiry, status, available }) => (
-  <Card className={`overflow-hidden border-slate-200 ${!available ? 'opacity-60 grayscale' : ''}`}>
+  <Card 
+    className={`overflow-hidden border-slate-200 shadow-sm transition-all hover:shadow-md ${
+      !available ? 'opacity-50' : ''
+    }`}
+  >
     <div className="flex h-full">
-      <div className={`flex w-24 flex-col items-center justify-center gap-1 ${available ? 'bg-blue-600' : 'bg-slate-400'} text-white`}>
-        <Gift className="h-8 w-8" />
+      <div 
+        className={`flex w-28 flex-col items-center justify-center gap-2 ${
+          available ? 'bg-gradient-to-b from-blue-600 to-blue-700' : 'bg-slate-400'
+        } text-white`}
+      >
+        <Gift className="h-10 w-10" />
         <span className="text-[10px] font-bold uppercase tracking-wider">Voucher</span>
       </div>
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-start justify-between">
-          <h4 className="font-bold text-slate-900">{title}</h4>
-          <Badge variant={available ? "default" : "secondary"} className="text-[10px]">
-            {status}
-          </Badge>
+      <div className="flex flex-1 flex-col justify-between p-5">
+        <div>
+          <div className="flex items-start justify-between mb-2">
+            <h4 className="font-bold text-slate-900 text-base">{title}</h4>
+            <Badge 
+              variant={available ? "default" : "secondary"} 
+              className={`text-[10px] ${available ? 'bg-blue-600' : ''}`}
+            >
+              {status}
+            </Badge>
+          </div>
+          <p className="text-xs text-slate-600 mb-4">{condition}</p>
         </div>
-        <p className="mt-1 text-xs text-slate-500">{condition}</p>
-        <div className="mt-auto pt-4 flex items-center justify-between">
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-            <Clock className="h-3 w-3" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Clock className="h-3.5 w-3.5" />
             <span>Expires: {expiry}</span>
           </div>
           {available && (
-            <Button size="sm" className="h-7 px-3 text-[10px]">Use Now</Button>
+            <Button 
+              size="sm" 
+              className="h-8 px-4 text-xs bg-blue-600 hover:bg-blue-700"
+            >
+              Use Now
+            </Button>
           )}
         </div>
       </div>
@@ -208,7 +257,15 @@ const VoucherCard = ({ title, condition, expiry, status, available }) => (
   </Card>
 );
 
-export default function Profile({ language }) {
+VoucherCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  condition: PropTypes.string.isRequired,
+  expiry: PropTypes.string.isRequired,
+  status: PropTypes.string.isRequired,
+  available: PropTypes.bool.isRequired
+};
+
+export default function Profile({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -217,9 +274,11 @@ export default function Profile({ language }) {
   const [formState, setFormState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchCurrentUser();
       const normalized = normalizeUserProfile(data);
@@ -227,24 +286,28 @@ export default function Profile({ language }) {
       setFormState(normalized);
     } catch (err) {
       console.error("Failed to load user", err);
+      setError(t.loadError);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.loadError]);
 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: t.copySuccess,
-      duration: 2000
+  const handleCopy = useCallback((text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: t.copySuccess,
+        duration: 2000
+      });
+    }).catch((err) => {
+      console.error("Copy failed", err);
     });
-  };
+  }, [toast, t.copySuccess]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true);
     try {
       await updateCurrentUser({
@@ -252,28 +315,49 @@ export default function Profile({ language }) {
         bio: formState.bio
       });
       toast({
-        title: "Profile updated successfully"
+        title: t.updateSuccess,
+        duration: 2000
       });
     } catch (err) {
       toast({
         variant: "destructive",
-        title: "Update failed",
+        title: t.updateError,
         description: err.message
       });
     } finally {
       setSaving(false);
     }
-  };
+  }, [formState, toast, t.updateSuccess, t.updateError]);
+
+  const handleLogout = useCallback(() => {
+    base44.auth.logout();
+  }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
-        <div className="mx-auto max-w-6xl space-y-8">
-          <Skeleton className="h-32 w-full rounded-2xl" />
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-8">
+        <div className="mx-auto max-w-7xl space-y-8">
+          <Skeleton className="h-40 w-full rounded-2xl" />
           <div className="grid gap-8 lg:grid-cols-3">
-            <Skeleton className="h-96 lg:col-span-2 rounded-2xl" />
-            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-[500px] lg:col-span-2 rounded-2xl" />
+            <Skeleton className="h-[500px] rounded-2xl" />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-8">
+        <div className="mx-auto max-w-2xl">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={loadUser} className="mt-4">
+            <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+          </Button>
         </div>
       </div>
     );
@@ -282,99 +366,132 @@ export default function Profile({ language }) {
   if (!formState) return <UserNotRegisteredError />;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+    <div 
+      className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" 
+      dir={language === "ar" ? "rtl" : "ltr"}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* Header Section */}
-        <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <Avatar className="h-20 w-20 border-4 border-white shadow-sm">
-                <AvatarImage src={formState.avatarUrl} />
-                <AvatarFallback className="bg-blue-600 text-xl font-bold text-white">
-                  {formState.fullName?.charAt(0) || "U"}
+        <div className="mb-10 flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-6">
+            <div className="relative group">
+              <Avatar className="h-24 w-24 border-4 border-white shadow-lg ring-2 ring-blue-100 transition-all group-hover:ring-blue-200">
+                <AvatarImage src={formState.avatarUrl} alt={formState.fullName} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-blue-700 text-2xl font-bold text-white">
+                  {formState.fullName?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
-              <button className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-slate-600 hover:bg-slate-200">
-                <Upload className="h-3.5 w-3.5" />
+              <button 
+                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-lg transition-all hover:bg-blue-700 hover:scale-110"
+                aria-label="Upload avatar"
+              >
+                <Upload className="h-4 w-4" />
               </button>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">{formState.fullName || "User"}</h1>
-              <div className="mt-1 flex items-center gap-2">
-                <Badge variant="outline" className="bg-white text-[10px] font-mono">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                {formState.fullName || "User"}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="bg-slate-50 font-mono text-xs">
                   ID: {formState.uuid}
                 </Badge>
-                <Badge className={formState.verificationStatus === 'verified' ? 'bg-emerald-500' : 'bg-amber-500'}>
+                <Badge 
+                  className={
+                    formState.verificationStatus === 'verified' 
+                      ? 'bg-emerald-500 hover:bg-emerald-600' 
+                      : 'bg-amber-500 hover:bg-amber-600'
+                  }
+                >
                   {formState.verificationStatus === 'verified' ? t.verified : t.notVerified}
                 </Badge>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => loadUser()} className="bg-white">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={loadUser} 
+              className="bg-white border-slate-300 hover:bg-slate-50"
+            >
               <RefreshCw className="mr-2 h-4 w-4" /> {t.refresh}
             </Button>
-            <Button variant="destructive" size="sm" onClick={() => base44.auth.logout()}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogout}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
               <LogOut className="mr-2 h-4 w-4" /> {t.logout}
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="personal" className="space-y-8">
-          <TabsList className="h-auto w-full justify-start gap-8 border-b border-slate-200 bg-transparent p-0">
-            <TabsTrigger value="personal" className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-0 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600">
-              {t.personalInfo}
-            </TabsTrigger>
-            <TabsTrigger value="security" className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-0 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600">
-              {t.security}
-            </TabsTrigger>
-            <TabsTrigger value="referrals" className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-0 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600">
-              {t.referrals}
-            </TabsTrigger>
-            <TabsTrigger value="vouchers" className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-0 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600">
-              {t.vouchers}
-            </TabsTrigger>
-            <TabsTrigger value="trades" className="rounded-none border-b-2 border-transparent px-1 pb-4 pt-0 data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600">
-              {t.trades}
-            </TabsTrigger>
+          <TabsList className="h-auto w-full justify-start gap-1 border-b border-slate-200 bg-transparent p-0">
+            {[
+              { value: "personal", label: t.personalInfo },
+              { value: "security", label: t.security },
+              { value: "referrals", label: t.referrals },
+              { value: "vouchers", label: t.vouchers },
+              { value: "trades", label: t.trades }
+            ].map((tab) => (
+              <TabsTrigger 
+                key={tab.value}
+                value={tab.value} 
+                className="rounded-none border-b-2 border-transparent px-4 pb-4 pt-0 font-semibold transition-all data-[state=active]:border-blue-600 data-[state=active]:bg-transparent data-[state=active]:text-blue-600 hover:text-blue-600"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Personal Information */}
           <TabsContent value="personal" className="space-y-6">
             <div className="grid gap-8 lg:grid-cols-3">
               <Card className="lg:col-span-2 border-slate-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">{t.personalInfo}</CardTitle>
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-xl">{t.personalInfo}</CardTitle>
                   <CardDescription>Update your public profile information.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+                <CardContent className="space-y-6 p-6">
+                  <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>{t.uuidLabel}</Label>
-                      <Input value={formState.uuid} readOnly className="bg-slate-50 font-mono text-xs" />
+                      <Label className="text-sm font-semibold text-slate-700">{t.uuidLabel}</Label>
+                      <Input 
+                        value={formState.uuid} 
+                        readOnly 
+                        className="bg-slate-50 font-mono text-sm border-slate-300" 
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label>{t.displayNameLabel}</Label>
+                      <Label className="text-sm font-semibold text-slate-700">{t.displayNameLabel}</Label>
                       <Input 
                         value={formState.fullName} 
                         onChange={(e) => setFormState({...formState, fullName: e.target.value})}
                         placeholder="Your display name" 
+                        className="border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>{t.bioLabel}</Label>
+                    <Label className="text-sm font-semibold text-slate-700">{t.bioLabel}</Label>
                     <Textarea 
                       value={formState.bio} 
                       onChange={(e) => setFormState({...formState, bio: e.target.value})}
                       placeholder="Tell us a bit about your trading style..." 
-                      className="min-h-[120px]"
+                      className="min-h-[140px] border-slate-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
                 </CardContent>
-                <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-4">
-                  <Button onClick={handleSave} disabled={saving}>
+                <CardFooter className="border-t border-slate-100 bg-slate-50/50 py-5">
+                  <Button 
+                    onClick={handleSave} 
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
                     {saving ? t.saving : t.saveChanges}
                   </Button>
                 </CardFooter>
@@ -382,12 +499,21 @@ export default function Profile({ language }) {
               
               <div className="space-y-6">
                 <Card className="border-slate-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{t.support}</CardTitle>
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <LifeBuoy className="h-5 w-5 text-blue-600" />
+                      {t.support}
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-slate-500">Need help with your account? Our team is available 24/7.</p>
-                    <Button variant="outline" className="w-full" onClick={() => navigate(createPageUrl("Contact"))}>
+                  <CardContent className="space-y-4 p-6">
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Need help with your account? Our team is available 24/7 to assist you.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700" 
+                      onClick={() => navigate(createPageUrl("Contact"))}
+                    >
                       <LifeBuoy className="mr-2 h-4 w-4" /> {t.support}
                     </Button>
                   </CardContent>
@@ -400,46 +526,53 @@ export default function Profile({ language }) {
           <TabsContent value="security" className="space-y-6">
             <div className="grid gap-8 lg:grid-cols-3">
               <Card className="lg:col-span-2 border-slate-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">{t.security}</CardTitle>
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-xl">{t.security}</CardTitle>
                   <CardDescription>Manage your account security and verification status.</CardDescription>
                 </CardHeader>
-                <CardContent className="divide-y divide-slate-100">
+                <CardContent className="divide-y divide-slate-100 p-6">
                   <SecurityItem 
                     title={t.verificationStatus} 
                     status={formState.verificationStatus === 'verified' ? t.verified : t.notVerified}
                     statusColor={formState.verificationStatus === 'verified' ? "text-emerald-600" : "text-amber-600"}
                     actionLabel="Verify Now"
                     icon={ShieldCheck}
+                    onAction={() => console.log("Verify clicked")}
                   />
                   <SecurityItem 
                     title={t.passwordLabel} 
                     status="Last changed 3 months ago"
-                    actionLabel="Update"
+                    actionLabel={t.managePassword}
                     icon={Lock}
+                    onAction={() => console.log("Password clicked")}
                   />
                   <SecurityItem 
                     title={t.twoFactor} 
                     status={formState.twoFactorEnabled ? "Enabled" : "Disabled"}
-                    statusColor={formState.twoFactorEnabled ? "text-emerald-600" : "text-slate-500"}
+                    statusColor={formState.twoFactorEnabled ? "text-emerald-600" : "text-slate-600"}
                     actionLabel="Setup"
                     icon={ShieldCheck}
+                    onAction={() => console.log("2FA clicked")}
                   />
                 </CardContent>
               </Card>
 
               <Card className="border-slate-200 shadow-sm">
-                <CardHeader>
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg">{t.loginActivity}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-start gap-3 text-xs">
-                      <div className="mt-0.5 h-2 w-2 rounded-full bg-emerald-500" />
-                      <div>
-                        <p className="font-semibold text-slate-900">Chrome on Windows</p>
-                        <p className="text-slate-500">Dubai, UAE • 192.168.1.{i}</p>
-                        <p className="text-slate-400">2 hours ago</p>
+                <CardContent className="space-y-5 p-6">
+                  {[
+                    { browser: "Chrome on Windows", location: "Dubai, UAE", ip: "192.168.1.1", time: "2 hours ago" },
+                    { browser: "Safari on iPhone", location: "Dubai, UAE", ip: "192.168.1.2", time: "1 day ago" },
+                    { browser: "Firefox on Mac", location: "Abu Dhabi, UAE", ip: "192.168.1.3", time: "3 days ago" }
+                  ].map((activity, i) => (
+                    <div key={i} className="flex items-start gap-3 pb-5 border-b border-slate-100 last:border-0 last:pb-0">
+                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-slate-900">{activity.browser}</p>
+                        <p className="text-slate-600 mt-0.5">{activity.location} • {activity.ip}</p>
+                        <p className="text-slate-400 text-xs mt-0.5">{activity.time}</p>
                       </div>
                     </div>
                   ))}
@@ -450,7 +583,7 @@ export default function Profile({ language }) {
 
           {/* Refer & Earn */}
           <TabsContent value="referrals" className="space-y-8">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <InfoPill label={t.todayReferrals} value="0" icon={User} />
               <InfoPill label={t.monthReferrals} value="12" icon={User} />
               <InfoPill label={t.yesterdayCommission} value="$0.00" icon={TrendingUp} />
@@ -459,43 +592,64 @@ export default function Profile({ language }) {
 
             <div className="grid gap-8 lg:grid-cols-3">
               <Card className="lg:col-span-2 border-slate-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Referral Program</CardTitle>
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                  <CardTitle className="text-xl">Referral Program</CardTitle>
                   <CardDescription>Invite your friends and earn up to 40% commission on every trade they make.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 p-6">
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>{t.referralCode}</Label>
+                      <Label className="text-sm font-semibold text-slate-700">{t.referralCode}</Label>
                       <div className="flex gap-2">
-                        <Input value={formState.referralCode} readOnly className="font-mono font-bold" />
-                        <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralCode)}>
+                        <Input 
+                          value={formState.referralCode} 
+                          readOnly 
+                          className="font-mono font-bold text-lg bg-slate-50 border-slate-300" 
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => handleCopy(formState.referralCode)}
+                          className="flex-shrink-0 border-slate-300 hover:bg-blue-50 hover:text-blue-600"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>{t.referralLink}</Label>
+                      <Label className="text-sm font-semibold text-slate-700">{t.referralLink}</Label>
                       <div className="flex gap-2">
-                        <Input value={formState.referralLink} readOnly className="text-xs" />
-                        <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralLink)}>
+                        <Input 
+                          value={formState.referralLink} 
+                          readOnly 
+                          className="text-xs bg-slate-50 border-slate-300" 
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => handleCopy(formState.referralLink)}
+                          className="flex-shrink-0 border-slate-300 hover:bg-blue-50 hover:text-blue-600"
+                        >
                           <Copy className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                    <h4 className="text-sm font-bold text-blue-900">How it works</h4>
-                    <ul className="mt-2 space-y-2 text-xs text-blue-800">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3" /> Share your referral link with friends
+                  <div className="rounded-xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 p-6">
+                    <h4 className="text-base font-bold text-blue-900 mb-4">How it works</h4>
+                    <ul className="space-y-3 text-sm text-blue-800">
+                      <li className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" /> 
+                        Share your referral link with friends
                       </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3" /> They sign up and start trading
+                      <li className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" /> 
+                        They sign up and start trading
                       </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3" /> You receive instant commission on every trade
+                      <li className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" /> 
+                        You receive instant commission on every trade
                       </li>
                     </ul>
                   </div>
@@ -503,24 +657,34 @@ export default function Profile({ language }) {
               </Card>
 
               <Card className="border-slate-200 shadow-sm">
-                <CardHeader>
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50">
                   <CardTitle className="text-lg">Recent Referrals</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
+                <CardContent className="p-6">
+                  <div className="space-y-5">
                     {[
-                      { id: "USR-9281", date: "2023-12-28", status: "Active", reward: "$12.40" },
-                      { id: "USR-4412", date: "2023-12-25", status: "Active", reward: "$8.15" },
-                      { id: "USR-1092", date: "2023-12-20", status: "Inactive", reward: "$0.00" }
+                      { id: "USR-9281", date: "Dec 28, 2023", status: "Active", reward: "$12.40" },
+                      { id: "USR-4412", date: "Dec 25, 2023", status: "Active", reward: "$8.15" },
+                      { id: "USR-1092", date: "Dec 20, 2023", status: "Inactive", reward: "$0.00" }
                     ].map((ref) => (
-                      <div key={ref.id} className="flex items-center justify-between border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                      <div 
+                        key={ref.id} 
+                        className="flex items-center justify-between pb-5 border-b border-slate-100 last:border-0 last:pb-0"
+                      >
                         <div>
                           <p className="text-sm font-semibold text-slate-900">{ref.id}</p>
-                          <p className="text-[10px] text-slate-400">{ref.date}</p>
+                          <p className="text-xs text-slate-500 mt-1">{ref.date}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-emerald-600">{ref.reward}</p>
-                          <Badge variant="outline" className="h-4 text-[8px] uppercase">{ref.status}</Badge>
+                          <p className="text-sm font-bold text-emerald-600 mb-1">{ref.reward}</p>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[10px] uppercase ${
+                              ref.status === 'Active' ? 'border-emerald-200 text-emerald-700' : 'border-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {ref.status}
+                          </Badge>
                         </div>
                       </div>
                     ))}
@@ -533,29 +697,33 @@ export default function Profile({ language }) {
           {/* Vouchers */}
           <TabsContent value="vouchers" className="space-y-6">
             <Tabs defaultValue="available" className="w-full">
-              <TabsList className="mb-6 bg-slate-100 p-1">
-                <TabsTrigger value="available" className="px-8">{t.available}</TabsTrigger>
-                <TabsTrigger value="unavailable" className="px-8">{t.unavailable}</TabsTrigger>
+              <TabsList className="mb-8 bg-slate-100 p-1 border border-slate-200">
+                <TabsTrigger value="available" className="px-10 data-[state=active]:bg-white data-[state=active]:text-blue-600">
+                  {t.available}
+                </TabsTrigger>
+                <TabsTrigger value="unavailable" className="px-10 data-[state=active]:bg-white data-[state=active]:text-blue-600">
+                  {t.unavailable}
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="available" className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 <VoucherCard 
                   title="$50 Trading Bonus" 
                   condition="Min. deposit $500" 
-                  expiry="2024-02-15" 
+                  expiry="Feb 15, 2024" 
                   status="Active" 
                   available={true} 
                 />
                 <VoucherCard 
                   title="Zero Fee Trade" 
                   condition="Valid for first 5 trades" 
-                  expiry="2024-01-30" 
+                  expiry="Jan 30, 2024" 
                   status="New" 
                   available={true} 
                 />
                 <VoucherCard 
                   title="10% Rebate" 
                   condition="On all crypto pairs" 
-                  expiry="2024-03-01" 
+                  expiry="Mar 1, 2024" 
                   status="Active" 
                   available={true} 
                 />
@@ -564,14 +732,14 @@ export default function Profile({ language }) {
                 <VoucherCard 
                   title="$10 Welcome Bonus" 
                   condition="New user registration" 
-                  expiry="2023-12-01" 
+                  expiry="Dec 1, 2023" 
                   status="Expired" 
                   available={false} 
                 />
                 <VoucherCard 
                   title="VIP Upgrade" 
                   condition="Trade volume > $1M" 
-                  expiry="2023-11-15" 
+                  expiry="Nov 15, 2023" 
                   status="Used" 
                   available={false} 
                 />
@@ -582,57 +750,69 @@ export default function Profile({ language }) {
           {/* My Trades */}
           <TabsContent value="trades" className="space-y-6">
             <Card className="border-slate-200 shadow-sm overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100 bg-slate-50/50">
                 <div>
-                  <CardTitle className="text-lg">{t.trades}</CardTitle>
+                  <CardTitle className="text-xl">{t.trades}</CardTitle>
                   <CardDescription>Your recent trading history and performance.</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="border-slate-300 hover:bg-slate-50">
                   <ExternalLink className="mr-2 h-4 w-4" /> Export CSV
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead className="font-bold">{t.symbol}</TableHead>
-                      <TableHead className="font-bold">{t.side}</TableHead>
-                      <TableHead className="font-bold">{t.size}</TableHead>
-                      <TableHead className="font-bold">{t.entryExit}</TableHead>
-                      <TableHead className="font-bold">{t.pnl}</TableHead>
-                      <TableHead className="text-right font-bold">{t.date}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[
-                      { symbol: "BTC/USDT", side: "Buy", size: "0.45", entry: "42,150.00", exit: "43,200.00", pnl: "+$472.50", status: "profit", date: "2023-12-30 14:22" },
-                      { symbol: "ETH/USDT", side: "Sell", size: "2.50", entry: "2,240.50", exit: "2,210.00", pnl: "+$76.25", status: "profit", date: "2023-12-29 09:15" },
-                      { symbol: "SOL/USDT", side: "Buy", size: "150.00", entry: "105.20", exit: "102.40", pnl: "-$420.00", status: "loss", date: "2023-12-28 18:40" },
-                      { symbol: "BTC/USDT", side: "Sell", size: "0.12", entry: "44,100.00", exit: "43,850.00", pnl: "+$30.00", status: "profit", date: "2023-12-27 11:05" },
-                      { symbol: "BNB/USDT", side: "Buy", size: "25.00", entry: "312.40", exit: "315.20", pnl: "+$70.00", status: "profit", date: "2023-12-26 16:30" }
-                    ].map((trade, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-bold">{trade.symbol}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={trade.side === 'Buy' ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : 'text-rose-600 border-rose-200 bg-rose-50'}>
-                            {trade.side}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{trade.size}</TableCell>
-                        <TableCell className="text-xs text-slate-500">
-                          {trade.entry} → {trade.exit}
-                        </TableCell>
-                        <TableCell className={`font-bold ${trade.status === 'profit' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          <div className="flex items-center gap-1">
-                            {trade.status === 'profit' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                            {trade.pnl}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right text-xs text-slate-400">{trade.date}</TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="font-bold text-slate-700">{t.symbol}</TableHead>
+                        <TableHead className="font-bold text-slate-700">{t.side}</TableHead>
+                        <TableHead className="font-bold text-slate-700">{t.size}</TableHead>
+                        <TableHead className="font-bold text-slate-700">{t.entryExit}</TableHead>
+                        <TableHead className="font-bold text-slate-700">{t.pnl}</TableHead>
+                        <TableHead className="text-right font-bold text-slate-700">{t.date}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {[
+                        { symbol: "BTC/USDT", side: "Buy", size: "0.45", entry: "42,150.00", exit: "43,200.00", pnl: "+$472.50", status: "profit", date: "Dec 30, 2023 14:22" },
+                        { symbol: "ETH/USDT", side: "Sell", size: "2.50", entry: "2,240.50", exit: "2,210.00", pnl: "+$76.25", status: "profit", date: "Dec 29, 2023 09:15" },
+                        { symbol: "SOL/USDT", side: "Buy", size: "150.00", entry: "105.20", exit: "102.40", pnl: "-$420.00", status: "loss", date: "Dec 28, 2023 18:40" },
+                        { symbol: "BTC/USDT", side: "Sell", size: "0.12", entry: "44,100.00", exit: "43,850.00", pnl: "+$30.00", status: "profit", date: "Dec 27, 2023 11:05" },
+                        { symbol: "BNB/USDT", side: "Buy", size: "25.00", entry: "312.40", exit: "315.20", pnl: "+$70.00", status: "profit", date: "Dec 26, 2023 16:30" }
+                      ].map((trade, i) => (
+                        <TableRow key={i} className="hover:bg-slate-50 transition-colors">
+                          <TableCell className="font-bold text-slate-900">{trade.symbol}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                trade.side === 'Buy' 
+                                  ? 'text-emerald-700 border-emerald-300 bg-emerald-50 font-semibold' 
+                                  : 'text-rose-700 border-rose-300 bg-rose-50 font-semibold'
+                              }
+                            >
+                              {trade.side}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-700">{trade.size}</TableCell>
+                          <TableCell className="text-xs text-slate-600">
+                            {trade.entry} → {trade.exit}
+                          </TableCell>
+                          <TableCell className={`font-bold ${trade.status === 'profit' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <div className="flex items-center gap-2">
+                              {trade.status === 'profit' 
+                                ? <TrendingUp className="h-4 w-4" /> 
+                                : <TrendingDown className="h-4 w-4" />
+                              }
+                              {trade.pnl}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-slate-500">{trade.date}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -643,5 +823,5 @@ export default function Profile({ language }) {
 }
 
 Profile.propTypes = {
-  language: PropTypes.oneOf(["en", "ar"]).isRequired
+  language: PropTypes.oneOf(["en", "ar"])
 };
