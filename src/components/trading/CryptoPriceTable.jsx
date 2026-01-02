@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Activity } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const CRYPTO_SYMBOLS = [
-  { symbol: "BTC-USD", name: "Bitcoin" },
-  { symbol: "ETH-USD", name: "Ethereum" },
-  { symbol: "SOL-USD", name: "Solana" },
-  { symbol: "BNB-USD", name: "Binance Coin" },
-  { symbol: "XRP-USD", name: "XRP" },
-  { symbol: "ADA-USD", name: "Cardano" }
+  { display: "BTC-USD", name: "Bitcoin", binance: "btcusdt" },
+  { display: "ETH-USD", name: "Ethereum", binance: "ethusdt" },
+  { display: "SOL-USD", name: "Solana", binance: "solusdt" },
+  { display: "BNB-USD", name: "Binance Coin", binance: "bnbusdt" },
+  { display: "XRP-USD", name: "XRP", binance: "xrpusdt" },
+  { display: "ADA-USD", name: "Cardano", binance: "adausdt" }
 ];
 
 export default function CryptoPriceTable({ language = "en" }) {
@@ -18,67 +17,52 @@ export default function CryptoPriceTable({ language = "en" }) {
   const ws = useRef(null);
 
   useEffect(() => {
+    const streams = CRYPTO_SYMBOLS.map(s => `${s.binance}@ticker`).join('/');
+    const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+
     const connectWS = () => {
-      // Correct Massive WebSocket URL
-      ws.current = new WebSocket("wss://socket.massive.com/crypto");
+      ws.current = new WebSocket(url);
 
       ws.current.onopen = () => {
-        console.log("WebSocket Connected");
-        // Massive requires authentication first, but for public data or if key is pre-configured in proxy
-        // Based on docs, we need to send auth then subscribe
-        // Since I don't have the API key, I'll assume the environment handles it or use the public pattern
-        const authMsg = { action: "auth", params: "YOUR_API_KEY" }; // This usually comes from env
-        ws.current.send(JSON.stringify(authMsg));
+        console.log("Binance WS Connected");
+        setConnected(true);
       };
 
       ws.current.onmessage = (event) => {
-        const messages = JSON.parse(event.data);
-        
-        // Massive returns an array of messages
-        messages.forEach(data => {
-          if (data.ev === "status" && data.status === "auth_success") {
-            setConnected(true);
-            // Subscribe to symbols using XAS prefix for per-second aggregates
-            const subscribeMsg = {
-              action: "subscribe",
-              params: CRYPTO_SYMBOLS.map(s => `XAS.${s.symbol}`).join(",")
-            };
-            ws.current.send(JSON.stringify(subscribeMsg));
-          }
+        const msg = JSON.parse(event.data);
+        if (msg.stream && msg.data) {
+          const binanceSymbol = msg.stream.split('@')[0].toUpperCase();
+          const displaySymbol = binanceSymbol.replace('USDT', '-USD');
+          const d = msg.data;
 
-          if (data.ev === "XAS") {
-            setPrices(prev => ({
-              ...prev,
-              [data.pair]: {
-                price: data.c,
-                open: data.o,
-                change: data.c - data.o,
-                changePercent: ((data.c - data.o) / data.o) * 100,
-                timestamp: data.s
-              }
-            }));
-          }
-        });
+          setPrices(prev => ({
+            ...prev,
+            [displaySymbol]: {
+              price: parseFloat(d.c),
+              open: parseFloat(d.o),
+              change: parseFloat(d.p),
+              changePercent: parseFloat(d.P),
+              timestamp: d.E
+            }
+          }));
+        }
       };
 
       ws.current.onclose = () => {
         setConnected(false);
-        console.log("WebSocket Disconnected, retrying...");
-        setTimeout(connectWS, 5000);
+        console.log("Binance WS Disconnected – reconnecting...");
+        setTimeout(connectWS, 3000);
       };
 
       ws.current.onerror = (err) => {
-        console.error("WebSocket error:", err);
-        ws.current.close();
+        console.error("Binance WS error:", err);
       };
     };
 
     connectWS();
 
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
+      if (ws.current) ws.current.close();
     };
   }, []);
 
@@ -88,7 +72,7 @@ export default function CryptoPriceTable({ language = "en" }) {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: price < 1 ? 6 : 2
     }).format(price);
   };
 
@@ -127,23 +111,23 @@ export default function CryptoPriceTable({ language = "en" }) {
               <tr className="text-left bg-slate-50/50">
                 <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider">{language === "ar" ? "العملة" : "Asset"}</th>
                 <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider text-right">{language === "ar" ? "السعر" : "Price"}</th>
-                <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider text-right">{language === "ar" ? "التغيير" : "24h Change"}</th>
+                <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider text-right">{language === "ar" ? "التغيير 24س" : "24h Change"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {CRYPTO_SYMBOLS.map((crypto) => {
-                const data = prices[crypto.symbol];
-                const isPositive = data?.change >= 0;
+                const data = prices[crypto.display];
+                const isPositive = data?.changePercent >= 0;
 
                 return (
-                  <tr key={crypto.symbol} className="group hover:bg-blue-50/30 transition-all duration-300">
+                  <tr key={crypto.display} className="group hover:bg-blue-50/30 transition-all duration-300">
                     <td className="py-5 px-6">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-                          {crypto.symbol.split("-")[0][0]}
+                          {crypto.display.split("-")[0][0]}
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{crypto.symbol.split("-")[0]}</div>
+                          <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{crypto.display.split("-")[0]}</div>
                           <div className="text-xs text-gray-500 font-medium">{crypto.name}</div>
                         </div>
                       </div>
@@ -168,7 +152,7 @@ export default function CryptoPriceTable({ language = "en" }) {
 
         <div className="p-4 bg-slate-50/50 text-center">
           <p className="text-[9px] text-gray-400 uppercase tracking-[0.2em] font-bold">
-            {language === "ar" ? "بيانات مشفرة فورية عبر Massive API" : "Institutional Grade Data via Massive API"}
+            {language === "ar" ? "بيانات فورية عبر Binance WebSocket" : "Real-time Data via Binance WebSocket"}
           </p>
         </div>
       </CardContent>
