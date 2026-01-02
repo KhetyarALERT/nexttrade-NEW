@@ -24,7 +24,11 @@ import {
   Wallet,
   Bot,
   Activity,
-  TrendingDown
+  TrendingDown,
+  Lock,
+  ArrowUpRight,
+  RefreshCw,
+  ChevronRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import AITradingChat from "../components/home/AITradingChat";
@@ -36,10 +40,19 @@ export default function Home({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        title: "Trade Crypto Smarter with NextTrade",
-        subtitle: "Access real-time crypto markets with intelligent AI-powered automation",
-        cta1: "Open Live Account",
-        cta2: "Try Demo Account"
+        title: "Trade Smarter with AI Agent & Withdraw Anytime",
+        subtitle: "The only platform where you have 100% control over your assets. No hidden holds, no withdrawal delays.",
+        cta1: "Start Trading Now",
+        cta2: "View Live Markets"
+      },
+      withdrawal: {
+        title: "Your Assets, Your Control",
+        subtitle: "Unlike other platforms that hold your funds hostage, NextTrade ensures instant liquidity. Deposit and withdraw 24/7 with official network fees.",
+        features: [
+          { title: "Non-Custodial Feel", desc: "We handle the security, you handle the keys. Your assets are never locked." },
+          { title: "Instant Liquidity", desc: "Withdraw USDT, BTC, or ETH instantly to any wallet. No manual approvals." },
+          { title: "Fair Fees", desc: "Only pay official blockchain network fees. No hidden platform markups." }
+        ]
       },
       stats: [
         { value: "24/7", label: "Crypto Trading" },
@@ -111,10 +124,19 @@ export default function Home({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "تداول العملات الرقمية بذكاء مع NextTrade",
-        subtitle: "احصل على وصول فوري لأسواق العملات الرقمية مع أتمتة ذكية مدعومة بالذكاء الاصطناعي",
-        cta1: "فتح حساب حقيقي",
-        cta2: "تجربة حساب تجريبي"
+        title: "تداول بذكاء مع مساعد الذكاء الاصطناعي واسحب في أي وقت",
+        subtitle: "المنصة الوحيدة التي تمنحك تحكماً كاملاً بنسبة 100٪ في أصولك. لا حجز للأموال، ولا تأخير في السحب.",
+        cta1: "ابدأ التداول الآن",
+        cta2: "عرض الأسواق المباشرة"
+      },
+      withdrawal: {
+        title: "أصولك، تحت تحكمك",
+        subtitle: "على عكس المنصات الأخرى التي تحتجز أموالك، تضمن NextTrade سيولة فورية. أودع واسحب على مدار الساعة طوال أيام الأسبوع برسوم الشبكة الرسمية.",
+        features: [
+          { title: "تحكم كامل", desc: "نحن نتولى الأمان، وأنت تتحكم في الأصول. أصولك لا تُقفل أبداً." },
+          { title: "سيولة فورية", desc: "اسحب USDT أو BTC أو ETH فوراً إلى أي محفظة. لا موافقات يدوية." },
+          { title: "رسوم عادلة", desc: "ادفع فقط رسوم شبكة البلوكشين الرسمية. لا رسوم إضافية مخفية." }
+        ]
       },
       stats: [
         { value: "24/7", label: "تداول العملات الرقمية" },
@@ -221,32 +243,41 @@ export default function Home({ language = "en" }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}>
 
+              {/* Credibility Badges */}
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-wrap gap-3 mb-8"
+              >
+                <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Shield className="w-3.5 h-3.5" />
+                  {language === "en" ? "Verified Security" : "أمان موثق"}
+                </Badge>
+                <Badge className="bg-green-500/10 text-green-400 border-green-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5" />
+                  {language === "en" ? "Instant Liquidity" : "سيولة فورية"}
+                </Badge>
+                <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Bot className="w-3.5 h-3.5" />
+                  {language === "en" ? "AI Powered" : "مدعوم بالذكاء الاصطناعي"}
+                </Badge>
+              </motion.div>
+
               {/* Animated Hero Title */}
               <motion.h1
                 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}>
-
-                {t.hero.title.split(' ').map((word, idx) =>
-                  <motion.span
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 + idx * 0.1 }}
-                    className="inline-block mr-3">
-
-                    {word}
-                  </motion.span>
-                )}
+                {t.hero.title}
               </motion.h1>
 
               <motion.p
-                className="text-xl md:text-2xl text-gray-300 mb-8"
+                className="text-xl md:text-2xl text-gray-300 mb-8 max-w-xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.8 }}>
-
                 {t.hero.subtitle}
               </motion.p>
 
@@ -258,14 +289,17 @@ export default function Home({ language = "en" }) {
 
                 <Button
                   size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-6 text-lg font-semibold shadow-xl shadow-blue-500/20 hover:scale-105 transition-all"
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
                   asChild>
-                  <Link to={createPageUrl("Contact")}>{t.hero.cta1}</Link>
+                  <Link to={createPageUrl("Contact")}>
+                    {t.hero.cta1}
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 rounded-full px-8 py-6 text-lg font-semibold backdrop-blur-sm hover:scale-105 transition-all"
+                  className="border-white/20 text-white hover:bg-white/10 rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
                   asChild>
                   <Link to={createPageUrl("Contact")}>{t.hero.cta2}</Link>
                 </Button>
@@ -280,7 +314,7 @@ export default function Home({ language = "en" }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 1.4 + idx * 0.1 }}>
                     <div className="text-2xl font-bold text-white">{stat.value}</div>
-                    <div className="text-sm text-gray-400">{stat.label}</div>
+                    <div className="text-sm text-gray-400 font-medium">{stat.label}</div>
                   </motion.div>
                 )}
               </div>
@@ -301,8 +335,193 @@ export default function Home({ language = "en" }) {
         </div>
       </section>
 
+      {/* Instant Withdrawal & Asset Control Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+            >
+              <Badge className="mb-4 bg-blue-50 text-blue-600 border-blue-100 px-4 py-1.5 text-sm font-bold">
+                {language === "en" ? "Unmatched Liquidity" : "سيولة لا مثيل لها"}
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900 leading-tight">
+                {t.withdrawal.title}
+              </h2>
+              <p className="text-xl text-slate-600 mb-10 leading-relaxed">
+                {t.withdrawal.subtitle}
+              </p>
+              
+              <div className="space-y-8">
+                {t.withdrawal.features.map((feature, idx) => (
+                  <div key={idx} className="flex gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      {idx === 0 ? <Lock className="w-6 h-6 text-blue-600" /> : 
+                       idx === 1 ? <Zap className="w-6 h-6 text-blue-600" /> : 
+                       <DollarSign className="w-6 h-6 text-blue-600" />}
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-slate-900 mb-2">{feature.title}</h4>
+                      <p className="text-slate-600">{feature.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              {/* Visual Demo of Withdrawal */}
+              <Card className="border-0 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] bg-slate-900 text-white overflow-hidden rounded-[2rem]">
+                <CardContent className="p-0">
+                  <div className="p-8 border-b border-white/5 bg-white/5">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                        </div>
+                        <span className="font-bold text-lg tracking-tight">Withdrawal Portal</span>
+                      </div>
+                      <Badge variant="outline" className="border-white/20 text-white/60">Mainnet</Badge>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-white/60 text-sm font-medium">Asset to Withdraw</span>
+                          <span className="text-xs text-blue-400 font-bold">Balance: 12,450.00 USDT</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center font-bold text-xs">T</div>
+                            <span className="font-bold text-xl">USDT</span>
+                          </div>
+                          <span className="text-2xl font-bold tabular-nums">5,000.00</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                        <span className="text-white/60 text-sm font-medium block mb-4">Destination Wallet</span>
+                        <div className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5">
+                          <span className="text-xs font-mono text-white/40 truncate max-w-[200px]">0x71C7656EC7ab88b098defB751B7401B5f6d8976F</span>
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        </div>
+                      </div>
+
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-8 rounded-2xl text-lg font-bold shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3">
+                        Confirm Instant Withdrawal
+                        <ArrowUpRight className="w-5 h-5" />
+                      </Button>
+                      
+                      <div className="flex items-center justify-center gap-6 text-[11px] text-white/40 font-bold uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-3 h-3" />
+                          Processing: ~30s
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-3 h-3" />
+                          Network Fee: $1.20
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Floating Success Badge */}
+              <motion.div 
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="absolute -bottom-6 -right-6 bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-slate-900 font-bold">Withdrawal Success</div>
+                  <div className="text-slate-500 text-sm font-medium">5,000 USDT Sent</div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Crypto Markets Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">
+              {language === "en" ? "Real-Time Market Pulse" : "نبض السوق المباشر"}
+            </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              {language === "en" ? "Institutional-grade data streaming directly from global exchanges." : "بيانات بمستوى مؤسسي تتدفق مباشرة من البورصات العالمية."}
+            </p>
+          </div>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Side - Crypto Image */}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative">
+
+              <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/ac624df0c_f51701e3-dbf6-4070-88f9-c4844c0a676e.png"
+                  alt="Crypto Trading"
+                  className="w-full h-auto" />
+
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
+
+                {/* Floating Badge */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="absolute bottom-8 left-8 right-8">
+
+                  <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-3xl font-bold text-slate-900">BTC/USD</div>
+                        <div className="text-sm text-slate-500 font-bold mt-1">
+                          {language === "ar" ? "تداول البيتكوين مع فروقات منخفضة" : "Trade Bitcoin with Low Spreads"}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-green-600">$96,654.32</div>
+                        <div className="text-sm text-green-600 flex items-center gap-1 justify-end font-bold">
+                          <TrendingUp className="w-4 h-4" />
+                          +2.45%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+
+            {/* Right Side - Real-time Crypto Table */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}>
+              <CryptoPriceTable language={language} />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Exclusive Offers Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50 relative overflow-hidden">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-blue-100 text-blue-600 hover:bg-blue-100 border-0 px-4 py-1">
@@ -327,7 +546,7 @@ export default function Home({ language = "en" }) {
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}>
 
-                  <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 group bg-white overflow-hidden">
+                  <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 group bg-white overflow-hidden rounded-3xl">
                     <div className={`h-2 bg-gradient-to-r ${offer.color}`} />
                     <CardContent className="p-8">
                       <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${offer.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
@@ -352,7 +571,7 @@ export default function Home({ language = "en" }) {
             viewport={{ once: true }}
             className="mt-20">
 
-            <div className="grid lg:grid-cols-2 gap-12 items-center bg-white rounded-[2.5rem] p-8 md:p-16 shadow-2xl border border-slate-100">
+            <div className="grid lg:grid-cols-2 gap-12 items-center bg-slate-50 rounded-[3rem] p-8 md:p-16 shadow-2xl border border-slate-100">
               <div>
                 <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
                   {language === "en" ? "Why wait? Start your journey today" : "لماذا الانتظار؟ ابدأ رحلتك اليوم"}
@@ -387,7 +606,7 @@ export default function Home({ language = "en" }) {
 
               <div className="relative">
                 <div className="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full" />
-                <Card className="relative border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-white overflow-hidden">
+                <Card className="relative border-0 shadow-2xl bg-white overflow-hidden rounded-[2rem]">
                   <CardContent className="p-8">
                     <div className="space-y-6">
                       <div className="flex items-center justify-between pb-4 border-b border-blue-100">
@@ -451,7 +670,7 @@ export default function Home({ language = "en" }) {
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}>
 
-                  <Card className="h-full hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 bg-white shadow-lg">
+                  <Card className="h-full hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 bg-white shadow-lg rounded-3xl">
                     <CardContent className="p-6">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-4 shadow-lg">
                         <Icon className="w-7 h-7 text-white" />
@@ -469,67 +688,8 @@ export default function Home({ language = "en" }) {
         </div>
       </section>
 
-      {/* Live Crypto Markets Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-blue-50 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Crypto Image */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative">
-
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/ac624df0c_f51701e3-dbf6-4070-88f9-c4844c0a676e.png"
-                  alt="Crypto Trading"
-                  className="w-full h-auto" />
-
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
-
-                {/* Floating Badge */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute bottom-8 left-8 right-8">
-
-                  <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-3xl font-bold text-gray-900">BTC/USD</div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {language === "ar" ? "تداول البيتكوين مع فروقات منخفضة" : "Trade Bitcoin with Low Spreads"}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-500">$96,654.32</div>
-                        <div className="text-sm text-green-500 flex items-center gap-1 justify-end">
-                          <TrendingUp className="w-4 h-4" />
-                          +2.45%
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-
-            {/* Right Side - Real-time Crypto Table */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}>
-              <CryptoPriceTable language={language} />
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* Why Choose Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
@@ -563,7 +723,7 @@ export default function Home({ language = "en" }) {
               <img
                 src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/960fe71f0_c32b0808-8445-4776-a5ac-79a60d1d694a.png"
                 alt="AI Trading Platform"
-                className="relative rounded-3xl shadow-2xl border border-slate-100" />
+                className="relative rounded-[2.5rem] shadow-2xl border border-slate-100" />
             </motion.div>
           </div>
         </div>

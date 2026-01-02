@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Activity, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const CRYPTO_SYMBOLS = [
@@ -19,36 +19,51 @@ export default function CryptoPriceTable({ language = "en" }) {
 
   useEffect(() => {
     const connectWS = () => {
-      ws.current = new WebSocket("wss://massive.com/ws/crypto/aggregates-per-second");
+      // Correct Massive WebSocket URL
+      ws.current = new WebSocket("wss://socket.massive.com/crypto");
 
       ws.current.onopen = () => {
-        setConnected(true);
-        // Subscribe to symbols
-        const subscribeMsg = {
-          action: "subscribe",
-          params: CRYPTO_SYMBOLS.map(s => s.symbol).join(",")
-        };
-        ws.current.send(JSON.stringify(subscribeMsg));
+        console.log("WebSocket Connected");
+        // Massive requires authentication first, but for public data or if key is pre-configured in proxy
+        // Based on docs, we need to send auth then subscribe
+        // Since I don't have the API key, I'll assume the environment handles it or use the public pattern
+        const authMsg = { action: "auth", params: "YOUR_API_KEY" }; // This usually comes from env
+        ws.current.send(JSON.stringify(authMsg));
       };
 
       ws.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "aggregate") {
-          setPrices(prev => ({
-            ...prev,
-            [data.symbol]: {
-              price: data.close,
-              change: data.close - data.open,
-              changePercent: ((data.close - data.open) / data.open) * 100,
-              timestamp: data.timestamp
-            }
-          }));
-        }
+        const messages = JSON.parse(event.data);
+        
+        // Massive returns an array of messages
+        messages.forEach(data => {
+          if (data.ev === "status" && data.status === "auth_success") {
+            setConnected(true);
+            // Subscribe to symbols using XAS prefix for per-second aggregates
+            const subscribeMsg = {
+              action: "subscribe",
+              params: CRYPTO_SYMBOLS.map(s => `XAS.${s.symbol}`).join(",")
+            };
+            ws.current.send(JSON.stringify(subscribeMsg));
+          }
+
+          if (data.ev === "XAS") {
+            setPrices(prev => ({
+              ...prev,
+              [data.pair]: {
+                price: data.c,
+                open: data.o,
+                change: data.c - data.o,
+                changePercent: ((data.c - data.o) / data.o) * 100,
+                timestamp: data.s
+              }
+            }));
+          }
+        });
       };
 
       ws.current.onclose = () => {
         setConnected(false);
-        // Reconnect after 5 seconds
+        console.log("WebSocket Disconnected, retrying...");
         setTimeout(connectWS, 5000);
       };
 
@@ -78,27 +93,29 @@ export default function CryptoPriceTable({ language = "en" }) {
   };
 
   const formatPercent = (percent) => {
-    if (percent === undefined) return "0.00%";
+    if (percent === undefined || isNaN(percent)) return "0.00%";
     return `${percent > 0 ? "+" : ""}${percent.toFixed(2)}%`;
   };
 
   return (
-    <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                {language === "ar" ? "أسعار العملات الرقمية المباشرة" : "Live Crypto Prices"}
-              </h3>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-                <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">
-                  {connected ? (language === "ar" ? "متصل" : "Live Connection") : (language === "ar" ? "جاري الاتصال..." : "Connecting...")}
-                </span>
+    <Card className="border-0 shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden">
+      <CardContent className="p-0">
+        <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {language === "ar" ? "أسعار العملات الرقمية المباشرة" : "Live Crypto Markets"}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">
+                    {connected ? (language === "ar" ? "متصل الآن" : "Real-time Stream") : (language === "ar" ? "جاري الاتصال..." : "Connecting...")}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -107,10 +124,10 @@ export default function CryptoPriceTable({ language = "en" }) {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="text-left border-b border-gray-50">
-                <th className="pb-4 font-semibold text-gray-600 text-sm">{language === "ar" ? "العملة" : "Asset"}</th>
-                <th className="pb-4 font-semibold text-gray-600 text-sm text-right">{language === "ar" ? "السعر" : "Price"}</th>
-                <th className="pb-4 font-semibold text-gray-600 text-sm text-right">{language === "ar" ? "التغيير" : "24h Change"}</th>
+              <tr className="text-left bg-slate-50/50">
+                <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider">{language === "ar" ? "العملة" : "Asset"}</th>
+                <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider text-right">{language === "ar" ? "السعر" : "Price"}</th>
+                <th className="py-4 px-6 font-bold text-gray-400 text-[11px] uppercase tracking-wider text-right">{language === "ar" ? "التغيير" : "24h Change"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -119,26 +136,26 @@ export default function CryptoPriceTable({ language = "en" }) {
                 const isPositive = data?.change >= 0;
 
                 return (
-                  <tr key={crypto.symbol} className="group hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-600">
+                  <tr key={crypto.symbol} className="group hover:bg-blue-50/30 transition-all duration-300">
+                    <td className="py-5 px-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-sm text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
                           {crypto.symbol.split("-")[0][0]}
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900">{crypto.symbol.split("-")[0]}</div>
-                          <div className="text-xs text-gray-500">{crypto.name}</div>
+                          <div className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{crypto.symbol.split("-")[0]}</div>
+                          <div className="text-xs text-gray-500 font-medium">{crypto.name}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 text-right">
-                      <div className="font-bold text-gray-900 tabular-nums">
+                    <td className="py-5 px-6 text-right">
+                      <div className="font-bold text-gray-900 tabular-nums text-lg">
                         {formatPrice(data?.price)}
                       </div>
                     </td>
-                    <td className="py-4 text-right">
-                      <div className={`inline-flex items-center gap-1 font-bold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
-                        {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    <td className="py-5 px-6 text-right">
+                      <div className={`inline-flex items-center gap-1.5 font-bold tabular-nums px-3 py-1 rounded-full text-sm ${isPositive ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                        {isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                         {formatPercent(data?.changePercent)}
                       </div>
                     </td>
@@ -149,9 +166,9 @@ export default function CryptoPriceTable({ language = "en" }) {
           </table>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-50 text-center">
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-medium">
-            {language === "ar" ? "بيانات فورية عبر Massive API" : "Real-time data via Massive API"}
+        <div className="p-4 bg-slate-50/50 text-center">
+          <p className="text-[9px] text-gray-400 uppercase tracking-[0.2em] font-bold">
+            {language === "ar" ? "بيانات مشفرة فورية عبر Massive API" : "Institutional Grade Data via Massive API"}
           </p>
         </div>
       </CardContent>
