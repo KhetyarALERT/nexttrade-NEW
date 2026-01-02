@@ -20,19 +20,19 @@ export default function About({ language = "en" }) {
       hero: {
         badge: "About NextTrade",
         title: "Built by Traders, for Traders",
-        subtitle: "Your trusted partner in intelligent markets since 2018",
+        subtitle: "Your trusted partner in intelligent crypto markets since 2018",
       },
       story: {
         title: "Our Story",
-        text: "NextTrade was founded by experienced traders who understood the challenges faced by regional investors in accessing reliable, transparent, and professional trading services. Since 2018, we've been dedicated to providing world-class trading experiences through the MT5 platform, offering access to over 120 financial instruments including currencies, indices, precious metals, energy sources, cryptocurrencies, and more.",
+        text: "NextTrade was founded by experienced traders who understood the challenges faced by regional investors in accessing reliable, transparent, and professional trading services. Since 2018, we've been dedicated to providing world-class trading experiences through our advanced AI-powered platform, offering access to top cryptocurrencies with institutional-grade execution and security.",
       },
       mission: {
         title: "Our Mission",
-        text: "To empower traders with cutting-edge technology, transparent pricing, and exceptional support, making financial markets accessible to everyone.",
+        text: "To empower traders with cutting-edge technology, transparent pricing, and exceptional support, making crypto markets accessible to everyone.",
       },
       vision: {
         title: "Our Vision",
-        text: "To become the most trusted and preferred trading partner for traders in the Middle East and beyond.",
+        text: "To become the most trusted and preferred crypto trading partner for traders in the Middle East and beyond.",
       },
       values: [
         {
@@ -57,7 +57,7 @@ export default function About({ language = "en" }) {
         },
       ],
       stats: [
-        { value: "120+", label: "Trading Instruments", icon: TrendingUp },
+        { value: "24/7", label: "Crypto Trading", icon: TrendingUp },
         { value: "24/7", label: "Customer Support", icon: Users },
         { value: "2018", label: "Established", icon: Award },
         { value: "Fast", label: "Execution Speed", icon: Zap },
@@ -67,8 +67,8 @@ export default function About({ language = "en" }) {
         items: [
           "Built by traders who understand Middle East markets",
           "Multiple regional support hubs for local service",
-          "Zero commission trading on all instruments",
-          "Islamic swap-free accounts available",
+          "Zero commission trading on all crypto assets",
+          "Advanced AI-powered trading signals",
           "Comprehensive bilingual education resources",
           "Dedicated account managers for personalized support",
         ],
@@ -78,19 +78,19 @@ export default function About({ language = "en" }) {
       hero: {
         badge: "عن NextTrade",
         title: "صُنع بواسطة متداولين، للمتداولين",
-        subtitle: "شريكك الموثوق في الأسواق الذكية منذ 2018",
+        subtitle: "شريكك الموثوق في أسواق العملات الرقمية الذكية منذ 2018",
       },
       story: {
         title: "قصتنا",
-        text: "تأسست NextTrade على يد متداولين ذوي خبرة أدركوا التحديات التي يواجهها المتداولون في المنطقة للوصول إلى خدمات تداول موثوقة وشفافة ومهنية. منذ عام 2018، كرّسنا جهودنا لتقديم تجربة تداول عالمية المستوى عبر منصة MT5، مع توفير الوصول إلى أكثر من 120 أداة مالية بما في ذلك العملات والمؤشرات والمعادن الثمينة والطاقة والعملات الرقمية والمزيد.",
+        text: "تأسست NextTrade على يد متداولين ذوي خبرة أدركوا التحديات التي يواجهها المتداولون في المنطقة للوصول إلى خدمات تداول موثوقة وشفافة ومهنية. منذ عام 2018، كرّسنا جهودنا لتقديم تجربة تداول عالمية المستوى عبر منصتنا المتقدمة المدعومة بالذكاء الاصطناعي، مع توفير الوصول إلى أفضل العملات الرقمية مع تنفيذ وأمان بمستوى مؤسسي.",
       },
       mission: {
         title: "مهمتنا",
-        text: "تمكين المتداولين بأحدث التقنيات وأسعار شفافة ودعم استثنائي، مما يجعل الأسواق المالية في متناول الجميع.",
+        text: "تمكين المتداولين بأحدث التقنيات وأسعار شفافة ودعم استثنائي، مما يجعل أسواق العملات الرقمية في متناول الجميع.",
       },
       vision: {
         title: "رؤيتنا",
-        text: "أن نصبح الشريك التجاري الأكثر ثقة وتفضيلاً للمتداولين في الشرق الأوسط وخارجه.",
+        text: "أن نصبح الشريك الأكثر ثقة وتفضيلاً لتداول العملات الرقمية للمتداولين في الشرق الأوسط وخارجه.",
       },
       values: [
         {
@@ -109,13 +109,13 @@ export default function About({ language = "en" }) {
           desc: "نجاحك هو أولويتنا",
         },
         {
-          icon: Zap,
+          icon: Users,
           title: "الابتكار",
           desc: "تحسين مستمر لخدماتنا وتقنياتنا",
         },
       ],
       stats: [
-        { value: "120+", label: "أداة تداول", icon: TrendingUp },
+        { value: "24/7", label: "تداول العملات الرقمية", icon: TrendingUp },
         { value: "24/7", label: "دعم العملاء", icon: Users },
         { value: "2018", label: "تأسست", icon: Award },
         { value: "سريع", label: "سرعة التنفيذ", icon: Zap },
@@ -125,8 +125,8 @@ export default function About({ language = "en" }) {
         items: [
           "بدأنا كمتداولين يفهمون أسواق الشرق الأوسط",
           "مراكز دعم إقليمية لخدمة محلية",
-          "تداول بدون عمولة على جميع الأدوات",
-          "حسابات إسلامية خالية من الفوائد متاحة",
+          "تداول بدون عمولة على جميع الأصول الرقمية",
+          "إشارات تداول متقدمة مدعومة بالذكاء الاصطناعي",
           "موارد تعليمية ثنائية اللغة شاملة",
           "مدراء حسابات متخصصون للدعم الشخصي",
         ],

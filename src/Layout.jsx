@@ -253,8 +253,8 @@ export default function Layout({ children }) {
               </div>
               <p className="text-gray-400 text-sm">
                 {language === "en" ?
-                "Your trusted partner in intelligent financial trading." :
-                "شريكك الموثوق في التداول المالي الذكي"}
+                "Your trusted partner in intelligent crypto trading." :
+                "شريكك الموثوق في تداول العملات الرقمية الذكي"}
               </p>
             </div>
 
@@ -274,10 +274,10 @@ export default function Layout({ children }) {
             <div>
               <h3 className="font-semibold mb-4">{language === "en" ? "Trading" : "التداول"}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li>{language === "en" ? "Forex" : "العملات"}</li>
-                <li>{language === "en" ? "Indices" : "المؤشرات"}</li>
-                <li>{language === "en" ? "Commodities" : "السلع"}</li>
-                <li>{language === "en" ? "Cryptocurrencies" : "العملات الرقمية"}</li>
+                <li>{language === "en" ? "Bitcoin (BTC)" : "بيتكوين (BTC)"}</li>
+                <li>{language === "en" ? "Ethereum (ETH)" : "إيثيريوم (ETH)"}</li>
+                <li>{language === "en" ? "Solana (SOL)" : "سولانا (SOL)"}</li>
+                <li>{language === "en" ? "Altcoins" : "العملات البديلة"}</li>
               </ul>
             </div>
 
@@ -304,8 +304,8 @@ export default function Layout({ children }) {
             </p>
             <p className="mt-2 text-xs">
               {language === "en" ?
-              "Trading involves risk. Please trade responsibly." :
-              "التداول ينطوي على مخاطر. يرجى التداول بمسؤولية"}
+              "Crypto trading involves risk. Please trade responsibly." :
+              "تداول العملات الرقمية ينطوي على مخاطر. يرجى التداول بمسؤولية"}
             </p>
           </div>
         </div>
