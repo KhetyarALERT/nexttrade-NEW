@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe, Menu, X, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,7 +127,7 @@ export default function Layout({ children }) {
             {/* Logo */}
             <Link to={createPageUrl("Home")} className="flex items-center">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png"
+                src={nextTradeLogo}
                 alt="NextTrade"
                 className="h-12 w-auto" />
 
@@ -244,7 +246,7 @@ export default function Layout({ children }) {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png"
+                  src={nextTradeLogo}
                   alt="NextTrade"
                   className="h-10 w-auto" />
 
