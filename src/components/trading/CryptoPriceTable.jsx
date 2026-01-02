@@ -187,7 +187,7 @@ export default function CryptoPriceTable({ language = "en" }) {
                       </span>
                     </td>
                     <td className="py-5 px-6 text-center">
-                      <Sparkline data={coin.sparkline_in_7d} />
+                      <Sparkline data={coin.sparkline_in_7d?.price} />
                     </td>
                     <td className="py-5 px-6 text-right text-gray-300">{formatCap(coin.market_cap)}</td>
                     <td className="py-5 px-6 text-right text-gray-300">{formatCap(coin.total_volume)}</td>
