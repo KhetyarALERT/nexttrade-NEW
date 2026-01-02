@@ -1,5 +1,9 @@
-import React from "react";
-import { User, TrendingUp, TrendingDown } from "lucide-react";
+import PropTypes from "prop-types";
+import {
+  TrendingUp,
+  User
+} from "lucide-react";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 
 export default function AITradingChat({ language = "en" }) {
@@ -89,8 +93,8 @@ export default function AITradingChat({ language = "en" }) {
       <div className="flex items-center gap-3 pb-4 border-b border-slate-200 mb-4">
         <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center p-1 shadow-sm">
           <img 
-            src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png" 
-            alt="RFT"
+            src={nextTradeLogo}
+            alt="NextTrade"
             className="w-full h-full object-contain"
           />
         </div>
@@ -121,8 +125,8 @@ export default function AITradingChat({ language = "en" }) {
             {msg.type === 'ai' ? (
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 p-1 shadow-sm">
                 <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png" 
-                  alt="RFT"
+                  src={nextTradeLogo}
+                  alt="NextTrade"
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -210,3 +214,7 @@ export default function AITradingChat({ language = "en" }) {
     </div>
   );
 }
+
+AITradingChat.propTypes = {
+  language: PropTypes.oneOf(["en", "ar"])
+};

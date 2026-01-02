@@ -1,7 +1,7 @@
 
-import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import PropTypes from "prop-types";
 import {
   Award,
   Shield,
@@ -18,13 +18,13 @@ export default function About({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        badge: "About RFT Trade",
+        badge: "About NextTrade",
         title: "Built by Traders, for Traders",
-        subtitle: "Your trusted partner in financial markets since 2018",
+        subtitle: "Your trusted partner in intelligent markets since 2018",
       },
       story: {
         title: "Our Story",
-        text: "RFT Trade was founded by experienced traders who understood the challenges faced by Arab traders in accessing reliable, transparent, and professional trading services. Since 2018, we've been dedicated to providing world-class trading services through the MT5 platform, offering access to over 120 financial instruments including currencies, indices, precious metals, energy sources, cryptocurrencies, and more.",
+        text: "NextTrade was founded by experienced traders who understood the challenges faced by regional investors in accessing reliable, transparent, and professional trading services. Since 2018, we've been dedicated to providing world-class trading experiences through the MT5 platform, offering access to over 120 financial instruments including currencies, indices, precious metals, energy sources, cryptocurrencies, and more.",
       },
       mission: {
         title: "Our Mission",
@@ -65,24 +65,24 @@ export default function About({ language = "en" }) {
       differences: {
         title: "What Makes Us Different",
         items: [
-          "Started by traders who believe in Arab traders",
-          "Multiple branches across Turkey for local support",
+          "Built by traders who understand Middle East markets",
+          "Multiple regional support hubs for local service",
           "Zero commission trading on all instruments",
           "Islamic swap-free accounts available",
-          "Comprehensive educational resources in Arabic",
+          "Comprehensive bilingual education resources",
           "Dedicated account managers for personalized support",
         ],
       },
     },
     ar: {
       hero: {
-        badge: "من نحن",
+        badge: "عن NextTrade",
         title: "صُنع بواسطة متداولين، للمتداولين",
-        subtitle: "شريكك الموثوق في الأسواق المالية منذ 2018",
+        subtitle: "شريكك الموثوق في الأسواق الذكية منذ 2018",
       },
       story: {
         title: "قصتنا",
-        text: "تأسست RFT Trade على يد متداولين ذوي خبرة أدركوا التحديات التي يواجهها المتداولون العرب في الوصول إلى خدمات تداول موثوقة وشفافة ومهنية. منذ عام 2018، كرسنا جهودنا لتقديم خدمات تداول عالمية المستوى من خلال منصة MT5، مع توفير الوصول إلى أكثر من 120 أداة مالية بما في ذلك العملات والمؤشرات والمعادن الثمينة ومصادر الطاقة والعملات الرقمية والمزيد.",
+        text: "تأسست NextTrade على يد متداولين ذوي خبرة أدركوا التحديات التي يواجهها المتداولون في المنطقة للوصول إلى خدمات تداول موثوقة وشفافة ومهنية. منذ عام 2018، كرّسنا جهودنا لتقديم تجربة تداول عالمية المستوى عبر منصة MT5، مع توفير الوصول إلى أكثر من 120 أداة مالية بما في ذلك العملات والمؤشرات والمعادن الثمينة والطاقة والعملات الرقمية والمزيد.",
       },
       mission: {
         title: "مهمتنا",
@@ -123,11 +123,11 @@ export default function About({ language = "en" }) {
       differences: {
         title: "ما يميزنا",
         items: [
-          "بدأنا كمتداولين نؤمن بالمتداول العربي",
-          "فروع متعددة في تركيا للدعم المحلي",
+          "بدأنا كمتداولين يفهمون أسواق الشرق الأوسط",
+          "مراكز دعم إقليمية لخدمة محلية",
           "تداول بدون عمولة على جميع الأدوات",
           "حسابات إسلامية خالية من الفوائد متاحة",
-          "موارد تعليمية شاملة باللغة العربية",
+          "موارد تعليمية ثنائية اللغة شاملة",
           "مدراء حسابات متخصصون للدعم الشخصي",
         ],
       },
@@ -297,3 +297,7 @@ export default function About({ language = "en" }) {
     </div>
   );
 }
+
+About.propTypes = {
+  language: PropTypes.oneOf(["en", "ar"])
+};

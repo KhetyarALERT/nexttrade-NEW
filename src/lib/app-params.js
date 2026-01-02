@@ -35,6 +35,10 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 }
 
 const getAppParams = () => {
+	if (getAppParamValue("clear_access_token") === 'true') {
+		storage.removeItem('base44_access_token');
+		storage.removeItem('base44_token');
+	}
 	return {
 		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
 		serverUrl: getAppParamValue("server_url", { defaultValue: import.meta.env.VITE_BASE44_BACKEND_URL }),

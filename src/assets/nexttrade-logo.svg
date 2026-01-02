@@ -1,0 +1,12 @@
+<svg width="128" height="32" viewBox="0 0 128 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nexttrade-gradient" x1="0" y1="32" x2="128" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="29" height="29" rx="9" stroke="url(#nexttrade-gradient)" stroke-width="3" fill="rgba(15,23,42,0.08)"/>
+  <path d="M11.5 21L17.25 11H11V8.5H21V10.9L15.2 21H21V23.5H11.5V21Z" fill="url(#nexttrade-gradient)"/>
+  <text x="40" y="22" font-family="'Segoe UI', 'Inter', sans-serif" font-weight="700" font-size="18" fill="#0F172A">Next</text>
+  <text x="85" y="22" font-family="'Segoe UI', 'Inter', sans-serif" font-weight="700" font-size="18" fill="url(#nexttrade-gradient)">Trade</text>
+</svg>

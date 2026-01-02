@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,15 +16,14 @@ import {
   Phone,
   MapPin,
   Send,
-  MessageSquare,
   Clock,
-  Globe,
   CheckCircle,
   TrendingUp,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import PropTypes from "prop-types";
 
 export default function Contact({ language = "en" }) {
   const [formData, setFormData] = useState({
@@ -37,13 +36,13 @@ export default function Contact({ language = "en" }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const phoneNumber = "+963940632191";
-  const emailAddress = "admin@ruyaacapital.com";
+  const emailAddress = "support@nexttrade.app";
 
   const content = {
     en: {
       hero: {
-        title: "Get Started with RFT Trade",
-        subtitle: "Open your trading account today and join thousands of successful traders",
+        title: "Get Started with NextTrade",
+        subtitle: "Open your NextTrade account today and access intelligent trading with zero commission",
       },
       form: {
         title: "Open Your Trading Account",
@@ -108,8 +107,8 @@ export default function Contact({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "ابدأ مع RFT Trade",
-        subtitle: "افتح حساب التداول الخاص بك اليوم وانضم إلى آلاف المتداولين الناجحين",
+        title: "ابدأ مع NextTrade",
+        subtitle: "افتح حساب NextTrade اليوم وتمتع بتداول ذكي بدون عمولة",
       },
       form: {
         title: "افتح حساب التداول الخاص بك",
@@ -193,9 +192,9 @@ export default function Contact({ language = "en" }) {
         subject: `New Account Request - ${formData.name}`,
         body: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png" alt="RFT Trade" style="height: 50px; margin-bottom: 10px;" />
-              <h1 style="color: white; margin: 0;">New Account Request</h1>
+            <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: white;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 700;">NextTrade</h1>
+              <p style="margin: 8px 0 0; font-size: 16px;">New Account Request</p>
             </div>
             <div style="padding: 30px; background: #f9fafb;">
               <h2 style="color: #1f2937; margin-bottom: 20px;">Client Information</h2>
@@ -225,7 +224,7 @@ export default function Contact({ language = "en" }) {
               </table>
             </div>
             <div style="text-align: center; padding: 20px; background: #f3f4f6; color: #6b7280; font-size: 12px;">
-              <p>This email was sent from the RFT Trade contact form.</p>
+              <p>This email was sent from the NextTrade contact form.</p>
             </div>
           </div>
         `
@@ -239,8 +238,8 @@ export default function Contact({ language = "en" }) {
         accountType: "",
         message: "",
       });
-    } catch (error) {
-      toast.error("Failed to submit form. Please try again.");
+    } catch (err) {
+      toast.error(err?.message || "Failed to submit form. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

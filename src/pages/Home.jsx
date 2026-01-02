@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
@@ -10,37 +11,32 @@ import {
   Shield,
   Zap,
   Globe,
-  Award,
   DollarSign,
   LineChart,
   Users,
   CheckCircle,
   ArrowRight,
-  Star,
   BarChart3,
   Coins,
-  Brain,
   Sparkles,
   Gift,
   Bell,
   Wallet,
   Bot,
-  TrendingDown,
-  Activity
+  Activity,
+  TrendingDown
 } from "lucide-react";
 import { motion } from "framer-motion";
 import AITradingChat from "../components/home/AITradingChat";
 
 export default function Home({ language = "en" }) {
-  const [activeInstrument, setActiveInstrument] = useState(0);
   const [hoveredCard, setHoveredCard] = useState(null);
-  const isRTL = language === "ar";
 
   const content = {
     en: {
       hero: {
-        title: "Trade Smarter with RFT Trade",
-        subtitle: "Access 120+ Financial Instruments with Zero Commission",
+        title: "Trade Smarter with NextTrade",
+        subtitle: "Access 120+ financial instruments with intelligent automation",
         cta1: "Open Live Account",
         cta2: "Try Demo Account"
       },
@@ -101,8 +97,8 @@ export default function Home({ language = "en" }) {
 
       },
       whyChoose: {
-        title: "Why Choose RFT Trade?",
-        subtitle: "Built by traders, for traders",
+        title: "Why Choose NextTrade?",
+        subtitle: "AI-enhanced trading built by traders, for traders",
         reasons: [
           "Ultra-low spreads starting from 0.1 pips",
           "Dedicated account manager for personalized support",
@@ -124,7 +120,7 @@ export default function Home({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "تداول بذكاء مع RFT Trade",
+        title: "تداول بذكاء مع NextTrade",
         subtitle: "احصل على أكثر من 120 أداة مالية بدون عمولة",
         cta1: "فتح حساب حقيقي",
         cta2: "تجربة حساب تجريبي"
@@ -186,7 +182,7 @@ export default function Home({ language = "en" }) {
 
       },
       whyChoose: {
-        title: "لماذا RFT Trade؟",
+        title: "لماذا NextTrade؟",
         subtitle: "صُنع بواسطة متداولين، للمتداولين",
         reasons: [
           "فروقات أسعار منخفضة جداً تبدأ من 0.1 نقطة",
@@ -933,3 +929,7 @@ export default function Home({ language = "en" }) {
       </section>
     </div>);
 }
+
+Home.propTypes = {
+  language: PropTypes.oneOf(["en", "ar"])
+};
