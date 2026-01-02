@@ -1,8 +1,11 @@
+
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Menu, X, TrendingUp, Phone, Mail } from "lucide-react";
+import { Globe, Menu, X, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +13,7 @@ import {
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 
-export default function Layout({ children, currentPageName }) {
+export default function Layout({ children }) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -56,6 +59,7 @@ export default function Layout({ children, currentPageName }) {
   { name: { en: "Home", ar: "الرئيسية" }, url: createPageUrl("Home") },
   { name: { en: "About", ar: "من نحن" }, url: createPageUrl("About") },
   { name: { en: "Trading", ar: "التداول" }, url: createPageUrl("Trading") },
+  { name: { en: "Profile", ar: "الملف الشخصي" }, url: createPageUrl("Profile") },
   { name: { en: "Contact", ar: "اتصل بنا" }, url: createPageUrl("Contact") }];
 
 
@@ -123,8 +127,8 @@ export default function Layout({ children, currentPageName }) {
             {/* Logo */}
             <Link to={createPageUrl("Home")} className="flex items-center">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png"
-                alt="RFT Trade"
+                src={nextTradeLogo}
+                alt="NextTrade"
                 className="h-12 w-auto" />
 
             </Link>
@@ -242,15 +246,15 @@ export default function Layout({ children, currentPageName }) {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/f9eb99f2f_d2b4194c-19cd-4925-823f-26dd04fd3565.png"
-                  alt="RFT Trade"
+                  src={nextTradeLogo}
+                  alt="NextTrade"
                   className="h-10 w-auto" />
 
               </div>
               <p className="text-gray-400 text-sm">
                 {language === "en" ?
-                "Your trusted partner in financial markets trading since 2018." :
-                "شريكك الموثوق في تداول الأسواق المالية منذ 2018"}
+                "Your trusted partner in intelligent financial trading." :
+                "شريكك الموثوق في التداول المالي الذكي"}
               </p>
             </div>
 
@@ -286,7 +290,7 @@ export default function Layout({ children, currentPageName }) {
                 </li>
                 <li className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  <span>admin@ruyaacapital.com</span>
+                  <span>support@nexttrade.app</span>
                 </li>
               </ul>
             </div>
@@ -295,8 +299,8 @@ export default function Layout({ children, currentPageName }) {
           <div className="border-t border-gray-700 pt-8 text-center text-sm text-gray-400">
             <p>
               {language === "en" ?
-              "© 2025 RFT Trade. All rights reserved." :
-              "© 2025 RFT Trade. جميع الحقوق محفوظة"}
+              "© 2025 NextTrade. All rights reserved." :
+              "© 2025 NextTrade. جميع الحقوق محفوظة"}
             </p>
             <p className="mt-2 text-xs">
               {language === "en" ?
@@ -309,3 +313,7 @@ export default function Layout({ children, currentPageName }) {
     </div>);
 
 }
+
+Layout.propTypes = {
+  children: PropTypes.node.isRequired
+};
