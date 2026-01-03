@@ -410,9 +410,14 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         <div className="px-4 py-2 border-t border-[#2B2B43]">
           <h4 className="text-sm text-white mb-2">Open Positions</h4>
           {positions.map(pos => (
-            <div key={pos.id} className="flex justify-between text-xs text-gray-300 mb-1">
+            <div key={pos.id} className="flex justify-between items-center text-xs text-gray-300 mb-1">
               <span>{pos.isLong ? 'Long' : 'Short'} @ {pos.entryPrice.toFixed(2)} (Size: {pos.size}, Lev: {pos.leverage}x)</span>
-              <Button variant="ghost" size="sm" onClick={() => closePosition(pos.id)} className="text-red-500">Close</Button>
+              <div className="flex items-center gap-2">
+                <span className={calculatePNL(pos, currentPrice) >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                  {calculatePNL(pos, currentPrice) >= 0 ? '+' : ''}{calculatePNL(pos, currentPrice).toFixed(2)} USDT
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => closePosition(pos.id)} className="text-red-500 h-6 px-2">Close</Button>
+              </div>
             </div>
           ))}
         </div>
