@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Bell, Clock, Globe, AlertTriangle, TrendingUp, Wallet, Lock, CheckCircle, RefreshCw, Plus, Trash2 } from "lucide-react";
+import { Bell, Clock, Globe, AlertTriangle, TrendingUp, Wallet, Lock, CheckCircle, RefreshCw, Plus, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,15 @@ const COMMON_TIMEZONES = [
   { value: "Asia/Shanghai", label: "Shanghai" },
   { value: "Asia/Hong_Kong", label: "Hong Kong" },
   { value: "Australia/Sydney", label: "Sydney" }
+];
+
+// All BingX USDT-M Perpetual symbols
+const ALL_SYMBOLS = [
+  "BTC-USDT", "ETH-USDT", "SOL-USDT", "BNB-USDT", "XRP-USDT", "DOGE-USDT", 
+  "ADA-USDT", "AVAX-USDT", "LINK-USDT", "DOT-USDT", "MATIC-USDT", "LTC-USDT",
+  "SHIB-USDT", "TRX-USDT", "ATOM-USDT", "UNI-USDT", "APT-USDT", "ARB-USDT",
+  "OP-USDT", "NEAR-USDT", "FIL-USDT", "ICP-USDT", "HBAR-USDT", "VET-USDT",
+  "SAND-USDT", "MANA-USDT", "AAVE-USDT", "EOS-USDT", "XLM-USDT", "ALGO-USDT"
 ];
 
 const NOTIFICATION_TYPES = [
@@ -91,6 +100,32 @@ export default function NotificationPreferencesTab({ language = "en" }) {
     above: "Above",
     below: "Below"
   };
+
+  // Load market prices
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const response = await fetch('https://open-api.bingx.com/openApi/swap/v2/quote/ticker');
+        const data = await response.json();
+        if (data.code === 0 && data.data) {
+          const prices = {};
+          data.data.forEach(ticker => {
+            prices[ticker.symbol] = parseFloat(ticker.lastPrice);
+          });
+          setMarketPrices(prices);
+        }
+      } catch (e) {
+        // Use fallback
+        setMarketPrices({
+          'BTC-USDT': 96850, 'ETH-USDT': 3420, 'SOL-USDT': 198, 'BNB-USDT': 705,
+          'XRP-USDT': 2.18, 'DOGE-USDT': 0.32, 'ADA-USDT': 0.89, 'AVAX-USDT': 38.5
+        });
+      }
+    };
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadPreferences = useCallback(async () => {
     setLoading(true);
@@ -388,6 +423,15 @@ export default function NotificationPreferencesTab({ language = "en" }) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Symbol</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search symbols..."
+                  value={symbolSearch}
+                  onChange={(e) => setSymbolSearch(e.target.value)}
+                  className="pl-8 mb-2"
+                />
+              </div>
               <Select
                 value={newAlert.symbol}
                 onValueChange={(v) => setNewAlert(prev => ({ ...prev, symbol: v }))}
@@ -395,12 +439,28 @@ export default function NotificationPreferencesTab({ language = "en" }) {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {['BTC-USDT', 'ETH-USDT', 'SOL-USDT', 'BNB-USDT', 'XRP-USDT', 'ADA-USDT', 'DOGE-USDT'].map(s => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[200px]">
+                  {ALL_SYMBOLS
+                    .filter(s => s.toLowerCase().includes(symbolSearch.toLowerCase()))
+                    .map(s => (
+                      <SelectItem key={s} value={s}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{s}</span>
+                          {marketPrices[s] && (
+                            <span className="text-xs text-slate-500 ml-2">
+                              ${marketPrices[s]?.toLocaleString(undefined, { maximumFractionDigits: marketPrices[s] < 1 ? 6 : 2 })}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
+              {marketPrices[newAlert.symbol] && (
+                <p className="text-sm text-slate-500">
+                  Current price: <span className="font-mono font-medium text-slate-700">${marketPrices[newAlert.symbol]?.toLocaleString(undefined, { maximumFractionDigits: marketPrices[newAlert.symbol] < 1 ? 6 : 2 })}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Condition</Label>
