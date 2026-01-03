@@ -24,15 +24,15 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
       marketStore.subscribeToTicker(symbol);
     });
 
-    const updatePrices = (data) => {
-      setPrices(data.prices || {});
-      setChanges(data.tickers || {});
+    const updateData = () => {
+      setPrices({ ...marketStore.prices });
+      setChanges({ ...marketStore.tickers });
     };
 
-    marketStore.subscribe(updatePrices);
+    const unsubscribe = marketStore.subscribe('ticker', updateData);
 
     return () => {
-      marketStore.unsubscribe(updatePrices);
+      unsubscribe();
     };
   }, []);
 

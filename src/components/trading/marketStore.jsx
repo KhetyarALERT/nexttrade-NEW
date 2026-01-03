@@ -243,6 +243,21 @@ class MarketStore {
     }
   }
 
+  // Subscribe to ticker channel for a symbol
+  subscribeToTicker(symbol) {
+    this.subscribeWS(`${symbol}@ticker`);
+  }
+
+  // Subscribe to trade channel for a symbol
+  subscribeToTrade(symbol) {
+    this.subscribeWS(`${symbol}@trade`);
+  }
+
+  // Subscribe to candle channel for a symbol
+  subscribeToCandles(symbol, interval = '1m') {
+    this.subscribeWS(`${symbol}@kline_${interval}`);
+  }
+
   // Disconnect
   disconnect() {
     this.stopPing();
