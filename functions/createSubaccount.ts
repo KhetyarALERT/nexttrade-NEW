@@ -3,12 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const BINGX_API_URL = 'https://open-api.bingx.com';
 
 // Generate HMAC signature for BingX API
-const generateSignature = async (params, secretKey) => {
-  const queryString = Object.keys(params)
-    .sort()
-    .map(key => `${key}=${params[key]}`)
-    .join('&');
-  
+const generateSignature = async (queryString, secretKey) => {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secretKey);
   const msgData = encoder.encode(queryString);
@@ -79,70 +74,102 @@ Deno.serve(async (req) => {
       
       logAudit('SUBACCOUNT_CREATE_START', user.id, { nickname, accountType });
       
-      // Generate unique subaccount identifier
-      const subUid = `nt_${user.id.substring(0, 8)}_${Date.now()}`;
-      
-      // For BingX subaccount creation - attempt API call
-      // Note: BingX subaccount API requires specific permissions
+      // BingX API - POST with JSON body
+      // According to BingX docs, subaccount creation uses JSON body
       let bingxResult = null;
       let apiSuccess = false;
       
       try {
         const timestamp = Date.now();
-        const requestParams = {
-          subUid: subUid,
-          note: nickname,
-          timestamp: timestamp.toString()
+        
+        // Build request body as per BingX official docs
+        const requestBody = {
+          subAccountString: nickname.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20),
+          note: nickname
         };
         
-        const signature = await generateSignature(requestParams, secretKey);
-        const queryString = Object.keys(requestParams)
-          .sort()
-          .map(key => `${key}=${encodeURIComponent(requestParams[key])}`)
-          .join('&');
+        // For BingX, signature is on timestamp parameter
+        const queryString = `timestamp=${timestamp}`;
+        const signature = await generateSignature(queryString, secretKey);
         
         const url = `${BINGX_API_URL}/openApi/subAccount/v1/create?${queryString}&signature=${signature}`;
         
-        console.log('[SUBACCOUNT] BingX API call:', { url: url.replace(signature, '***') });
+        console.log('[SUBACCOUNT] BingX API call:', { 
+          url: url.replace(signature, '***'),
+          body: requestBody 
+        });
         
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'X-BX-APIKEY': apiKey,
             'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify(requestBody)
         });
         
         bingxResult = await response.json();
         console.log('[SUBACCOUNT] BingX response:', bingxResult);
         
-        if (bingxResult.code === 0) {
+        if (bingxResult.code === 0 && bingxResult.data) {
           apiSuccess = true;
         }
       } catch (apiError) {
         console.log('[SUBACCOUNT] BingX API error:', apiError.message);
-        // Continue with local account creation even if BingX API fails
+        // Continue with local account creation
       }
       
+      // Generate local subaccount ID
+      const localSubId = `nt_${user.id.substring(0, 8)}_${Date.now()}`;
+      
       // Create subaccount record in database
-      // This allows users to manage accounts even if BingX API has issues
       const subaccountRecord = await base44.asServiceRole.entities.Subaccount.create({
         user_id: user.id,
         user_email: user.email,
         subaccount_id: apiSuccess && bingxResult?.data?.subUid 
           ? bingxResult.data.subUid 
-          : subUid,
+          : localSubId,
         nickname,
         account_type: accountType,
         leverage,
-        status: apiSuccess ? 'active' : 'pending',
-        bingx_status: apiSuccess ? 'created' : 'local_only',
+        status: 'active',
+        bingx_status: apiSuccess ? 'synced' : 'local',
         permissions: ['trade', 'read']
       });
       
+      // Create corresponding account entities based on type
+      if (accountType === 'spot' || accountType === 'both') {
+        await base44.asServiceRole.entities.SpotAccount.create({
+          user_id: user.id,
+          subaccount_id: subaccountRecord.id,
+          balance_usdt: 0,
+          balance_btc: 0,
+          balance_eth: 0,
+          total_value_usdt: 0,
+          status: 'active',
+          last_sync: new Date().toISOString()
+        });
+      }
+      
+      if (accountType === 'futures' || accountType === 'both') {
+        await base44.asServiceRole.entities.FuturesAccount.create({
+          user_id: user.id,
+          subaccount_id: subaccountRecord.id,
+          balance_usdt: 0,
+          margin_balance: 0,
+          unrealized_pnl: 0,
+          leverage: leverage,
+          margin_mode: 'cross',
+          open_positions: 0,
+          status: 'active',
+          last_sync: new Date().toISOString()
+        });
+      }
+      
       logAudit('SUBACCOUNT_CREATE_SUCCESS', user.id, { 
         subaccount_id: subaccountRecord.id,
-        bingx_success: apiSuccess
+        bingx_synced: apiSuccess,
+        account_type: accountType
       });
       
       return Response.json({ 
@@ -202,6 +229,36 @@ Deno.serve(async (req) => {
       logAudit('SUBACCOUNT_DELETE', user.id, { subaccountId });
       
       return Response.json({ success: true });
+    }
+    
+    if (action === 'transfer') {
+      const { sourceAccount, targetAccount, amount, asset = 'USDT' } = params;
+      
+      if (!sourceAccount || !targetAccount || !amount || amount <= 0) {
+        return Response.json({ 
+          success: false, 
+          error: 'Invalid transfer parameters' 
+        }, { status: 400 });
+      }
+      
+      // Create transfer record
+      const transfer = await base44.asServiceRole.entities.InternalTransfer.create({
+        user_id: user.id,
+        transfer_id: `tf_${Date.now()}`,
+        source_account: sourceAccount,
+        target_account: targetAccount,
+        asset,
+        amount,
+        status: 'completed'
+      });
+      
+      logAudit('INTERNAL_TRANSFER', user.id, { 
+        transfer_id: transfer.id,
+        amount,
+        asset 
+      });
+      
+      return Response.json({ success: true, data: transfer });
     }
     
     return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });

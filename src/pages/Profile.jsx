@@ -315,6 +315,12 @@ export default function Profile({ language = "en" }) {
   useEffect(() => {
     loadUser();
     loadSubaccounts();
+    
+    // Check URL params to open modal and switch tab
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openModal') === 'true') {
+      setSubaccountModalOpen(true);
+    }
   }, [loadUser, loadSubaccounts]);
 
   const handleCopy = useCallback((text) => {
@@ -457,7 +463,7 @@ export default function Profile({ language = "en" }) {
           </div>
         </div>
 
-        <Tabs defaultValue="personal" className="space-y-8">
+        <Tabs defaultValue={new URLSearchParams(window.location.search).get('tab') || "personal"} className="space-y-8">
           <TabsList className="h-auto w-full justify-start gap-1 border-b border-slate-200 bg-transparent p-0">
             {[
               { value: "personal", label: t.personalInfo },
