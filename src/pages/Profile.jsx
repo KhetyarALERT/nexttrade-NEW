@@ -428,7 +428,7 @@ export default function Profile({ language = "en" }) {
               </div>
             ) : (
               <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-                <AssetsPage wallets={wallets} language={language} onRefresh={loadTradingAccounts} liveAccount={liveAccount} />
+                <AssetsPage wallets={wallets} language={language} onRefresh={loadTradingAccounts} liveAccount={liveAccount} trades={trades} />
                 <div className="space-y-6">
                   <RecentTransactions language={language} />
                   <StakingPanel wallets={wallets} language={language} onRefresh={loadTradingAccounts} />
