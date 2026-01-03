@@ -24,42 +24,106 @@ Deno.serve(async (req) => {
 
     // GET OR CREATE TRADING ACCOUNT
     if (action === 'getOrCreate') {
-      // Check if user has trading account
-      let accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+      const { accountType = 'demo' } = params;
+      
+      // Check if user has trading account of this type
+      let accounts = await base44.entities.TradingAccount.filter({ 
+        user_id: user.id,
+        account_type: accountType
+      });
       
       if (!accounts || accounts.length === 0) {
         // Create new trading account
-        const accountId = `TA_${user.id.substring(0, 8)}_${Date.now()}`;
+        const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
+        const isDemo = accountType === 'demo';
+        
         const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
           account_id: accountId,
           user_id: user.id,
           user_email: user.email,
-          nickname: params.nickname || 'Primary Account',
-          balance: 10000, // Starting demo balance
-          equity: 10000,
+          nickname: params.nickname || (isDemo ? 'Demo Account' : 'Mentor Account'),
+          account_type: accountType,
+          balance: isDemo ? 10000 : 0, // Demo gets starting balance, mentor starts at 0
+          equity: isDemo ? 10000 : 0,
           margin_used: 0,
           unrealized_pnl: 0,
           realized_pnl: 0,
           total_trades: 0,
           winning_trades: 0,
           status: 'active',
-          default_leverage: 10
+          default_leverage: 10,
+          is_demo: isDemo,
+          demo_balance: isDemo ? 10000 : 0
         });
         
-        audit('ACCOUNT_CREATED', user.id, { account_id: accountId });
+        audit('ACCOUNT_CREATED', user.id, { account_id: accountId, accountType });
+        
+        // For mentor accounts, also create a wallet
+        let wallet = null;
+        if (!isDemo) {
+          try {
+            const walletId = `W_${generateId()}`;
+            wallet = await base44.asServiceRole.entities.Wallet.create({
+              wallet_id: walletId,
+              trading_account_id: newAccount.id,
+              user_id: user.id,
+              currency: 'USDTTRC20',
+              balance: 0,
+              status: 'active',
+              total_deposited: 0,
+              total_withdrawn: 0
+            });
+            audit('WALLET_AUTO_CREATED', user.id, { walletId, accountId });
+          } catch (err) {
+            console.error('Failed to auto-create wallet:', err.message);
+          }
+        }
         
         return Response.json({ 
           success: true, 
           data: newAccount,
+          wallet,
           isNew: true
         });
+      }
+      
+      // Get wallet for mentor account
+      let wallet = null;
+      if (accountType === 'mentor') {
+        const wallets = await base44.entities.Wallet.filter({
+          trading_account_id: accounts[0].id,
+          user_id: user.id
+        });
+        if (wallets && wallets.length > 0) {
+          wallet = wallets[0];
+        }
       }
       
       return Response.json({ 
         success: true, 
         data: accounts[0],
+        wallet,
         isNew: false
       });
+    }
+    
+    // GET ALL USER ACCOUNTS (both demo and mentor)
+    if (action === 'getAllAccounts') {
+      const accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+      
+      // Get wallets for each account
+      const accountsWithWallets = await Promise.all((accounts || []).map(async (account) => {
+        if (account.account_type === 'mentor') {
+          const wallets = await base44.entities.Wallet.filter({
+            trading_account_id: account.id,
+            user_id: user.id
+          });
+          return { ...account, wallet: wallets?.[0] || null };
+        }
+        return { ...account, wallet: null };
+      }));
+      
+      return Response.json({ success: true, data: accountsWithWallets });
     }
 
     // LIST USER ACCOUNTS

@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
+import WalletCard from "@/components/profile/WalletCard";
+import TransactionHistory from "@/components/profile/TransactionHistory";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -281,7 +283,9 @@ export default function Profile({ language = "en" }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [tradingAccount, setTradingAccount] = useState(null);
+  const [demoAccount, setDemoAccount] = useState(null);
+  const [mentorAccount, setMentorAccount] = useState(null);
+  const [mentorWallet, setMentorWallet] = useState(null);
   const [trades, setTrades] = useState([]);
   const [loadingAccount, setLoadingAccount] = useState(false);
 
@@ -301,25 +305,37 @@ export default function Profile({ language = "en" }) {
     }
   }, [t.loadError]);
 
-  const loadTradingAccount = useCallback(async () => {
+  const loadTradingAccounts = useCallback(async () => {
     setLoadingAccount(true);
     try {
-      // Get or create trading account
-      const result = await base44.functions.invoke('tradingAccount', { action: 'getOrCreate' });
-      if (result.data?.success) {
-        setTradingAccount(result.data.data);
+      // Get or create demo account
+      const demoResult = await base44.functions.invoke('tradingAccount', { 
+        action: 'getOrCreate',
+        accountType: 'demo'
+      });
+      if (demoResult.data?.success) {
+        setDemoAccount(demoResult.data.data);
+      }
 
-        // Load trades for this account
-        const tradesResult = await base44.functions.invoke('tradingAccount', { 
-          action: 'getTrades',
-          tradingAccountId: result.data.data.id
-        });
-        if (tradesResult.data?.success) {
-          setTrades(tradesResult.data.data || []);
-        }
+      // Get or create mentor account with wallet
+      const mentorResult = await base44.functions.invoke('tradingAccount', { 
+        action: 'getOrCreate',
+        accountType: 'mentor'
+      });
+      if (mentorResult.data?.success) {
+        setMentorAccount(mentorResult.data.data);
+        setMentorWallet(mentorResult.data.wallet);
+      }
+
+      // Load trades for all accounts
+      const tradesResult = await base44.functions.invoke('tradingAccount', { 
+        action: 'getTrades'
+      });
+      if (tradesResult.data?.success) {
+        setTrades(tradesResult.data.data || []);
       }
     } catch (err) {
-      console.error("Failed to load trading account", err);
+      console.error("Failed to load trading accounts", err);
     } finally {
       setLoadingAccount(false);
     }
@@ -327,8 +343,8 @@ export default function Profile({ language = "en" }) {
 
   useEffect(() => {
     loadUser();
-    loadTradingAccount();
-  }, [loadUser, loadTradingAccount]);
+    loadTradingAccounts();
+  }, [loadUser, loadTradingAccounts]);
 
   const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -454,7 +470,7 @@ export default function Profile({ language = "en" }) {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => { loadUser(); loadTradingAccount(); }} 
+              onClick={() => { loadUser(); loadTradingAccounts(); }} 
               className="bg-white border-slate-300 hover:bg-slate-50"
             >
               <RefreshCw className="mr-2 h-4 w-4" /> {t.refresh}
@@ -474,7 +490,8 @@ export default function Profile({ language = "en" }) {
           <TabsList className="h-auto w-full justify-start gap-1 border-b border-slate-200 bg-transparent p-0">
             {[
               { value: "personal", label: t.personalInfo },
-              { value: "accounts", label: language === "en" ? "Trading Account" : "حساب التداول" },
+              { value: "accounts", label: language === "en" ? "Trading Accounts" : "حسابات التداول" },
+              { value: "wallet", label: language === "en" ? "Wallet" : "المحفظة" },
               { value: "security", label: t.security },
               { value: "referrals", label: t.referrals },
               { value: "vouchers", label: t.vouchers },
@@ -564,20 +581,44 @@ export default function Profile({ language = "en" }) {
             </div>
           </TabsContent>
 
-          {/* Trading Account */}
+          {/* Trading Accounts */}
           <TabsContent value="accounts" className="space-y-6">
             {loadingAccount ? (
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
               </div>
-            ) : tradingAccount ? (
+            ) : (
               <div className="space-y-6">
-                {/* Account Card */}
-                <TradingAccountCard 
-                  account={tradingAccount} 
-                  language={language}
-                  onRefresh={loadTradingAccount}
-                />
+                {/* Account Cards Grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Demo Account */}
+                  {demoAccount && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-500 uppercase mb-3">
+                        {language === "en" ? "Demo Account (Paper Trading)" : "حساب تجريبي"}
+                      </h3>
+                      <TradingAccountCard 
+                        account={demoAccount} 
+                        language={language}
+                        onRefresh={loadTradingAccounts}
+                      />
+                    </div>
+                  )}
+
+                  {/* Mentor Account */}
+                  {mentorAccount && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-500 uppercase mb-3">
+                        {language === "en" ? "Mentor Account (Real Trading)" : "حساب المرشد"}
+                      </h3>
+                      <TradingAccountCard 
+                        account={mentorAccount} 
+                        language={language}
+                        onRefresh={loadTradingAccounts}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* Open Positions */}
                 <Card className="border-slate-200 shadow-sm">
@@ -607,7 +648,7 @@ export default function Profile({ language = "en" }) {
                             tradeId: trade.id,
                             exitPrice: currentPrice
                           });
-                          loadTradingAccount();
+                          loadTradingAccounts();
                         } catch (err) {
                           console.error("Failed to close trade", err);
                         }
@@ -632,13 +673,43 @@ export default function Profile({ language = "en" }) {
                   </CardContent>
                 </Card>
               </div>
+            )}
+          </TabsContent>
+
+          {/* Wallet Tab */}
+          <TabsContent value="wallet" className="space-y-6">
+            {loadingAccount ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : mentorWallet ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="space-y-6">
+                  <WalletCard 
+                    wallet={mentorWallet} 
+                    language={language}
+                    onRefresh={loadTradingAccounts}
+                  />
+                </div>
+                <div>
+                  <TransactionHistory 
+                    walletId={mentorWallet.id}
+                    language={language}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="text-center py-12">
                 <Wallet className="h-12 w-12 text-slate-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                  {language === "en" ? "Setting up your account..." : "جاري إعداد حسابك..."}
+                  {language === "en" ? "No wallet found" : "لم يتم العثور على محفظة"}
                 </h3>
-                <Button onClick={loadTradingAccount} className="bg-blue-600 hover:bg-blue-700">
+                <p className="text-slate-500 mb-4">
+                  {language === "en" 
+                    ? "A wallet will be created with your mentor account" 
+                    : "سيتم إنشاء محفظة مع حساب المرشد الخاص بك"}
+                </p>
+                <Button onClick={loadTradingAccounts} className="bg-blue-600 hover:bg-blue-700">
                   <RefreshCw className="mr-2 h-4 w-4" /> {language === "en" ? "Retry" : "إعادة المحاولة"}
                 </Button>
               </div>
