@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PropTypes from "prop-types";
@@ -12,6 +11,7 @@ import {
   Globe,
   Zap,
 } from "lucide-react";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 
 export default function About({ language = "en" }) {
@@ -146,6 +146,9 @@ export default function About({ language = "en" }) {
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
+          <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto mb-6 p-3 shadow-lg">
+            <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
+          </div>
           <Badge className="mb-6 bg-white/10 text-white border-white/20 backdrop-blur-sm px-4 py-2">
             {t.hero.badge}
           </Badge>

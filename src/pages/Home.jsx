@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
@@ -41,7 +40,7 @@ export default function Home({ language = "en" }) {
     en: {
       hero: {
         title: "Trade Smarter with AI Agent & Withdraw Anytime",
-        subtitle: "The only platform where you have 100% control over your assets. No hidden holds, no withdrawal delays.",
+        subtitle: "The premier platform where you have 100% control over your assets. No hidden holds, no withdrawal delays.",
         cta1: "Start Trading Now",
         cta2: "View Live Markets"
       },
@@ -95,10 +94,10 @@ export default function Home({ language = "en" }) {
 
       },
       features: [
-        { icon: Shield, title: "Trusted Broker", desc: "Regulated and secure crypto trading environment" },
-        { icon: Zap, title: "Instant Execution", desc: "Lightning-fast order execution in milliseconds" },
-        { icon: DollarSign, title: "Zero Commission", desc: "No hidden fees or commission charges" },
-        { icon: Globe, title: "Global Access", desc: "Trade from anywhere in the world 24/7" }],
+        { icon: Shield, title: "Trusted Security", desc: "Bank-grade encryption and secure crypto trading environment" },
+        { icon: Zap, title: "Lightning Speed", desc: "Ultra-fast order execution in milliseconds" },
+        { icon: DollarSign, title: "Zero Commission", desc: "No hidden fees or commission charges on trades" },
+        { icon: Globe, title: "24/7 Trading", desc: "Trade cryptocurrencies from anywhere, anytime" }],
 
       whyChoose: {
         title: "Why Choose NextTrade?",
@@ -125,7 +124,7 @@ export default function Home({ language = "en" }) {
     ar: {
       hero: {
         title: "تداول بذكاء مع مساعد الذكاء الاصطناعي واسحب في أي وقت",
-        subtitle: "المنصة الوحيدة التي تمنحك تحكماً كاملاً بنسبة 100٪ في أصولك. لا حجز للأموال، ولا تأخير في السحب.",
+        subtitle: "المنصة الرائدة التي تمنحك تحكماً كاملاً بنسبة 100٪ في أصولك. لا حجز للأموال، ولا تأخير في السحب.",
         cta1: "ابدأ التداول الآن",
         cta2: "عرض الأسواق المباشرة"
       },
@@ -179,10 +178,10 @@ export default function Home({ language = "en" }) {
 
       },
       features: [
-        { icon: Shield, title: "وسيط موثوق", desc: "بيئة تداول عملات رقمية آمنة ومنظمة" },
-        { icon: Zap, title: "تنفيذ فوري", desc: "تنفيذ الأوامر بسرعة البرق في أجزاء من الثانية" },
-        { icon: DollarSign, title: "بدون عمولة", desc: "لا رسوم خفية أو عمولات" },
-        { icon: Globe, title: "وصول عالمي", desc: "تداول من أي مكان في العالم على مدار الساعة" }],
+        { icon: Shield, title: "أمان موثوق", desc: "تشفير بمستوى البنوك وبيئة تداول عملات رقمية آمنة" },
+        { icon: Zap, title: "سرعة البرق", desc: "تنفيذ فائق السرعة للأوامر في أجزاء من الثانية" },
+        { icon: DollarSign, title: "بدون عمولة", desc: "لا رسوم خفية أو عمولات على الصفقات" },
+        { icon: Globe, title: "تداول 24/7", desc: "تداول العملات الرقمية من أي مكان، في أي وقت" }],
 
       whyChoose: {
         title: "لماذا NextTrade؟",
@@ -465,47 +464,52 @@ export default function Home({ language = "en" }) {
             </p>
           </div>
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Crypto Image */}
+            {/* Left Side - Live Market Display */}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               className="relative">
 
-              <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/ac624df0c_f51701e3-dbf6-4070-88f9-c4844c0a676e.png"
-                  alt="Crypto Trading"
-                  className="w-full h-auto" />
-
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-
-                {/* Floating Badge */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute bottom-8 left-8 right-8">
-
-                  <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-3xl font-bold text-slate-900">BTC/USD</div>
-                        <div className="text-sm text-slate-500 font-bold mt-1">
-                          {language === "ar" ? "تداول البيتكوين مع فروقات منخفضة" : "Trade Bitcoin with Low Spreads"}
-                        </div>
+              <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+                {/* Market Display Card */}
+                <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <div className="text-3xl font-bold text-slate-900">BTC/USDT</div>
+                      <div className="text-sm text-slate-500 font-bold mt-1">
+                        {language === "ar" ? "تداول البيتكوين مع فروقات منخفضة" : "Trade Bitcoin with Low Spreads"}
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">$96,654.32</div>
-                        <div className="text-sm text-green-600 flex items-center gap-1 justify-end font-bold">
-                          <TrendingUp className="w-4 h-4" />
-                          +2.45%
-                        </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-600">$94,250</div>
+                      <div className="text-sm text-green-600 flex items-center gap-1 justify-end font-bold">
+                        <TrendingUp className="w-4 h-4" />
+                        +3.15%
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                  
+                  {/* Additional Market Stats */}
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+                    <div>
+                      <div className="text-xs text-slate-400 uppercase">24h High</div>
+                      <div className="text-sm font-bold text-slate-900">$95,420</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 uppercase">24h Low</div>
+                      <div className="text-sm font-bold text-slate-900">$91,230</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 uppercase">Volume</div>
+                      <div className="text-sm font-bold text-slate-900">$2.1B</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Decorative Elements */}
+                <div className="absolute -top-4 -right-4 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
+                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl" />
               </div>
             </motion.div>
 

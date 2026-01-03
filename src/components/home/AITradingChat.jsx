@@ -10,7 +10,7 @@ export default function AITradingChat({ language = "en" }) {
   const messages = language === "ar" ? [
     {
       type: "user",
-      text: "مرحباً، هل يمكنك تحليل زوج EUR/USD وإعطائي إشارة تداول؟",
+      text: "مرحباً، هل يمكنك تحليل زوج BTC/USDT وإعطائي إشارة تداول؟",
       time: "10:23"
     },
     {
@@ -20,18 +20,18 @@ export default function AITradingChat({ language = "en" }) {
     },
     {
       type: "ai",
-      text: "بعد تحليل الرسم البياني لزوج EUR/USD على الإطار الزمني H4، لاحظت التالي:\n\n📊 التحليل الفني:\n• السعر يتحرك فوق المتوسط المتحرك 50\n• مؤشر RSI عند 65 (منطقة شراء)\n• كسر مستوى المقاومة 1.0850\n• حجم التداول قوي\n\n💡 إشارة تداول موصى بها:",
+      text: "بعد تحليل الرسم البياني لزوج BTC/USDT على الإطار الزمني H4، لاحظت التالي:\n\n📊 التحليل الفني:\n• السعر يتحرك فوق المتوسط المتحرك 50\n• مؤشر RSI عند 65 (منطقة شراء)\n• كسر مستوى المقاومة $92,000\n• حجم التداول قوي\n\n💡 إشارة تداول موصى بها:",
       time: "10:24"
     },
     {
       type: "ai",
       signal: {
-        pair: "EUR/USD",
+        pair: "BTC/USDT",
         action: "شراء (BUY)",
-        entry: "1.0865",
-        sl: "1.0820",
-        tp1: "1.0920",
-        tp2: "1.0970",
+        entry: "$94,250",
+        sl: "$91,500",
+        tp1: "$97,800",
+        tp2: "$101,200",
         riskReward: "1:2.5"
       },
       time: "10:24"
@@ -49,7 +49,7 @@ export default function AITradingChat({ language = "en" }) {
   ] : [
     {
       type: "user",
-      text: "Hi, can you analyze EUR/USD and give me a trading signal?",
+      text: "Hi, can you analyze BTC/USDT and give me a trading signal?",
       time: "10:23"
     },
     {
@@ -59,18 +59,18 @@ export default function AITradingChat({ language = "en" }) {
     },
     {
       type: "ai",
-      text: "After analyzing EUR/USD on H4 timeframe, I've noticed:\n\n📊 Technical Analysis:\n• Price moving above 50 MA\n• RSI at 65 (buy zone)\n• Resistance level 1.0850 broken\n• Strong volume\n\n💡 Recommended Trade Signal:",
+      text: "After analyzing BTC/USDT on H4 timeframe, I've noticed:\n\n📊 Technical Analysis:\n• Price moving above 50 MA\n• RSI at 65 (buy zone)\n• Resistance level $92,000 broken\n• Strong volume\n\n💡 Recommended Trade Signal:",
       time: "10:24"
     },
     {
       type: "ai",
       signal: {
-        pair: "EUR/USD",
+        pair: "BTC/USDT",
         action: "BUY",
-        entry: "1.0865",
-        sl: "1.0820",
-        tp1: "1.0920",
-        tp2: "1.0970",
+        entry: "$94,250",
+        sl: "$91,500",
+        tp1: "$97,800",
+        tp2: "$101,200",
         riskReward: "1:2.5"
       },
       time: "10:24"

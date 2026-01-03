@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 
 const COINS = [
   { id: "bitcoin", binance: "btcusdt" },
@@ -139,8 +142,8 @@ export default function CryptoPriceTable({ language = "en" }) {
         <div className="p-6 bg-gray-900/80 border-b border-gray-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center">
-                <Activity className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center p-2">
+                <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h3 className="text-2xl font-bold">Live Crypto Markets</h3>
@@ -192,9 +195,11 @@ export default function CryptoPriceTable({ language = "en" }) {
                     <td className="py-5 px-6 text-right text-gray-300">{formatCap(coin.market_cap)}</td>
                     <td className="py-5 px-6 text-right text-gray-300">{formatCap(coin.total_volume)}</td>
                     <td className="py-5 px-6 text-right">
-                      <button className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                        Analyze
-                      </button>
+                      <Link to={createPageUrl("Trading")}>
+                        <button className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+                          Trade
+                        </button>
+                      </Link>
                     </td>
                   </tr>
                 );

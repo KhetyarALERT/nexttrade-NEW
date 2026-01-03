@@ -20,6 +20,7 @@ import {
   CheckCircle,
   TrendingUp,
 } from "lucide-react";
+import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -255,8 +256,8 @@ export default function Contact({ language = "en" }) {
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mx-auto mb-6">
-            <TrendingUp className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto mb-6 p-3 shadow-lg">
+            <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6">{t.hero.title}</h1>
           <p className="text-xl text-gray-300">{t.hero.subtitle}</p>

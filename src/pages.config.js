@@ -1,21 +1,23 @@
-import Home from './pages/Home';
 import About from './pages/About';
-import Trading from './pages/Trading';
 import Contact from './pages/Contact';
+import Home from './pages/Home';
 import Profile from './pages/Profile';
-import Layout from './Layout.jsx';
+import Trading from './pages/Trading';
+import index from './pages/index';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Home": Home,
     "About": About,
-    "Trading": Trading,
     "Contact": Contact,
+    "Home": Home,
     "Profile": Profile,
+    "Trading": Trading,
+    "index": index,
 }
 
 export const pagesConfig = {
     mainPage: "Home",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };
