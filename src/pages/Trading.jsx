@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Maximize2, ArrowUp, ArrowDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { marketStore } from "./marketStore";
+import { marketStore } from "@/components/trading/marketStore";
 
 const TIMEFRAMES = [
   { label: "1m", value: "1m" },
