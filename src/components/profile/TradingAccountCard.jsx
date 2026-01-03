@@ -1,14 +1,12 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Wallet, 
   TrendingUp, 
   TrendingDown, 
-  Activity,
-  Settings,
   RefreshCw
 } from "lucide-react";
 
@@ -16,10 +14,10 @@ const translations = {
   en: {
     balance: "Balance",
     equity: "Equity",
-    margin: "Margin Used",
-    unrealizedPnl: "Unrealized P&L",
-    realizedPnl: "Realized P&L",
-    totalTrades: "Total Trades",
+    margin: "Margin",
+    unrealizedPnl: "Unrealized",
+    realizedPnl: "Realized",
+    totalTrades: "Trades",
     winRate: "Win Rate",
     leverage: "Leverage",
     active: "Active",
@@ -28,12 +26,12 @@ const translations = {
   ar: {
     balance: "الرصيد",
     equity: "رأس المال",
-    margin: "الهامش المستخدم",
-    unrealizedPnl: "الربح غير المحقق",
-    realizedPnl: "الربح المحقق",
-    totalTrades: "إجمالي الصفقات",
+    margin: "الهامش",
+    unrealizedPnl: "غير محقق",
+    realizedPnl: "محقق",
+    totalTrades: "الصفقات",
     winRate: "نسبة الفوز",
-    leverage: "الرافعة المالية",
+    leverage: "الرافعة",
     active: "نشط",
     inactive: "غير نشط"
   }
@@ -49,8 +47,8 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
   };
 
   const winRate = account.total_trades > 0 
-    ? ((account.winning_trades / account.total_trades) * 100).toFixed(1) 
-    : "0.0";
+    ? ((account.winning_trades / account.total_trades) * 100).toFixed(0) 
+    : "0";
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -59,80 +57,64 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
   };
 
   return (
-    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3 border-b border-slate-100">
-        <div className="flex items-center justify-between">
+    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+      <CardContent className="p-0">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-lg">{account.nickname || "Trading Account"}</CardTitle>
-              <p className="text-xs text-slate-500 font-mono">{account.account_id?.substring(0, 20)}...</p>
+              <h3 className="font-semibold text-slate-900">{account.nickname || "Trading Account"}</h3>
+              <Badge className={`text-[10px] ${account.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                {account.status === 'active' ? t.active : t.inactive}
+              </Badge>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={account.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}>
-              {account.status === 'active' ? t.active : t.inactive}
-            </Badge>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="h-8 w-8"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="h-8 w-8">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
-      </CardHeader>
-      
-      <CardContent className="pt-4">
-        {/* Main Balance Display */}
-        <div className="text-center mb-6 py-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl">
-          <p className="text-xs text-slate-500 uppercase mb-1">{t.equity}</p>
-          <p className="text-4xl font-bold text-slate-900">{formatCurrency(account.equity)}</p>
-          <div className={`flex items-center justify-center gap-1 mt-2 text-sm font-medium ${
+        
+        {/* Main Balance */}
+        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50">
+          <p className="text-xs text-slate-500 mb-1">{t.equity}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900">{formatCurrency(account.equity)}</p>
+          <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${
             account.unrealized_pnl >= 0 ? 'text-emerald-600' : 'text-red-500'
           }`}>
             {account.unrealized_pnl >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {formatCurrency(account.unrealized_pnl)} {t.unrealizedPnl}
+            <span>{formatCurrency(account.unrealized_pnl)}</span>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.balance}</p>
-            <p className="text-lg font-bold text-slate-900">{formatCurrency(account.balance)}</p>
+        {/* Stats Grid - Responsive */}
+        <div className="grid grid-cols-2 gap-px bg-slate-100">
+          <div className="p-3 bg-white">
+            <p className="text-[10px] text-slate-500 uppercase">{t.balance}</p>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency(account.balance)}</p>
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.margin}</p>
-            <p className="text-lg font-bold text-slate-900">{formatCurrency(account.margin_used)}</p>
+          <div className="p-3 bg-white">
+            <p className="text-[10px] text-slate-500 uppercase">{t.margin}</p>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency(account.margin_used)}</p>
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.realizedPnl}</p>
-            <p className={`text-lg font-bold ${account.realized_pnl >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          <div className="p-3 bg-white">
+            <p className="text-[10px] text-slate-500 uppercase">{t.realizedPnl}</p>
+            <p className={`text-sm font-bold ${account.realized_pnl >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {account.realized_pnl >= 0 ? '+' : ''}{formatCurrency(account.realized_pnl)}
             </p>
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.leverage}</p>
-            <p className="text-lg font-bold text-blue-600">{account.default_leverage}x</p>
+          <div className="p-3 bg-white">
+            <p className="text-[10px] text-slate-500 uppercase">{t.leverage}</p>
+            <p className="text-sm font-bold text-blue-600">{account.default_leverage}x</p>
           </div>
         </div>
 
-        {/* Trade Stats */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-slate-400" />
-            <span className="text-sm text-slate-600">{t.totalTrades}: <strong>{account.total_trades}</strong></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm text-slate-600">{t.winRate}: <strong>{winRate}%</strong></span>
-          </div>
+        {/* Footer Stats */}
+        <div className="p-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+          <span>{t.totalTrades}: <strong>{account.total_trades}</strong></span>
+          <span>{t.winRate}: <strong className="text-emerald-600">{winRate}%</strong></span>
         </div>
       </CardContent>
     </Card>
