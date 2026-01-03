@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import PropTypes from "prop-types";
 import { ChevronDown, TrendingUp, TrendingDown, ArrowLeftRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,9 +54,7 @@ export default function Trading({ language = "en" }) {
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
     return localStorage.getItem('trading_symbol') || "BTC-USDT";
   });
-  const [selectedInterval, setSelectedInterval] = useState(() => {
-    return localStorage.getItem('trading_interval') || "15m";
-  });
+
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
   const [marketData, setMarketData] = useState({});
@@ -67,14 +65,10 @@ export default function Trading({ language = "en" }) {
   const [positions, setPositions] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
 
-  // Save preferences
+  // Save symbol preference
   useEffect(() => {
     localStorage.setItem('trading_symbol', selectedSymbol);
   }, [selectedSymbol]);
-
-  useEffect(() => {
-    localStorage.setItem('trading_interval', selectedInterval);
-  }, [selectedInterval]);
 
   // Load trading account
   const loadAccount = useCallback(async () => {
@@ -97,11 +91,16 @@ export default function Trading({ language = "en" }) {
     loadAccount();
   }, [loadAccount]);
 
-  // Use marketStore for data
+  // Subscribe to WebSocket tickers ONCE on mount
   useEffect(() => {
-    // Initial fetch/subscription for all symbols
+    // Subscribe to all symbols once
     FUTURES_SYMBOLS.forEach(s => marketStore.subscribeToTicker(s.symbol));
+    
+    // This runs once on mount, don't resubscribe
+  }, []);
 
+  // Listen to ticker updates
+  useEffect(() => {
     const handleTicker = ({ symbol, ticker }) => {
       setMarketData(prev => ({
         ...prev,
@@ -116,16 +115,14 @@ export default function Trading({ language = "en" }) {
 
     const unsubscribe = marketStore.subscribe('ticker', handleTicker);
 
-    // Initial fallback data if store is empty
+    // Get initial prices from store
     const currentTicker = marketStore.getAllTickers()[selectedSymbol];
     if (currentTicker) {
       setCurrentPrice(currentTicker.price);
       setPriceChange(currentTicker.change);
     }
 
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [selectedSymbol]);
 
   const handleSymbolSelect = (symbol) => {
@@ -274,23 +271,18 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Main Content - Fixed height calculation */}
+        <div className="flex overflow-hidden" style={{ height: 'calc(100% - 56px - 280px)' }}>
           {/* Chart Section */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex-1 bg-[#131722]">
-              <ProfessionalChart
-                symbol={selectedSymbol}
-                interval={selectedInterval}
-                onIntervalChange={setSelectedInterval}
-                onPriceUpdate={handlePriceUpdate}
-                trades={positions}
-              />
-            </div>
+          <div className="flex-1 min-w-0 bg-[#131722]">
+            <ProfessionalChart
+              symbol={selectedSymbol}
+              onPriceUpdate={handlePriceUpdate}
+            />
           </div>
 
           {/* Order Panel */}
-          <div className="w-80 flex-shrink-0 bg-[#1a1a2e] border-l border-slate-700/50">
+          <div className="w-72 flex-shrink-0 bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto">
             <OrderPanel
               symbol={selectedSymbol}
               currentPrice={currentPrice}

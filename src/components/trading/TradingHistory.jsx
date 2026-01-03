@@ -4,33 +4,25 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Loader2, RefreshCw, FileText, Pencil, X, AlertCircle } from "lucide-react";
+import { Loader2, FileText, Pencil, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { marketStore } from "@/components/trading/marketStore";
+import TPSLDialog from "@/components/trading/TPSLDialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function TradingHistory({ tradingAccountId, onRefresh, onPositionsUpdate, onOpenOrdersUpdate }) {
   const [activeTab, setActiveTab] = useState("positions");
-  const [livePrices, setLivePrices] = useState({});
   const [positions, setPositions] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
-  const [orderHistory, setOrderHistory] = useState([]);
   const [tradeHistory, setTradeHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [closingId, setClosingId] = useState(null);
-  const [editingTrade, setEditingTrade] = useState(null);
-  const [editValues, setEditValues] = useState({ tp: "", sl: "" });
-  const [showCurrentPairOnly, setShowCurrentPairOnly] = useState(false);
+  const [livePrices, setLivePrices] = useState({});
+  
+  // TP/SL Dialog
+  const [tpslOpen, setTpslOpen] = useState(false);
+  const [editingPosition, setEditingPosition] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!tradingAccountId) return;
@@ -52,21 +44,49 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
         setOpenOrders(newOrders);
         if (onOpenOrdersUpdate) onOpenOrdersUpdate(newOrders);
       }
-      if (historyRes.data?.success) setOrderHistory(historyRes.data.data || []);
-      if (historyRes.data?.success) setTradeHistory(historyRes.data.data || []);
-
+      if (historyRes.data?.success) {
+        setTradeHistory(historyRes.data.data || []);
+      }
     } catch (err) {
       console.error("Failed to fetch trading data", err);
     } finally {
       setLoading(false);
     }
-  }, [tradingAccountId, onPositionsUpdate]);
+  }, [tradingAccountId, onPositionsUpdate, onOpenOrdersUpdate]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Poll every 5s for faster updates
+    // Poll every 10s instead of 5s to reduce API calls
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Real-time price subscription via WebSocket only
+  useEffect(() => {
+    if (positions.length === 0) return;
+
+    const symbols = new Set(positions.map(p => p.symbol));
+    symbols.forEach(s => marketStore.subscribeToTicker(s));
+
+    const handlePrice = ({ symbol, ticker }) => {
+      setLivePrices(prev => ({
+        ...prev,
+        [symbol]: ticker.price
+      }));
+    };
+
+    const unsubscribe = marketStore.subscribe('ticker', handlePrice);
+    
+    // Get initial prices from store
+    const initialPrices = {};
+    symbols.forEach(s => {
+      const t = marketStore.tickers[s];
+      if (t?.price) initialPrices[s] = t.price;
+    });
+    if (Object.keys(initialPrices).length) setLivePrices(prev => ({ ...prev, ...initialPrices }));
+
+    return () => unsubscribe();
+  }, [positions]);
 
   const handleClosePosition = async (tradeId, symbol) => {
     const price = livePrices[symbol] || marketStore.getPrice(symbol);
@@ -87,7 +107,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
       });
 
       if (result.data?.success) {
-        toast.success(`Position ${symbol} closed`);
+        toast.success(`Position closed`);
         fetchData();
         if (onRefresh) onRefresh();
       } else {
@@ -122,55 +142,10 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
     }
   };
 
-  const handleUpdateTPSL = async () => {
-    if (!editingTrade) return;
-
-    try {
-      const result = await base44.functions.invoke('tradingAccount', {
-        action: 'updateTrade',
-        tradeId: editingTrade.id,
-        stopLoss: editValues.sl ? parseFloat(editValues.sl) : null,
-        takeProfit: editValues.tp ? parseFloat(editValues.tp) : null
-      });
-
-      if (result.data?.success) {
-        toast.success("TP/SL updated successfully");
-        fetchData();
-        setEditingTrade(null);
-      } else {
-        toast.error(result.data?.error || "Failed to update TP/SL");
-      }
-    } catch (err) {
-      toast.error("Failed to update TP/SL");
-    }
+  const openTPSLDialog = (pos) => {
+    setEditingPosition(pos);
+    setTpslOpen(true);
   };
-
-  // Real-time price subscription
-  useEffect(() => {
-    if (positions.length === 0) return;
-
-    const symbols = new Set(positions.map(p => p.symbol));
-    symbols.forEach(s => marketStore.subscribeToTicker(s));
-
-    const handlePrice = ({ symbol, ticker }) => {
-      setLivePrices(prev => ({
-        ...prev,
-        [symbol]: ticker.price
-      }));
-    };
-
-    const unsubscribe = marketStore.subscribe('ticker', handlePrice);
-    
-    // Initial fetch
-    const initialPrices = {};
-    symbols.forEach(s => {
-      const p = marketStore.getPrice(s);
-      if (p) initialPrices[s] = p;
-    });
-    setLivePrices(prev => ({ ...prev, ...initialPrices }));
-
-    return () => unsubscribe();
-  }, [positions]);
 
   const calculatePnl = (pos) => {
     const currentPrice = livePrices[pos.symbol] || marketStore.getPrice(pos.symbol);
@@ -188,177 +163,100 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
   };
 
   return (
-    <div className="flex-1 bg-[#1a1a2e] border-t border-slate-700/50 flex flex-col min-h-[300px]">
+    <div className="h-[280px] bg-[#131722] border-t border-[#2B2B43] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between px-4 border-b border-slate-700/50 bg-[#131722]">
+        <div className="flex items-center justify-between px-4 border-b border-[#2B2B43] bg-[#1a1a2e]">
           <TabsList className="bg-transparent h-10 p-0 gap-6">
-            <TabsTrigger 
-              value="positions" 
-              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-sm transition-colors hover:text-white"
-            >
-              Positions ({positions.length})
-            </TabsTrigger>
-            <TabsTrigger 
-              value="open-orders" 
-              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-sm transition-colors hover:text-white"
-            >
-              Open Orders ({openOrders.length})
-            </TabsTrigger>
-            <TabsTrigger 
-              value="order-history" 
-              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-sm transition-colors hover:text-white"
-            >
-              Order History
-            </TabsTrigger>
-            <TabsTrigger 
-              value="trade-history" 
-              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-sm transition-colors hover:text-white"
-            >
-              Trade History
-            </TabsTrigger>
-            <TabsTrigger 
-              value="transaction-history" 
-              className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-sm transition-colors hover:text-white"
-            >
-              Transaction History
-            </TabsTrigger>
+            {[
+              { value: "positions", label: `Positions (${positions.length})` },
+              { value: "open-orders", label: `Open Orders (${openOrders.length})` },
+              { value: "trade-history", label: "Trade History" }
+            ].map(tab => (
+              <TabsTrigger 
+                key={tab.value}
+                value={tab.value} 
+                className="bg-transparent border-b-2 border-transparent data-[state=active]:border-[#2962FF] data-[state=active]:text-white text-slate-400 rounded-none px-0 h-full font-medium text-xs"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </div>
 
-        {/* Filter Bar */}
-        <div className="px-4 py-2 border-b border-slate-700/30 flex items-center gap-6 bg-[#1a1a2e]">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="current-pair" 
-              checked={showCurrentPairOnly} 
-              onCheckedChange={setShowCurrentPairOnly}
-              className="border-slate-600 data-[state=checked]:bg-[#2962FF] data-[state=checked]:border-[#2962FF]"
-            />
-            <label
-              htmlFor="current-pair"
-              className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300"
-            >
-              Current pair
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="voucher-pos" 
-              className="border-slate-600 data-[state=checked]:bg-[#2962FF] data-[state=checked]:border-[#2962FF]"
-            />
-            <label
-              htmlFor="voucher-pos"
-              className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-300"
-            >
-              Voucher positions
-            </label>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto bg-[#1a1a2e]">
-          <TabsContent value="positions" className="m-0 h-full p-0">
+        <div className="flex-1 overflow-auto">
+          <TabsContent value="positions" className="m-0 h-full">
             {positions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-slate-500 text-sm">
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm">
                 <FileText className="w-8 h-8 mb-2 opacity-20" />
                 <p>No open positions</p>
               </div>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="text-slate-500 uppercase sticky top-0 bg-[#1a1a2e] z-10">
-                  <tr className="border-b border-slate-800">
-                    <th className="px-4 py-3 font-medium">Futures</th>
-                    <th className="px-4 py-3 font-medium">Position/Value</th>
-                    <th className="px-4 py-3 font-medium">Unrealized PnL(%)</th>
-                    <th className="px-4 py-3 font-medium">Position PnL</th>
-                    <th className="px-4 py-3 font-medium">Breakeven price</th>
-                    <th className="px-4 py-3 font-medium">Entry Price</th>
-                    <th className="px-4 py-3 font-medium">Mark Price</th>
-                    <th className="px-4 py-3 font-medium">Est. Liq. Price</th>
-                    <th className="px-4 py-3 font-medium">Risk</th>
-                    <th className="px-4 py-3 font-medium">Margin</th>
-                    <th className="px-4 py-3 font-medium">Position TP/SL</th>
-                    <th className="px-4 py-3 font-medium text-right">Action</th>
+                <thead className="text-slate-500 uppercase sticky top-0 bg-[#131722] z-10">
+                  <tr className="border-b border-[#2B2B43]">
+                    <th className="px-3 py-2 font-medium">Symbol</th>
+                    <th className="px-3 py-2 font-medium">Size</th>
+                    <th className="px-3 py-2 font-medium">Entry</th>
+                    <th className="px-3 py-2 font-medium">Mark</th>
+                    <th className="px-3 py-2 font-medium">PnL (ROE%)</th>
+                    <th className="px-3 py-2 font-medium">Liq. Price</th>
+                    <th className="px-3 py-2 font-medium">Margin</th>
+                    <th className="px-3 py-2 font-medium">TP/SL</th>
+                    <th className="px-3 py-2 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-[#2B2B43]/50">
                   {positions.map((pos) => {
                     const { pnl, roe, markPrice } = calculatePnl(pos);
-                    const positionValue = pos.quantity * markPrice;
-                    const marginRatio = positionValue > 0 ? (pos.margin / positionValue) * 100 : 0;
                     
                     return (
-                      <tr key={pos.id} className="text-slate-300 hover:bg-[#1f2937]/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white text-xs">{pos.symbol}</span>
-                            <Badge variant="outline" className={`text-[10px] h-4 px-1 rounded-sm border-0 ${
-                              pos.side === 'LONG' 
-                                ? 'bg-emerald-500/10 text-emerald-500' 
-                                : 'bg-red-500/10 text-red-500'
+                      <tr key={pos.id} className="text-slate-300 hover:bg-[#1f2937]/30">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-white">{pos.symbol}</span>
+                            <Badge variant="outline" className={`text-[9px] h-4 px-1 border-0 ${
+                              pos.side === 'LONG' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
                             }`}>
                               {pos.side} {pos.leverage}x
                             </Badge>
                           </div>
                         </td>
-                        <td className="px-4 py-3 font-mono">
-                          <div className={pos.side === 'LONG' ? 'text-emerald-500' : 'text-red-500'}>
-                            {pos.quantity.toFixed(4)}
-                          </div>
-                          <div className="text-slate-500 text-[10px]">${positionValue.toFixed(2)}</div>
-                        </td>
-                        <td className="px-4 py-3 font-mono">
-                          <div className={pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}>
-                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} USDT
-                          </div>
-                          <div className={`text-[10px] ${roe >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {roe >= 0 ? '+' : ''}{roe.toFixed(2)}%
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 font-mono">
-                          <span className={pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}>
-                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} USDT
+                        <td className="px-3 py-2 font-mono">{pos.quantity?.toFixed(4)}</td>
+                        <td className="px-3 py-2 font-mono">{pos.entry_price?.toFixed(2)}</td>
+                        <td className="px-3 py-2 font-mono text-white">{markPrice?.toFixed(2) || '--'}</td>
+                        <td className="px-3 py-2 font-mono">
+                          <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                          </span>
+                          <span className={`ml-1 text-[10px] ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            ({roe >= 0 ? '+' : ''}{roe.toFixed(2)}%)
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-mono text-slate-400">
-                          {pos.entry_price.toFixed(4)}
+                        <td className="px-3 py-2 font-mono text-amber-400">
+                          <div className="flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {pos.liquidation_price?.toFixed(2) || '--'}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 font-mono text-white">
-                          {pos.entry_price.toFixed(4)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-white">
-                          {markPrice.toFixed(4)}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-amber-500 font-medium flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          {pos.liquidation_price?.toFixed(4) || '-'}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-emerald-500">
-                          {marginRatio.toFixed(2)}%
-                        </td>
-                        <td className="px-4 py-3 font-mono text-white">
-                          {pos.margin.toFixed(4)} <FileText className="inline w-3 h-3 ml-1 text-slate-500" />
-                        </td>
-                        <td className="px-4 py-3 font-mono">
-                          <div className="flex flex-col text-[10px] text-slate-400">
-                            <span>TP: {pos.take_profit || '--'}</span>
-                            <span>SL: {pos.stop_loss || '--'}</span>
+                        <td className="px-3 py-2 font-mono">{pos.margin?.toFixed(2)}</td>
+                        <td className="px-3 py-2">
+                          <div className="text-[10px] text-slate-500">
+                            <div>TP: {pos.take_profit || '--'}</div>
+                            <div>SL: {pos.stop_loss || '--'}</div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-5 text-[10px] mt-1 text-[#2962FF] hover:text-white px-0"
-                            onClick={() => {
-                              setEditingTrade(pos);
-                              setEditValues({ tp: pos.take_profit || "", sl: pos.stop_loss || "" });
-                            }}
+                            className="h-5 text-[10px] text-[#2962FF] hover:text-white px-0 mt-0.5"
+                            onClick={() => openTPSLDialog(pos)}
                           >
                             <Pencil className="w-3 h-3 mr-1" /> Edit
                           </Button>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 py-2 text-right">
                           <Button
                             size="sm"
-                            className="h-7 text-xs bg-[#2B2B43] hover:bg-[#383856] text-white border border-slate-600/50"
+                            className="h-6 text-[10px] bg-[#2B2B43] hover:bg-[#383856] text-white"
                             onClick={() => handleClosePosition(pos.id, pos.symbol)}
                             disabled={closingId === pos.id}
                           >
@@ -373,43 +271,41 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
             )}
           </TabsContent>
 
-          <TabsContent value="open-orders" className="m-0 h-full p-0">
+          <TabsContent value="open-orders" className="m-0 h-full">
             {openOrders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-slate-500 text-sm">
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm">
                 <FileText className="w-8 h-8 mb-2 opacity-20" />
                 <p>No open orders</p>
               </div>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="text-slate-500 uppercase sticky top-0 bg-[#1a1a2e] z-10">
-                  <tr className="border-b border-slate-800">
-                    <th className="px-4 py-3 font-medium">Time</th>
-                    <th className="px-4 py-3 font-medium">Symbol</th>
-                    <th className="px-4 py-3 font-medium">Type</th>
-                    <th className="px-4 py-3 font-medium">Side</th>
-                    <th className="px-4 py-3 font-medium">Price</th>
-                    <th className="px-4 py-3 font-medium">Amount</th>
-                    <th className="px-4 py-3 font-medium">Filled</th>
-                    <th className="px-4 py-3 font-medium text-right">Action</th>
+                <thead className="text-slate-500 uppercase sticky top-0 bg-[#131722] z-10">
+                  <tr className="border-b border-[#2B2B43]">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Symbol</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Side</th>
+                    <th className="px-3 py-2 font-medium">Price</th>
+                    <th className="px-3 py-2 font-medium">Amount</th>
+                    <th className="px-3 py-2 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50">
+                <tbody className="divide-y divide-[#2B2B43]/50">
                   {openOrders.map((order) => (
-                    <tr key={order.id} className="text-slate-300 hover:bg-[#1f2937]/50">
-                      <td className="px-4 py-3 text-slate-500">{format(new Date(order.created_date), 'MM-dd HH:mm:ss')}</td>
-                      <td className="px-4 py-3 font-bold text-white">{order.symbol}</td>
-                      <td className="px-4 py-3">{order.order_type}</td>
-                      <td className={`px-4 py-3 ${order.side === 'LONG' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    <tr key={order.id} className="text-slate-300 hover:bg-[#1f2937]/30">
+                      <td className="px-3 py-2 text-slate-500">{format(new Date(order.created_date), 'MM-dd HH:mm')}</td>
+                      <td className="px-3 py-2 font-medium text-white">{order.symbol}</td>
+                      <td className="px-3 py-2">{order.order_type}</td>
+                      <td className={`px-3 py-2 ${order.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
                         {order.side}
                       </td>
-                      <td className="px-4 py-3 font-mono">${order.limit_price || 'Market'}</td>
-                      <td className="px-4 py-3 font-mono">{order.quantity}</td>
-                      <td className="px-4 py-3 font-mono">0.00</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2 font-mono">${order.limit_price || 'Market'}</td>
+                      <td className="px-3 py-2 font-mono">{order.quantity}</td>
+                      <td className="px-3 py-2 text-right">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs text-red-500 hover:bg-red-950/30 hover:text-red-400"
+                          className="h-6 text-[10px] text-red-400 hover:bg-red-950/30"
                           onClick={() => handleCancelOrder(order.id)}
                           disabled={closingId === order.id}
                         >
@@ -423,66 +319,59 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
             )}
           </TabsContent>
           
-          <TabsContent value="order-history" className="m-0 h-full p-0">
-             <div className="flex flex-col items-center justify-center h-32 text-slate-500 text-sm">
-                <p>No order history</p>
-             </div>
-          </TabsContent>
-
-          <TabsContent value="trade-history" className="m-0 h-full p-0">
-             <div className="flex flex-col items-center justify-center h-32 text-slate-500 text-sm">
+          <TabsContent value="trade-history" className="m-0 h-full">
+            {tradeHistory.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm">
+                <FileText className="w-8 h-8 mb-2 opacity-20" />
                 <p>No trade history</p>
-             </div>
-          </TabsContent>
-
-          <TabsContent value="transaction-history" className="m-0 h-full p-0">
-             <div className="flex flex-col items-center justify-center h-32 text-slate-500 text-sm">
-                <p>No transaction history</p>
-             </div>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead className="text-slate-500 uppercase sticky top-0 bg-[#131722] z-10">
+                  <tr className="border-b border-[#2B2B43]">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Symbol</th>
+                    <th className="px-3 py-2 font-medium">Side</th>
+                    <th className="px-3 py-2 font-medium">Entry</th>
+                    <th className="px-3 py-2 font-medium">Exit</th>
+                    <th className="px-3 py-2 font-medium">PnL</th>
+                    <th className="px-3 py-2 font-medium">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2B2B43]/50">
+                  {tradeHistory.map((trade) => (
+                    <tr key={trade.id} className="text-slate-300 hover:bg-[#1f2937]/30">
+                      <td className="px-3 py-2 text-slate-500">{format(new Date(trade.closed_at || trade.created_date), 'MM-dd HH:mm')}</td>
+                      <td className="px-3 py-2 font-medium text-white">{trade.symbol}</td>
+                      <td className={`px-3 py-2 ${trade.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {trade.side}
+                      </td>
+                      <td className="px-3 py-2 font-mono">${trade.entry_price?.toFixed(2)}</td>
+                      <td className="px-3 py-2 font-mono">${trade.exit_price?.toFixed(2)}</td>
+                      <td className={`px-3 py-2 font-mono ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {trade.pnl >= 0 ? '+' : ''}{trade.pnl?.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 capitalize">{trade.close_reason || 'manual'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </TabsContent>
         </div>
       </Tabs>
 
-      {/* TP/SL Edit Dialog */}
-      <Dialog open={!!editingTrade} onOpenChange={(open) => !open && setEditingTrade(null)}>
-        <DialogContent className="bg-[#1E222D] border-[#2B2B43] text-white sm:max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Edit TP/SL for {editingTrade?.symbol}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="tp" className="text-slate-400">Take Profit</Label>
-              <Input
-                id="tp"
-                type="number"
-                value={editValues.tp}
-                onChange={(e) => setEditValues({ ...editValues, tp: e.target.value })}
-                className="bg-[#131722] border-[#2B2B43] text-white"
-                placeholder="Enter TP price"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="sl" className="text-slate-400">Stop Loss</Label>
-              <Input
-                id="sl"
-                type="number"
-                value={editValues.sl}
-                onChange={(e) => setEditValues({ ...editValues, sl: e.target.value })}
-                className="bg-[#131722] border-[#2B2B43] text-white"
-                placeholder="Enter SL price"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTrade(null)} className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateTPSL} className="bg-[#2962FF] hover:bg-[#2962FF]/90 text-white">
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* TP/SL Dialog */}
+      <TPSLDialog 
+        open={tpslOpen}
+        onOpenChange={setTpslOpen}
+        position={editingPosition}
+        currentPrice={editingPosition ? (livePrices[editingPosition.symbol] || 0) : 0}
+        onSuccess={() => {
+          fetchData();
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>
   );
 }
