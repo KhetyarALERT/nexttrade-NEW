@@ -583,6 +583,22 @@ Deno.serve(async (req) => {
       return Response.json({ success: true });
     }
 
+    // UPDATE TRADE (TP/SL)
+    if (action === 'updateTrade') {
+      const { tradeId, stopLoss, takeProfit } = params;
+      
+      if (!tradeId) {
+        return Response.json({ success: false, error: 'Missing tradeId' }, { status: 400 });
+      }
+
+      await base44.asServiceRole.entities.Trade.update(tradeId, {
+        stop_loss: stopLoss !== undefined ? stopLoss : undefined,
+        take_profit: takeProfit !== undefined ? takeProfit : undefined
+      });
+
+      return Response.json({ success: true });
+    }
+
     // LIST USER ACCOUNTS
     if (action === 'list') {
       const accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });

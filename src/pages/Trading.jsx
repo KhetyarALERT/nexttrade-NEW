@@ -61,6 +61,7 @@ export default function Trading({ language = "en" }) {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
+  const [positions, setPositions] = useState([]);
   const wsRef = useRef(null);
 
   // Save preferences
@@ -335,6 +336,7 @@ export default function Trading({ language = "en" }) {
                 interval={selectedInterval}
                 onIntervalChange={setSelectedInterval}
                 onPriceUpdate={handlePriceUpdate}
+                trades={positions}
               />
             </div>
           </div>
@@ -362,6 +364,7 @@ export default function Trading({ language = "en" }) {
             }, {})
           }
           onRefresh={handleTradeSuccess}
+          onPositionsUpdate={setPositions}
         />
       </div>
 
