@@ -220,20 +220,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   }, [currentPrice, positions]);
 
   const updateOverlays = () => {
-    if (!chartRef.current || !overlayContainerRef.current) return;
-    const priceScale = chartRef.current.priceScale('right');
-    positions.forEach(pos => {
-      if (pos.badgeRef.current) {
-        const y = priceScale.priceToCoordinate(pos.entryPrice);
-        if (y === null) return;
-        const pnl = calculatePNL(pos, currentPrice);
-        const roe = ((pnl / (pos.size * pos.entryPrice / pos.leverage)) * 100).toFixed(2);
-        pos.badgeRef.current.style.top = `${y}px`; // Relative to chart
-        pos.badgeRef.current.style.right = '10px';
-        pos.badgeRef.current.innerText = `PNL: ${pnl.toFixed(2)} (${roe}%)`;
-        pos.badgeRef.current.style.backgroundColor = pnl >= 0 ? '#26A69A' : '#EF5350';
-      }
-    });
+    // Overlays removed - PNL shown in positions list below
   };
 
   const calculatePNL = (pos, currPrice) => {
