@@ -210,27 +210,51 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   useEffect(() => {
     let ws = null;
     let reconnectTimeout = null;
+    let pingInterval = null;
     
     const connectWebSocket = () => {
-      // BingX WebSocket for real-time kline updates
-      const wsSymbol = symbol.replace('-', '');
-      ws = new WebSocket(`wss://open-api-swap.bingx.com/swap-market`);
+      // BingX Futures/Perpetual PUBLIC WebSocket - correct endpoint
+      ws = new WebSocket('wss://open-api-swap.bingx.com/market');
       
       ws.onopen = () => {
-        log('WS_CONNECTED', { symbol });
-        // Subscribe to kline stream
-        ws.send(JSON.stringify({
-          id: Date.now().toString(),
+        log('WS_CONNECTED', { symbol, endpoint: 'wss://open-api-swap.bingx.com/market' });
+        
+        // Subscribe to kline stream - correct format: symbol@kline_interval
+        const subscribeMsg = {
+          id: `kline_${Date.now()}`,
           reqType: "sub",
           dataType: `${symbol}@kline_${timeframe}`
-        }));
+        };
+        ws.send(JSON.stringify(subscribeMsg));
+        log('WS_SUBSCRIBED', subscribeMsg);
+        
+        // Also subscribe to trade stream for real-time price
+        const tradeMsg = {
+          id: `trade_${Date.now()}`,
+          reqType: "sub", 
+          dataType: `${symbol}@trade`
+        };
+        ws.send(JSON.stringify(tradeMsg));
+        log('WS_SUBSCRIBED', tradeMsg);
+        
+        // Ping to keep connection alive
+        pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('Ping');
+          }
+        }, 20000);
       };
       
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          // Handle Pong
+          if (event.data === 'Pong') return;
           
-          if (msg.data && candleSeriesRef.current) {
+          const msg = JSON.parse(event.data);
+          log('WS_MESSAGE', { dataType: msg.dataType, hasData: !!msg.data });
+          
+          // Handle kline updates
+          if (msg.dataType && msg.dataType.includes('@kline') && msg.data && candleSeriesRef.current) {
             const k = msg.data;
             const candle = {
               time: Math.floor(k.T / 1000),
@@ -248,19 +272,28 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
             
             if (onPriceUpdate) onPriceUpdate(candle.close);
           }
+          
+          // Handle trade updates for real-time price
+          if (msg.dataType && msg.dataType.includes('@trade') && msg.data) {
+            const price = parseFloat(msg.data.p);
+            setMarketData(prev => ({ ...prev, price }));
+            if (onPriceUpdate) onPriceUpdate(price);
+          }
+          
         } catch (err) {
-          // Ignore parse errors for ping/pong
+          // Ignore parse errors
         }
       };
       
-      ws.onclose = () => {
-        log('WS_DISCONNECTED', { symbol });
+      ws.onclose = (e) => {
+        log('WS_DISCONNECTED', { symbol, code: e.code, reason: e.reason });
+        if (pingInterval) clearInterval(pingInterval);
         // Reconnect after 3 seconds
         reconnectTimeout = setTimeout(connectWebSocket, 3000);
       };
       
       ws.onerror = (err) => {
-        log('WS_ERROR', { error: err.message || 'WebSocket error' });
+        log('WS_ERROR', { symbol });
       };
     };
     
@@ -269,18 +302,15 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       connectWebSocket();
     });
     
-    // Fetch ticker once for 24h stats (not repeatedly)
+    // Fetch ticker once for 24h stats
     fetchTickerData();
     
     return () => {
-      if (ws) {
-        ws.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      if (pingInterval) clearInterval(pingInterval);
+      if (ws) ws.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [symbol, timeframe]); // Only reconnect when symbol or timeframe changes
+  }, [symbol, timeframe]);
 
   const handleRefresh = () => {
     fetchKlineData();
