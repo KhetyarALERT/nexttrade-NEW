@@ -259,13 +259,13 @@ export default function Profile({ language = "en" }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <Button size="sm" onClick={() => navigate(createPageUrl("Trading"))} className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
+              <Button size="sm" onClick={() => navigate(createPageUrl("Trading"))} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
                 <TrendingUp className="mr-1.5 h-4 w-4" /> Trade
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { loadUser(); loadTradingAccounts(); }} className="flex-1 sm:flex-none">
+              <Button variant="outline" size="sm" onClick={() => { loadUser(); loadTradingAccounts(); }} className="rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100 flex-1 sm:flex-none">
                 <RefreshCw className="mr-1.5 h-4 w-4" /> {t.refresh}
               </Button>
-              <Button variant="outline" size="sm" onClick={handleLogout} className="border-red-200 text-red-600 hover:bg-red-50 flex-1 sm:flex-none">
+              <Button variant="outline" size="sm" onClick={handleLogout} className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 flex-1 sm:flex-none">
                 <LogOut className="mr-1.5 h-4 w-4" /> {t.logout}
               </Button>
             </div>
@@ -327,7 +327,7 @@ export default function Profile({ language = "en" }) {
                   </div>
                 </CardContent>
                 <CardFooter className="border-t border-slate-100 bg-slate-50/50 p-4">
-                  <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
                     {saving ? t.saving : t.saveChanges}
                   </Button>
                 </CardFooter>
@@ -342,7 +342,7 @@ export default function Profile({ language = "en" }) {
                 </CardHeader>
                 <CardContent className="p-4">
                   <p className="text-sm text-slate-600 mb-4">Need help? Our team is available 24/7.</p>
-                  <Button variant="outline" className="w-full" onClick={() => navigate(createPageUrl("Contact"))}>
+                  <Button variant="outline" className="w-full rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100" onClick={() => navigate(createPageUrl("Contact"))}>
                     <LifeBuoy className="mr-2 h-4 w-4" /> Contact Support
                   </Button>
                 </CardContent>
@@ -380,7 +380,7 @@ export default function Profile({ language = "en" }) {
                         <Activity className="h-5 w-5 text-blue-600" />
                         Open Positions
                       </CardTitle>
-                      <Button variant="outline" size="sm" onClick={() => navigate(createPageUrl("Trading"))}>
+                      <Button variant="outline" size="sm" onClick={() => navigate(createPageUrl("Trading"))} className="rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100">
                         New Trade
                       </Button>
                     </div>
@@ -459,7 +459,7 @@ export default function Profile({ language = "en" }) {
                         <p className="text-xs text-slate-500">{item.status}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-blue-600">
+                    <Button variant="ghost" size="sm" className="text-blue-600 rounded-xl">
                       {item.action} <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </div>
@@ -497,7 +497,7 @@ export default function Profile({ language = "en" }) {
                     <Label className="text-sm">{t.referralCode}</Label>
                     <div className="flex gap-2">
                       <Input value={formState.referralCode} readOnly className="font-mono font-bold bg-slate-50" />
-                      <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralCode)}>
+                      <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralCode)} className="rounded-xl border-slate-300">
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
@@ -506,7 +506,7 @@ export default function Profile({ language = "en" }) {
                     <Label className="text-sm">{t.referralLink}</Label>
                     <div className="flex gap-2">
                       <Input value={formState.referralLink} readOnly className="text-xs bg-slate-50" />
-                      <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralLink)}>
+                      <Button variant="outline" size="icon" onClick={() => handleCopy(formState.referralLink)} className="rounded-xl border-slate-300">
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
@@ -521,7 +521,7 @@ export default function Profile({ language = "en" }) {
             <Card className="border-slate-200 shadow-sm overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
                 <CardTitle className="text-lg">{t.trades}</CardTitle>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100">
                   <ExternalLink className="mr-2 h-4 w-4" /> Export
                 </Button>
               </CardHeader>

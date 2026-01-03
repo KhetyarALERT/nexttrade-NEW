@@ -110,7 +110,7 @@ export default function FuturesWalletView({
             onClick={onTransfer}
             variant="outline" 
             size="sm"
-            className="border-slate-600 text-white hover:bg-slate-800"
+            className="border-slate-600 text-white hover:bg-slate-800 rounded-xl"
           >
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>

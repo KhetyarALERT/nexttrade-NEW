@@ -150,10 +150,10 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={onDeposit} size="sm" className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
+            <Button onClick={onDeposit} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               Deposit
             </Button>
-            <Button onClick={onWithdraw} size="sm" variant="outline" className="border-slate-600 text-white hover:bg-slate-800 flex-1 sm:flex-none">
+            <Button onClick={onWithdraw} size="sm" variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
               Withdraw
             </Button>
           </div>
@@ -228,7 +228,7 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link to={createPageUrl("Trading")}>
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs h-7 px-3">
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3 rounded-lg">
                             Trade
                           </Button>
                         </Link>

@@ -269,13 +269,13 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="text-2xl sm:text-3xl font-bold text-white">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { setActiveModal('deposit'); resetForm(); }} className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none">
+            <Button onClick={() => { setActiveModal('deposit'); resetForm(); }} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> Deposit
             </Button>
-            <Button onClick={() => { setActiveModal('withdraw'); resetForm(); }} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 flex-1 sm:flex-none">
+            <Button onClick={() => { setActiveModal('withdraw'); resetForm(); }} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> Withdraw
             </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 flex-1 sm:flex-none">
+            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
               <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
             </Button>
           </div>
@@ -418,7 +418,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                 </div>
                 
                 {!depositData && !loading && (
-                  <Button onClick={handleGetDepositAddress} className="w-full bg-blue-600 hover:bg-blue-700">
+                  <Button onClick={handleGetDepositAddress} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
                     Generate Deposit Address
                   </Button>
                 )}
@@ -576,7 +576,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </p>
             </div>
 
-            <Button onClick={handleWithdraw} disabled={loading || !withdrawAddress || !amount || !selectedNetwork} className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+            <Button onClick={handleWithdraw} disabled={loading || !withdrawAddress || !amount || !selectedNetwork} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50">
               {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
               Withdraw
             </Button>
