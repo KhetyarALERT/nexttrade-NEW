@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Wallet, Loader2, RefreshCw } from "lucide-react";
+import { Wallet, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 
 export default function OrderPanel({ 
   symbol = "BTC-USDT", 
@@ -19,22 +19,40 @@ export default function OrderPanel({
   onOrderSuccess 
 }) {
   const [orderSide, setOrderSide] = useState("buy");
-  const [orderType, setOrderType] = useState("market");
+  const [orderType, setOrderType] = useState("market"); // market, limit, stop, trailing, oco
   const [price, setPrice] = useState("");
+  const [stopPrice, setStopPrice] = useState(""); // For Stop / OCO
   const [amount, setAmount] = useState("");
   const [amountType, setAmountType] = useState("usdt");
   const [leverage, setLeverage] = useState([10]);
+  
+  // Advanced fields
   const [takeProfit, setTakeProfit] = useState("");
   const [stopLoss, setStopLoss] = useState("");
+  const [trailingPercent, setTrailingPercent] = useState("");
+  const [trailingActivation, setTrailingActivation] = useState("");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const baseAsset = symbol.split('-')[0];
 
+  // Reset fields on symbol change
   useEffect(() => {
-    if (currentPrice > 0 && orderType === 'limit' && !price) {
+    setPrice("");
+    setAmount("");
+    setStopPrice("");
+    setTakeProfit("");
+    setStopLoss("");
+    setTrailingPercent("");
+    setTrailingActivation("");
+  }, [symbol]);
+
+  // Set initial price for limit orders
+  useEffect(() => {
+    if (currentPrice > 0 && (orderType === 'limit' || orderType === 'oco') && !price) {
       setPrice(currentPrice.toString());
     }
-  }, [currentPrice, orderType, price]);
+  }, [currentPrice, orderType]);
 
   const handlePlaceOrder = async () => {
     const amountValue = parseFloat(amount);
@@ -53,9 +71,29 @@ export default function OrderPanel({
       return;
     }
 
-    // Calculate quantity based on amount type
+    // Validate inputs based on order type
+    if (orderType === 'limit' && !price) {
+      toast.error("Please enter limit price");
+      return;
+    }
+    if (orderType === 'stop' && !stopPrice) {
+      toast.error("Please enter stop price");
+      return;
+    }
+    if (orderType === 'trailing' && !trailingPercent) {
+      toast.error("Please enter trailing percent");
+      return;
+    }
+    if (orderType === 'oco') {
+      if (!price) { toast.error("Please enter limit price"); return; }
+      if (!stopPrice) { toast.error("Please enter stop price"); return; }
+    }
+
+    // Calculate quantity
     let quantity;
-    const effectivePrice = orderType === 'market' ? currentPrice : parseFloat(price);
+    const effectivePrice = (orderType === 'market' || orderType === 'trailing') 
+      ? currentPrice 
+      : parseFloat(price || stopPrice);
     
     if (amountType === 'usdt') {
       quantity = amountValue / effectivePrice;
@@ -72,7 +110,7 @@ export default function OrderPanel({
     setIsSubmitting(true);
     
     try {
-      const result = await base44.functions.invoke('tradingAccount', {
+      const payload = {
         action: 'openTrade',
         tradingAccountId: tradingAccountId,
         symbol: symbol,
@@ -81,16 +119,22 @@ export default function OrderPanel({
         entryPrice: effectivePrice,
         leverage: leverage[0],
         orderType: orderType.toUpperCase(),
-        limitPrice: orderType === 'limit' ? parseFloat(price) : null,
+        limitPrice: (orderType === 'limit' || orderType === 'oco') ? parseFloat(price) : null,
+        stopPrice: (orderType === 'stop' || orderType === 'oco') ? parseFloat(stopPrice) : null,
         takeProfit: takeProfit ? parseFloat(takeProfit) : null,
-        stopLoss: stopLoss ? parseFloat(stopLoss) : null
-      });
+        stopLoss: stopLoss ? parseFloat(stopLoss) : null,
+        trailingStopPercent: trailingPercent ? parseFloat(trailingPercent) : null,
+        trailingStopActivation: trailingActivation ? parseFloat(trailingActivation) : null,
+        isOCO: orderType === 'oco'
+      };
+
+      const result = await base44.functions.invoke('tradingAccount', payload);
 
       if (result.data?.success) {
         const trade = result.data.data;
         toast.success(
-          `${orderSide === 'buy' ? 'Long' : 'Short'} ${symbol} opened at $${trade.entry_price?.toFixed(2) || effectivePrice.toFixed(2)}`,
-          { description: `Margin: $${trade.margin?.toFixed(2) || margin.toFixed(2)} | Leverage: ${leverage[0]}x` }
+          `${orderSide === 'buy' ? 'Long' : 'Short'} ${symbol} order placed`,
+          { description: `Type: ${orderType.toUpperCase()} | Margin: $${trade.margin?.toFixed(2) || margin.toFixed(2)}` }
         );
         setAmount("");
         if (onOrderSuccess) onOrderSuccess();
@@ -106,7 +150,10 @@ export default function OrderPanel({
   };
 
   // Calculate display values
-  const effectivePrice = orderType === 'market' ? currentPrice : (parseFloat(price) || currentPrice);
+  const effectivePrice = (orderType === 'market' || orderType === 'trailing') 
+    ? currentPrice 
+    : parseFloat(price || stopPrice || currentPrice);
+    
   const amountValue = parseFloat(amount) || 0;
   
   let cryptoAmount, usdtAmount;
@@ -123,7 +170,7 @@ export default function OrderPanel({
   const maxCrypto = effectivePrice > 0 ? maxUSDT / effectivePrice : 0;
 
   return (
-    <Card className="bg-[#1E222D] border-0 rounded-none h-full">
+    <Card className="bg-[#1E222D] border-0 rounded-none h-full overflow-y-auto">
       <CardHeader className="border-b border-[#2B2B43] pb-3 px-4">
         <CardTitle className="text-sm font-bold text-white flex items-center justify-between">
           Place Order
@@ -149,18 +196,107 @@ export default function OrderPanel({
         </Tabs>
 
         <div className="space-y-4">
-          <div>
-            <Label className="text-xs text-gray-400 uppercase">Order Type</Label>
-            <Select value={orderType} onValueChange={setOrderType}>
-              <SelectTrigger className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1E222D] border-[#2B2B43]">
-                <SelectItem value="market" className="text-white">Market</SelectItem>
-                <SelectItem value="limit" className="text-white">Limit</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Tabs value={orderType} onValueChange={setOrderType} className="w-full">
+            <TabsList className="bg-[#131722] w-full justify-start h-8 mb-2 p-0 overflow-x-auto">
+              {['market', 'limit', 'stop', 'trailing', 'oco'].map(type => (
+                <TabsTrigger 
+                  key={type}
+                  value={type} 
+                  className="text-xs px-3 data-[state=active]:text-[#2962FF] data-[state=active]:bg-transparent data-[state=active]:underline underline-offset-4"
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="market" className="mt-0 space-y-4">
+              <div className="bg-[#131722] p-2 rounded text-xs text-gray-400 text-center border border-[#2B2B43]">
+                Order will be executed at best available price
+              </div>
+            </TabsContent>
+
+            <TabsContent value="limit" className="mt-0 space-y-4">
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
+                <Input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder={currentPrice.toFixed(2)}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="stop" className="mt-0 space-y-4">
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Trigger Price</Label>
+                <Input
+                  type="number"
+                  value={stopPrice}
+                  onChange={(e) => setStopPrice(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder={currentPrice.toFixed(2)}
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Limit Price (Optional)</Label>
+                <Input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder="Market"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="trailing" className="mt-0 space-y-4">
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Callback Rate (%)</Label>
+                <Input
+                  type="number"
+                  value={trailingPercent}
+                  onChange={(e) => setTrailingPercent(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder="1.0"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Activation Price (Optional)</Label>
+                <Input
+                  type="number"
+                  value={trailingActivation}
+                  onChange={(e) => setTrailingActivation(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder="Current"
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="oco" className="mt-0 space-y-4">
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
+                <Input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder="Target Price"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-400 uppercase">Stop Trigger</Label>
+                <Input
+                  type="number"
+                  value={stopPrice}
+                  onChange={(e) => setStopPrice(e.target.value)}
+                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                  placeholder="Stop Trigger"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -175,27 +311,7 @@ export default function OrderPanel({
               step={1}
               className="py-2"
             />
-            <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-              <span>1x</span>
-              <span>25x</span>
-              <span>50x</span>
-              <span>75x</span>
-              <span>125x</span>
-            </div>
           </div>
-
-          {orderType === 'limit' && (
-            <div>
-              <Label className="text-xs text-gray-400 uppercase">Price (USDT)</Label>
-              <Input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder={currentPrice.toFixed(2)}
-                className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-              />
-            </div>
-          )}
 
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -247,6 +363,7 @@ export default function OrderPanel({
             ))}
           </div>
 
+          {/* TP/SL Fields (Always visible or collapsible? Keep visible for easy access) */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs text-gray-400 uppercase">Take Profit</Label>
