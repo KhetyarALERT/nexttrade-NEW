@@ -153,6 +153,9 @@ class MarketStore {
       this.emit('connected', false);
       this.stopPing();
       
+      // Clear any existing heartbeat timeout
+      if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+
       // Reconnect after 3 seconds
       this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
     };
@@ -164,6 +167,8 @@ class MarketStore {
 
   // Handle incoming WebSocket message
   handleMessage(msg) {
+    this.resetHeartbeat(); // Reset watchdog on any valid message
+
     if (!msg.dataType || !msg.data) return;
     
     const [symbol, channel] = msg.dataType.split('@');
@@ -229,17 +234,36 @@ class MarketStore {
 
   // Ping to keep connection alive
   startPing() {
+    // Send Ping every 20s
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send('Ping');
       }
     }, 20000);
+    
+    // Heartbeat check every 30s
+    // If no message received in 30s, reconnect
+    this.resetHeartbeat();
+  }
+
+  resetHeartbeat() {
+    if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
+    
+    this.heartbeatTimeout = setTimeout(() => {
+      console.log('[STORE] No data received for 30s, reconnecting...');
+      this.disconnect();
+      this.connect();
+    }, 30000);
   }
 
   stopPing() {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+    if (this.heartbeatTimeout) {
+      clearTimeout(this.heartbeatTimeout);
+      this.heartbeatTimeout = null;
     }
   }
 

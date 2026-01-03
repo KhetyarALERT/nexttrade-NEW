@@ -476,15 +476,30 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'updateTrade') {
-      const { tradeId, stopLoss, takeProfit } = params;
+      const { tradeId, stopLoss, takeProfit, trailingStopTrigger } = params;
       if (!tradeId) {
         return Response.json({ success: false, error: 'Missing tradeId' }, { status: 400 });
       }
-      await base44.asServiceRole.entities.Trade.update(tradeId, {
-        stop_loss: stopLoss !== undefined ? stopLoss : undefined,
-        take_profit: takeProfit !== undefined ? takeProfit : undefined
-      });
+      
+      const updateData = {};
+      if (stopLoss !== undefined) updateData.stop_loss = stopLoss;
+      if (takeProfit !== undefined) updateData.take_profit = takeProfit;
+      if (trailingStopTrigger !== undefined) updateData.trailing_stop_trigger = trailingStopTrigger;
+      
+      await base44.asServiceRole.entities.Trade.update(tradeId, updateData);
       return Response.json({ success: true });
+    }
+
+    if (action === 'executePendingOrder') {
+       const { tradeId, entryPrice } = params;
+       if (!tradeId || !entryPrice) return Response.json({ success: false }, { status: 400 });
+       
+       await base44.asServiceRole.entities.Trade.update(tradeId, {
+         status: 'OPEN',
+         entry_price: entryPrice,
+         open_at: new Date().toISOString()
+       });
+       return Response.json({ success: true });
     }
 
     if (action === 'getTrades') {

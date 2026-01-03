@@ -15,11 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, FileText, Pencil, X, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { marketStore } from "@/components/trading/marketStore";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-export default function TradingHistory({ tradingAccountId, currentPrices = {}, onRefresh, onPositionsUpdate }) {
+export default function TradingHistory({ tradingAccountId, onRefresh, onPositionsUpdate, onOpenOrdersUpdate }) {
   const [activeTab, setActiveTab] = useState("positions");
+  const [livePrices, setLivePrices] = useState({});
   const [positions, setPositions] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
   const [orderHistory, setOrderHistory] = useState([]);
@@ -45,7 +47,11 @@ export default function TradingHistory({ tradingAccountId, currentPrices = {}, o
         setPositions(newPositions);
         if (onPositionsUpdate) onPositionsUpdate(newPositions);
       }
-      if (ordersRes.data?.success) setOpenOrders(ordersRes.data.data || []);
+      if (ordersRes.data?.success) {
+        const newOrders = ordersRes.data.data || [];
+        setOpenOrders(newOrders);
+        if (onOpenOrdersUpdate) onOpenOrdersUpdate(newOrders);
+      }
       if (historyRes.data?.success) setOrderHistory(historyRes.data.data || []);
       if (historyRes.data?.success) setTradeHistory(historyRes.data.data || []);
 
@@ -63,7 +69,7 @@ export default function TradingHistory({ tradingAccountId, currentPrices = {}, o
   }, [fetchData]);
 
   const handleClosePosition = async (tradeId, symbol) => {
-    const price = currentPrices[symbol];
+    const price = livePrices[symbol] || marketStore.getPrice(symbol);
     if (!price) {
       toast.error("Waiting for price data...");
       return;
@@ -139,8 +145,35 @@ export default function TradingHistory({ tradingAccountId, currentPrices = {}, o
     }
   };
 
+  // Real-time price subscription
+  useEffect(() => {
+    if (positions.length === 0) return;
+
+    const symbols = new Set(positions.map(p => p.symbol));
+    symbols.forEach(s => marketStore.subscribeToTicker(s));
+
+    const handlePrice = ({ symbol, ticker }) => {
+      setLivePrices(prev => ({
+        ...prev,
+        [symbol]: ticker.price
+      }));
+    };
+
+    const unsubscribe = marketStore.subscribe('ticker', handlePrice);
+    
+    // Initial fetch
+    const initialPrices = {};
+    symbols.forEach(s => {
+      const p = marketStore.getPrice(s);
+      if (p) initialPrices[s] = p;
+    });
+    setLivePrices(prev => ({ ...prev, ...initialPrices }));
+
+    return () => unsubscribe();
+  }, [positions]);
+
   const calculatePnl = (pos) => {
-    const currentPrice = currentPrices[pos.symbol];
+    const currentPrice = livePrices[pos.symbol] || marketStore.getPrice(pos.symbol);
     if (!currentPrice) return { pnl: 0, roe: 0, markPrice: 0 };
 
     let pnl = 0;
@@ -456,7 +489,7 @@ export default function TradingHistory({ tradingAccountId, currentPrices = {}, o
 
 TradingHistory.propTypes = {
   tradingAccountId: PropTypes.string,
-  currentPrices: PropTypes.object,
   onRefresh: PropTypes.func,
-  onPositionsUpdate: PropTypes.func
+  onPositionsUpdate: PropTypes.func,
+  onOpenOrdersUpdate: PropTypes.func
 };

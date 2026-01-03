@@ -20,6 +20,7 @@ import {
 import ProfessionalChart from "@/components/trading/ProfessionalChart";
 import OrderPanel from "@/components/trading/OrderPanel";
 import TradingHistory from "@/components/trading/TradingHistory";
+import ClientExecutionEngine from "@/components/trading/ClientExecutionEngine";
 import { marketStore } from "@/components/trading/marketStore";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -64,6 +65,7 @@ export default function Trading({ language = "en" }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
   const [positions, setPositions] = useState([]);
+  const [openOrders, setOpenOrders] = useState([]);
 
   // Save preferences
   useEffect(() => {
@@ -303,16 +305,19 @@ export default function Trading({ language = "en" }) {
         {/* Bottom Panel - Trading History */}
         <TradingHistory 
           tradingAccountId={account?.id}
-          currentPrices={
-            Object.keys(marketData).reduce((acc, key) => {
-              acc[key] = marketData[key].price;
-              return acc;
-            }, {})
-          }
           onRefresh={handleTradeSuccess}
           onPositionsUpdate={setPositions}
+          onOpenOrdersUpdate={setOpenOrders}
         />
       </div>
+      
+      {/* Client-Side Execution Engine */}
+      <ClientExecutionEngine 
+        positions={positions}
+        openOrders={openOrders}
+        onTrigger={handleTradeSuccess}
+        userId={account?.user_id}
+      />
 
       {/* Transfer Dialog */}
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>

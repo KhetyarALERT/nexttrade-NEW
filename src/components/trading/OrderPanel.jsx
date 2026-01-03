@@ -22,6 +22,7 @@ export default function OrderPanel({
   const [orderType, setOrderType] = useState("market"); // market, limit, stop, trailing, oco
   const [price, setPrice] = useState("");
   const [stopPrice, setStopPrice] = useState(""); // For Stop / OCO
+  const [stopLimitPrice, setStopLimitPrice] = useState(""); // For OCO Stop Limit
   const [amount, setAmount] = useState("");
   const [amountType, setAmountType] = useState("usdt");
   const [leverage, setLeverage] = useState([10]);
@@ -41,6 +42,7 @@ export default function OrderPanel({
     setPrice("");
     setAmount("");
     setStopPrice("");
+    setStopLimitPrice("");
     setTakeProfit("");
     setStopLoss("");
     setTrailingPercent("");
@@ -87,6 +89,7 @@ export default function OrderPanel({
     if (orderType === 'oco') {
       if (!price) { toast.error("Please enter limit price"); return; }
       if (!stopPrice) { toast.error("Please enter stop price"); return; }
+      if (!stopLimitPrice) { toast.error("Please enter stop limit price"); return; }
     }
 
     // Calculate quantity
@@ -121,6 +124,7 @@ export default function OrderPanel({
         orderType: orderType.toUpperCase(),
         limitPrice: (orderType === 'limit' || orderType === 'oco') ? parseFloat(price) : null,
         stopPrice: (orderType === 'stop' || orderType === 'oco') ? parseFloat(stopPrice) : null,
+        stopLimitPrice: orderType === 'oco' ? parseFloat(stopLimitPrice) : null,
         takeProfit: takeProfit ? parseFloat(takeProfit) : null,
         stopLoss: stopLoss ? parseFloat(stopLoss) : null,
         trailingStopPercent: trailingPercent ? parseFloat(trailingPercent) : null,
@@ -275,25 +279,44 @@ export default function OrderPanel({
             </TabsContent>
 
             <TabsContent value="oco" className="mt-0 space-y-4">
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
-                <Input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder="Target Price"
-                />
+              <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-200">
+                <span className="font-bold">OCO Order:</span> Combines a Limit order (Profit) and a Stop-Limit order (Loss). If one triggers, the other is cancelled.
               </div>
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Stop Trigger</Label>
-                <Input
-                  type="number"
-                  value={stopPrice}
-                  onChange={(e) => setStopPrice(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder="Stop Trigger"
-                />
+              <div className="space-y-3 pt-2 border-t border-dashed border-slate-700">
+                <p className="text-xs font-bold text-emerald-400">1. Take Profit (Limit)</p>
+                <div>
+                  <Label className="text-xs text-gray-400 uppercase">Price</Label>
+                  <Input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                    placeholder="Limit Price"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3 pt-2 border-t border-dashed border-slate-700">
+                <p className="text-xs font-bold text-red-400">2. Stop Loss (Stop-Limit)</p>
+                <div>
+                  <Label className="text-xs text-gray-400 uppercase">Stop Trigger</Label>
+                  <Input
+                    type="number"
+                    value={stopPrice}
+                    onChange={(e) => setStopPrice(e.target.value)}
+                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                    placeholder="Trigger Price"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
+                  <Input
+                    type="number"
+                    value={stopLimitPrice}
+                    onChange={(e) => setStopLimitPrice(e.target.value)}
+                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
+                    placeholder="Execution Price"
+                  />
+                </div>
               </div>
             </TabsContent>
           </Tabs>
