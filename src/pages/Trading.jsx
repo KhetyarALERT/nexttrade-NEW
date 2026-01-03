@@ -22,7 +22,6 @@ const normalizeTime = (t) => t > 1e12 ? Math.floor(t / 1000) : Math.floor(t);
 
 export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
   const chartContainerRef = useRef(null);
-  const overlayContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
