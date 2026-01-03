@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, FileText, Pencil, X } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Pencil, X, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { format } from "date-fns";
