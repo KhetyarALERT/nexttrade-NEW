@@ -84,9 +84,7 @@ Deno.serve(async (req) => {
         // Create default USDT wallet for live accounts
         let wallet = null;
         if (!isDemo) {
-          const walletId = `W_${generateId()}`;
           wallet = await base44.asServiceRole.entities.Wallet.create({
-            wallet_id: walletId,
             trading_account_id: newAccount.id,
             user_id: user.id,
             currency: 'USDT',
@@ -251,9 +249,7 @@ Deno.serve(async (req) => {
       }
       
       // Create trade
-      const tradeId = `TR_${generateId()}`;
       const trade = await base44.asServiceRole.entities.Trade.create({
-        trade_id: tradeId,
         trading_account_id: tradingAccountId,
         wallet_id: useWallet?.id || null,
         user_id: user.id,
@@ -285,26 +281,26 @@ Deno.serve(async (req) => {
       } else {
         // Create wallet transactions
         await base44.asServiceRole.entities.WalletTransaction.create({
-          transaction_id: `TX_M_${generateId()}`,
           wallet_id: useWallet.id,
           user_id: user.id,
           type: 'trade_margin',
           amount: -marginRequired,
           currency: useWallet.currency,
+          network: useWallet.network,
           status: 'completed',
-          reference_id: tradeId,
-          notes: `Margin for ${symbol} ${side}`
+          reference_id: trade.id,
+          notes: `Margin locked for ${symbol} ${side} trade`
         });
         
         await base44.asServiceRole.entities.WalletTransaction.create({
-          transaction_id: `TX_F_${generateId()}`,
           wallet_id: useWallet.id,
           user_id: user.id,
           type: 'fee',
           amount: -tradingFee,
           currency: useWallet.currency,
+          network: useWallet.network,
           status: 'completed',
-          reference_id: tradeId,
+          reference_id: trade.id,
           notes: `Trading fee for ${symbol}`
         });
         
@@ -320,7 +316,7 @@ Deno.serve(async (req) => {
       }
       
       audit('TRADE_OPENED', user.id, { 
-        tradeId, symbol, side, quantity, 
+        tradeId: trade.id, symbol, side, quantity, 
         entryPrice: actualEntryPrice, 
         marginRequired, tradingFee, 
         slippage: actualSlippage,
@@ -433,15 +429,15 @@ Deno.serve(async (req) => {
               const wallet = wallets[0];
               
               await base44.asServiceRole.entities.WalletTransaction.create({
-                transaction_id: `TX_P_${generateId()}`,
                 wallet_id: wallet.id,
                 user_id: user.id,
                 type: 'trade_pnl',
                 amount: returnAmount,
                 fee: closingFee + fundingFees,
                 currency: wallet.currency,
+                network: wallet.network,
                 status: 'completed',
-                reference_id: trade.trade_id,
+                reference_id: trade.id,
                 notes: `Closed ${trade.symbol} ${trade.side}: ${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)} USDT (fees: ${totalFees.toFixed(2)})`
               });
               

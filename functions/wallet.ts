@@ -173,9 +173,7 @@ Deno.serve(async (req) => {
       const allWallets = await base44.entities.Wallet.filter({ trading_account_id: tradingAccountId });
       const isPrimary = !allWallets?.length;
       
-      const walletId = `W_${generateId()}`;
       const wallet = await base44.asServiceRole.entities.Wallet.create({
-        wallet_id: walletId,
         trading_account_id: tradingAccountId,
         user_id: user.id,
         currency,
@@ -189,7 +187,7 @@ Deno.serve(async (req) => {
         is_primary: isPrimary
       });
       
-      audit('WALLET_CREATED', user.id, { walletId, currency, network });
+      audit('WALLET_CREATED', user.id, { walletId: wallet.id, currency, network });
       return Response.json({ success: true, data: wallet });
     }
 
@@ -224,9 +222,7 @@ Deno.serve(async (req) => {
           continue;
         }
         
-        const walletId = `W_${generateId()}`;
         const wallet = await base44.asServiceRole.entities.Wallet.create({
-          wallet_id: walletId,
           trading_account_id: tradingAccountId,
           user_id: user.id,
           currency: curr.currency,
@@ -299,8 +295,9 @@ Deno.serve(async (req) => {
         });
         
         await base44.asServiceRole.entities.Wallet.update(walletId, {
-          nowpayments_id: String(paymentData.id),
-          deposit_address: paymentData.pay_address || null
+          nowpayments_payment_id: String(paymentData.id),
+          deposit_address: paymentData.pay_address || null,
+          address_generated_at: new Date().toISOString()
         });
         
         audit('DEPOSIT_INVOICE_CREATED', user.id, { walletId, invoiceId: paymentData.id });
@@ -422,8 +419,7 @@ Deno.serve(async (req) => {
       const appUrl = Deno.env.get('BASE44_APP_URL') || 'https://app.base44.com';
       
       // Create pending transaction
-      await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: txId,
+      const txRecord = await base44.asServiceRole.entities.WalletTransaction.create({
         wallet_id: walletId,
         user_id: user.id,
         type: 'withdrawal',
@@ -463,13 +459,10 @@ Deno.serve(async (req) => {
         const batchId = payoutData.id;
         
         // Update transaction with payout info
-        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ transaction_id: txId });
-        if (txRecords?.length) {
-          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
-            nowpayments_id: String(payoutId),
-            notes: `Payout created. Batch ID: ${batchId}. Status: ${payoutData.withdrawals?.[0]?.status || 'WAITING'}. Requires verification if 2FA enabled.`
-          });
-        }
+        await base44.asServiceRole.entities.WalletTransaction.update(txRecord.id, {
+          nowpayments_id: String(payoutId),
+          notes: `Payout created. Batch ID: ${batchId}. Status: ${payoutData.withdrawals?.[0]?.status || 'WAITING'}. Requires verification if 2FA enabled.`
+        });
         
         audit('WITHDRAWAL_CREATED', user.id, { 
           walletId, 
@@ -477,13 +470,13 @@ Deno.serve(async (req) => {
           fee: currencyConfig.withdrawFee,
           payoutId,
           batchId,
-          txId 
+          txId: txRecord.id
         });
         
         return Response.json({ 
           success: true, 
           data: { 
-            transactionId: txId, 
+            transactionId: txRecord.id, 
             payoutId,
             batchId,
             status: 'pending',
@@ -498,13 +491,10 @@ Deno.serve(async (req) => {
           locked_balance: Math.max(0, (wallet.locked_balance || 0))
         });
         
-        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ transaction_id: txId });
-        if (txRecords?.length) {
-          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
-            status: 'failed',
-            notes: `Payout failed: ${err.message}`
-          });
-        }
+        await base44.asServiceRole.entities.WalletTransaction.update(txRecord.id, {
+          status: 'failed',
+          notes: `Payout failed: ${err.message}`
+        });
         
         return Response.json({ success: false, error: `Withdrawal failed: ${err.message}` }, { status: 500 });
       }
@@ -569,24 +559,24 @@ Deno.serve(async (req) => {
       
       // Create transactions
       await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: `${transferId}_OUT`,
         wallet_id: fromWalletId,
         user_id: user.id,
         type: 'internal_transfer_out',
         amount: -transferAmount,
         currency: fromWallet.currency,
+        network: fromWallet.network,
         status: 'completed',
         reference_id: transferId,
         notes: `Transfer to ${toWallet.currency} (${toWallet.network})`
       });
       
       await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: `${transferId}_IN`,
         wallet_id: toWalletId,
         user_id: user.id,
         type: 'internal_transfer_in',
         amount: transferAmount,
         currency: toWallet.currency,
+        network: toWallet.network,
         status: 'completed',
         reference_id: transferId,
         notes: `Transfer from ${fromWallet.currency} (${fromWallet.network})`
@@ -679,12 +669,10 @@ Deno.serve(async (req) => {
       const apyRates = { 30: 5, 60: 7, 90: 10, 180: 12 };
       const apy = apyRates[lockPeriodDays] || 5;
       
-      const positionId = `STK_${generateId()}`;
       const startDate = new Date();
       const unlockDate = new Date(startDate.getTime() + lockPeriodDays * 24 * 60 * 60 * 1000);
       
-      await base44.asServiceRole.entities.StakingPosition.create({
-        position_id: positionId,
+      const position = await base44.asServiceRole.entities.StakingPosition.create({
         wallet_id: walletId,
         user_id: user.id,
         currency: 'USDT',
@@ -699,25 +687,25 @@ Deno.serve(async (req) => {
       });
       
       await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: `TX_STK_${generateId()}`,
         wallet_id: walletId,
         user_id: user.id,
         type: 'staking_lock',
         amount: -stakeAmount,
         currency: 'USDT',
         status: 'completed',
-        reference_id: positionId
+        reference_id: position.id,
+        notes: `Staked ${stakeAmount} USDT for ${lockPeriodDays} days at ${apy}% APY`
       });
       
       await base44.asServiceRole.entities.Wallet.update(walletId, {
         staked_balance: (wallet.staked_balance || 0) + stakeAmount
       });
       
-      audit('STAKING_CREATED', user.id, { positionId, amount: stakeAmount, apy, lockPeriodDays });
+      audit('STAKING_CREATED', user.id, { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays });
       
       return Response.json({ 
         success: true, 
-        data: { positionId, amount: stakeAmount, apy, unlockDate: unlockDate.toISOString() } 
+        data: { positionId: position.id, amount: stakeAmount, apy, unlockDate: unlockDate.toISOString() } 
       });
     }
 
@@ -761,15 +749,15 @@ Deno.serve(async (req) => {
         const wallet = wallets[0];
         
         await base44.asServiceRole.entities.WalletTransaction.create({
-          transaction_id: `TX_USTK_${generateId()}`,
           wallet_id: wallet.id,
           user_id: user.id,
           type: 'staking_unlock',
           amount: totalReturn,
           currency: 'USDT',
+          network: wallet.network,
           status: 'completed',
-          reference_id: position.position_id,
-          notes: penalty > 0 ? `Early unstake penalty: ${penalty.toFixed(2)} USDT` : null
+          reference_id: positionId,
+          notes: penalty > 0 ? `Early unstake penalty: ${penalty.toFixed(2)} USDT` : `Unstaked ${position.amount} USDT + ${position.earned_rewards || 0} rewards`
         });
         
         await base44.asServiceRole.entities.Wallet.update(wallet.id, {

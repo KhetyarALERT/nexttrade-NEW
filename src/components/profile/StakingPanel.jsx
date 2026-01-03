@@ -231,11 +231,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
       {/* Stake Dialog */}
       <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white">
+        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="stake-description">
           <DialogHeader>
             <DialogTitle className="text-white">{t.stake} USDT</DialogTitle>
-            <DialogDescription className="text-slate-400">Lock your USDT to earn rewards</DialogDescription>
           </DialogHeader>
+          <p id="stake-description" className="text-slate-400 text-sm">Lock your USDT to earn rewards up to 12% APY</p>
 
           <div className="space-y-4 py-4">
             {usdtWallets.length === 0 ? (

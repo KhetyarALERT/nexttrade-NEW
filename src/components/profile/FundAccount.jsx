@@ -471,10 +471,11 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
 
       {/* Deposit Modal */}
       <Dialog open={activeModal === 'deposit'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white">
+        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="deposit-description">
           <DialogHeader>
             <DialogTitle className="text-white">Deposit Crypto</DialogTitle>
           </DialogHeader>
+          <p id="deposit-description" className="sr-only">Select cryptocurrency and network to generate a deposit address</p>
           
           <div className="space-y-6 py-4">
             {/* Step 1: Select Crypto */}
@@ -624,10 +625,11 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
 
       {/* Withdraw Modal */}
       <Dialog open={activeModal === 'withdraw'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white">
+        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="withdraw-description">
           <DialogHeader>
             <DialogTitle className="text-white">Withdraw Crypto</DialogTitle>
           </DialogHeader>
+          <p id="withdraw-description" className="sr-only">Enter withdrawal address, select network and amount to withdraw cryptocurrency</p>
           
           <div className="space-y-6 py-4">
             {/* Select Crypto */}
@@ -759,10 +761,11 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
 
       {/* Transfer Modal */}
       <Dialog open={activeModal === 'transfer'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white">
+        <DialogContent className="sm:max-w-lg bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="transfer-description">
           <DialogHeader>
             <DialogTitle className="text-white">Internal Transfer</DialogTitle>
           </DialogHeader>
+          <p id="transfer-description" className="sr-only">Transfer funds between your wallets with zero fees</p>
           
           <div className="space-y-4 py-4">
             <div>

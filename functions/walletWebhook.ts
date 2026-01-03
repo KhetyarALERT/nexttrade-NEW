@@ -174,10 +174,10 @@ async function processDeposit(base44, payload) {
   
   let wallet = null;
   
-  // Try to find wallet by nowpayments_id first
+  // Try to find wallet by nowpayments_payment_id first
   if (payment_id) {
     const walletsByPayment = await base44.asServiceRole.entities.Wallet.filter({ 
-      nowpayments_id: String(payment_id)
+      nowpayments_payment_id: String(payment_id)
     });
     if (walletsByPayment && walletsByPayment.length > 0) {
       wallet = walletsByPayment[0];
@@ -221,16 +221,16 @@ async function processDeposit(base44, payload) {
   }
   
   // Create deposit transaction
-  const txId = `TX_D_${generateId()}`;
   await base44.asServiceRole.entities.WalletTransaction.create({
-    transaction_id: txId,
     wallet_id: wallet.id,
     user_id: wallet.user_id,
     type: 'deposit',
     amount: depositAmount,
+    currency: wallet.currency,
+    network: wallet.network,
     status: 'completed',
     nowpayments_id: String(payment_id),
-    notes: `Deposit via NOWPayments`
+    notes: `Deposit via NOWPayments - Payment ID: ${payment_id}`
   });
   
   // Update wallet balance
@@ -256,11 +256,12 @@ async function processDeposit(base44, payload) {
   }
   
   audit('DEPOSIT_PROCESSED', { 
-    walletId: wallet.wallet_id, 
+    walletId: wallet.id, 
     amount: depositAmount, 
     newBalance,
     payment_id,
-    txId
+    currency: wallet.currency,
+    network: wallet.network
   });
 }
 
