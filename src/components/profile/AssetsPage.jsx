@@ -47,7 +47,7 @@ const NETWORK_CONFIG = {
   XRP: { name: "XRP Ledger", fee: "~0.1 XRP", time: "~5 sec" }
 };
 
-export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [] }) {
+export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [], demoAccount }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallBalances, setHideSmallBalances] = useState(false);
   const [showBalances, setShowBalances] = useState(true);
@@ -322,6 +322,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         <TabsContent value="futures" className="mt-4">
           <FuturesWalletView 
             tradingAccount={liveAccount}
+            demoAccount={demoAccount}
             trades={trades}
             showBalances={showBalances}
             onTransfer={() => setActiveModal('transfer')}
@@ -616,6 +617,73 @@ const CURRENCY_NAMES = {
   USDC: "USD Coin"
 };
 
+// CoinGecko ID mapping
+const COINGECKO_IDS = {
+  USDT: "tether",
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  BNB: "binancecoin",
+  SOL: "solana",
+  XRP: "ripple",
+  TRX: "tron",
+  LTC: "litecoin",
+  DOGE: "dogecoin",
+  USDC: "usd-coin",
+  ADA: "cardano",
+  DOT: "polkadot",
+  MATIC: "matic-network",
+  LINK: "chainlink",
+  AVAX: "avalanche-2"
+};
+
+// High-quality coin logo component using CoinGecko images
+function CoinLogo({ currency, size = "md" }) {
+  const sizeClasses = { xs: "w-4 h-4", sm: "w-5 h-5", md: "w-8 h-8", lg: "w-10 h-10" };
+  const coinId = COINGECKO_IDS[currency?.toUpperCase()];
+  
+  if (coinId) {
+    return (
+      <img
+        src={`https://assets.coingecko.com/coins/images/${getCoinImageId(currency)}/small/${coinId.toLowerCase()}.png`}
+        alt={currency}
+        className={`${sizeClasses[size]} rounded-full`}
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = `https://ui-avatars.com/api/?name=${currency}&background=1a1a2e&color=fff&size=32`;
+        }}
+      />
+    );
+  }
+  
+  return (
+    <div className={`${sizeClasses[size]} rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-xs`}>
+      {currency?.charAt(0) || "?"}
+    </div>
+  );
+}
+
+// CoinGecko image IDs
+function getCoinImageId(currency) {
+  const ids = {
+    BTC: "1",
+    ETH: "279",
+    USDT: "325",
+    BNB: "825",
+    SOL: "4128",
+    XRP: "44",
+    USDC: "6319",
+    ADA: "975",
+    DOGE: "5",
+    TRX: "1094",
+    DOT: "12171",
+    MATIC: "4713",
+    LTC: "2",
+    LINK: "877",
+    AVAX: "12559"
+  };
+  return ids[currency?.toUpperCase()] || "1";
+}
+
 // Assets Table Component
 function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, setHideSmallBalances, formatBalance, formatUSD, onDeposit, onWithdraw }) {
   // Normalize currency names (remove network suffix like "usdttrc20" -> "USDT")
@@ -678,7 +746,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
                   <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <CryptoIcon currency={currency} size="md" />
+                        <CoinLogo currency={currency} />
                         <div>
                           <div className="text-white font-medium">{currency}</div>
                           <div className="text-slate-500 text-xs">{CURRENCY_NAMES[currency] || currency}</div>
@@ -716,7 +784,8 @@ AssetsPage.propTypes = {
   language: PropTypes.string,
   onRefresh: PropTypes.func,
   liveAccount: PropTypes.object,
-  trades: PropTypes.array
+  trades: PropTypes.array,
+  demoAccount: PropTypes.object
 };
 
 AssetsTable.propTypes = {

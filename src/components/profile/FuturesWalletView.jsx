@@ -14,8 +14,11 @@ export default function FuturesWalletView({
   trades = [], 
   showBalances = true,
   onTransfer,
-  onRefresh
+  onRefresh,
+  demoAccount
 }) {
+  // Use demo account for testing - will sync with trades
+  const account = demoAccount || tradingAccount;
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallAssets, setHideSmallAssets] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,10 +26,10 @@ export default function FuturesWalletView({
   // Calculate futures account metrics from trading account and trades
   const openTrades = trades.filter(t => t.status === 'OPEN');
   
-  const accountAssets = tradingAccount?.balance || 0;
-  const accountBalance = tradingAccount?.equity || 0;
-  const unrealizedPnl = tradingAccount?.unrealized_pnl || 0;
-  const marginUsed = tradingAccount?.margin_used || 0;
+  const accountAssets = account?.balance || account?.demo_balance || 0;
+  const accountBalance = account?.equity || account?.demo_balance || 0;
+  const unrealizedPnl = account?.unrealized_pnl || 0;
+  const marginUsed = account?.margin_used || 0;
   const availableMargin = accountBalance - marginUsed;
   const transferable = Math.max(0, availableMargin - (marginUsed * 0.1)); // Keep 10% buffer
 
@@ -256,9 +259,14 @@ export default function FuturesWalletView({
                       {showBalances ? formatValue(asset.positionMargin) : "****"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button className="text-slate-400 hover:text-white">
-                        <span className="text-lg">⋮</span>
-                      </button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={onTransfer}
+                        className="text-blue-400 hover:text-blue-300 text-xs h-7"
+                      >
+                        Transfer
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -276,5 +284,6 @@ FuturesWalletView.propTypes = {
   trades: PropTypes.array,
   showBalances: PropTypes.bool,
   onTransfer: PropTypes.func,
-  onRefresh: PropTypes.func
+  onRefresh: PropTypes.func,
+  demoAccount: PropTypes.object
 };
