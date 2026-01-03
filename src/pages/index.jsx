@@ -6,7 +6,7 @@ import Contact from "./Contact";
 
 import Home from "./Home";
 
-import Trading from "./Trading";
+import Trading from "./Trading.jsx";
 
 import Profile from "./Profile";
 
