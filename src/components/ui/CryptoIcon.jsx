@@ -1,6 +1,39 @@
 import PropTypes from "prop-types";
 
-// Use CoinGecko CDN for high-quality crypto logos
+export default function CryptoIcon({ currency, size = "md", className = "" }) {
+  const sizeClasses = {
+    xs: "w-4 h-4",
+    sm: "w-5 h-5",
+    md: "w-8 h-8",
+    lg: "w-10 h-10",
+    xl: "w-12 h-12"
+  };
+
+  const symbol = currency?.toUpperCase();
+  
+  // Use CryptoCompare CDN - most reliable
+  return (
+    <div className={`${sizeClasses[size]} relative ${className}`}>
+      <img 
+        src={`https://www.cryptocompare.com/media/37746251/${symbol?.toLowerCase()}.png`}
+        alt={symbol}
+        className="w-full h-full rounded-full object-cover"
+        onError={(e) => {
+          e.target.style.display = 'none';
+        }}
+      />
+      {/* Fallback */}
+      <div 
+        className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold"
+        style={{ fontSize: size === 'xs' ? '8px' : size === 'sm' ? '10px' : '11px', display: 'none' }}
+      >
+        {symbol?.charAt(0) || "?"}
+      </div>
+    </div>
+  );
+}
+
+// Unused but keeping for reference
 const COINGECKO_IDS = {
   BTC: 'bitcoin',
   ETH: 'ethereum',
@@ -65,34 +98,6 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
   const symbol = currency?.toUpperCase();
   const coinId = COINGECKO_IDS[symbol];
   
-  if (coinId) {
-    return (
-      <img 
-        src={`https://assets.coingecko.com/coins/images/1/small/${coinId === 'bitcoin' ? 'bitcoin' : ''}.png`}
-        alt={symbol}
-        className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
-        onError={(e) => {
-          // Fallback to CryptoCompare if CoinGecko fails
-          e.target.onerror = null;
-          e.target.src = `https://www.cryptocompare.com/media/37746251/${symbol?.toLowerCase()}.png`;
-        }}
-        // Use CryptoCompare as primary - more reliable
-        src={`https://www.cryptocompare.com/media/37746251/${symbol?.toLowerCase()}.png`}
-      />
-    );
-  }
-  
-  // Fallback gradient icon
-  return (
-    <div 
-      className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold ${className}`}
-      style={{ fontSize: size === 'xs' ? '8px' : size === 'sm' ? '10px' : '12px' }}
-    >
-      {symbol?.charAt(0) || "?"}
-    </div>
-  );
-}
-
 CryptoIcon.propTypes = {
   currency: PropTypes.string.isRequired,
   size: PropTypes.oneOf(["xs", "sm", "md", "lg", "xl"]),
