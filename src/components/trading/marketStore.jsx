@@ -5,7 +5,8 @@
  */
 
 // WebSocket endpoints (PUBLIC - no auth)
-const WS_FUTURES_URL = 'wss://open-api-swap.bingx.com/market';
+// Using swap-market endpoint for better stability
+const WS_FUTURES_URL = 'wss://open-api-swap.bingx.com/swap-market';
 
 class MarketStore {
   constructor() {

@@ -15,10 +15,10 @@ class BingXWebSocketClient {
     this.connected = false;
     this.listeners = new Map();
     
-    // Use correct BingX WebSocket URLs
+    // Use correct BingX WebSocket URLs - swap-market for better stability
     this.baseUrl = type === 'spot' 
       ? 'wss://open-api.bingx.com/market'
-      : 'wss://open-api-swap.bingx.com/market';
+      : 'wss://open-api-swap.bingx.com/swap-market';
   }
 
   connect() {
