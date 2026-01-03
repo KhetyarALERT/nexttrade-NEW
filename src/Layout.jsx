@@ -11,12 +11,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
+import { NotificationProvider } from "@/components/notifications/NotificationProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import NotificationSettings from "@/components/notifications/NotificationSettings";
 
 export default function Layout({ children }) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [language, setLanguage] = useState("en");
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,6 +67,7 @@ export default function Layout({ children }) {
 
 
   return (
+    <NotificationProvider>
     <div className={`min-h-screen bg-[#FAFAF9] ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
@@ -150,7 +155,9 @@ export default function Layout({ children }) {
             </div>
 
             {/* Actions */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-3">
+              <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
@@ -168,7 +175,7 @@ export default function Layout({ children }) {
               </DropdownMenu>
 
               <Button
-                className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-full px-6 hover:from-blue-700 hover:to-cyan-700"
+                className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-6 hover:from-blue-700 hover:to-cyan-700"
                 asChild>
 
                 <Link to={createPageUrl("Profile") + "?tab=accounts"}>
@@ -179,6 +186,8 @@ export default function Layout({ children }) {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-2">
+              <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
@@ -309,7 +318,13 @@ export default function Layout({ children }) {
           </div>
         </div>
       </footer>
-    </div>);
+      
+      <NotificationSettings 
+        open={notificationSettingsOpen} 
+        onOpenChange={setNotificationSettingsOpen} 
+      />
+    </div>
+    </NotificationProvider>);
 
 }
 
