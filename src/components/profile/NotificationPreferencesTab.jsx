@@ -57,6 +57,8 @@ export default function NotificationPreferencesTab({ language = "en" }) {
   const [saving, setSaving] = useState(false);
   const [showAlertDialog, setShowAlertDialog] = useState(false);
   const [newAlert, setNewAlert] = useState({ symbol: 'BTC-USDT', targetPrice: '', condition: 'above' });
+  const [symbolSearch, setSymbolSearch] = useState("");
+  const [marketPrices, setMarketPrices] = useState({});
   
   const t = language === "ar" ? {
     title: "إعدادات الإشعارات",
