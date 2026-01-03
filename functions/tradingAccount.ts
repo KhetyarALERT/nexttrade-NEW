@@ -323,6 +323,20 @@ Deno.serve(async (req) => {
         liquidationPrice
       });
       
+      // Create notification for trade execution
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'trade_executed',
+          title: `${side} ${symbol} Opened`,
+          message: `${side} ${quantity} ${symbol} at $${actualEntryPrice.toFixed(2)} with ${leverage}x leverage. Margin: $${marginRequired.toFixed(2)}`,
+          data: { tradeId: trade.id, symbol, side, quantity, entryPrice: actualEntryPrice, leverage },
+          priority: 'normal'
+        });
+      } catch (e) {
+        console.log('Failed to create notification:', e.message);
+      }
+      
       return Response.json({ 
         success: true, 
         data: {
@@ -467,6 +481,21 @@ Deno.serve(async (req) => {
         fundingFees,
         reason 
       });
+      
+      // Create notification for trade closed
+      try {
+        const pnlText = netPnl >= 0 ? `+$${netPnl.toFixed(2)}` : `-$${Math.abs(netPnl).toFixed(2)}`;
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'trade_closed',
+          title: `${trade.side} ${trade.symbol} Closed`,
+          message: `Trade closed at $${actualExitPrice.toFixed(2)}. PnL: ${pnlText} (${pnlPercent.toFixed(2)}%)`,
+          data: { tradeId, symbol: trade.symbol, side: trade.side, pnl: netPnl, pnlPercent, reason },
+          priority: netPnl < 0 && Math.abs(netPnl) > trade.margin * 0.5 ? 'high' : 'normal'
+        });
+      } catch (e) {
+        console.log('Failed to create notification:', e.message);
+      }
       
       return Response.json({ 
         success: true, 

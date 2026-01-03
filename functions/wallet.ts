@@ -473,6 +473,20 @@ Deno.serve(async (req) => {
           txId: txRecord.id
         });
         
+        // Create notification for withdrawal
+        try {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: user.id,
+            type: 'system',
+            title: 'Withdrawal Submitted',
+            message: `Withdrawal of ${withdrawAmount} ${wallet.currency} has been submitted. Processing may take up to 24 hours.`,
+            data: { walletId, amount: withdrawAmount, currency: wallet.currency, transactionId: txRecord.id },
+            priority: 'normal'
+          });
+        } catch (e) {
+          console.log('Failed to create notification:', e.message);
+        }
+        
         return Response.json({ 
           success: true, 
           data: { 
@@ -702,6 +716,20 @@ Deno.serve(async (req) => {
       });
       
       audit('STAKING_CREATED', user.id, { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays });
+      
+      // Create notification for staking
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'staking_reward',
+          title: 'Staking Position Created',
+          message: `Staked ${stakeAmount} USDT for ${lockPeriodDays} days at ${apy}% APY. Unlock date: ${unlockDate.toLocaleDateString()}`,
+          data: { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays },
+          priority: 'normal'
+        });
+      } catch (e) {
+        console.log('Failed to create notification:', e.message);
+      }
       
       return Response.json({ 
         success: true, 
