@@ -602,8 +602,36 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   );
 }
 
+// Currency name mapping for display
+const CURRENCY_NAMES = {
+  USDT: "Tether",
+  BTC: "Bitcoin",
+  ETH: "Ethereum",
+  BNB: "BNB",
+  SOL: "Solana",
+  XRP: "Ripple",
+  TRX: "TRON",
+  LTC: "Litecoin",
+  DOGE: "Dogecoin",
+  USDC: "USD Coin"
+};
+
 // Assets Table Component
 function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, setHideSmallBalances, formatBalance, formatUSD, onDeposit, onWithdraw }) {
+  // Normalize currency names (remove network suffix like "usdttrc20" -> "USDT")
+  const normalizedWallets = {};
+  Object.entries(wallets).forEach(([currency, currencyWallets]) => {
+    // Normalize currency: usdttrc20 -> USDT, usdterc20 -> USDT, etc.
+    let normalizedCurrency = currency.toUpperCase();
+    if (normalizedCurrency.startsWith('USDT')) normalizedCurrency = 'USDT';
+    if (normalizedCurrency.startsWith('USDC')) normalizedCurrency = 'USDC';
+    
+    if (!normalizedWallets[normalizedCurrency]) {
+      normalizedWallets[normalizedCurrency] = [];
+    }
+    normalizedWallets[normalizedCurrency].push(...currencyWallets);
+  });
+
   return (
     <div className="bg-[#1a1a2e] rounded-xl overflow-hidden">
       <div className="p-4 border-b border-slate-800">
@@ -634,16 +662,17 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
             </tr>
           </thead>
           <tbody>
-            {Object.entries(wallets).length === 0 ? (
+            {Object.entries(normalizedWallets).length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
                   No assets. Click Deposit to add funds.
                 </td>
               </tr>
             ) : (
-              Object.entries(wallets).map(([currency, currencyWallets]) => {
+              Object.entries(normalizedWallets).map(([currency, currencyWallets]) => {
                 const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
                 const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
+                const networks = [...new Set(currencyWallets.map(w => w.network))].join(', ');
                 
                 return (
                   <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
@@ -652,7 +681,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
                         <CryptoIcon currency={currency} size="md" />
                         <div>
                           <div className="text-white font-medium">{currency}</div>
-                          <div className="text-slate-500 text-xs">{currencyWallets[0]?.network}</div>
+                          <div className="text-slate-500 text-xs">{CURRENCY_NAMES[currency] || currency}</div>
                         </div>
                       </div>
                     </td>
