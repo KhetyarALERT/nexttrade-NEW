@@ -270,7 +270,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
         <span>BingX • {wsConnected ? 'Live' : 'Connecting...'}</span>
-        <span>TradingView</span>
+        <span>NextTrade Charts</span>
       </div>
     </Card>
   );
