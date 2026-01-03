@@ -395,16 +395,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
           </div>
         )}
         <div ref={chartContainerRef} className="w-full h-[500px]" />
-        <div ref={overlayContainerRef} className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          {positions.map(pos => (
-            <div
-              key={pos.id}
-              ref={pos.badgeRef}
-              className="absolute px-2 py-1 text-xs font-bold text-white rounded bg-black bg-opacity-80"
-              style={{ position: 'absolute', zIndex: 10 }}
-            />
-          ))}
-        </div>
+
       </div>
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
