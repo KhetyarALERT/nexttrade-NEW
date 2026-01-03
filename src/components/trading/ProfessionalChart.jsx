@@ -68,7 +68,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     chartRef.current = chart;
 
     const handleResize = () => {
-      if (chartContainerRef.current && chart) {
+      if (chartContainerRef.current && chartRef.current) {
         chart.applyOptions({ 
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight
@@ -81,8 +81,10 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
       chartRef.current = null;
+      chart.remove();
     };
   }, []);
 
@@ -154,14 +156,19 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         // Subscribe to store updates
         const candleKey = marketStore.getCandleKey(symbol, timeframe);
         unsubCandle = marketStore.subscribe(`candle:${candleKey}`, (candle) => {
-          if (candleSeriesRef.current) {
-            candleSeriesRef.current.update(candle);
-            if (volumeSeriesRef.current) {
-              volumeSeriesRef.current.update({
-                time: candle.time,
-                value: candle.volume,
-                color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
-              });
+          // Check refs before updating to avoid "Object is disposed" error
+          if (candleSeriesRef.current && chartRef.current) {
+            try {
+              candleSeriesRef.current.update(candle);
+              if (volumeSeriesRef.current) {
+                volumeSeriesRef.current.update({
+                  time: candle.time,
+                  value: candle.volume,
+                  color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                });
+              }
+            } catch (e) {
+              // Chart may have been disposed
             }
           }
           setCurrentPrice(candle.close);
