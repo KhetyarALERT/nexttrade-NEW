@@ -33,6 +33,9 @@ Deno.serve(async (req) => {
       case 'getTicker24h':
         result = await fetchTicker24h(params);
         break;
+      case 'getFundingRate':
+        result = await fetchFundingRate(params);
+        break;
       default:
         return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
@@ -161,5 +164,25 @@ async function fetchTicker24h({ symbol }) {
     volume: parseFloat(t.volume),
     quoteVolume: parseFloat(t.quoteVolume),
     openPrice: parseFloat(t.openPrice)
+  };
+}
+
+// Fetch funding rate
+async function fetchFundingRate({ symbol }) {
+  const formattedSymbol = symbol.includes('-') ? symbol : symbol.replace('USDT', '-USDT');
+  const url = `https://open-api.bingx.com/openApi/swap/v2/quote/premiumIndex?symbol=${formattedSymbol}`;
+  
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  if (data.code !== 0) {
+    throw new Error(data.msg || 'Failed to fetch funding rate');
+  }
+  
+  // BingX returns lastFundingRate in data
+  return {
+    symbol: data.data.symbol,
+    fundingRate: parseFloat(data.data.lastFundingRate),
+    nextFundingTime: parseInt(data.data.nextFundingTime)
   };
 }
