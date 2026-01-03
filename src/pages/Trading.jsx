@@ -91,12 +91,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      positions.forEach(pos => {
-        pos.entryLine?.remove();
-        pos.tpLine?.remove();
-        pos.slLine?.remove();
-        pos.liqLine?.remove();
-      });
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       chartRef.current = null;
