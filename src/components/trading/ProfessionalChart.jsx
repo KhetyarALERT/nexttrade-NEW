@@ -270,8 +270,11 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       </div>
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
-        <span>BingX • {wsConnected ? 'Live' : 'Connecting...'}</span>
-        <span>NextTrade Charts</span>
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+          <span>{wsConnected ? 'Live' : 'Reconnecting...'}</span>
+        </div>
+        <span>NextTrade</span>
       </div>
     </Card>
   );
