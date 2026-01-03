@@ -28,6 +28,16 @@ Deno.serve(async (req) => {
       }, { status: 500 });
     }
 
+    // For demo trading, use internal system instead of BingX API
+    // This prevents 500 errors when BingX credentials aren't properly set up
+    if (action.startsWith('futures.') || action.startsWith('spot.')) {
+      return Response.json({ 
+        success: false, 
+        error: 'Use tradingAccount function for trading operations',
+        hint: 'Trading is handled through our internal demo system'
+      }, { status: 400 });
+    }
+
     const client = new BingXRestClient(apiKey, secretKey);
     let result;
 
