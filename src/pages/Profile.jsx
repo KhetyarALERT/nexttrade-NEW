@@ -19,7 +19,9 @@ import {
   TrendingDown,
   AlertCircle,
   Wallet,
-  Plus
+  Plus,
+  Activity,
+  History
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
