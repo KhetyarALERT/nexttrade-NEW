@@ -9,15 +9,15 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+  SelectValue } from
+"@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import { 
+  DialogTitle } from
+"@/components/ui/dialog";
+import {
   Search,
   RefreshCw,
   Copy,
@@ -30,8 +30,8 @@ import {
   ArrowUpFromLine,
   ArrowLeftRight,
   Info,
-  QrCode
-} from "lucide-react";
+  QrCode } from
+"lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import CryptoIcon from "@/components/ui/CryptoIcon";
@@ -92,8 +92,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   // Get unique currencies from available list
   const getUniqueCurrencies = () => {
     const unique = [];
-    availableCurrencies.forEach(c => {
-      if (!unique.find(u => u.currency === c.currency)) {
+    availableCurrencies.forEach((c) => {
+      if (!unique.find((u) => u.currency === c.currency)) {
         unique.push(c);
       }
     });
@@ -102,11 +102,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
   // Get networks for currency
   const getNetworksForCurrency = (currency) => {
-    return availableCurrencies.filter(c => c.currency === currency);
+    return availableCurrencies.filter((c) => c.currency === currency);
   };
 
   // Filter wallets
-  const filteredWallets = wallets.filter(w => {
+  const filteredWallets = wallets.filter((w) => {
     if (searchTerm && !w.currency.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (hideSmallBalances && (w.balance || 0) < 1) return false;
     return true;
@@ -151,10 +151,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
     }
     setLoading(true);
     setDepositData(null);
-    
+
     try {
-      let wallet = wallets.find(w => w.currency === selectedCurrency && w.network === selectedNetwork);
-      
+      let wallet = wallets.find((w) => w.currency === selectedCurrency && w.network === selectedNetwork);
+
       if (!wallet && liveAccount) {
         const createResult = await base44.functions.invoke('wallet', {
           action: 'create',
@@ -167,18 +167,18 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           if (onRefresh) onRefresh();
         }
       }
-      
+
       if (!wallet) {
         toast.error("Failed to get wallet");
         return;
       }
-      
+
       const result = await base44.functions.invoke('wallet', {
         action: 'getDepositAddress',
         walletId: wallet.id,
         amount: 100
       });
-      
+
       if (result.data?.success) {
         setDepositData(result.data.data);
       } else {
@@ -196,13 +196,13 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
       toast.error("Please fill all fields");
       return;
     }
-    
-    const wallet = wallets.find(w => w.currency === selectedCurrency && w.network === selectedNetwork);
+
+    const wallet = wallets.find((w) => w.currency === selectedCurrency && w.network === selectedNetwork);
     if (!wallet) {
       toast.error("Wallet not found");
       return;
     }
-    
+
     setLoading(true);
     try {
       const result = await base44.functions.invoke('wallet', {
@@ -211,7 +211,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         amount: parseFloat(amount),
         destinationAddress: withdrawAddress
       });
-      
+
       if (result.data?.success) {
         toast.success(`Withdrawal submitted. Fee: ${result.data.data.fee}`);
         setActiveModal(null);
@@ -269,13 +269,13 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="text-2xl sm:text-3xl font-bold text-white">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { setActiveModal('deposit'); resetForm(); }} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> Deposit
             </Button>
-            <Button onClick={() => { setActiveModal('withdraw'); resetForm(); }} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="bg-background text-neutral-950 px-4 py-2 text-sm font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 border-slate-600 hover:bg-slate-800 flex-1 sm:flex-none">
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> Withdraw
             </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="bg-background text-slate-950 px-4 py-2 text-sm font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 border-slate-600 hover:bg-slate-800 flex-1 sm:flex-none">
               <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
             </Button>
           </div>
@@ -297,7 +297,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsList>
 
         <TabsContent value="main" className="mt-4">
-          <AssetsTable 
+          <AssetsTable
             wallets={groupedWallets}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -305,29 +305,29 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             setHideSmallBalances={setHideSmallBalances}
             formatBalance={formatBalance}
             formatUSD={formatUSD}
-            onDeposit={(currency) => { setSelectedCurrency(currency); setActiveModal('deposit'); resetForm(); }}
-            onWithdraw={(currency) => { setSelectedCurrency(currency); setActiveModal('withdraw'); resetForm(); }}
-          />
+            onDeposit={(currency) => {setSelectedCurrency(currency);setActiveModal('deposit');resetForm();}}
+            onWithdraw={(currency) => {setSelectedCurrency(currency);setActiveModal('withdraw');resetForm();}} />
+
         </TabsContent>
 
         <TabsContent value="spot" className="mt-4">
-          <SpotWalletView 
+          <SpotWalletView
             spotBalance={0}
-            onDeposit={() => { setActiveModal('deposit'); resetForm(); }}
-            onWithdraw={() => { setActiveModal('withdraw'); resetForm(); }}
-            showBalances={showBalances}
-          />
+            onDeposit={() => {setActiveModal('deposit');resetForm();}}
+            onWithdraw={() => {setActiveModal('withdraw');resetForm();}}
+            showBalances={showBalances} />
+
         </TabsContent>
 
         <TabsContent value="futures" className="mt-4">
-          <FuturesWalletView 
+          <FuturesWalletView
             tradingAccount={liveAccount}
             demoAccount={demoAccount}
             trades={trades}
             showBalances={showBalances}
             onTransfer={() => setActiveModal('transfer')}
-            onRefresh={onRefresh}
-          />
+            onRefresh={onRefresh} />
+
         </TabsContent>
       </Tabs>
 
@@ -349,35 +349,35 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                 <span className="font-medium">Select crypto</span>
               </div>
               
-              <Select value={selectedCurrency} onValueChange={(v) => { setSelectedCurrency(v); setSelectedNetwork(''); setDepositData(null); }}>
+              <Select value={selectedCurrency} onValueChange={(v) => {setSelectedCurrency(v);setSelectedNetwork('');setDepositData(null);}}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {getUniqueCurrencies().map((c) => (
-                    <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
+                  {getUniqueCurrencies().map((c) =>
+                  <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
                       <div className="flex items-center gap-2">
                         <CryptoIcon currency={c.currency} size="sm" />
                         {c.currency}
                       </div>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
 
               <div className="flex flex-wrap gap-2">
-                {getUniqueCurrencies().slice(0, 5).map((c) => (
-                  <button
-                    key={c.currency}
-                    onClick={() => { setSelectedCurrency(c.currency); setSelectedNetwork(''); setDepositData(null); }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                      selectedCurrency === c.currency ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    }`}
-                  >
+                {getUniqueCurrencies().slice(0, 5).map((c) =>
+                <button
+                  key={c.currency}
+                  onClick={() => {setSelectedCurrency(c.currency);setSelectedNetwork('');setDepositData(null);}}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  selectedCurrency === c.currency ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`
+                  }>
+
                     <CryptoIcon currency={c.currency} size="xs" />
                     {c.currency}
                   </button>
-                ))}
+                )}
               </div>
             </div>
 
@@ -388,51 +388,51 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                 <span className="font-medium">Select network</span>
               </div>
               
-              <Select value={selectedNetwork} onValueChange={(v) => { setSelectedNetwork(v); setDepositData(null); }}>
+              <Select value={selectedNetwork} onValueChange={(v) => {setSelectedNetwork(v);setDepositData(null);}}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                   <SelectValue placeholder="Select network" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {networks.map((n) => (
-                    <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
+                  {networks.map((n) =>
+                  <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
                       {NETWORK_CONFIG[n.network]?.name || n.network}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
 
-              {selectedNetwork && (
-                <div className="flex items-start gap-2 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
+              {selectedNetwork &&
+              <div className="flex items-start gap-2 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
                   <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>Ensure you choose the same network on the withdrawal platform.</span>
                 </div>
-              )}
+              }
             </div>
 
             {/* Step 3: Deposit Info */}
-            {selectedNetwork && (
-              <div className="space-y-3">
+            {selectedNetwork &&
+            <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">3</div>
                   <span className="font-medium">Deposit info</span>
                 </div>
                 
-                {!depositData && !loading && (
-                  <Button onClick={handleGetDepositAddress} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
+                {!depositData && !loading &&
+              <Button onClick={handleGetDepositAddress} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
                     Generate Deposit Address
                   </Button>
-                )}
+              }
                 
-                {loading && (
-                  <div className="flex justify-center py-6">
+                {loading &&
+              <div className="flex justify-center py-6">
                     <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
                   </div>
-                )}
+              }
                 
-                {depositData && (
-                  <div className="space-y-4">
-                    {depositData.pay_address && (
-                      <>
+                {depositData &&
+              <div className="space-y-4">
+                    {depositData.pay_address &&
+                <>
                         <div className="flex justify-center p-4 bg-white rounded-lg">
                           <div className="w-40 h-40 flex items-center justify-center bg-slate-100 rounded-lg">
                             <QrCode className="w-full h-full p-2 text-slate-400" />
@@ -449,18 +449,18 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                           <code className="text-white text-xs break-all block">{depositData.pay_address}</code>
                         </div>
                       </>
-                    )}
+                }
                     
-                    {!depositData.pay_address && depositData.invoice_url && (
-                      <a 
-                        href={depositData.invoice_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
-                      >
+                    {!depositData.pay_address && depositData.invoice_url &&
+                <a
+                  href={depositData.invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
+
                         Open Payment Page to View Address
                       </a>
-                    )}
+                }
                     
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       <div className="p-2 bg-slate-800 rounded">
@@ -480,9 +480,9 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                       </p>
                     </div>
                   </div>
-                )}
+              }
               </div>
-            )}
+            }
           </div>
         </DialogContent>
       </Dialog>
@@ -500,19 +500,19 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           <div className="space-y-4">
             <div>
               <label className="text-slate-400 text-sm mb-1.5 block">Coin</label>
-              <Select value={selectedCurrency} onValueChange={(v) => { setSelectedCurrency(v); setSelectedNetwork(''); }}>
+              <Select value={selectedCurrency} onValueChange={(v) => {setSelectedCurrency(v);setSelectedNetwork('');}}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {getUniqueCurrencies().map((c) => (
-                    <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
+                  {getUniqueCurrencies().map((c) =>
+                  <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
                       <div className="flex items-center gap-2">
                         <CryptoIcon currency={c.currency} size="sm" />
                         {c.currency}
                       </div>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -524,11 +524,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                   <SelectValue placeholder="Select network" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-700">
-                  {networks.map((n) => (
-                    <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
+                  {networks.map((n) =>
+                  <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
                       {NETWORK_CONFIG[n.network]?.name || n.network}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -538,13 +538,13 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               <div className="relative">
                 <Input
                   value={withdrawAddress}
-                  onChange={(e) => { setWithdrawAddress(e.target.value); setAddressValid(null); }}
+                  onChange={(e) => {setWithdrawAddress(e.target.value);setAddressValid(null);}}
                   onBlur={validateWithdrawAddress}
                   placeholder="Enter address"
                   className={`bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-10 ${
-                    addressValid === true ? 'border-emerald-500' : addressValid === false ? 'border-red-500' : ''
-                  }`}
-                />
+                  addressValid === true ? 'border-emerald-500' : addressValid === false ? 'border-red-500' : ''}`
+                  } />
+
                 {validatingAddress && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />}
                 {!validatingAddress && addressValid === true && <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />}
                 {!validatingAddress && addressValid === false && <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />}
@@ -559,20 +559,20 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-16"
-                />
-                <button 
+                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-16" />
+
+                <button
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 text-sm"
                   onClick={() => {
-                    const wallet = wallets.find(w => w.currency === selectedCurrency && w.network === selectedNetwork);
+                    const wallet = wallets.find((w) => w.currency === selectedCurrency && w.network === selectedNetwork);
                     if (wallet) setAmount(String(wallet.balance || 0));
-                  }}
-                >
+                  }}>
+
                   Max
                 </button>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Available: {formatBalance(wallets.find(w => w.currency === selectedCurrency && w.network === selectedNetwork)?.balance || 0)} {selectedCurrency}
+                Available: {formatBalance(wallets.find((w) => w.currency === selectedCurrency && w.network === selectedNetwork)?.balance || 0)} {selectedCurrency}
               </p>
             </div>
 
@@ -599,8 +599,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
 
 // Currency name mapping for display
@@ -640,7 +640,7 @@ const COINGECKO_IDS = {
 function CoinLogo({ currency, size = "md" }) {
   const sizeClasses = { xs: "w-4 h-4", sm: "w-5 h-5", md: "w-8 h-8", lg: "w-10 h-10" };
   const coinId = COINGECKO_IDS[currency?.toUpperCase()];
-  
+
   if (coinId) {
     return (
       <img
@@ -650,16 +650,16 @@ function CoinLogo({ currency, size = "md" }) {
         onError={(e) => {
           e.target.onerror = null;
           e.target.src = `https://ui-avatars.com/api/?name=${currency}&background=1a1a2e&color=fff&size=32`;
-        }}
-      />
-    );
+        }} />);
+
+
   }
-  
+
   return (
     <div className={`${sizeClasses[size]} rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-xs`}>
       {currency?.charAt(0) || "?"}
-    </div>
-  );
+    </div>);
+
 }
 
 // CoinGecko image IDs
@@ -693,7 +693,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
     let normalizedCurrency = currency.toUpperCase();
     if (normalizedCurrency.startsWith('USDT')) normalizedCurrency = 'USDT';
     if (normalizedCurrency.startsWith('USDC')) normalizedCurrency = 'USDC';
-    
+
     if (!normalizedWallets[normalizedCurrency]) {
       normalizedWallets[normalizedCurrency] = [];
     }
@@ -710,8 +710,8 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
               placeholder="Search coin"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-            />
+              className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" />
+
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer whitespace-nowrap">
             <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-slate-600" />
@@ -730,20 +730,20 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
             </tr>
           </thead>
           <tbody>
-            {Object.entries(normalizedWallets).length === 0 ? (
-              <tr>
+            {Object.entries(normalizedWallets).length === 0 ?
+            <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
                   No assets. Click Deposit to add funds.
                 </td>
-              </tr>
-            ) : (
-              Object.entries(normalizedWallets).map(([currency, currencyWallets]) => {
-                const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
-                const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
-                const networks = [...new Set(currencyWallets.map(w => w.network))].join(', ');
-                
-                return (
-                  <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+              </tr> :
+
+            Object.entries(normalizedWallets).map(([currency, currencyWallets]) => {
+              const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
+              const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
+              const networks = [...new Set(currencyWallets.map((w) => w.network))].join(', ');
+
+              return (
+                <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <CoinLogo currency={currency} />
@@ -768,15 +768,15 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
                         </button>
                       </div>
                     </td>
-                  </tr>
-                );
-              })
-            )}
+                  </tr>);
+
+            })
+            }
           </tbody>
         </table>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 AssetsPage.propTypes = {
