@@ -19,7 +19,10 @@ import {
   TrendingDown,
   AlertCircle,
   Activity,
-  History
+  History,
+  Bell,
+  Globe,
+  Settings
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
@@ -53,6 +56,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
+import NotificationPreferencesTab from "@/components/profile/NotificationPreferencesTab";
 import { fetchCurrentUser, updateCurrentUser } from "@/api/functions";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
@@ -278,6 +282,7 @@ export default function Profile({ language = "en" }) {
               { value: "personal", label: t.personalInfo },
               { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات" },
               { value: "assets", label: language === "en" ? "Assets" : "الأصول" },
+              { value: "notifications", label: language === "en" ? "Notifications" : "الإشعارات" },
               { value: "security", label: t.security },
               { value: "referrals", label: t.referrals },
               { value: "trades", label: t.trades }
@@ -435,6 +440,11 @@ export default function Profile({ language = "en" }) {
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationPreferencesTab language={language} />
           </TabsContent>
 
           {/* Security */}
