@@ -21,7 +21,8 @@ import {
   Wallet,
   Plus
 } from "lucide-react";
-import CreateSubaccountModal from "@/components/profile/CreateSubaccountModal";
+import TradingAccountCard from "@/components/profile/TradingAccountCard";
+import TradesTable from "@/components/profile/TradesTable";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -278,9 +279,9 @@ export default function Profile({ language = "en" }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [subaccounts, setSubaccounts] = useState([]);
-  const [subaccountModalOpen, setSubaccountModalOpen] = useState(false);
-  const [loadingSubaccounts, setLoadingSubaccounts] = useState(false);
+  const [tradingAccount, setTradingAccount] = useState(null);
+  const [trades, setTrades] = useState([]);
+  const [loadingAccount, setLoadingAccount] = useState(false);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -298,30 +299,34 @@ export default function Profile({ language = "en" }) {
     }
   }, [t.loadError]);
 
-  const loadSubaccounts = useCallback(async () => {
-    setLoadingSubaccounts(true);
+  const loadTradingAccount = useCallback(async () => {
+    setLoadingAccount(true);
     try {
-      const result = await base44.functions.invoke('createSubaccount', { action: 'list' });
+      // Get or create trading account
+      const result = await base44.functions.invoke('tradingAccount', { action: 'getOrCreate' });
       if (result.data?.success) {
-        setSubaccounts(result.data.data || []);
+        setTradingAccount(result.data.data);
+
+        // Load trades for this account
+        const tradesResult = await base44.functions.invoke('tradingAccount', { 
+          action: 'getTrades',
+          tradingAccountId: result.data.data.id
+        });
+        if (tradesResult.data?.success) {
+          setTrades(tradesResult.data.data || []);
+        }
       }
     } catch (err) {
-      console.error("Failed to load subaccounts", err);
+      console.error("Failed to load trading account", err);
     } finally {
-      setLoadingSubaccounts(false);
+      setLoadingAccount(false);
     }
   }, []);
 
   useEffect(() => {
     loadUser();
-    loadSubaccounts();
-    
-    // Check URL params to open modal and switch tab
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('openModal') === 'true') {
-      setSubaccountModalOpen(true);
-    }
-  }, [loadUser, loadSubaccounts]);
+    loadTradingAccount();
+  }, [loadUser, loadTradingAccount]);
 
   const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -439,15 +444,15 @@ export default function Profile({ language = "en" }) {
           <div className="flex items-center gap-3">
             <Button 
               size="sm" 
-              onClick={() => setSubaccountModalOpen(true)}
+              onClick={() => navigate(createPageUrl("Trading"))}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              <Plus className="mr-2 h-4 w-4" /> {language === "en" ? "Open Account" : "فتح حساب"}
+              <TrendingUp className="mr-2 h-4 w-4" /> {language === "en" ? "Start Trading" : "ابدأ التداول"}
             </Button>
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => { loadUser(); loadSubaccounts(); }} 
+              onClick={() => { loadUser(); loadTradingAccount(); }} 
               className="bg-white border-slate-300 hover:bg-slate-50"
             >
               <RefreshCw className="mr-2 h-4 w-4" /> {t.refresh}
@@ -467,7 +472,7 @@ export default function Profile({ language = "en" }) {
           <TabsList className="h-auto w-full justify-start gap-1 border-b border-slate-200 bg-transparent p-0">
             {[
               { value: "personal", label: t.personalInfo },
-              { value: "accounts", label: language === "en" ? "Trading Accounts" : "حسابات التداول" },
+              { value: "accounts", label: language === "en" ? "Trading Account" : "حساب التداول" },
               { value: "security", label: t.security },
               { value: "referrals", label: t.referrals },
               { value: "vouchers", label: t.vouchers },
@@ -557,89 +562,85 @@ export default function Profile({ language = "en" }) {
             </div>
           </TabsContent>
 
-          {/* Trading Accounts */}
+          {/* Trading Account */}
           <TabsContent value="accounts" className="space-y-6">
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader className="border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-blue-600" />
-                    {language === "en" ? "Your Trading Accounts" : "حسابات التداول الخاصة بك"}
-                  </CardTitle>
-                  <CardDescription>
-                    {language === "en" 
-                      ? "Manage your BingX subaccounts for trading" 
-                      : "إدارة حساباتك الفرعية على BingX للتداول"}
-                  </CardDescription>
-                </div>
-                <Button onClick={() => setSubaccountModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="mr-2 h-4 w-4" /> {language === "en" ? "New Account" : "حساب جديد"}
+            {loadingAccount ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : tradingAccount ? (
+              <div className="space-y-6">
+                {/* Account Card */}
+                <TradingAccountCard 
+                  account={tradingAccount} 
+                  language={language}
+                  onRefresh={loadTradingAccount}
+                />
+
+                {/* Open Positions */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-blue-600" />
+                        {language === "en" ? "Open Positions" : "المراكز المفتوحة"}
+                      </CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(createPageUrl("Trading"))}
+                      >
+                        {language === "en" ? "Open New Trade" : "فتح صفقة جديدة"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <TradesTable 
+                      trades={trades.filter(t => t.status === 'OPEN')} 
+                      language={language}
+                      onCloseTrade={async (trade, currentPrice) => {
+                        try {
+                          await base44.functions.invoke('tradingAccount', {
+                            action: 'closeTrade',
+                            tradeId: trade.id,
+                            exitPrice: currentPrice
+                          });
+                          loadTradingAccount();
+                        } catch (err) {
+                          console.error("Failed to close trade", err);
+                        }
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Trade History */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <History className="h-5 w-5 text-blue-600" />
+                      {language === "en" ? "Trade History" : "سجل الصفقات"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <TradesTable 
+                      trades={trades.filter(t => t.status === 'CLOSED').slice(0, 10)} 
+                      language={language}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Wallet className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">
+                  {language === "en" ? "Setting up your account..." : "جاري إعداد حسابك..."}
+                </h3>
+                <Button onClick={loadTradingAccount} className="bg-blue-600 hover:bg-blue-700">
+                  <RefreshCw className="mr-2 h-4 w-4" /> {language === "en" ? "Retry" : "إعادة المحاولة"}
                 </Button>
-              </CardHeader>
-              <CardContent className="p-6">
-                {loadingSubaccounts ? (
-                  <div className="flex items-center justify-center py-8">
-                    <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
-                  </div>
-                ) : subaccounts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Wallet className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                      {language === "en" ? "No trading accounts yet" : "لا توجد حسابات تداول بعد"}
-                    </h3>
-                    <p className="text-slate-500 mb-4">
-                      {language === "en" 
-                        ? "Create your first trading account to start trading" 
-                        : "أنشئ حساب التداول الأول للبدء"}
-                    </p>
-                    <Button onClick={() => setSubaccountModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="mr-2 h-4 w-4" /> {language === "en" ? "Create Account" : "إنشاء حساب"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {subaccounts.map((account) => (
-                      <Card key={account.id} className="border-slate-200 hover:shadow-md transition-shadow">
-                        <CardContent className="p-5">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                                <Wallet className="w-5 h-5 text-white" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-slate-900">{account.nickname}</h4>
-                                <p className="text-xs text-slate-500 capitalize">{account.account_type}</p>
-                              </div>
-                            </div>
-                            <Badge 
-                              className={
-                                account.status === 'active' 
-                                  ? 'bg-emerald-500' 
-                                  : account.status === 'pending' 
-                                    ? 'bg-amber-500' 
-                                    : 'bg-red-500'
-                              }
-                            >
-                              {account.status}
-                            </Badge>
-                          </div>
-                          {account.account_type !== 'spot' && (
-                            <div className="flex items-center justify-between text-sm border-t border-slate-100 pt-3">
-                              <span className="text-slate-500">{language === "en" ? "Leverage" : "الرافعة"}</span>
-                              <span className="font-bold text-blue-600">{account.leverage}x</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
-                            <span>{language === "en" ? "Created" : "تاريخ الإنشاء"}</span>
-                            <span>{new Date(account.created_date).toLocaleDateString()}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </TabsContent>
 
           {/* Security & Verification */}
@@ -939,18 +940,10 @@ export default function Profile({ language = "en" }) {
         </Tabs>
       </div>
 
-      <CreateSubaccountModal
-        open={subaccountModalOpen}
-        onOpenChange={setSubaccountModalOpen}
-        onSuccess={() => loadSubaccounts()}
-        language={language}
-      />
-    </div>
-  );
+      </div>
+      );
 }
 
 Profile.propTypes = {
   language: PropTypes.oneOf(["en", "ar"])
 };
-
-export { CreateSubaccountModal };
