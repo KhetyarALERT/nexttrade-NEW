@@ -206,16 +206,81 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     }
   }, [symbol, onPriceUpdate]);
 
-  // Load data on mount and when symbol/timeframe changes
+  // WebSocket for real-time price updates
   useEffect(() => {
-    fetchKlineData();
+    let ws = null;
+    let reconnectTimeout = null;
+    
+    const connectWebSocket = () => {
+      // BingX WebSocket for real-time kline updates
+      const wsSymbol = symbol.replace('-', '');
+      ws = new WebSocket(`wss://open-api-swap.bingx.com/swap-market`);
+      
+      ws.onopen = () => {
+        log('WS_CONNECTED', { symbol });
+        // Subscribe to kline stream
+        ws.send(JSON.stringify({
+          id: Date.now().toString(),
+          reqType: "sub",
+          dataType: `${symbol}@kline_${timeframe}`
+        }));
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          
+          if (msg.data && candleSeriesRef.current) {
+            const k = msg.data;
+            const candle = {
+              time: Math.floor(k.T / 1000),
+              open: parseFloat(k.o),
+              high: parseFloat(k.h),
+              low: parseFloat(k.l),
+              close: parseFloat(k.c)
+            };
+            
+            candleSeriesRef.current.update(candle);
+            setMarketData(prev => ({
+              ...prev,
+              price: candle.close
+            }));
+            
+            if (onPriceUpdate) onPriceUpdate(candle.close);
+          }
+        } catch (err) {
+          // Ignore parse errors for ping/pong
+        }
+      };
+      
+      ws.onclose = () => {
+        log('WS_DISCONNECTED', { symbol });
+        // Reconnect after 3 seconds
+        reconnectTimeout = setTimeout(connectWebSocket, 3000);
+      };
+      
+      ws.onerror = (err) => {
+        log('WS_ERROR', { error: err.message || 'WebSocket error' });
+      };
+    };
+    
+    // Load initial kline data first, then connect WebSocket
+    fetchKlineData().then(() => {
+      connectWebSocket();
+    });
+    
+    // Fetch ticker once for 24h stats (not repeatedly)
     fetchTickerData();
     
-    // Refresh ticker every 5 seconds
-    const tickerInterval = setInterval(fetchTickerData, 5000);
-    
-    return () => clearInterval(tickerInterval);
-  }, [fetchKlineData, fetchTickerData]);
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+    };
+  }, [symbol, timeframe]); // Only reconnect when symbol or timeframe changes
 
   const handleRefresh = () => {
     fetchKlineData();

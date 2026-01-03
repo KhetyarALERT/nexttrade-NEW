@@ -52,7 +52,8 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
 
   useEffect(() => {
     fetchTickers();
-    const interval = setInterval(fetchTickers, 10000);
+    // Only refresh every 30 seconds to reduce API spam
+    const interval = setInterval(fetchTickers, 30000);
     return () => clearInterval(interval);
   }, [fetchTickers]);
 

@@ -75,8 +75,8 @@ async function fetchKlines({ symbol, interval = '15m', limit = 200 }) {
     throw new Error(data.msg || 'Failed to fetch klines');
   }
   
-  // Transform to standard format: [{time, open, high, low, close, volume}]
-  return data.data.map(k => ({
+  // Transform to standard format and sort ascending by time
+  const klines = data.data.map(k => ({
     time: Math.floor(k.time / 1000), // Convert to seconds
     open: parseFloat(k.open),
     high: parseFloat(k.high),
@@ -84,6 +84,11 @@ async function fetchKlines({ symbol, interval = '15m', limit = 200 }) {
     close: parseFloat(k.close),
     volume: parseFloat(k.volume)
   }));
+  
+  // Sort ascending by time (required by lightweight-charts)
+  klines.sort((a, b) => a.time - b.time);
+  
+  return klines;
 }
 
 // Fetch all tickers
