@@ -302,11 +302,15 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const closePosition = (id) => {
     setPositions(prev => {
       const pos = prev.find(p => p.id === id);
-      if (pos) {
-        pos.entryLine?.remove();
-        pos.tpLine?.remove();
-        pos.slLine?.remove();
-        pos.liqLine?.remove();
+      if (pos && candleSeriesRef.current) {
+        try {
+          if (pos.entryLine) candleSeriesRef.current.removePriceLine(pos.entryLine);
+          if (pos.tpLine) candleSeriesRef.current.removePriceLine(pos.tpLine);
+          if (pos.slLine) candleSeriesRef.current.removePriceLine(pos.slLine);
+          if (pos.liqLine) candleSeriesRef.current.removePriceLine(pos.liqLine);
+        } catch (e) {
+          // Lines may already be removed
+        }
       }
       return prev.filter(p => p.id !== id);
     });
