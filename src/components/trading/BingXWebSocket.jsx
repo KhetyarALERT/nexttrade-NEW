@@ -66,13 +66,32 @@ class BingXWebSocketClient {
     try {
       let text = data;
       
-      // Handle Blob data
+      // Handle Blob data - BingX sends gzip compressed data
       if (data instanceof Blob) {
-        text = await data.text();
+        try {
+          // Try to decompress if it's gzip data
+          const arrayBuffer = await data.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          
+          // Check for gzip magic number (0x1f 0x8b)
+          if (uint8Array[0] === 0x1f && uint8Array[1] === 0x8b) {
+            const ds = new DecompressionStream('gzip');
+            const decompressedStream = new Blob([uint8Array]).stream().pipeThrough(ds);
+            const decompressedBlob = await new Response(decompressedStream).blob();
+            text = await decompressedBlob.text();
+          } else {
+            text = await data.text();
+          }
+        } catch {
+          text = await data.text();
+        }
       }
       
       // Handle pong responses
       if (text === 'Pong' || text === 'pong') return;
+      
+      // Skip empty or invalid responses
+      if (!text || text.length < 2) return;
       
       const message = JSON.parse(text);
       
@@ -86,11 +105,8 @@ class BingXWebSocketClient {
       if (this.listeners.has('*')) {
         this.listeners.get('*').forEach(callback => callback(message));
       }
-    } catch (error) {
-      // Silently ignore parse errors for non-JSON responses
-      if (!String(data).includes('Pong')) {
-        console.warn(`[BingX WS ${this.type}] Parse warning:`, error.message);
-      }
+    } catch {
+      // Silently ignore parse errors for binary/compressed data
     }
   }
 
