@@ -25,8 +25,8 @@ import {
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
-import WalletCard from "@/components/profile/WalletCard";
-import TransactionHistory from "@/components/profile/TransactionHistory";
+import FundAccount from "@/components/profile/FundAccount";
+import RecentTransactions from "@/components/profile/RecentTransactions";
 import StakingPanel from "@/components/profile/StakingPanel";
 import { Button } from "@/components/ui/button";
 import {
@@ -689,61 +689,24 @@ export default function Profile({ language = "en" }) {
                 <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* Wallets Grid */}
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="border-b border-slate-100 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Wallet className="h-5 w-5 text-blue-600" />
-                        {language === "en" ? "My Wallets" : "محافظي"}
-                      </CardTitle>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={async () => {
-                          if (liveAccount) {
-                            await base44.functions.invoke('wallet', { 
-                              action: 'createAll', 
-                              tradingAccountId: liveAccount.id 
-                            });
-                            loadTradingAccounts();
-                          }
-                        }}
-                      >
-                        {language === "en" ? "Add All Currencies" : "إضافة جميع العملات"}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    {wallets.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500">
-                        {language === "en" ? "No wallets yet" : "لا توجد محافظ بعد"}
-                      </div>
-                    ) : (
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {wallets.map(wallet => (
-                          <WalletCard 
-                            key={wallet.id}
-                            wallet={wallet} 
-                            language={language}
-                            onRefresh={loadTradingAccounts}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Staking */}
-                <StakingPanel 
+              <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+                {/* Main Fund Account */}
+                <FundAccount 
                   wallets={wallets}
                   language={language}
                   onRefresh={loadTradingAccounts}
+                  liveAccount={liveAccount}
                 />
-
-                {/* Transaction History */}
-                <TransactionHistory language={language} />
+                
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  <RecentTransactions language={language} />
+                  <StakingPanel 
+                    wallets={wallets}
+                    language={language}
+                    onRefresh={loadTradingAccounts}
+                  />
+                </div>
               </div>
             )}
           </TabsContent>

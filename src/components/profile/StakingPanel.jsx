@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,20 +23,17 @@ import {
 import { 
   Lock, 
   Unlock, 
-  TrendingUp, 
-  Clock, 
-  Gift,
   RefreshCw,
-  AlertCircle
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
 const stakingPlans = [
-  { days: 30, apy: 5, label: "30 Days", description: "Flexible staking" },
-  { days: 60, apy: 7, label: "60 Days", description: "Standard staking" },
-  { days: 90, apy: 10, label: "90 Days", description: "Premium staking" },
-  { days: 180, apy: 12, label: "180 Days", description: "Maximum rewards" }
+  { days: 30, apy: 5, label: "30D" },
+  { days: 60, apy: 7, label: "60D" },
+  { days: 90, apy: 10, label: "90D" },
+  { days: 180, apy: 12, label: "180D" }
 ];
 
 export default function StakingPanel({ wallets = [], language = "en", onRefresh }) {
@@ -181,97 +177,64 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   return (
     <>
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{t.title}</CardTitle>
-                <p className="text-xs text-slate-500">Earn up to 12% APY</p>
-              </div>
-            </div>
-            <Button onClick={() => setStakeOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-              <Lock className="w-4 h-4 mr-2" /> {t.stake}
-            </Button>
+      <div className="bg-[#1a1a2e] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-blue-400" />
+            <h3 className="text-white font-medium">{t.title}</h3>
           </div>
-        </CardHeader>
+          <Button 
+            onClick={() => setStakeOpen(true)} 
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-xs"
+          >
+            {t.stake}
+          </Button>
+        </div>
 
-        <CardContent className="p-4">
-          {/* Summary */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="p-3 bg-indigo-50 rounded-lg">
-              <p className="text-xs text-indigo-600">Total Staked</p>
-              <p className="text-xl font-bold text-indigo-900">${totalStaked.toFixed(2)}</p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-xs text-green-600">Total Earned</p>
-              <p className="text-xl font-bold text-green-900">${totalEarned.toFixed(2)}</p>
-            </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="p-2 bg-slate-800 rounded">
+            <p className="text-[10px] text-slate-400">Staked</p>
+            <p className="text-sm font-bold text-white">${totalStaked.toFixed(2)}</p>
           </div>
-
-          {/* Active Positions */}
-          <h4 className="text-sm font-semibold text-slate-700 mb-3">{t.activeStakes}</h4>
-          
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
-            </div>
-          ) : positions.filter(p => p.status === 'active').length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              {t.noStakes}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {positions.filter(p => p.status === 'active').map((pos) => {
-                const progress = calculateProgress(pos.start_date, pos.unlock_date);
-                const isUnlocked = progress >= 100;
-
-                return (
-                  <div key={pos.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <span className="font-bold text-slate-900">{pos.amount.toFixed(2)} USDT</span>
-                        <Badge className="ml-2 bg-indigo-100 text-indigo-700">{pos.apy}% APY</Badge>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant={isUnlocked ? "default" : "outline"}
-                        onClick={() => handleUnstake(pos.id)}
-                        disabled={processing}
-                        className={isUnlocked ? "bg-green-600 hover:bg-green-700" : ""}
-                      >
-                        <Unlock className="w-3 h-3 mr-1" /> {t.unstake}
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-500">{t.progress}</span>
-                        <span className="text-slate-700">{progress.toFixed(0)}%</span>
-                      </div>
-                      <Progress value={progress} className="h-2" />
-                      <div className="flex justify-between text-xs text-slate-500">
-                        <span>{t.earned}: <span className="text-green-600 font-medium">${(pos.earned_rewards || 0).toFixed(4)}</span></span>
-                        <span>{t.unlockDate}: {formatDate(pos.unlock_date)}</span>
-                      </div>
-                    </div>
+          <div className="p-2 bg-slate-800 rounded">
+            <p className="text-[10px] text-slate-400">Earned</p>
+            <p className="text-sm font-bold text-emerald-400">${totalEarned.toFixed(2)}</p>
+          </div>
+        </div>
+        
+        {loading ? (
+          <div className="flex justify-center py-4">
+            <RefreshCw className="w-4 h-4 animate-spin text-slate-500" />
+          </div>
+        ) : positions.filter(p => p.status === 'active').length === 0 ? (
+          <div className="text-center py-4 text-slate-500 text-xs">
+            {t.noStakes}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {positions.filter(p => p.status === 'active').slice(0, 3).map((pos) => {
+              const progress = calculateProgress(pos.start_date, pos.unlock_date);
+              return (
+                <div key={pos.id} className="p-2 bg-slate-800 rounded">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-white text-sm">{pos.amount.toFixed(0)} USDT</span>
+                    <span className="text-emerald-400 text-xs">{pos.apy}% APY</span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <Progress value={progress} className="h-1" />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Stake Dialog */}
       <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle>{t.stake} USDT</DialogTitle>
-            <DialogDescription>Lock your USDT to earn rewards</DialogDescription>
+            <DialogTitle className="text-white">{t.stake} USDT</DialogTitle>
+            <DialogDescription className="text-slate-400">Lock your USDT to earn rewards</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -282,14 +245,14 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label>Select Wallet</Label>
+                  <Label className="text-slate-300">Select Wallet</Label>
                   <Select value={selectedWallet || ""} onValueChange={setSelectedWallet}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
                       <SelectValue placeholder="Choose wallet" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-slate-800 border-slate-700">
                       {usdtWallets.map(w => (
-                        <SelectItem key={w.id} value={w.id}>
+                        <SelectItem key={w.id} value={w.id} className="text-white hover:bg-slate-700">
                           {w.currency} ({w.network}) - {(w.balance - (w.locked_balance || 0) - (w.staked_balance || 0)).toFixed(2)} available
                         </SelectItem>
                       ))}
@@ -298,47 +261,48 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t.amount}</Label>
+                  <Label className="text-slate-300">{t.amount}</Label>
                   <Input
                     type="number"
                     value={stakeAmount}
                     onChange={(e) => setStakeAmount(e.target.value)}
                     placeholder="100"
                     min="100"
+                    className="bg-slate-800 border-slate-700 text-white"
                   />
                   <p className="text-xs text-slate-500">{t.minAmount}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t.period}</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <Label className="text-slate-300">{t.period}</Label>
+                  <div className="grid grid-cols-4 gap-2">
                     {stakingPlans.map(plan => (
                       <button
                         key={plan.days}
                         onClick={() => setLockPeriod(String(plan.days))}
-                        className={`p-3 rounded-lg border text-left transition-all ${
+                        className={`p-2 rounded-lg border text-center transition-all ${
                           lockPeriod === String(plan.days)
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'border-blue-500 bg-blue-600/20'
+                            : 'border-slate-700 hover:border-slate-600 bg-slate-800'
                         }`}
                       >
-                        <p className="font-bold text-slate-900">{plan.label}</p>
-                        <p className="text-sm text-indigo-600">{plan.apy}% APY</p>
+                        <p className="font-bold text-white text-sm">{plan.label}</p>
+                        <p className="text-xs text-emerald-400">{plan.apy}%</p>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {selectedPlan && stakeAmount && (
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-700">
-                      Estimated earnings: <strong>${((parseFloat(stakeAmount) || 0) * selectedPlan.apy / 100 * (selectedPlan.days / 365)).toFixed(2)}</strong> after {selectedPlan.days} days
+                  <div className="p-3 bg-emerald-900/20 border border-emerald-700/50 rounded-lg">
+                    <p className="text-sm text-emerald-300">
+                      Est. earnings: <strong>${((parseFloat(stakeAmount) || 0) * selectedPlan.apy / 100 * (selectedPlan.days / 365)).toFixed(2)}</strong>
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg text-amber-700 text-xs">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-2 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg text-amber-300 text-xs">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{t.earlyPenalty}</span>
                 </div>
               </>
@@ -349,7 +313,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
             <Button
               onClick={handleStake}
               disabled={processing || !selectedWallet || !stakeAmount}
-              className="w-full bg-indigo-600 hover:bg-indigo-700"
+              className="w-full bg-blue-600 hover:bg-blue-700"
             >
               {processing ? "Processing..." : `Stake ${stakeAmount || 0} USDT`}
             </Button>
