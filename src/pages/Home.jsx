@@ -463,60 +463,11 @@ export default function Home({ language = "en" }) {
               {language === "en" ? "Institutional-grade data streaming directly from global exchanges." : "بيانات بمستوى مؤسسي تتدفق مباشرة من البورصات العالمية."}
             </p>
           </div>
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Live Market Display */}
+          <div className="w-full">
+            {/* Full Width Crypto Table */}
             <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative">
-
-              <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-                {/* Market Display Card */}
-                <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <div className="text-3xl font-bold text-slate-900">BTC/USDT</div>
-                      <div className="text-sm text-slate-500 font-bold mt-1">
-                        {language === "ar" ? "تداول البيتكوين مع فروقات منخفضة" : "Trade Bitcoin with Low Spreads"}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-600">$94,250</div>
-                      <div className="text-sm text-green-600 flex items-center gap-1 justify-end font-bold">
-                        <TrendingUp className="w-4 h-4" />
-                        +3.15%
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Additional Market Stats */}
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">24h High</div>
-                      <div className="text-sm font-bold text-slate-900">$95,420</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">24h Low</div>
-                      <div className="text-sm font-bold text-slate-900">$91,230</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-400 uppercase">Volume</div>
-                      <div className="text-sm font-bold text-slate-900">$2.1B</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Decorative Elements */}
-                <div className="absolute -top-4 -right-4 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl" />
-              </div>
-            </motion.div>
-
-            {/* Right Side - Real-time Crypto Table */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}>
               <CryptoPriceTable language={language} />
             </motion.div>
