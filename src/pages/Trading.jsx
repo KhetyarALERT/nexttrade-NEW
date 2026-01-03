@@ -290,7 +290,7 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Order Panel */}
-          <div className="w-80 flex-shrink-0 bg-[#1a1a2e] border-l border-slate-700/50 overflow-y-auto">
+          <div className="w-80 flex-shrink-0 bg-[#1a1a2e] border-l border-slate-700/50">
             <OrderPanel
               symbol={selectedSymbol}
               currentPrice={currentPrice}
