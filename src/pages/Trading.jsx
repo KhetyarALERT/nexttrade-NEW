@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { ChevronDown, TrendingUp, TrendingDown, ArrowLeftRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CryptoIcon from "@/components/ui/CryptoIcon";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +20,7 @@ import {
 import ProfessionalChart from "@/components/trading/ProfessionalChart";
 import OrderPanel from "@/components/trading/OrderPanel";
 import TradingHistory from "@/components/trading/TradingHistory";
+import { marketStore } from "@/components/trading/marketStore";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -62,7 +64,6 @@ export default function Trading({ language = "en" }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
   const [positions, setPositions] = useState([]);
-  const wsRef = useRef(null);
 
   // Save preferences
   useEffect(() => {
@@ -94,85 +95,34 @@ export default function Trading({ language = "en" }) {
     loadAccount();
   }, [loadAccount]);
 
-  // WebSocket for real-time prices
+  // Use marketStore for data
   useEffect(() => {
-    const connectWebSocket = () => {
-      try {
-        const ws = new WebSocket('wss://open-api-ws.bingx.com/market');
-        wsRef.current = ws;
+    // Initial fetch/subscription for all symbols
+    FUTURES_SYMBOLS.forEach(s => marketStore.subscribeToTicker(s.symbol));
 
-        ws.onopen = () => {
-          // Subscribe to ticker for all symbols
-          FUTURES_SYMBOLS.forEach(({ symbol }) => {
-            const subMsg = {
-              id: `ticker_${symbol}`,
-              reqType: "sub",
-              dataType: `${symbol}@ticker`
-            };
-            ws.send(JSON.stringify(subMsg));
-          });
-        };
+    const handleTicker = ({ symbol, ticker }) => {
+      setMarketData(prev => ({
+        ...prev,
+        [symbol]: { price: ticker.price, change: ticker.change }
+      }));
 
-        ws.onmessage = (event) => {
-          try {
-            if (event.data instanceof Blob) return;
-            const data = JSON.parse(event.data);
-            
-            if (data.dataType?.includes('@ticker') && data.data) {
-              const symbol = data.dataType.split('@')[0];
-              const tickerData = data.data;
-              
-              const price = parseFloat(tickerData.c || tickerData.lastPrice || 0);
-              const change = parseFloat(tickerData.p || tickerData.priceChangePercent || 0);
-              
-              setMarketData(prev => ({
-                ...prev,
-                [symbol]: { price, change }
-              }));
-
-              if (symbol === selectedSymbol) {
-                setCurrentPrice(price);
-                setPriceChange(change);
-              }
-            }
-          } catch (e) {
-            // Ignore parse errors
-          }
-        };
-
-        ws.onerror = () => {
-          // Set fallback prices
-          const fallback = {
-            'BTC-USDT': { price: 96850, change: 2.34 },
-            'ETH-USDT': { price: 3420, change: 1.89 },
-            'SOL-USDT': { price: 198, change: 4.21 },
-            'BNB-USDT': { price: 705, change: 0.87 },
-            'XRP-USDT': { price: 2.18, change: -1.23 },
-            'DOGE-USDT': { price: 0.32, change: 3.45 },
-            'ADA-USDT': { price: 0.89, change: 2.11 },
-            'AVAX-USDT': { price: 38.50, change: 1.56 }
-          };
-          setMarketData(fallback);
-          if (fallback[selectedSymbol]) {
-            setCurrentPrice(fallback[selectedSymbol].price);
-            setPriceChange(fallback[selectedSymbol].change);
-          }
-        };
-
-        ws.onclose = () => {
-          setTimeout(connectWebSocket, 3000);
-        };
-      } catch (e) {
-        console.error("WebSocket error:", e);
+      if (symbol === selectedSymbol) {
+        setCurrentPrice(ticker.price);
+        setPriceChange(ticker.change);
       }
     };
 
-    connectWebSocket();
+    const unsubscribe = marketStore.subscribe('ticker', handleTicker);
+
+    // Initial fallback data if store is empty
+    const currentTicker = marketStore.getAllTickers()[selectedSymbol];
+    if (currentTicker) {
+      setCurrentPrice(currentTicker.price);
+      setPriceChange(currentTicker.change);
+    }
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      unsubscribe();
     };
   }, [selectedSymbol]);
 
@@ -226,9 +176,7 @@ export default function Trading({ language = "en" }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
-                      {selectedSymbolData?.icon || selectedSymbol.charAt(0)}
-                    </div>
+                    <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
                     <span className="font-bold">{selectedSymbol.replace('-', '/')}</span>
                     <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">
                       {t.perpetual}
@@ -262,9 +210,7 @@ export default function Trading({ language = "en" }) {
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-white text-xs font-bold">
-                              {icon}
-                            </div>
+                            <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
                             <div>
                               <p className="text-white text-sm font-medium">{symbol.replace('-', '/')}</p>
                               <p className="text-slate-400 text-xs">{name}</p>
