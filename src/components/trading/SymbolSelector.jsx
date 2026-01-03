@@ -17,45 +17,100 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
   const [activeTab, setActiveTab] = useState("all");
   const [favorites, setFavorites] = useState(['BTC-USDT', 'ETH-USDT']);
 
-  // Fetch real tickers from BingX
-  const fetchTickers = useCallback(async () => {
-    log('FETCH_TICKERS_START', {});
-    try {
-      const result = await base44.functions.invoke('bingxMarketData', {
-        action: 'getTickers',
-        params: {}
-      });
-
-      if (result.data?.success && result.data?.data) {
-        const tickers = result.data.data
-          .filter(t => t.symbol.endsWith('-USDT'))
-          .map(t => ({
-            symbol: t.symbol,
-            baseAsset: t.symbol.replace('-USDT', ''),
-            quoteAsset: 'USDT',
-            price: t.lastPrice,
-            change: t.priceChangePercent,
-            volume: t.quoteVolume
-          }))
-          .sort((a, b) => b.volume - a.volume)
-          .slice(0, 50);
-        
-        setPairs(tickers);
-        log('FETCH_TICKERS_SUCCESS', { count: tickers.length });
-      }
-    } catch (err) {
-      log('FETCH_TICKERS_ERROR', { error: err.message });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Fetch tickers ONCE on mount, then use WebSocket
   useEffect(() => {
-    fetchTickers();
-    // Only refresh every 30 seconds to reduce API spam
-    const interval = setInterval(fetchTickers, 30000);
-    return () => clearInterval(interval);
-  }, [fetchTickers]);
+    let ws = null;
+    let mounted = true;
+    
+    const fetchInitialTickers = async () => {
+      log('FETCH_TICKERS_START', {});
+      try {
+        const result = await base44.functions.invoke('bingxMarketData', {
+          action: 'getTickers',
+          params: {}
+        });
+
+        if (!mounted) return;
+
+        if (result.data?.success && result.data?.data) {
+          const tickers = result.data.data
+            .filter(t => t.symbol.endsWith('-USDT'))
+            .map(t => ({
+              symbol: t.symbol,
+              baseAsset: t.symbol.replace('-USDT', ''),
+              quoteAsset: 'USDT',
+              price: t.lastPrice,
+              change: t.priceChangePercent,
+              volume: t.quoteVolume
+            }))
+            .sort((a, b) => b.volume - a.volume)
+            .slice(0, 30);
+          
+          setPairs(tickers);
+          log('FETCH_TICKERS_SUCCESS', { count: tickers.length });
+          
+          // Connect WebSocket for live updates
+          connectWS(tickers.map(t => t.symbol));
+        }
+      } catch (err) {
+        log('FETCH_TICKERS_ERROR', { error: err.message });
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    
+    const connectWS = (symbols) => {
+      ws = new WebSocket('wss://open-api-swap.bingx.com/market');
+      
+      ws.onopen = () => {
+        log('SYMBOLS_WS_OPEN', {});
+        // Subscribe to ticker updates for top symbols
+        symbols.slice(0, 10).forEach(sym => {
+          ws.send(JSON.stringify({
+            id: `ticker_${sym}`,
+            reqType: "sub",
+            dataType: `${sym}@ticker`
+          }));
+        });
+      };
+      
+      ws.onmessage = (event) => {
+        if (event.data === 'Pong') return;
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.dataType?.includes('@ticker') && msg.data) {
+            const sym = msg.dataType.split('@')[0];
+            const price = parseFloat(msg.data.c);
+            const change = parseFloat(msg.data.p);
+            
+            setPairs(prev => prev.map(p => 
+              p.symbol === sym ? { ...p, price, change } : p
+            ));
+          }
+        } catch (e) {}
+      };
+      
+      ws.onclose = () => {
+        if (mounted) setTimeout(() => connectWS(symbols), 5000);
+      };
+      
+      // Ping
+      const ping = setInterval(() => {
+        if (ws?.readyState === WebSocket.OPEN) ws.send('Ping');
+      }, 20000);
+      ws._ping = ping;
+    };
+    
+    fetchInitialTickers();
+    
+    return () => {
+      mounted = false;
+      if (ws) {
+        if (ws._ping) clearInterval(ws._ping);
+        ws.close();
+      }
+    };
+  }, []);
 
   const filteredPairs = pairs.filter(pair => {
     const matchesSearch = pair.symbol.toLowerCase().includes(search.toLowerCase()) ||

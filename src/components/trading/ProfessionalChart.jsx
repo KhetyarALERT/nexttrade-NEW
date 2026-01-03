@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Maximize2, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
+// WebSocket endpoints (PUBLIC - no auth required)
+const WS_FUTURES_URL = 'wss://open-api-swap.bingx.com/market';
+
 const TIMEFRAMES = [
   { label: "1m", value: "1m" },
   { label: "5m", value: "5m" },
@@ -13,14 +16,18 @@ const TIMEFRAMES = [
   { label: "1H", value: "1h" },
   { label: "4H", value: "4h" },
   { label: "1D", value: "1d" },
-  { label: "1W", value: "1w" },
-  { label: "1M", value: "1M" }
+  { label: "1W", value: "1w" }
 ];
 
-// Activity logger
 const log = (action, data) => {
   const ts = new Date().toISOString();
-  console.log(`[${ts}] [CHART] ${action}:`, data);
+  console.log(`[${ts}] [CHART] ${action}:`, JSON.stringify(data));
+};
+
+// Normalize timestamp to seconds (TradingView standard)
+const normalizeTime = (t) => {
+  if (t > 1e12) return Math.floor(t / 1000); // milliseconds to seconds
+  return Math.floor(t); // already seconds
 };
 
 export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
@@ -28,10 +35,14 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
+  const candlesRef = useRef([]); // Store candles for WS updates
+  const wsRef = useRef(null);
+  const initializedRef = useRef(false);
   
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const [marketData, setMarketData] = useState({
     price: 0,
     change: 0,
@@ -41,9 +52,9 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     volume: 0
   });
 
-  // Initialize chart
+  // Initialize chart ONCE
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || chartRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -56,30 +67,11 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       },
       crosshair: {
         mode: 1,
-        vertLine: {
-          color: '#758696',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2962FF',
-        },
-        horzLine: {
-          color: '#758696',
-          width: 1,
-          style: 3,
-          labelBackgroundColor: '#2962FF',
-        },
+        vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
+        horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
       },
-      rightPriceScale: {
-        borderColor: '#2B2B43',
-        scaleMargins: { top: 0.1, bottom: 0.2 },
-      },
-      timeScale: {
-        borderColor: '#2B2B43',
-        timeVisible: true,
-        secondsVisible: false,
-        rightOffset: 5,
-        barSpacing: 8,
-      },
+      rightPriceScale: { borderColor: '#2B2B43', scaleMargins: { top: 0.1, bottom: 0.2 } },
+      timeScale: { borderColor: '#2B2B43', timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 8 },
       handleScroll: { vertTouchDrag: false },
     });
 
@@ -103,7 +95,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     volumeSeriesRef.current = volumeSeries;
 
     const handleResize = () => {
-      if (chartContainerRef.current) {
+      if (chartContainerRef.current && chart) {
         chart.applyOptions({ 
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight
@@ -114,170 +106,190 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     window.addEventListener('resize', handleResize);
     handleResize();
 
-    log('CHART_INITIALIZED', { symbol });
+    log('CHART_INIT', { symbol });
 
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
-      log('CHART_DESTROYED', { symbol });
+      chartRef.current = null;
     };
   }, []);
 
-  // Fetch real kline data from BingX
-  const fetchKlineData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    log('FETCH_KLINES_START', { symbol, timeframe });
-
-    try {
-      const result = await base44.functions.invoke('bingxMarketData', {
-        action: 'getKlines',
-        params: { symbol, interval: timeframe, limit: 200 }
-      });
-
-      if (result.data?.success && result.data?.data) {
-        const klines = result.data.data;
+  // Fetch REST data ONCE, then connect WebSocket
+  useEffect(() => {
+    let mounted = true;
+    initializedRef.current = false;
+    
+    const loadDataAndConnect = async () => {
+      setLoading(true);
+      setError(null);
+      
+      // Close existing WebSocket
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      
+      try {
+        // STEP 1: Fetch REST candles ONCE
+        log('REST_FETCH_START', { symbol, timeframe });
         
+        const result = await base44.functions.invoke('bingxMarketData', {
+          action: 'getKlines',
+          params: { symbol, interval: timeframe, limit: 500 }
+        });
+
+        if (!mounted) return;
+
+        if (!result.data?.success || !result.data?.data) {
+          throw new Error(result.data?.error || 'Failed to fetch klines');
+        }
+
+        // STEP 2: Normalize and SORT ascending
+        const klines = result.data.data.map(k => ({
+          time: normalizeTime(k.time),
+          open: parseFloat(k.open),
+          high: parseFloat(k.high),
+          low: parseFloat(k.low),
+          close: parseFloat(k.close),
+          volume: parseFloat(k.volume)
+        }));
+        
+        // STRICT ascending sort
+        klines.sort((a, b) => a.time - b.time);
+        
+        // Remove duplicates (keep last)
+        const uniqueKlines = [];
+        const seenTimes = new Set();
+        for (let i = klines.length - 1; i >= 0; i--) {
+          if (!seenTimes.has(klines[i].time)) {
+            seenTimes.add(klines[i].time);
+            uniqueKlines.unshift(klines[i]);
+          }
+        }
+        
+        // Store for WS updates
+        candlesRef.current = uniqueKlines;
+        
+        // STEP 3: Set data ONCE
         if (candleSeriesRef.current && volumeSeriesRef.current) {
-          candleSeriesRef.current.setData(klines);
+          candleSeriesRef.current.setData(uniqueKlines);
           
-          const volumeData = klines.map(k => ({
+          const volumeData = uniqueKlines.map(k => ({
             time: k.time,
             value: k.volume,
             color: k.close >= k.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
           }));
           volumeSeriesRef.current.setData(volumeData);
-          
-          // Set current price from last candle
-          const lastCandle = klines[klines.length - 1];
-          const firstCandle = klines[0];
-          const change = lastCandle.close - firstCandle.open;
-          const changePercent = (change / firstCandle.open) * 100;
-          
-          setMarketData({
-            price: lastCandle.close,
-            change,
-            changePercent,
-            high: lastCandle.high,
-            low: lastCandle.low,
-            volume: lastCandle.volume
-          });
-          
-          if (onPriceUpdate) onPriceUpdate(lastCandle.close);
-          
-          log('FETCH_KLINES_SUCCESS', { count: klines.length, lastPrice: lastCandle.close });
         }
-      } else {
-        throw new Error(result.data?.error || 'Failed to fetch data');
-      }
-    } catch (err) {
-      log('FETCH_KLINES_ERROR', { error: err.message });
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [symbol, timeframe, onPriceUpdate]);
-
-  // Fetch 24h ticker for header stats
-  const fetchTickerData = useCallback(async () => {
-    try {
-      const result = await base44.functions.invoke('bingxMarketData', {
-        action: 'getTicker24h',
-        params: { symbol }
-      });
-
-      if (result.data?.success && result.data?.data) {
-        const ticker = result.data.data;
-        setMarketData(prev => ({
-          ...prev,
-          price: ticker.lastPrice,
-          change: ticker.priceChange,
-          changePercent: ticker.priceChangePercent,
-          high: ticker.highPrice,
-          low: ticker.lowPrice,
-          volume: ticker.quoteVolume
-        }));
         
-        if (onPriceUpdate) onPriceUpdate(ticker.lastPrice);
-        log('FETCH_TICKER_SUCCESS', ticker);
+        // Set market data from last candle
+        const lastCandle = uniqueKlines[uniqueKlines.length - 1];
+        const firstCandle = uniqueKlines[0];
+        
+        setMarketData({
+          price: lastCandle.close,
+          change: lastCandle.close - firstCandle.open,
+          changePercent: ((lastCandle.close - firstCandle.open) / firstCandle.open) * 100,
+          high: lastCandle.high,
+          low: lastCandle.low,
+          volume: lastCandle.volume
+        });
+        
+        if (onPriceUpdate) onPriceUpdate(lastCandle.close);
+        
+        initializedRef.current = true;
+        log('REST_FETCH_SUCCESS', { count: uniqueKlines.length, lastTime: lastCandle.time });
+        
+        // STEP 4: Connect WebSocket for live updates
+        connectWebSocket();
+        
+      } catch (err) {
+        if (mounted) {
+          log('REST_FETCH_ERROR', { error: err.message });
+          setError(err.message);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-    } catch (err) {
-      log('FETCH_TICKER_ERROR', { error: err.message });
-    }
-  }, [symbol, onPriceUpdate]);
-
-  // WebSocket for real-time price updates
-  useEffect(() => {
-    let ws = null;
-    let reconnectTimeout = null;
-    let pingInterval = null;
+    };
     
     const connectWebSocket = () => {
-      // BingX Futures/Perpetual PUBLIC WebSocket - correct endpoint
-      ws = new WebSocket('wss://open-api-swap.bingx.com/market');
+      const ws = new WebSocket(WS_FUTURES_URL);
+      wsRef.current = ws;
       
       ws.onopen = () => {
-        log('WS_CONNECTED', { symbol, endpoint: 'wss://open-api-swap.bingx.com/market' });
+        log('WS_OPEN', { url: WS_FUTURES_URL });
+        setWsConnected(true);
         
-        // Subscribe to kline stream - correct format: symbol@kline_interval
-        const subscribeMsg = {
+        // Subscribe to kline stream
+        const klineSub = {
           id: `kline_${Date.now()}`,
           reqType: "sub",
           dataType: `${symbol}@kline_${timeframe}`
         };
-        ws.send(JSON.stringify(subscribeMsg));
-        log('WS_SUBSCRIBED', subscribeMsg);
+        ws.send(JSON.stringify(klineSub));
+        log('WS_SUBSCRIBE', klineSub);
         
-        // Also subscribe to trade stream for real-time price
-        const tradeMsg = {
+        // Subscribe to trade for real-time price
+        const tradeSub = {
           id: `trade_${Date.now()}`,
-          reqType: "sub", 
+          reqType: "sub",
           dataType: `${symbol}@trade`
         };
-        ws.send(JSON.stringify(tradeMsg));
-        log('WS_SUBSCRIBED', tradeMsg);
-        
-        // Ping to keep connection alive
-        pingInterval = setInterval(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send('Ping');
-          }
-        }, 20000);
+        ws.send(JSON.stringify(tradeSub));
+        log('WS_SUBSCRIBE', tradeSub);
       };
       
       ws.onmessage = (event) => {
+        if (event.data === 'Pong' || !initializedRef.current) return;
+        
         try {
-          // Handle Pong
-          if (event.data === 'Pong') return;
-          
           const msg = JSON.parse(event.data);
-          log('WS_MESSAGE', { dataType: msg.dataType, hasData: !!msg.data });
           
-          // Handle kline updates
-          if (msg.dataType && msg.dataType.includes('@kline') && msg.data && candleSeriesRef.current) {
+          // Handle kline update
+          if (msg.dataType?.includes('@kline') && msg.data) {
             const k = msg.data;
-            const candle = {
-              time: Math.floor(k.T / 1000),
+            const wsCandle = {
+              time: normalizeTime(k.T || k.t),
               open: parseFloat(k.o),
               high: parseFloat(k.h),
               low: parseFloat(k.l),
-              close: parseFloat(k.c)
+              close: parseFloat(k.c),
+              volume: parseFloat(k.v || 0)
             };
             
-            candleSeriesRef.current.update(candle);
-            setMarketData(prev => ({
-              ...prev,
-              price: candle.close
-            }));
+            const candles = candlesRef.current;
+            if (candles.length === 0) return;
             
-            if (onPriceUpdate) onPriceUpdate(candle.close);
+            const lastCandle = candles[candles.length - 1];
+            
+            if (wsCandle.time === lastCandle.time) {
+              // UPDATE current candle
+              candles[candles.length - 1] = wsCandle;
+              if (candleSeriesRef.current) {
+                candleSeriesRef.current.update(wsCandle);
+              }
+            } else if (wsCandle.time > lastCandle.time) {
+              // APPEND new candle
+              candles.push(wsCandle);
+              if (candleSeriesRef.current) {
+                candleSeriesRef.current.update(wsCandle);
+              }
+            }
+            // NEVER insert older candles
+            
+            setMarketData(prev => ({ ...prev, price: wsCandle.close }));
+            if (onPriceUpdate) onPriceUpdate(wsCandle.close);
           }
           
-          // Handle trade updates for real-time price
-          if (msg.dataType && msg.dataType.includes('@trade') && msg.data) {
+          // Handle trade update for real-time price
+          if (msg.dataType?.includes('@trade') && msg.data) {
             const price = parseFloat(msg.data.p);
-            setMarketData(prev => ({ ...prev, price }));
-            if (onPriceUpdate) onPriceUpdate(price);
+            if (price > 0) {
+              setMarketData(prev => ({ ...prev, price }));
+              if (onPriceUpdate) onPriceUpdate(price);
+            }
           }
           
         } catch (err) {
@@ -286,35 +298,50 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       };
       
       ws.onclose = (e) => {
-        log('WS_DISCONNECTED', { symbol, code: e.code, reason: e.reason });
-        if (pingInterval) clearInterval(pingInterval);
-        // Reconnect after 3 seconds
-        reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        log('WS_CLOSE', { code: e.code });
+        setWsConnected(false);
+        // Reconnect after 5 seconds if component still mounted
+        if (mounted) {
+          setTimeout(() => {
+            if (mounted && initializedRef.current) connectWebSocket();
+          }, 5000);
+        }
       };
       
-      ws.onerror = (err) => {
+      ws.onerror = () => {
         log('WS_ERROR', { symbol });
       };
+      
+      // Ping every 20s
+      const pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send('Ping');
+        }
+      }, 20000);
+      
+      ws._pingInterval = pingInterval;
     };
     
-    // Load initial kline data first, then connect WebSocket
-    fetchKlineData().then(() => {
-      connectWebSocket();
-    });
-    
-    // Fetch ticker once for 24h stats
-    fetchTickerData();
+    loadDataAndConnect();
     
     return () => {
-      if (pingInterval) clearInterval(pingInterval);
-      if (ws) ws.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      mounted = false;
+      if (wsRef.current) {
+        if (wsRef.current._pingInterval) clearInterval(wsRef.current._pingInterval);
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, onPriceUpdate]);
 
   const handleRefresh = () => {
-    fetchKlineData();
-    fetchTickerData();
+    initializedRef.current = false;
+    candlesRef.current = [];
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    // Trigger re-fetch by updating a dummy state
+    setLoading(true);
   };
 
   const formatPrice = (price) => {
@@ -336,21 +363,22 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
 
   return (
     <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
-      {/* Chart Header - BingX Style */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
         <div className="flex items-center gap-6">
-          {/* Symbol & Price */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
               {symbol.split('-')[0].substring(0, 2)}
             </div>
             <div>
-              <div className="text-white font-bold text-sm">{symbol}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">{symbol}</span>
+                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+              </div>
               <div className="text-[10px] text-gray-500">Perpetual</div>
             </div>
           </div>
           
-          {/* Price Display */}
           <div className="flex items-baseline gap-2">
             <span className={`text-2xl font-bold font-mono ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
               ${formatPrice(marketData.price)}
@@ -361,7 +389,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
             </div>
           </div>
 
-          {/* Stats */}
           <div className="hidden md:flex items-center gap-4 text-xs">
             <div>
               <span className="text-gray-500">24h High</span>
@@ -372,13 +399,12 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
               <span className="ml-2 text-white font-mono">${formatPrice(marketData.low)}</span>
             </div>
             <div>
-              <span className="text-gray-500">24h Vol</span>
-              <span className="ml-2 text-white font-mono">${formatVolume(marketData.volume)}</span>
+              <span className="text-gray-500">Vol</span>
+              <span className="ml-2 text-white font-mono">{formatVolume(marketData.volume)}</span>
             </div>
           </div>
         </div>
 
-        {/* Timeframe Selector */}
         <div className="flex items-center gap-1">
           {TIMEFRAMES.map(tf => (
             <Button
@@ -411,7 +437,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         </div>
       </div>
 
-      {/* Chart Container */}
+      {/* Chart */}
       <div className="relative">
         {loading && (
           <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
@@ -429,10 +455,9 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         <div ref={chartContainerRef} className="w-full h-[500px]" />
       </div>
       
-      {/* Footer */}
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
-        <span>Powered by BingX API</span>
-        <span>TradingView Lightweight Charts</span>
+        <span>BingX API • {wsConnected ? 'WebSocket Live' : 'Connecting...'}</span>
+        <span>TradingView Charts</span>
       </div>
     </Card>
   );
