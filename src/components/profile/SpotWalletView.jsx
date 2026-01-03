@@ -1,62 +1,142 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Search, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import CryptoIcon from "@/components/ui/CryptoIcon";
-import { marketStore } from "@/components/trading/marketStore";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
-// Top coins to display
-const TOP_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'DOGE', 'ADA', 'MATIC', 'DOT', 'LTC', 'UNI', 'LINK', 'AVAX', 'ATOM', 'XLM'];
+// Same coins as Home page CryptoPriceTable
+const COINS = [
+  { id: "bitcoin", symbol: "BTC", binance: "btcusdt" },
+  { id: "ethereum", symbol: "ETH", binance: "ethusdt" },
+  { id: "binance-coin", symbol: "BNB", binance: "bnbusdt" },
+  { id: "solana", symbol: "SOL", binance: "solusdt" },
+  { id: "ripple", symbol: "XRP", binance: "xrpusdt" },
+  { id: "dogecoin", symbol: "DOGE", binance: "dogeusdt" },
+  { id: "cardano", symbol: "ADA", binance: "adausdt" },
+  { id: "polygon", symbol: "MATIC", binance: "maticusdt" },
+  { id: "polkadot", symbol: "DOT", binance: "dotusdt" },
+  { id: "litecoin", symbol: "LTC", binance: "ltcusdt" },
+  { id: "chainlink", symbol: "LINK", binance: "linkusdt" },
+  { id: "avalanche-2", symbol: "AVAX", binance: "avaxusdt" },
+  { id: "uniswap", symbol: "UNI", binance: "uniusdt" },
+  { id: "cosmos", symbol: "ATOM", binance: "atomusdt" },
+  { id: "stellar", symbol: "XLM", binance: "xlmusdt" }
+];
+
+const Sparkline = ({ data = [], width = 80, height = 30 }) => {
+  if (!data || data.length < 2) return <div style={{ width, height }} className="bg-slate-800/50 rounded" />;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * height;
+    return `${x},${y}`;
+  }).join(" ");
+
+  const isUp = data[data.length - 1] >= data[0];
+  const stroke = isUp ? "#22c55e" : "#ef4444";
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polyline fill="none" stroke={stroke} strokeWidth="1.5" points={points} />
+    </svg>
+  );
+};
 
 export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw, showBalances = true }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [hideZeroBalances, setHideZeroBalances] = useState(true);
-  const [prices, setPrices] = useState({});
-  const [changes, setChanges] = useState({});
+  const [hideZeroBalances, setHideZeroBalances] = useState(false);
+  const [marketData, setMarketData] = useState([]);
+  const [connected, setConnected] = useState(false);
+  const ws = useRef(null);
 
   useEffect(() => {
-    // Subscribe to market data for top coins
-    const symbols = TOP_COINS.map(c => `${c}-USDT`);
-    
-    symbols.forEach(symbol => {
-      marketStore.subscribeToTicker(symbol);
-    });
-
-    const updateData = () => {
-      setPrices({ ...marketStore.prices });
-      setChanges({ ...marketStore.tickers });
+    // Initial fetch from CoinGecko
+    const fetchInitial = async () => {
+      const ids = COINS.map(c => c.id).join(",");
+      try {
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map(coin => {
+            const coinConfig = COINS.find(c => c.id === coin.id);
+            return {
+              ...coin,
+              displaySymbol: coinConfig?.symbol || coin.symbol.toUpperCase(),
+              binanceSymbol: coinConfig?.binance || null
+            };
+          });
+          setMarketData(mapped);
+        }
+      } catch (err) {
+        console.error("CoinGecko fetch error:", err);
+      }
     };
 
-    const unsubscribe = marketStore.subscribe('ticker', updateData);
+    fetchInitial();
 
-    return () => {
-      unsubscribe();
-    };
+    // Binance WS for live updates
+    const streams = COINS.filter(c => c.binance).map(c => `${c.binance}@ticker`).join("/");
+    if (streams) {
+      const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+      const connect = () => {
+        ws.current = new WebSocket(url);
+        ws.current.onopen = () => setConnected(true);
+        ws.current.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.stream && msg.data) {
+            const stream = msg.stream.split("@")[0].toLowerCase();
+            const d = msg.data;
+            setMarketData(prev =>
+              prev.map(coin => {
+                if (coin.binanceSymbol?.toLowerCase() === stream) {
+                  return {
+                    ...coin,
+                    current_price: parseFloat(d.c),
+                    price_change_percentage_24h: parseFloat(d.P)
+                  };
+                }
+                return coin;
+              })
+            );
+          }
+        };
+        ws.current.onclose = () => {
+          setConnected(false);
+          setTimeout(connect, 3000);
+        };
+      };
+      connect();
+    }
+
+    return () => ws.current?.close();
   }, []);
 
-  const formatPrice = (price) => {
-    if (!price) return "--";
-    if (price >= 1000) return `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    if (price >= 1) return `$${price.toFixed(4)}`;
-    return `$${price.toFixed(6)}`;
+  const formatPrice = (p) => {
+    if (!p) return "--";
+    if (p < 0.01) return `$${p.toFixed(6)}`;
+    if (p < 1) return `$${p.toFixed(4)}`;
+    return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const formatChange = (change) => {
-    if (change === undefined || change === null) return "0.00%";
-    return `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+  const formatPercent = (pct) => {
+    if (pct == null) return "0.00%";
+    return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
   };
 
-  const getFilteredCoins = () => {
-    let coins = TOP_COINS;
-    if (searchTerm) {
-      coins = coins.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
-    }
-    return coins;
-  };
-
-  const filteredCoins = getFilteredCoins();
+  const filteredData = marketData.filter(coin => {
+    if (searchTerm && !coin.displaySymbol.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !coin.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -93,64 +173,76 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                 className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer whitespace-nowrap">
-              <Checkbox checked={hideZeroBalances} onCheckedChange={setHideZeroBalances} className="border-slate-600" />
-              Hide 0 balance
-            </label>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
+              <span className="text-xs text-slate-500">{connected ? "Live" : "..."}</span>
+            </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[400px]">
-            <thead>
-              <tr className="text-left text-xs text-slate-400 border-b border-slate-800">
-                <th className="px-4 py-2 font-medium">Crypto</th>
-                <th className="px-4 py-2 font-medium text-right">Amount | Value</th>
-                <th className="px-4 py-2 font-medium text-right">Last Price</th>
-                <th className="px-4 py-2 font-medium text-right">24h Change</th>
+        <div className="max-h-[500px] overflow-y-auto">
+          <table className="w-full">
+            <thead className="sticky top-0 bg-[#1a1a2e]">
+              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-800 uppercase">
+                <th className="px-4 py-2 font-medium">Name</th>
+                <th className="px-4 py-2 font-medium text-right">Price</th>
+                <th className="px-4 py-2 font-medium text-right">24h</th>
+                <th className="px-4 py-2 font-medium text-center">Chart</th>
+                <th className="px-4 py-2 font-medium text-right">Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCoins.map((coin) => {
-                const symbol = `${coin}-USDT`;
-                const price = prices[symbol] || 0;
-                const ticker = changes[symbol] || {};
-                const change24h = ticker.priceChangePercent || 0;
-                const balance = 0; // From spot wallet balance
-
-                if (hideZeroBalances && balance === 0) return null;
-
-                return (
-                  <tr key={coin} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <CryptoIcon currency={coin} size="sm" />
-                        <div>
-                          <div className="text-white font-medium text-sm">{coin}</div>
-                          <div className="text-slate-500 text-xs">{coin}</div>
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500 text-sm">
+                    Loading...
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((coin) => {
+                  const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
+                  return (
+                    <tr key={coin.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <img src={coin.image} alt={coin.displaySymbol} className="w-6 h-6 rounded-full" />
+                          <div>
+                            <div className="text-white font-medium text-sm">{coin.displaySymbol}</div>
+                            <div className="text-slate-500 text-[10px]">{coin.name}</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="text-white text-sm">{balance.toFixed(6)}</div>
-                      <div className="text-slate-500 text-xs">{showBalances ? `$${(balance * price).toFixed(2)}` : '****'}</div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="text-slate-300 text-sm font-mono">{formatPrice(price)}</div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className={`flex items-center justify-end gap-1 text-sm font-medium ${
-                        change24h >= 0 ? 'text-emerald-400' : 'text-red-400'
-                      }`}>
-                        {change24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        {formatChange(change24h)}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-white text-sm font-medium">{formatPrice(coin.current_price)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className={`flex items-center justify-end gap-1 text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {formatPercent(coin.price_change_percentage_24h)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
+                          <Sparkline data={coin.sparkline_in_7d?.price} width={60} height={24} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link to={createPageUrl("Trading")}>
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs h-7 px-3">
+                            Trade
+                          </Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
+        </div>
+
+        <div className="p-2 bg-slate-900/50 text-center border-t border-slate-800">
+          <p className="text-[10px] text-slate-500">Data via CoinGecko • Live via Binance</p>
         </div>
       </div>
     </div>

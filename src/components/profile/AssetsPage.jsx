@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import SpotWalletView from "@/components/profile/SpotWalletView";
+import FuturesWalletView from "@/components/profile/FuturesWalletView";
 
 const NETWORK_CONFIG = {
   TRC20: { name: "Tron (TRC20)", fee: "1 USDT", time: "~1 min" },
@@ -46,7 +47,7 @@ const NETWORK_CONFIG = {
   XRP: { name: "XRP Ledger", fee: "~0.1 XRP", time: "~5 sec" }
 };
 
-export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount }) {
+export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallBalances, setHideSmallBalances] = useState(false);
   const [showBalances, setShowBalances] = useState(true);
@@ -319,11 +320,12 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="futures" className="mt-4">
-          <SpotWalletView 
-            spotBalance={0}
-            onDeposit={() => { setActiveModal('deposit'); resetForm(); }}
-            onWithdraw={() => { setActiveModal('withdraw'); resetForm(); }}
+          <FuturesWalletView 
+            tradingAccount={liveAccount}
+            trades={trades}
             showBalances={showBalances}
+            onTransfer={() => setActiveModal('transfer')}
+            onRefresh={onRefresh}
           />
         </TabsContent>
       </Tabs>
@@ -684,7 +686,8 @@ AssetsPage.propTypes = {
   wallets: PropTypes.array,
   language: PropTypes.string,
   onRefresh: PropTypes.func,
-  liveAccount: PropTypes.object
+  liveAccount: PropTypes.object,
+  trades: PropTypes.array
 };
 
 AssetsTable.propTypes = {
