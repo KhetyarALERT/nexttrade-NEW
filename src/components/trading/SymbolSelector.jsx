@@ -1,137 +1,188 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Star, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, Star, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
-// BingX-compatible symbol format
-const TRADING_PAIRS = [
-  { symbol: "BTC-USDT", name: "Bitcoin", baseAsset: "BTC", quoteAsset: "USDT", price: 94250, change: 3.15, favorite: true },
-  { symbol: "ETH-USDT", name: "Ethereum", baseAsset: "ETH", quoteAsset: "USDT", price: 3456.78, change: 2.45, favorite: true },
-  { symbol: "SOL-USDT", name: "Solana", baseAsset: "SOL", quoteAsset: "USDT", price: 185.23, change: -1.23, favorite: false },
-  { symbol: "BNB-USDT", name: "BNB", baseAsset: "BNB", quoteAsset: "USDT", price: 612.45, change: 0.87, favorite: false },
-  { symbol: "XRP-USDT", name: "Ripple", baseAsset: "XRP", quoteAsset: "USDT", price: 2.34, change: 4.56, favorite: false },
-  { symbol: "DOGE-USDT", name: "Dogecoin", baseAsset: "DOGE", quoteAsset: "USDT", price: 0.3245, change: -2.15, favorite: false },
-  { symbol: "ADA-USDT", name: "Cardano", baseAsset: "ADA", quoteAsset: "USDT", price: 0.89, change: 1.23, favorite: false },
-  { symbol: "AVAX-USDT", name: "Avalanche", baseAsset: "AVAX", quoteAsset: "USDT", price: 38.76, change: 5.67, favorite: false },
-  { symbol: "DOT-USDT", name: "Polkadot", baseAsset: "DOT", quoteAsset: "USDT", price: 7.23, change: -0.45, favorite: false },
-  { symbol: "LINK-USDT", name: "Chainlink", baseAsset: "LINK", quoteAsset: "USDT", price: 23.45, change: 3.21, favorite: false },
-  { symbol: "MATIC-USDT", name: "Polygon", baseAsset: "MATIC", quoteAsset: "USDT", price: 0.89, change: 2.34, favorite: false },
-  { symbol: "UNI-USDT", name: "Uniswap", baseAsset: "UNI", quoteAsset: "USDT", price: 12.34, change: -1.56, favorite: false },
-];
+const log = (action, data) => {
+  console.log(`[${new Date().toISOString()}] [SYMBOLS] ${action}:`, data);
+};
 
 export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
   const [search, setSearch] = useState("");
-  const [pairs, setPairs] = useState(TRADING_PAIRS);
+  const [pairs, setPairs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [favorites, setFavorites] = useState(['BTC-USDT', 'ETH-USDT']);
+
+  // Fetch real tickers from BingX
+  const fetchTickers = useCallback(async () => {
+    log('FETCH_TICKERS_START', {});
+    try {
+      const result = await base44.functions.invoke('bingxMarketData', {
+        action: 'getTickers',
+        params: {}
+      });
+
+      if (result.data?.success && result.data?.data) {
+        const tickers = result.data.data
+          .filter(t => t.symbol.endsWith('-USDT'))
+          .map(t => ({
+            symbol: t.symbol,
+            baseAsset: t.symbol.replace('-USDT', ''),
+            quoteAsset: 'USDT',
+            price: t.lastPrice,
+            change: t.priceChangePercent,
+            volume: t.quoteVolume
+          }))
+          .sort((a, b) => b.volume - a.volume)
+          .slice(0, 50);
+        
+        setPairs(tickers);
+        log('FETCH_TICKERS_SUCCESS', { count: tickers.length });
+      }
+    } catch (err) {
+      log('FETCH_TICKERS_ERROR', { error: err.message });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTickers();
+    const interval = setInterval(fetchTickers, 10000);
+    return () => clearInterval(interval);
+  }, [fetchTickers]);
 
   const filteredPairs = pairs.filter(pair => {
     const matchesSearch = pair.symbol.toLowerCase().includes(search.toLowerCase()) ||
-                          pair.name.toLowerCase().includes(search.toLowerCase());
-    const matchesTab = activeTab === "all" || (activeTab === "favorites" && pair.favorite);
+                          pair.baseAsset.toLowerCase().includes(search.toLowerCase());
+    const matchesTab = activeTab === "all" || 
+                       (activeTab === "favorites" && favorites.includes(pair.symbol));
     return matchesSearch && matchesTab;
   });
 
   const toggleFavorite = (symbol) => {
-    setPairs(pairs.map(p => 
-      p.symbol === symbol ? { ...p, favorite: !p.favorite } : p
-    ));
+    setFavorites(prev => 
+      prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol]
+    );
+    log('TOGGLE_FAVORITE', { symbol });
   };
 
   const formatPrice = (price) => {
-    if (price >= 1000) return price.toFixed(2);
+    if (!price) return '0.00';
+    if (price >= 1000) return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (price >= 1) return price.toFixed(2);
-    return price.toFixed(4);
+    return price.toFixed(6);
   };
 
   return (
-    <Card className="border-slate-200 shadow-sm h-full">
-      <CardHeader className="py-3 px-4 border-b border-slate-100">
-        <CardTitle className="text-sm font-bold">Markets</CardTitle>
+    <Card className="bg-[#1E222D] border-[#2B2B43] h-full">
+      <CardHeader className="py-3 px-4 border-b border-[#2B2B43]">
+        <CardTitle className="text-sm font-bold text-white">Markets</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {/* Search */}
-        <div className="p-3 border-b border-slate-100">
+        <div className="p-3 border-b border-[#2B2B43]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search pairs..."
-              className="pl-9 h-8 text-sm"
+              placeholder="Search..."
+              className="pl-9 h-8 text-sm bg-[#131722] border-[#2B2B43] text-white placeholder:text-gray-500"
             />
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-100">
+        <div className="flex border-b border-[#2B2B43]">
           <button
             onClick={() => setActiveTab("all")}
             className={`flex-1 py-2 text-xs font-medium ${
               activeTab === "all" 
-                ? "text-blue-600 border-b-2 border-blue-600" 
-                : "text-slate-500"
+                ? "text-[#2962FF] border-b-2 border-[#2962FF]" 
+                : "text-gray-500 hover:text-white"
             }`}
           >
             All
           </button>
           <button
             onClick={() => setActiveTab("favorites")}
-            className={`flex-1 py-2 text-xs font-medium ${
+            className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1 ${
               activeTab === "favorites" 
-                ? "text-blue-600 border-b-2 border-blue-600" 
-                : "text-slate-500"
+                ? "text-[#2962FF] border-b-2 border-[#2962FF]" 
+                : "text-gray-500 hover:text-white"
             }`}
           >
-            ⭐ Favorites
+            <Star className="w-3 h-3" /> Favorites
           </button>
         </div>
 
         {/* Header */}
-        <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase">
+        <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-[#131722] text-[10px] font-medium text-gray-500 uppercase">
           <span>Pair</span>
           <span className="text-right">Price</span>
           <span className="text-right">24h %</span>
         </div>
 
         {/* Pairs List */}
-        <ScrollArea className="h-[400px]">
-          {filteredPairs.map(pair => (
-            <div
-              key={pair.symbol}
-              onClick={() => onSymbolChange(pair.symbol)}
-              className={`grid grid-cols-3 gap-2 px-3 py-2.5 cursor-pointer transition-colors hover:bg-slate-50 ${
-                selectedSymbol === pair.symbol ? "bg-blue-50" : ""
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFavorite(pair.symbol);
-                  }}
-                  className="text-slate-300 hover:text-yellow-500"
-                >
-                  <Star className={`h-3 w-3 ${pair.favorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
-                </button>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">{pair.baseAsset}</div>
-                  <div className="text-[10px] text-slate-400">/{pair.quoteAsset}</div>
-                </div>
-              </div>
-              <div className="text-right text-xs font-mono text-slate-900">
-                ${formatPrice(pair.price)}
-              </div>
-              <div className={`text-right text-xs font-bold flex items-center justify-end gap-1 ${
-                pair.change >= 0 ? "text-green-600" : "text-red-600"
-              }`}>
-                {pair.change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {pair.change >= 0 ? "+" : ""}{pair.change.toFixed(2)}%
-              </div>
+        <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px]">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 text-[#2962FF] animate-spin" />
             </div>
-          ))}
+          ) : filteredPairs.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              No pairs found
+            </div>
+          ) : (
+            filteredPairs.map(pair => {
+              const isPositive = pair.change >= 0;
+              const isFavorite = favorites.includes(pair.symbol);
+              const isSelected = selectedSymbol === pair.symbol;
+              
+              return (
+                <div
+                  key={pair.symbol}
+                  onClick={() => {
+                    onSymbolChange(pair.symbol);
+                    log('SYMBOL_SELECTED', { symbol: pair.symbol });
+                  }}
+                  className={`grid grid-cols-3 gap-2 px-3 py-2.5 cursor-pointer transition-colors ${
+                    isSelected ? "bg-[#2962FF]/20" : "hover:bg-[#1E222D]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(pair.symbol);
+                      }}
+                      className="text-gray-600 hover:text-yellow-500"
+                    >
+                      <Star className={`h-3 w-3 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
+                    </button>
+                    <div>
+                      <div className="text-xs font-bold text-white">{pair.baseAsset}</div>
+                      <div className="text-[10px] text-gray-500">/{pair.quoteAsset}</div>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs font-mono text-white">
+                    ${formatPrice(pair.price)}
+                  </div>
+                  <div className={`text-right text-xs font-bold flex items-center justify-end gap-0.5 ${
+                    isPositive ? "text-[#26A69A]" : "text-[#EF5350]"
+                  }`}>
+                    {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                    {isPositive ? "+" : ""}{pair.change?.toFixed(2) || '0.00'}%
+                  </div>
+                </div>
+              );
+            })
+          )}
         </ScrollArea>
       </CardContent>
     </Card>

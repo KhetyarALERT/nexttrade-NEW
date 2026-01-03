@@ -52,83 +52,42 @@ const translations = {
   }
 };
 
-const MarketHeader = ({ t, price, change24h, balance }) => (
-  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white font-bold text-sm">₿</div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-slate-900">BTC/USDT</h2>
-            <Badge variant="outline" className="text-[9px] uppercase h-5">Perpetual</Badge>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
-        <div>
-          <span className="text-lg font-bold text-emerald-500">${price.toFixed(2)}</span>
-          <span className="text-[9px] text-slate-400 uppercase ml-2">{t.lastPrice}</span>
-        </div>
-        <div className={`text-sm font-bold ${change24h >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-          {change24h >= 0 ? '+' : ''}{change24h.toFixed(2)}%
-        </div>
-      </div>
-    </div>
-
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg">
-        <Wallet className="h-4 w-4 text-slate-600" />
-        <span className="text-xs text-slate-600">{t.balance}:</span>
-        <span className="text-sm font-bold text-slate-900">{balance.toFixed(2)} USDT</span>
-      </div>
-      <Button variant="outline" size="sm" className="h-8">
-        <RefreshCw className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  </div>
-);
+// Header removed - integrated into chart component for cleaner design
 
 
 
 const PositionsPanel = ({ t, positions = [] }) => (
-  <Card className="border-slate-200 shadow-sm overflow-hidden">
-    <CardHeader className="bg-slate-50/50 py-2 px-4 border-b border-slate-100">
-      <CardTitle className="text-sm font-bold flex items-center gap-2">
-        <Activity className="h-4 w-4 text-blue-600" />
-        {t.openPositions} ({positions.length})
-      </CardTitle>
-    </CardHeader>
+  <Card className="bg-[#1E222D] border-[#2B2B43] overflow-hidden">
     <CardContent className="p-0">
       {positions.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 text-sm">
+        <div className="p-8 text-center text-gray-500 text-sm">
           No open positions
         </div>
       ) : (
         <Table>
-          <TableHeader className="bg-slate-50/30">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-[10px] uppercase font-bold">{t.symbol}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.side}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.size}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.entryPrice}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.markPrice}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.unrealizedPnl}</TableHead>
+          <TableHeader className="bg-[#131722]">
+            <TableRow className="hover:bg-transparent border-[#2B2B43]">
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.symbol}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.side}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.size}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.entryPrice}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.markPrice}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.unrealizedPnl}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {positions.map((pos, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-bold text-xs">{pos.symbol}</TableCell>
+              <TableRow key={i} className="border-[#2B2B43] hover:bg-[#131722]">
+                <TableCell className="font-bold text-xs text-white">{pos.symbol}</TableCell>
                 <TableCell>
-                  <Badge className={`text-[10px] h-5 ${pos.side === 'LONG' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                  <Badge className={`text-[10px] h-5 ${pos.side === 'LONG' ? 'bg-[#26A69A]' : 'bg-[#EF5350]'}`}>
                     {pos.side === 'LONG' ? t.long : t.short}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs">{pos.size}</TableCell>
-                <TableCell className="text-xs font-mono">{pos.entryPrice}</TableCell>
-                <TableCell className="text-xs font-mono">{pos.markPrice}</TableCell>
-                <TableCell className={`text-xs font-bold ${pos.pnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <TableCell className="text-xs text-gray-300">{pos.size}</TableCell>
+                <TableCell className="text-xs font-mono text-gray-300">{pos.entryPrice}</TableCell>
+                <TableCell className="text-xs font-mono text-gray-300">{pos.markPrice}</TableCell>
+                <TableCell className={`text-xs font-bold ${pos.pnl >= 0 ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
                   {pos.pnl >= 0 ? '+' : ''}{pos.pnl}
                 </TableCell>
               </TableRow>
@@ -145,44 +104,38 @@ const PositionsPanel = ({ t, positions = [] }) => (
 
 
 const OrderHistoryPanel = ({ t, orders = [] }) => (
-  <Card className="border-slate-200 shadow-sm overflow-hidden">
-    <CardHeader className="bg-slate-50/50 py-2 px-4 border-b border-slate-100">
-      <CardTitle className="text-sm font-bold flex items-center gap-2">
-        <History className="h-4 w-4 text-slate-600" />
-        {t.tradeHistory}
-      </CardTitle>
-    </CardHeader>
+  <Card className="bg-[#1E222D] border-[#2B2B43] overflow-hidden">
     <CardContent className="p-0">
       {orders.length === 0 ? (
-        <div className="p-8 text-center text-slate-500 text-sm">
+        <div className="p-8 text-center text-gray-500 text-sm">
           No order history
         </div>
       ) : (
         <Table>
-          <TableHeader className="bg-slate-50/30">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-[10px] uppercase font-bold">Time</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.symbol}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">{t.side}</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">Price</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">Amount</TableHead>
-              <TableHead className="text-[10px] uppercase font-bold">Status</TableHead>
+          <TableHeader className="bg-[#131722]">
+            <TableRow className="hover:bg-transparent border-[#2B2B43]">
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">Time</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.symbol}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">{t.side}</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">Price</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">Amount</TableHead>
+              <TableHead className="text-[10px] uppercase font-medium text-gray-500">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order, i) => (
-              <TableRow key={i}>
-                <TableCell className="text-xs text-slate-500">{order.time}</TableCell>
-                <TableCell className="font-bold text-xs">{order.symbol}</TableCell>
+              <TableRow key={i} className="border-[#2B2B43] hover:bg-[#131722]">
+                <TableCell className="text-xs text-gray-400">{order.time}</TableCell>
+                <TableCell className="font-bold text-xs text-white">{order.symbol}</TableCell>
                 <TableCell>
-                  <span className={`text-xs font-bold ${order.side === 'BUY' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <span className={`text-xs font-bold ${order.side === 'BUY' ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
                     {order.side}
                   </span>
                 </TableCell>
-                <TableCell className="text-xs">{order.price}</TableCell>
-                <TableCell className="text-xs">{order.amount}</TableCell>
+                <TableCell className="text-xs text-gray-300">{order.price}</TableCell>
+                <TableCell className="text-xs text-gray-300">{order.amount}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-[9px]">{order.status}</Badge>
+                  <Badge variant="outline" className="text-[9px] border-gray-600 text-gray-400">{order.status}</Badge>
                 </TableCell>
               </TableRow>
             ))}
@@ -287,11 +240,9 @@ export default function Trading({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900" dir={language === "ar" ? "rtl" : "ltr"}>
-      <MarketHeader t={t} price={price} change24h={change24h} balance={balance} />
-      
-      <div className="mx-auto max-w-[1920px] px-2 py-2">
-        <div className="grid gap-2 lg:grid-cols-[280px_1fr_320px]">
+    <div className="min-h-screen bg-[#131722]" dir={language === "ar" ? "rtl" : "ltr"}>
+      <div className="mx-auto max-w-[1920px] p-2">
+        <div className="grid gap-2 lg:grid-cols-[260px_1fr_300px]">
           
           {/* Left Column: Symbol Selector */}
           <div className="hidden lg:block">
@@ -306,15 +257,14 @@ export default function Trading({ language = "en" }) {
             <ProfessionalChart 
               symbol={symbol} 
               onPriceUpdate={handlePriceUpdate}
-              wsClient={wsClient}
             />
             
             <Tabs defaultValue="positions" className="w-full">
-              <TabsList className="w-full justify-start bg-slate-800 border-b border-slate-700 rounded-none h-9">
-                <TabsTrigger value="positions" className="text-xs text-slate-300 data-[state=active]:text-white">
+              <TabsList className="w-full justify-start bg-[#1E222D] border-b border-[#2B2B43] rounded-none h-9">
+                <TabsTrigger value="positions" className="text-xs text-gray-400 data-[state=active]:text-white data-[state=active]:bg-transparent">
                   {t.openPositions}
                 </TabsTrigger>
-                <TabsTrigger value="orders" className="text-xs text-slate-300 data-[state=active]:text-white">
+                <TabsTrigger value="orders" className="text-xs text-gray-400 data-[state=active]:text-white data-[state=active]:bg-transparent">
                   {t.tradeHistory}
                 </TabsTrigger>
               </TabsList>

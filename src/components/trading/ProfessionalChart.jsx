@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { createChart, ColorType } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Maximize2, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Maximize2, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
 const TIMEFRAMES = [
   { label: "1m", value: "1m" },
@@ -16,19 +17,29 @@ const TIMEFRAMES = [
   { label: "1M", value: "1M" }
 ];
 
-export default function ProfessionalChart({ 
-  symbol = "BTC-USDT", 
-  onPriceUpdate,
-  wsClient 
-}) {
+// Activity logger
+const log = (action, data) => {
+  const ts = new Date().toISOString();
+  console.log(`[${ts}] [CHART] ${action}:`, data);
+};
+
+export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
+  
   const [timeframe, setTimeframe] = useState("15m");
-  const [currentPrice, setCurrentPrice] = useState(0);
-  const [priceChange, setPriceChange] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [marketData, setMarketData] = useState({
+    price: 0,
+    change: 0,
+    changePercent: 0,
+    high: 0,
+    low: 0,
+    volume: 0
+  });
 
   // Initialize chart
   useEffect(() => {
@@ -36,53 +47,52 @@ export default function ProfessionalChart({
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0f172a' },
-        textColor: '#94a3b8',
+        background: { type: ColorType.Solid, color: '#131722' },
+        textColor: '#787B86',
       },
       grid: {
-        vertLines: { color: '#1e293b' },
-        horzLines: { color: '#1e293b' },
+        vertLines: { color: '#1f2937', style: 1 },
+        horzLines: { color: '#1f2937', style: 1 },
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: '#3b82f6',
+          color: '#758696',
           width: 1,
-          style: 2,
-          labelBackgroundColor: '#3b82f6',
+          style: 3,
+          labelBackgroundColor: '#2962FF',
         },
         horzLine: {
-          color: '#3b82f6',
+          color: '#758696',
           width: 1,
-          style: 2,
-          labelBackgroundColor: '#3b82f6',
+          style: 3,
+          labelBackgroundColor: '#2962FF',
         },
       },
       rightPriceScale: {
-        borderColor: '#1e293b',
+        borderColor: '#2B2B43',
         scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {
-        borderColor: '#1e293b',
+        borderColor: '#2B2B43',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 5,
+        barSpacing: 8,
       },
       handleScroll: { vertTouchDrag: false },
     });
 
-    // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderUpColor: '#22c55e',
-      borderDownColor: '#ef4444',
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
+      upColor: '#26A69A',
+      downColor: '#EF5350',
+      borderUpColor: '#26A69A',
+      borderDownColor: '#EF5350',
+      wickUpColor: '#26A69A',
+      wickDownColor: '#EF5350',
     });
 
-    // Volume series
     const volumeSeries = chart.addHistogramSeries({
-      color: '#3b82f6',
       priceFormat: { type: 'volume' },
       priceScaleId: '',
       scaleMargins: { top: 0.85, bottom: 0 },
@@ -92,10 +102,6 @@ export default function ProfessionalChart({
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
-    // Generate initial demo data
-    generateDemoData(candleSeries, volumeSeries);
-
-    // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ 
@@ -108,120 +114,176 @@ export default function ProfessionalChart({
     window.addEventListener('resize', handleResize);
     handleResize();
 
+    log('CHART_INITIALIZED', { symbol });
+
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
+      log('CHART_DESTROYED', { symbol });
     };
   }, []);
 
-  // Generate demo candlestick data
-  const generateDemoData = (candleSeries, volumeSeries) => {
-    const basePrice = symbol.includes('BTC') ? 94250 : 
-                      symbol.includes('ETH') ? 3450 : 
-                      symbol.includes('SOL') ? 185 : 100;
-    
-    const data = [];
-    const volumeData = [];
-    const now = Math.floor(Date.now() / 1000);
-    const interval = getIntervalSeconds(timeframe);
-    
-    for (let i = 200; i >= 0; i--) {
-      const time = now - (i * interval);
-      const volatility = basePrice * 0.002;
-      const open = basePrice + (Math.random() - 0.5) * volatility * 10;
-      const close = open + (Math.random() - 0.5) * volatility * 5;
-      const high = Math.max(open, close) + Math.random() * volatility * 2;
-      const low = Math.min(open, close) - Math.random() * volatility * 2;
-      
-      data.push({ time, open, high, low, close });
-      volumeData.push({
-        time,
-        value: Math.random() * 1000000 + 500000,
-        color: close >= open ? '#22c55e40' : '#ef444440'
+  // Fetch real kline data from BingX
+  const fetchKlineData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    log('FETCH_KLINES_START', { symbol, timeframe });
+
+    try {
+      const result = await base44.functions.invoke('bingxMarketData', {
+        action: 'getKlines',
+        params: { symbol, interval: timeframe, limit: 200 }
       });
-    }
-    
-    candleSeries.setData(data);
-    volumeSeries.setData(volumeData);
-    
-    // Set current price from last candle
-    const lastCandle = data[data.length - 1];
-    setCurrentPrice(lastCandle.close);
-    setPriceChange(((lastCandle.close - data[0].open) / data[0].open) * 100);
-    
-    if (onPriceUpdate) {
-      onPriceUpdate(lastCandle.close);
-    }
-  };
 
-  const getIntervalSeconds = (tf) => {
-    const intervals = {
-      '1m': 60, '5m': 300, '15m': 900, '1h': 3600,
-      '4h': 14400, '1d': 86400, '1w': 604800, '1M': 2592000
-    };
-    return intervals[tf] || 900;
-  };
-
-  // Update data when timeframe changes
-  useEffect(() => {
-    if (candleSeriesRef.current && volumeSeriesRef.current) {
-      generateDemoData(candleSeriesRef.current, volumeSeriesRef.current);
-    }
-  }, [timeframe, symbol]);
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!candleSeriesRef.current) return;
-      
-      const change = (Math.random() - 0.5) * currentPrice * 0.0005;
-      const newPrice = currentPrice + change;
-      setCurrentPrice(newPrice);
-      
-      const now = Math.floor(Date.now() / 1000);
-      candleSeriesRef.current.update({
-        time: now,
-        open: currentPrice,
-        high: Math.max(currentPrice, newPrice),
-        low: Math.min(currentPrice, newPrice),
-        close: newPrice
-      });
-      
-      if (onPriceUpdate) {
-        onPriceUpdate(newPrice);
+      if (result.data?.success && result.data?.data) {
+        const klines = result.data.data;
+        
+        if (candleSeriesRef.current && volumeSeriesRef.current) {
+          candleSeriesRef.current.setData(klines);
+          
+          const volumeData = klines.map(k => ({
+            time: k.time,
+            value: k.volume,
+            color: k.close >= k.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+          }));
+          volumeSeriesRef.current.setData(volumeData);
+          
+          // Set current price from last candle
+          const lastCandle = klines[klines.length - 1];
+          const firstCandle = klines[0];
+          const change = lastCandle.close - firstCandle.open;
+          const changePercent = (change / firstCandle.open) * 100;
+          
+          setMarketData({
+            price: lastCandle.close,
+            change,
+            changePercent,
+            high: lastCandle.high,
+            low: lastCandle.low,
+            volume: lastCandle.volume
+          });
+          
+          if (onPriceUpdate) onPriceUpdate(lastCandle.close);
+          
+          log('FETCH_KLINES_SUCCESS', { count: klines.length, lastPrice: lastCandle.close });
+        }
+      } else {
+        throw new Error(result.data?.error || 'Failed to fetch data');
       }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [currentPrice, onPriceUpdate]);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      chartContainerRef.current?.parentElement?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+    } catch (err) {
+      log('FETCH_KLINES_ERROR', { error: err.message });
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  }, [symbol, timeframe, onPriceUpdate]);
+
+  // Fetch 24h ticker for header stats
+  const fetchTickerData = useCallback(async () => {
+    try {
+      const result = await base44.functions.invoke('bingxMarketData', {
+        action: 'getTicker24h',
+        params: { symbol }
+      });
+
+      if (result.data?.success && result.data?.data) {
+        const ticker = result.data.data;
+        setMarketData(prev => ({
+          ...prev,
+          price: ticker.lastPrice,
+          change: ticker.priceChange,
+          changePercent: ticker.priceChangePercent,
+          high: ticker.highPrice,
+          low: ticker.lowPrice,
+          volume: ticker.quoteVolume
+        }));
+        
+        if (onPriceUpdate) onPriceUpdate(ticker.lastPrice);
+        log('FETCH_TICKER_SUCCESS', ticker);
+      }
+    } catch (err) {
+      log('FETCH_TICKER_ERROR', { error: err.message });
+    }
+  }, [symbol, onPriceUpdate]);
+
+  // Load data on mount and when symbol/timeframe changes
+  useEffect(() => {
+    fetchKlineData();
+    fetchTickerData();
+    
+    // Refresh ticker every 5 seconds
+    const tickerInterval = setInterval(fetchTickerData, 5000);
+    
+    return () => clearInterval(tickerInterval);
+  }, [fetchKlineData, fetchTickerData]);
+
+  const handleRefresh = () => {
+    fetchKlineData();
+    fetchTickerData();
   };
+
+  const formatPrice = (price) => {
+    if (!price) return '0.00';
+    if (price >= 1000) return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (price >= 1) return price.toFixed(2);
+    return price.toFixed(6);
+  };
+
+  const formatVolume = (vol) => {
+    if (!vol) return '0';
+    if (vol >= 1e9) return (vol / 1e9).toFixed(2) + 'B';
+    if (vol >= 1e6) return (vol / 1e6).toFixed(2) + 'M';
+    if (vol >= 1e3) return (vol / 1e3).toFixed(2) + 'K';
+    return vol.toFixed(2);
+  };
+
+  const isPositive = marketData.changePercent >= 0;
 
   return (
-    <Card className="border-0 shadow-none bg-slate-900 overflow-hidden relative">
-      {/* Chart Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800/50 border-b border-slate-700">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-white font-bold text-lg">{symbol}</span>
-            <span className={`text-sm font-bold flex items-center gap-1 ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {priceChange >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-            </span>
+    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
+      {/* Chart Header - BingX Style */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
+        <div className="flex items-center gap-6">
+          {/* Symbol & Price */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
+              {symbol.split('-')[0].substring(0, 2)}
+            </div>
+            <div>
+              <div className="text-white font-bold text-sm">{symbol}</div>
+              <div className="text-[10px] text-gray-500">Perpetual</div>
+            </div>
           </div>
-          <div className="text-white font-mono text-xl">
-            ${currentPrice.toFixed(symbol.includes('BTC') ? 2 : symbol.includes('ETH') ? 2 : 4)}
+          
+          {/* Price Display */}
+          <div className="flex items-baseline gap-2">
+            <span className={`text-2xl font-bold font-mono ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              ${formatPrice(marketData.price)}
+            </span>
+            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              {isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+              {isPositive ? '+' : ''}{marketData.changePercent.toFixed(2)}%
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="hidden md:flex items-center gap-4 text-xs">
+            <div>
+              <span className="text-gray-500">24h High</span>
+              <span className="ml-2 text-white font-mono">${formatPrice(marketData.high)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">24h Low</span>
+              <span className="ml-2 text-white font-mono">${formatPrice(marketData.low)}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">24h Vol</span>
+              <span className="ml-2 text-white font-mono">${formatVolume(marketData.volume)}</span>
+            </div>
           </div>
         </div>
 
+        {/* Timeframe Selector */}
         <div className="flex items-center gap-1">
           {TIMEFRAMES.map(tf => (
             <Button
@@ -229,41 +291,59 @@ export default function ProfessionalChart({
               variant="ghost"
               size="sm"
               onClick={() => setTimeframe(tf.value)}
-              className={`h-7 px-3 text-xs ${
+              className={`h-7 px-2.5 text-xs font-medium ${
                 tf.value === timeframe 
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                  ? 'bg-[#2962FF] text-white hover:bg-[#2962FF]' 
+                  : 'text-gray-400 hover:text-white hover:bg-[#2B2B43]'
               }`}
             >
               {tf.label}
             </Button>
           ))}
-          <div className="w-px h-5 bg-slate-600 mx-2" />
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white">
-            <Settings className="h-4 w-4" />
-          </Button>
+          <div className="w-px h-5 bg-[#2B2B43] mx-1" />
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-7 w-7 text-slate-400 hover:text-white"
-            onClick={toggleFullscreen}
+            className="h-7 w-7 text-gray-400 hover:text-white"
+            onClick={handleRefresh}
+            disabled={loading}
           >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white">
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Chart Container */}
-      <div 
-        ref={chartContainerRef} 
-        className={`w-full ${isFullscreen ? 'h-screen' : 'h-[500px]'}`}
-      />
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <p className="text-red-500 text-sm mb-2">{error}</p>
+              <Button size="sm" onClick={handleRefresh}>Retry</Button>
+            </div>
+          </div>
+        )}
+        <div ref={chartContainerRef} className="w-full h-[500px]" />
+      </div>
+      
+      {/* Footer */}
+      <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
+        <span>Powered by BingX API</span>
+        <span>TradingView Lightweight Charts</span>
+      </div>
     </Card>
   );
 }
 
 ProfessionalChart.propTypes = {
   symbol: PropTypes.string,
-  onPriceUpdate: PropTypes.func,
-  wsClient: PropTypes.object
+  onPriceUpdate: PropTypes.func
 };
