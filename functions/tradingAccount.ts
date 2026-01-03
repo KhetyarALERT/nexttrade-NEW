@@ -188,11 +188,14 @@ Deno.serve(async (req) => {
       const notionalValue = quantity * entryPrice;
       const marginRequired = notionalValue / leverage;
       
+      // For demo accounts, use demo_balance; for mentor accounts, use wallet balance
+      const availableBalance = account.is_demo ? account.demo_balance : account.balance;
+      
       // Check if enough balance
-      if (marginRequired > account.balance) {
+      if (marginRequired > availableBalance) {
         return Response.json({ 
           success: false, 
-          error: `Insufficient balance. Required: $${marginRequired.toFixed(2)}, Available: $${account.balance.toFixed(2)}` 
+          error: `Insufficient balance. Required: $${marginRequired.toFixed(2)}, Available: $${availableBalance.toFixed(2)}` 
         }, { status: 400 });
       }
       
@@ -216,11 +219,43 @@ Deno.serve(async (req) => {
       });
       
       // Update account balance and margin
-      await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {
-        balance: account.balance - marginRequired,
-        margin_used: account.margin_used + marginRequired,
-        total_trades: account.total_trades + 1
-      });
+      if (account.is_demo) {
+        await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {
+          demo_balance: account.demo_balance - marginRequired,
+          balance: account.demo_balance - marginRequired,
+          margin_used: account.margin_used + marginRequired,
+          total_trades: account.total_trades + 1
+        });
+      } else {
+        // For real accounts, also create wallet transaction for margin
+        const wallets = await base44.entities.Wallet.filter({ trading_account_id: tradingAccountId });
+        if (wallets && wallets.length > 0) {
+          const wallet = wallets[0];
+          
+          // Create margin transaction
+          await base44.asServiceRole.entities.WalletTransaction.create({
+            transaction_id: `TX_M_${generateId()}`,
+            wallet_id: wallet.id,
+            user_id: user.id,
+            type: 'trade_margin',
+            amount: -marginRequired,
+            status: 'completed',
+            reference_id: tradeId,
+            notes: `Margin for trade ${symbol} ${side}`
+          });
+          
+          // Update wallet balance
+          await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+            balance: wallet.balance - marginRequired
+          });
+        }
+        
+        await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {
+          balance: account.balance - marginRequired,
+          margin_used: account.margin_used + marginRequired,
+          total_trades: account.total_trades + 1
+        });
+      }
       
       audit('TRADE_OPENED', user.id, { 
         tradeId, 
@@ -228,7 +263,8 @@ Deno.serve(async (req) => {
         side, 
         quantity, 
         entryPrice, 
-        marginRequired 
+        marginRequired,
+        isDemo: account.is_demo
       });
       
       return Response.json({ success: true, data: trade });
@@ -257,7 +293,6 @@ Deno.serve(async (req) => {
       
       // Calculate PnL
       let pnl = 0;
-      const notionalValue = trade.quantity * trade.entry_price;
       
       if (trade.side === 'LONG') {
         pnl = (exitPrice - trade.entry_price) * trade.quantity;
@@ -287,17 +322,54 @@ Deno.serve(async (req) => {
         const account = accounts[0];
         
         // Return margin + PnL to balance
-        const newBalance = account.balance + trade.margin + pnl;
+        const returnAmount = trade.margin + pnl;
         const newRealizedPnl = account.realized_pnl + pnl;
         const newWinningTrades = isWinning ? account.winning_trades + 1 : account.winning_trades;
         
-        await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
-          balance: newBalance,
-          equity: newBalance + account.unrealized_pnl,
-          margin_used: Math.max(0, account.margin_used - trade.margin),
-          realized_pnl: newRealizedPnl,
-          winning_trades: newWinningTrades
-        });
+        if (account.is_demo) {
+          // Demo account - update demo_balance
+          const newDemoBalance = account.demo_balance + returnAmount;
+          await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
+            demo_balance: newDemoBalance,
+            balance: newDemoBalance,
+            equity: newDemoBalance,
+            margin_used: Math.max(0, account.margin_used - trade.margin),
+            realized_pnl: newRealizedPnl,
+            winning_trades: newWinningTrades
+          });
+        } else {
+          // Real account - update wallet as well
+          const wallets = await base44.entities.Wallet.filter({ trading_account_id: trade.trading_account_id });
+          if (wallets && wallets.length > 0) {
+            const wallet = wallets[0];
+            
+            // Create PnL transaction
+            await base44.asServiceRole.entities.WalletTransaction.create({
+              transaction_id: `TX_P_${generateId()}`,
+              wallet_id: wallet.id,
+              user_id: user.id,
+              type: 'trade_pnl',
+              amount: returnAmount,
+              status: 'completed',
+              reference_id: trade.trade_id,
+              notes: `Closed ${trade.symbol} ${trade.side}: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT`
+            });
+            
+            // Update wallet balance
+            await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+              balance: wallet.balance + returnAmount
+            });
+          }
+          
+          const newBalance = account.balance + returnAmount;
+          await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
+            balance: newBalance,
+            equity: newBalance + account.unrealized_pnl,
+            margin_used: Math.max(0, account.margin_used - trade.margin),
+            realized_pnl: newRealizedPnl,
+            winning_trades: newWinningTrades
+          });
+        }
       }
       
       audit('TRADE_CLOSED', user.id, { 

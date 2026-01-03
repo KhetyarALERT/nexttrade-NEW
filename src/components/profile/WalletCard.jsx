@@ -21,8 +21,8 @@ import {
   Copy, 
   CheckCircle,
   RefreshCw,
-  QrCode,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -76,18 +76,20 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [depositAmount, setDepositAmount] = useState("100");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [depositAddress, setDepositAddress] = useState(wallet?.deposit_address || "");
+  const [depositData, setDepositData] = useState(null);
+  const [depositError, setDepositError] = useState(null);
 
   const formatCurrency = (val) => {
     if (val === null || val === undefined) return "0.00";
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const handleCopy = async () => {
-    if (depositAddress) {
-      await navigator.clipboard.writeText(depositAddress);
+  const handleCopy = async (text) => {
+    if (text) {
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       toast.success(t.copied);
       setTimeout(() => setCopied(false), 2000);
@@ -95,21 +97,24 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
   };
 
   const handleGetDepositAddress = async () => {
-    if (depositAddress) return;
-    
     setLoading(true);
+    setDepositError(null);
+    setDepositData(null);
+    
     try {
       const result = await base44.functions.invoke('wallet', {
         action: 'getDepositAddress',
-        walletId: wallet.id
+        walletId: wallet.id,
+        amount: parseFloat(depositAmount) || 100
       });
+      
       if (result.data?.success) {
-        setDepositAddress(result.data.data.address);
+        setDepositData(result.data.data);
       } else {
-        toast.error(result.data?.error || "Failed to get deposit address");
+        setDepositError(result.data?.error || "Failed to create deposit invoice");
       }
     } catch (err) {
-      toast.error(err.message);
+      setDepositError(err.message);
     } finally {
       setLoading(false);
     }
@@ -201,58 +206,111 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
         {/* Actions */}
         <div className="flex gap-3">
           {/* Deposit Dialog */}
-          <Dialog open={depositOpen} onOpenChange={setDepositOpen}>
+          <Dialog open={depositOpen} onOpenChange={(open) => {
+            setDepositOpen(open);
+            if (!open) {
+              setDepositData(null);
+              setDepositError(null);
+            }
+          }}>
             <DialogTrigger asChild>
-              <Button 
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                onClick={handleGetDepositAddress}
-              >
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
                 <ArrowDownToLine className="w-4 h-4 mr-2" /> {t.deposit}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>{t.deposit} USDT</DialogTitle>
-                <DialogDescription>{t.scanQR}</DialogDescription>
+                <DialogDescription>
+                  {depositData ? t.scanQR : "Enter amount to generate deposit invoice"}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
-                  </div>
-                ) : depositAddress ? (
-                  <>
-                    <div className="flex justify-center">
-                      <div className="w-48 h-48 bg-white border-2 border-slate-200 rounded-xl flex items-center justify-center">
-                        <QrCode className="w-32 h-32 text-slate-400" />
-                      </div>
-                    </div>
+                {!depositData && !loading && (
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>{t.depositAddress} ({wallet.currency})</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={depositAddress} 
-                          readOnly 
-                          className="font-mono text-xs bg-slate-50"
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={handleCopy}
-                        >
-                          {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                      </div>
+                      <Label>Deposit Amount (USD)</Label>
+                      <Input 
+                        type="number"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="100"
+                        min="10"
+                      />
+                      <p className="text-xs text-slate-500">{t.minDeposit}</p>
                     </div>
-                    <div className="text-xs text-slate-500 space-y-1">
+                    {depositError && (
+                      <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        <AlertCircle className="w-4 h-4" />
+                        {depositError}
+                      </div>
+                    )}
+                    <Button 
+                      onClick={handleGetDepositAddress}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      Generate Deposit Address
+                    </Button>
+                  </div>
+                )}
+                
+                {loading && (
+                  <div className="flex flex-col items-center justify-center py-8 gap-3">
+                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
+                    <p className="text-sm text-slate-500">Creating deposit invoice...</p>
+                  </div>
+                )}
+                
+                {depositData && !loading && (
+                  <>
+                    {depositData.invoice_url && (
+                      <div className="text-center">
+                        <a 
+                          href={depositData.invoice_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Open Payment Page
+                        </a>
+                        <p className="text-xs text-slate-500 mt-2">
+                          Click to complete payment on NOWPayments
+                        </p>
+                      </div>
+                    )}
+                    
+                    {depositData.pay_address && (
+                      <div className="space-y-2 pt-4 border-t">
+                        <Label>Or send directly to address ({wallet.currency})</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            value={depositData.pay_address} 
+                            readOnly 
+                            className="font-mono text-xs bg-slate-50"
+                          />
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => handleCopy(depositData.pay_address)}
+                          >
+                            {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                        {depositData.pay_amount && (
+                          <p className="text-sm text-slate-600">
+                            Amount: <strong>{depositData.pay_amount} {depositData.pay_currency?.toUpperCase()}</strong>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-slate-500 space-y-1 pt-2">
                       <p>• {t.minDeposit}</p>
                       <p>• {t.networkFee}</p>
+                      <p>• Balance updates automatically after confirmation</p>
                     </div>
                   </>
-                ) : (
-                  <div className="text-center py-8 text-slate-500">
-                    Failed to load deposit address
-                  </div>
                 )}
               </div>
             </DialogContent>
