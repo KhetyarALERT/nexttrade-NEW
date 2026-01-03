@@ -245,6 +245,20 @@ async function processDeposit(base44, payload) {
     currency: wallet.currency,
     network: wallet.network
   });
+  
+  // Create notification for confirmed deposit
+  try {
+    await base44.asServiceRole.entities.Notification.create({
+      user_id: wallet.user_id,
+      type: 'deposit_confirmed',
+      title: 'Deposit Confirmed',
+      message: `${depositAmount} ${wallet.currency} has been credited to your ${wallet.network} wallet.`,
+      data: { walletId: wallet.id, amount: depositAmount, currency: wallet.currency },
+      priority: 'normal'
+    });
+  } catch (e) {
+    console.log('Failed to create notification:', e.message);
+  }
 }
 
 async function handleWithdrawalWebhook(base44, payload) {
@@ -312,6 +326,31 @@ async function handleWithdrawalWebhook(base44, payload) {
     oldStatus: tx.status,
     newStatus 
   });
+  
+  // Create notification for withdrawal status
+  try {
+    if (newStatus === 'completed') {
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: tx.user_id,
+        type: 'withdrawal_confirmed',
+        title: 'Withdrawal Completed',
+        message: `${Math.abs(tx.amount)} ${tx.currency} withdrawal has been completed successfully.`,
+        data: { transactionId: tx.id, amount: Math.abs(tx.amount), currency: tx.currency },
+        priority: 'normal'
+      });
+    } else if (newStatus === 'failed') {
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: tx.user_id,
+        type: 'withdrawal_failed',
+        title: 'Withdrawal Failed',
+        message: `Withdrawal of ${Math.abs(tx.amount)} ${tx.currency} has failed. Funds returned to your wallet.`,
+        data: { transactionId: tx.id, amount: Math.abs(tx.amount), currency: tx.currency },
+        priority: 'high'
+      });
+    }
+  } catch (e) {
+    console.log('Failed to create notification:', e.message);
+  }
 }
 
 async function handleFailedWithdrawal(base44, payload) {
