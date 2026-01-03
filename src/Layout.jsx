@@ -171,8 +171,8 @@ export default function Layout({ children }) {
                 className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-full px-6 hover:from-blue-700 hover:to-cyan-700"
                 asChild>
 
-                <Link to={createPageUrl("Profile") + "?tab=accounts&openModal=true"}>
-                  {language === "en" ? "Open Account" : "فتح حساب"}
+                <Link to={createPageUrl("Profile") + "?tab=accounts"}>
+                  {language === "en" ? "My Account" : "حسابي"}
                 </Link>
               </Button>
             </div>
@@ -224,8 +224,8 @@ export default function Layout({ children }) {
               className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
               asChild>
 
-                <Link to={createPageUrl("Profile") + "?tab=accounts&openModal=true"} onClick={() => setMobileMenuOpen(false)}>
-                  {language === "en" ? "Open Account" : "فتح حساب"}
+                <Link to={createPageUrl("Profile") + "?tab=accounts"} onClick={() => setMobileMenuOpen(false)}>
+                  {language === "en" ? "My Account" : "حسابي"}
                 </Link>
               </Button>
             </div>
