@@ -4,69 +4,54 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Star, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { marketStore } from "./marketStore";
 
-export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
+// Static top pairs data
+const TOP_PAIRS = [
+  { symbol: 'BTC-USDT', baseAsset: 'BTC', quoteAsset: 'USDT', price: 94500, change: 2.1 },
+  { symbol: 'ETH-USDT', baseAsset: 'ETH', quoteAsset: 'USDT', price: 3380, change: 1.5 },
+  { symbol: 'SOL-USDT', baseAsset: 'SOL', quoteAsset: 'USDT', price: 185, change: 3.2 },
+  { symbol: 'BNB-USDT', baseAsset: 'BNB', quoteAsset: 'USDT', price: 680, change: 0.8 },
+  { symbol: 'XRP-USDT', baseAsset: 'XRP', quoteAsset: 'USDT', price: 2.15, change: -0.5 },
+  { symbol: 'ADA-USDT', baseAsset: 'ADA', quoteAsset: 'USDT', price: 0.92, change: 1.2 },
+  { symbol: 'DOGE-USDT', baseAsset: 'DOGE', quoteAsset: 'USDT', price: 0.32, change: -1.1 },
+  { symbol: 'AVAX-USDT', baseAsset: 'AVAX', quoteAsset: 'USDT', price: 38.5, change: 2.8 },
+  { symbol: 'DOT-USDT', baseAsset: 'DOT', quoteAsset: 'USDT', price: 7.2, change: 0.3 },
+  { symbol: 'LINK-USDT', baseAsset: 'LINK', quoteAsset: 'USDT', price: 22.8, change: 1.9 },
+  { symbol: 'MATIC-USDT', baseAsset: 'MATIC', quoteAsset: 'USDT', price: 0.48, change: -0.7 },
+  { symbol: 'UNI-USDT', baseAsset: 'UNI', quoteAsset: 'USDT', price: 13.5, change: 2.1 },
+  { symbol: 'ATOM-USDT', baseAsset: 'ATOM', quoteAsset: 'USDT', price: 9.8, change: 1.4 },
+  { symbol: 'LTC-USDT', baseAsset: 'LTC', quoteAsset: 'USDT', price: 102, change: 0.6 },
+  { symbol: 'FIL-USDT', baseAsset: 'FIL', quoteAsset: 'USDT', price: 5.2, change: -0.3 }
+];
+
+export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact = false }) {
   const [search, setSearch] = useState("");
-  const [pairs, setPairs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [pairs, setPairs] = useState(TOP_PAIRS);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
-  const [favorites, setFavorites] = useState(['BTC-USDT', 'ETH-USDT']);
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('favorite_pairs') || '["BTC-USDT","ETH-USDT"]');
+    } catch { return ['BTC-USDT', 'ETH-USDT']; }
+  });
 
-  // Fetch tickers ONCE, then subscribe to store
+  // Subscribe to market store for price updates
   useEffect(() => {
-    let unsubscribers = [];
+    const unsub = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
+      setPairs(prev => prev.map(p => 
+        p.symbol === symbol ? { ...p, price: ticker.price || p.price, change: ticker.change || p.change } : p
+      ));
+    });
     
-    const init = async () => {
+    // Subscribe to WebSocket for top pairs
+    TOP_PAIRS.slice(0, 10).forEach(t => {
       try {
-        // REST fetch ONCE
-        const result = await base44.functions.invoke('bingxMarketData', {
-          action: 'getTickers',
-          params: {}
-        });
-
-        if (result.data?.success && result.data?.data) {
-          const tickers = result.data.data
-            .filter(t => t.symbol.endsWith('-USDT'))
-            .map(t => ({
-              symbol: t.symbol,
-              baseAsset: t.symbol.replace('-USDT', ''),
-              quoteAsset: 'USDT',
-              price: t.lastPrice,
-              change: t.priceChangePercent,
-              volume: t.quoteVolume
-            }))
-            .sort((a, b) => b.volume - a.volume)
-            .slice(0, 30);
-          
-          setPairs(tickers);
-          
-          // Subscribe to WebSocket for top 15 symbols
-          tickers.slice(0, 15).forEach(t => {
-            marketStore.subscribeWS(`${t.symbol}@ticker`);
-          });
-          
-          // Subscribe to store for price updates
-          const unsub = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
-            setPairs(prev => prev.map(p => 
-              p.symbol === symbol ? { ...p, price: ticker.price, change: ticker.change } : p
-            ));
-          });
-          unsubscribers.push(unsub);
-        }
-      } catch (err) {
-        console.error('Failed to fetch tickers:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+        marketStore.subscribeWS?.(`${t.symbol}@ticker`);
+      } catch (e) {}
+    });
     
-    init();
-    
-    return () => {
-      unsubscribers.forEach(u => u());
-    };
+    return () => unsub();
   }, []);
 
   const filteredPairs = pairs.filter(pair => {
@@ -76,9 +61,11 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
   });
 
   const toggleFavorite = (symbol) => {
-    setFavorites(prev => 
-      prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol]
-    );
+    setFavorites(prev => {
+      const updated = prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol];
+      localStorage.setItem('favorite_pairs', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const formatPrice = (p) => {
@@ -87,20 +74,24 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
     return p >= 1 ? p.toFixed(2) : p.toFixed(6);
   };
 
+  const containerHeight = compact ? "max-h-[40vh]" : "h-[calc(100vh-380px)] min-h-[300px]";
+
   return (
-    <Card className="bg-[#1E222D] border-[#2B2B43] h-full">
-      <CardHeader className="py-3 px-4 border-b border-[#2B2B43]">
-        <CardTitle className="text-sm font-bold text-white">Markets</CardTitle>
-      </CardHeader>
+    <Card className="bg-[#1E222D] border-[#2B2B43]">
+      {!compact && (
+        <CardHeader className="py-2 px-3 border-b border-[#2B2B43]">
+          <CardTitle className="text-xs font-bold text-white">Markets</CardTitle>
+        </CardHeader>
+      )}
       <CardContent className="p-0">
-        <div className="p-3 border-b border-[#2B2B43]">
+        <div className="p-2 border-b border-[#2B2B43]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="pl-9 h-8 text-sm bg-[#131722] border-[#2B2B43] text-white placeholder:text-gray-500"
+              className="pl-7 h-7 text-xs bg-[#131722] border-[#2B2B43] text-white placeholder:text-gray-500"
             />
           </div>
         </div>
@@ -108,25 +99,25 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
         <div className="flex border-b border-[#2B2B43]">
           <button
             onClick={() => setActiveTab("all")}
-            className={`flex-1 py-2 text-xs font-medium ${activeTab === "all" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
+            className={`flex-1 py-1.5 text-[10px] font-medium ${activeTab === "all" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
           >
             All
           </button>
           <button
             onClick={() => setActiveTab("favorites")}
-            className={`flex-1 py-2 text-xs font-medium flex items-center justify-center gap-1 ${activeTab === "favorites" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
+            className={`flex-1 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${activeTab === "favorites" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
           >
-            <Star className="w-3 h-3" /> Favorites
+            <Star className="w-2.5 h-2.5" /> Fav
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-[#131722] text-[10px] font-medium text-gray-500 uppercase">
+        <div className="grid grid-cols-3 gap-1 px-2 py-1 bg-[#131722] text-[9px] font-medium text-gray-500 uppercase">
           <span>Pair</span>
           <span className="text-right">Price</span>
-          <span className="text-right">24h %</span>
+          <span className="text-right">24h</span>
         </div>
 
-        <ScrollArea className="h-[calc(100vh-380px)] min-h-[300px]">
+        <ScrollArea className={containerHeight}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 text-[#2962FF] animate-spin" />
@@ -143,24 +134,22 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
                 <div
                   key={pair.symbol}
                   onClick={() => onSymbolChange(pair.symbol)}
-                  className={`grid grid-cols-3 gap-2 px-3 py-2.5 cursor-pointer transition-colors ${isSelected ? "bg-[#2962FF]/20" : "hover:bg-[#1E222D]"}`}
+                  className={`grid grid-cols-3 gap-1 px-2 py-1.5 cursor-pointer transition-colors ${isSelected ? "bg-[#2962FF]/20" : "hover:bg-[#1E222D]"}`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFavorite(pair.symbol); }}
                       className="text-gray-600 hover:text-yellow-500"
                     >
-                      <Star className={`h-3 w-3 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
+                      <Star className={`h-2.5 w-2.5 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
                     </button>
                     <div>
-                      <div className="text-xs font-bold text-white">{pair.baseAsset}</div>
-                      <div className="text-[10px] text-gray-500">/{pair.quoteAsset}</div>
+                      <div className="text-[10px] font-bold text-white">{pair.baseAsset}</div>
                     </div>
                   </div>
-                  <div className="text-right text-xs font-mono text-white">${formatPrice(pair.price)}</div>
-                  <div className={`text-right text-xs font-bold flex items-center justify-end gap-0.5 ${isPositive ? "text-[#26A69A]" : "text-[#EF5350]"}`}>
-                    {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                    {isPositive ? "+" : ""}{pair.change?.toFixed(2) || '0.00'}%
+                  <div className="text-right text-[10px] font-mono text-white">${formatPrice(pair.price)}</div>
+                  <div className={`text-right text-[10px] font-bold flex items-center justify-end ${isPositive ? "text-[#26A69A]" : "text-[#EF5350]"}`}>
+                    {isPositive ? "+" : ""}{pair.change?.toFixed(1) || '0.0'}%
                   </div>
                 </div>
               );
@@ -174,5 +163,6 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange }) {
 
 SymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string,
-  onSymbolChange: PropTypes.func
+  onSymbolChange: PropTypes.func,
+  compact: PropTypes.bool
 };
