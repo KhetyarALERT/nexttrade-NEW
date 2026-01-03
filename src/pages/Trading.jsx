@@ -260,7 +260,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
 
     const tpLine = candleSeriesRef.current.createPriceLine({
       price: tpPrice,
-      color: '#EF5350',
+      color: '#26A69A',
       lineWidth: 1,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
@@ -285,8 +285,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       title: 'Liq'
     });
 
-    const badgeRef = useRef(null);
-
     const newPos = {
       id: nextId,
       entryPrice,
@@ -299,8 +297,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       entryLine,
       tpLine,
       slLine,
-      liqLine,
-      badgeRef
+      liqLine
     };
 
     setPositions(prev => [...prev, newPos]);
