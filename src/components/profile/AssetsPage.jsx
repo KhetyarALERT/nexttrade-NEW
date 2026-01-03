@@ -29,11 +29,13 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   ArrowLeftRight,
-  Info
+  Info,
+  QrCode
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import CryptoIcon from "@/components/ui/CryptoIcon";
+import SpotWalletView from "@/components/profile/SpotWalletView";
 
 const NETWORK_CONFIG = {
   TRC20: { name: "Tron (TRC20)", fee: "1 USDT", time: "~1 min" },
@@ -308,21 +310,21 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="spot" className="mt-4">
-          <div className="bg-[#1a1a2e] rounded-xl p-6 text-center">
-            <Wallet className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-            <h3 className="text-white font-medium mb-2">Spot Wallet</h3>
-            <p className="text-slate-400 text-sm mb-4">USDT only - Internal transfers from Main Wallet</p>
-            <div className="text-2xl font-bold text-white">$0.00</div>
-          </div>
+          <SpotWalletView 
+            spotBalance={0}
+            onDeposit={() => { setActiveModal('deposit'); resetForm(); }}
+            onWithdraw={() => { setActiveModal('withdraw'); resetForm(); }}
+            showBalances={showBalances}
+          />
         </TabsContent>
 
         <TabsContent value="futures" className="mt-4">
-          <div className="bg-[#1a1a2e] rounded-xl p-6 text-center">
-            <Wallet className="w-12 h-12 mx-auto mb-4 text-slate-500" />
-            <h3 className="text-white font-medium mb-2">Futures Wallet</h3>
-            <p className="text-slate-400 text-sm mb-4">USDT only - For leveraged trading</p>
-            <div className="text-2xl font-bold text-white">$0.00</div>
-          </div>
+          <SpotWalletView 
+            spotBalance={0}
+            onDeposit={() => { setActiveModal('deposit'); resetForm(); }}
+            onWithdraw={() => { setActiveModal('withdraw'); resetForm(); }}
+            showBalances={showBalances}
+          />
         </TabsContent>
       </Tabs>
 
@@ -426,41 +428,52 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                 
                 {depositData && (
                   <div className="space-y-4">
-                    <div className="p-4 bg-slate-800 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-slate-400 text-sm">Deposit Address</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CryptoIcon currency={selectedCurrency} size="sm" />
-                        <code className="text-white text-xs break-all flex-1">{depositData.pay_address || 'Address will be shown on payment page'}</code>
-                        {depositData.pay_address && (
-                          <Button variant="outline" size="sm" onClick={() => handleCopy(depositData.pay_address)} className="border-blue-500 text-blue-400">
-                            {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                    {depositData.pay_address && (
+                      <>
+                        <div className="flex justify-center p-4 bg-white rounded-lg">
+                          <div className="w-40 h-40 flex items-center justify-center bg-slate-100 rounded-lg">
+                            <QrCode className="w-full h-full p-2 text-slate-400" />
+                          </div>
+                        </div>
+                        
+                        <div className="p-4 bg-slate-800 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-400 text-sm">Deposit Address</span>
+                            <Button variant="ghost" size="sm" onClick={() => handleCopy(depositData.pay_address)} className="text-blue-400 h-auto p-1">
+                              {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                          <code className="text-white text-xs break-all block">{depositData.pay_address}</code>
+                        </div>
+                      </>
+                    )}
                     
-                    {depositData.invoice_url && (
+                    {!depositData.pay_address && depositData.invoice_url && (
                       <a 
                         href={depositData.invoice_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-sm font-medium"
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
                       >
-                        Complete Payment
+                        Open Payment Page to View Address
                       </a>
                     )}
                     
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>Minimum deposit</span>
-                      <span>&ge; {depositData.min_deposit || 1} {selectedCurrency}</span>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 block">Minimum</span>
+                        <span className="text-white font-medium">&ge; {depositData.min_deposit || 1} {selectedCurrency}</span>
+                      </div>
+                      <div className="p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 block">Receiving</span>
+                        <span className="text-white font-medium">Fund Account</span>
+                      </div>
                     </div>
                     
                     <div className="flex items-start gap-2 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg">
                       <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-amber-200">
-                        Send only {selectedCurrency} via {NETWORK_CONFIG[selectedNetwork]?.name || selectedNetwork}. Sending other assets may result in permanent loss.
+                        Send only {selectedCurrency} via {NETWORK_CONFIG[selectedNetwork]?.name || selectedNetwork}. Other assets will be lost permanently.
                       </p>
                     </div>
                   </div>
