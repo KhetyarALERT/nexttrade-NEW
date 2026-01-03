@@ -39,6 +39,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       layout: {
         background: { type: ColorType.Solid, color: '#131722' },
         textColor: '#787B86',
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: '#1f2937', style: 1 },
