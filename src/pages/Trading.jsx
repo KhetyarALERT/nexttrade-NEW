@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import {
   TrendingUp,
   TrendingDown,
-  ChevronDown,
   Activity,
   History,
   Wallet,
@@ -15,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import BingXWebSocketClient from "@/components/trading/BingXWebSocket";
-import TradingChart from "@/components/trading/TradingChart";
+import ProfessionalChart from "@/components/trading/ProfessionalChart";
+import SymbolSelector from "@/components/trading/SymbolSelector";
 import OrderPanel from "@/components/trading/OrderPanel";
 import { base44 } from "@/api/base44Client";
 
@@ -193,9 +193,19 @@ const OrderHistoryPanel = ({ t, orders = [] }) => (
   </Card>
 );
 
+// Activity Logger
+const logActivity = (action, details) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [TRADING] ${action}:`, details);
+  const logs = JSON.parse(localStorage.getItem('tradingLogs') || '[]');
+  logs.push({ timestamp, action, details });
+  if (logs.length > 1000) logs.shift();
+  localStorage.setItem('tradingLogs', JSON.stringify(logs));
+};
+
 export default function Trading({ language = "en" }) {
   const t = translations[language] || translations.en;
-  const [symbol] = useState("BTC-USDT");
+  const [symbol, setSymbol] = useState("BTC-USDT");
   const [price, setPrice] = useState(94250);
   const [change24h, setChange24h] = useState(3.15);
   const [balance, setBalance] = useState(10000);
@@ -204,45 +214,53 @@ export default function Trading({ language = "en" }) {
   const [wsClient, setWsClient] = useState(null);
 
   useEffect(() => {
+    logActivity('PAGE_LOAD', { symbol, timestamp: new Date().toISOString() });
+    
     // Initialize WebSocket
     const client = new BingXWebSocketClient('futures');
     client.connect().then(() => {
-      console.log('BingX WebSocket connected');
+      logActivity('WS_CONNECTED', { symbol });
       client.subscribe(symbol, 'trade');
       client.on('*', (msg) => {
         if (msg.data && msg.data.p) {
           setPrice(parseFloat(msg.data.p));
         }
       });
-    }).catch(console.error);
+    }).catch(err => {
+      logActivity('WS_ERROR', { error: err.message });
+    });
     
     setWsClient(client);
-
-    // Fetch initial data
     loadPositions();
     loadBalance();
 
     return () => {
-      if (client) client.disconnect();
+      if (client) {
+        client.disconnect();
+        logActivity('WS_DISCONNECTED', { symbol });
+      }
     };
   }, [symbol]);
 
   const loadPositions = async () => {
     try {
+      logActivity('LOAD_POSITIONS', { status: 'started' });
       const result = await base44.functions.invoke('bingxRest', {
         action: 'futures.getPositions',
         params: { symbol }
       });
       if (result.data.success) {
         setPositions(result.data.data || []);
+        logActivity('LOAD_POSITIONS', { status: 'success', count: result.data.data?.length || 0 });
       }
     } catch (error) {
-      console.error('Failed to load positions:', error);
+      logActivity('LOAD_POSITIONS', { status: 'error', error: error.message });
     }
   };
 
   const loadBalance = async () => {
     try {
+      logActivity('LOAD_BALANCE', { status: 'started' });
       const result = await base44.functions.invoke('bingxRest', {
         action: 'futures.getBalance',
         params: {}
@@ -251,30 +269,52 @@ export default function Trading({ language = "en" }) {
         const usdtBalance = result.data.data.find(b => b.asset === 'USDT');
         if (usdtBalance) {
           setBalance(parseFloat(usdtBalance.balance));
+          logActivity('LOAD_BALANCE', { status: 'success', balance: usdtBalance.balance });
         }
       }
     } catch (error) {
-      console.error('Failed to load balance:', error);
+      logActivity('LOAD_BALANCE', { status: 'error', error: error.message });
     }
   };
 
+  const handleSymbolChange = (newSymbol) => {
+    logActivity('SYMBOL_CHANGE', { from: symbol, to: newSymbol });
+    setSymbol(newSymbol);
+  };
+
+  const handlePriceUpdate = (newPrice) => {
+    setPrice(newPrice);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-slate-900" dir={language === "ar" ? "rtl" : "ltr"}>
       <MarketHeader t={t} price={price} change24h={change24h} balance={balance} />
       
       <div className="mx-auto max-w-[1920px] px-2 py-2">
-        <div className="grid gap-2 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-2 lg:grid-cols-[280px_1fr_320px]">
           
-          {/* Left Column: Chart & Tables */}
+          {/* Left Column: Symbol Selector */}
+          <div className="hidden lg:block">
+            <SymbolSelector 
+              selectedSymbol={symbol} 
+              onSymbolChange={handleSymbolChange} 
+            />
+          </div>
+          
+          {/* Center Column: Chart & Tables */}
           <div className="space-y-2">
-            <TradingChart symbol={symbol} type="futures" />
+            <ProfessionalChart 
+              symbol={symbol} 
+              onPriceUpdate={handlePriceUpdate}
+              wsClient={wsClient}
+            />
             
             <Tabs defaultValue="positions" className="w-full">
-              <TabsList className="w-full justify-start bg-white border-b rounded-none h-9">
-                <TabsTrigger value="positions" className="text-xs">
+              <TabsList className="w-full justify-start bg-slate-800 border-b border-slate-700 rounded-none h-9">
+                <TabsTrigger value="positions" className="text-xs text-slate-300 data-[state=active]:text-white">
                   {t.openPositions}
                 </TabsTrigger>
-                <TabsTrigger value="orders" className="text-xs">
+                <TabsTrigger value="orders" className="text-xs text-slate-300 data-[state=active]:text-white">
                   {t.tradeHistory}
                 </TabsTrigger>
               </TabsList>

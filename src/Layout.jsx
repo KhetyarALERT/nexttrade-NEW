@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
@@ -57,7 +56,7 @@ export default function Layout({ children }) {
 
   const navigation = [
   { name: { en: "Home", ar: "الرئيسية" }, url: createPageUrl("Home") },
-  { name: { en: "About", ar: "من نحن" }, url: createPageUrl("About") },
+  { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
   { name: { en: "Trading", ar: "التداول" }, url: createPageUrl("Trading") },
   { name: { en: "Profile", ar: "الملف الشخصي" }, url: createPageUrl("Profile") },
   { name: { en: "Contact", ar: "اتصل بنا" }, url: createPageUrl("Contact") }];

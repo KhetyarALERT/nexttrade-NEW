@@ -1,6 +1,6 @@
 {
   "name": "base44-app",
-  "private": true, 
+  "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -75,7 +75,8 @@
     "three": "^0.171.0",
     "vaul": "^1.1.2",
     "zod": "^3.24.2",
-    "prop-types": "^15.8.1"
+    "prop-types": "^15.8.1",
+    "lightweight-charts": "^4.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
