@@ -22,56 +22,23 @@ import {
   CheckCircle,
   RefreshCw,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Star,
+  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
-const translations = {
-  en: {
-    balance: "Balance",
-    deposit: "Deposit",
-    withdraw: "Withdraw",
-    depositAddress: "Deposit Address",
-    copyAddress: "Copy Address",
-    copied: "Copied!",
-    withdrawAmount: "Withdrawal Amount",
-    destinationAddress: "Destination Address",
-    confirmWithdraw: "Confirm Withdrawal",
-    processing: "Processing...",
-    totalDeposited: "Total Deposited",
-    totalWithdrawn: "Total Withdrawn",
-    active: "Active",
-    inactive: "Inactive",
-    scanQR: "Scan QR code or copy address below",
-    minDeposit: "Min deposit: 10 USDT",
-    networkFee: "Network fee applies",
-    withdrawNote: "Withdrawals are processed within 24 hours"
-  },
-  ar: {
-    balance: "الرصيد",
-    deposit: "إيداع",
-    withdraw: "سحب",
-    depositAddress: "عنوان الإيداع",
-    copyAddress: "نسخ العنوان",
-    copied: "تم النسخ!",
-    withdrawAmount: "مبلغ السحب",
-    destinationAddress: "عنوان الوجهة",
-    confirmWithdraw: "تأكيد السحب",
-    processing: "جاري المعالجة...",
-    totalDeposited: "إجمالي الإيداعات",
-    totalWithdrawn: "إجمالي السحوبات",
-    active: "نشط",
-    inactive: "غير نشط",
-    scanQR: "امسح رمز QR أو انسخ العنوان أدناه",
-    minDeposit: "الحد الأدنى للإيداع: 10 USDT",
-    networkFee: "رسوم الشبكة سارية",
-    withdrawNote: "تتم معالجة السحوبات خلال 24 ساعة"
-  }
+const currencyIcons = {
+  USDT: "💵",
+  BTC: "₿",
+  ETH: "Ξ",
+  BNB: "🔶",
+  SOL: "◎",
+  XRP: "✕"
 };
 
-export default function WalletCard({ wallet, language = "en", onRefresh }) {
-  const t = translations[language];
+export default function WalletCard({ wallet, language = "en", onRefresh, compact = false }) {
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -82,18 +49,40 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
   const [depositData, setDepositData] = useState(null);
   const [depositError, setDepositError] = useState(null);
 
-  const formatCurrency = (val) => {
-    if (val === null || val === undefined) return "0.00";
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const t = language === "ar" ? {
+    balance: "الرصيد",
+    available: "متاح",
+    locked: "مقفل",
+    staked: "مستثمر",
+    deposit: "إيداع",
+    withdraw: "سحب",
+    copied: "تم النسخ!",
+    processing: "جاري المعالجة...",
+    primary: "رئيسي",
+    active: "نشط"
+  } : {
+    balance: "Balance",
+    available: "Available",
+    locked: "Locked",
+    staked: "Staked",
+    deposit: "Deposit",
+    withdraw: "Withdraw",
+    copied: "Copied!",
+    processing: "Processing...",
+    primary: "Primary",
+    active: "Active"
+  };
+
+  const formatBalance = (val, decimals = 4) => {
+    if (val === null || val === undefined) return "0";
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: decimals });
   };
 
   const handleCopy = async (text) => {
-    if (text) {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast.success(t.copied);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(t.copied);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleGetDepositAddress = async () => {
@@ -111,7 +100,7 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
       if (result.data?.success) {
         setDepositData(result.data.data);
       } else {
-        setDepositError(result.data?.error || "Failed to create deposit invoice");
+        setDepositError(result.data?.error || "Failed to create deposit");
       }
     } catch (err) {
       setDepositError(err.message);
@@ -126,28 +115,17 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
       return;
     }
     
-    const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Invalid amount");
-      return;
-    }
-    
-    if (amount > wallet.balance) {
-      toast.error(`Insufficient balance. Available: ${wallet.balance} USDT`);
-      return;
-    }
-    
     setLoading(true);
     try {
       const result = await base44.functions.invoke('wallet', {
         action: 'withdraw',
         walletId: wallet.id,
-        amount,
+        amount: parseFloat(withdrawAmount),
         destinationAddress: withdrawAddress
       });
       
       if (result.data?.success) {
-        toast.success("Withdrawal request submitted");
+        toast.success("Withdrawal submitted");
         setWithdrawOpen(false);
         setWithdrawAmount("");
         setWithdrawAddress("");
@@ -164,218 +142,213 @@ export default function WalletCard({ wallet, language = "en", onRefresh }) {
 
   if (!wallet) return null;
 
+  const availableBalance = wallet.balance - (wallet.locked_balance || 0) - (wallet.staked_balance || 0);
+  const icon = currencyIcons[wallet.currency] || "💰";
+
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{icon}</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-900">{wallet.currency}</span>
+              <span className="text-xs text-slate-500">{wallet.network}</span>
+              {wallet.is_primary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+            </div>
+            <p className="text-sm text-slate-600">{formatBalance(availableBalance)} {t.available}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setDepositOpen(true)}>
+            <ArrowDownToLine className="w-3 h-3" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)}>
+            <ArrowUpFromLine className="w-3 h-3" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3 border-b border-slate-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{wallet.currency} Wallet</CardTitle>
-              <p className="text-xs text-slate-500 font-mono">{wallet.wallet_id?.substring(0, 16)}...</p>
-            </div>
-          </div>
-          <Badge className={wallet.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}>
-            {wallet.status === 'active' ? t.active : t.inactive}
-          </Badge>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="pt-4">
-        {/* Balance Display */}
-        <div className="text-center mb-6 py-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
-          <p className="text-xs text-slate-500 uppercase mb-1">{t.balance}</p>
-          <p className="text-4xl font-bold text-slate-900">${formatCurrency(wallet.balance)}</p>
-          <p className="text-sm text-slate-500 mt-1">USDT</p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.totalDeposited}</p>
-            <p className="text-lg font-bold text-emerald-600">+${formatCurrency(wallet.total_deposited)}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-500">{t.totalWithdrawn}</p>
-            <p className="text-lg font-bold text-red-500">-${formatCurrency(wallet.total_withdrawn)}</p>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          {/* Deposit Dialog */}
-          <Dialog open={depositOpen} onOpenChange={(open) => {
-            setDepositOpen(open);
-            if (!open) {
-              setDepositData(null);
-              setDepositError(null);
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
-                <ArrowDownToLine className="w-4 h-4 mr-2" /> {t.deposit}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>{t.deposit} USDT</DialogTitle>
-                <DialogDescription>
-                  {depositData ? t.scanQR : "Enter amount to generate deposit invoice"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {!depositData && !loading && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Deposit Amount (USD)</Label>
-                      <Input 
-                        type="number"
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        placeholder="100"
-                        min="10"
-                      />
-                      <p className="text-xs text-slate-500">{t.minDeposit}</p>
-                    </div>
-                    {depositError && (
-                      <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                        <AlertCircle className="w-4 h-4" />
-                        {depositError}
-                      </div>
-                    )}
-                    <Button 
-                      onClick={handleGetDepositAddress}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      Generate Deposit Address
-                    </Button>
-                  </div>
-                )}
-                
-                {loading && (
-                  <div className="flex flex-col items-center justify-center py-8 gap-3">
-                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
-                    <p className="text-sm text-slate-500">Creating deposit invoice...</p>
-                  </div>
-                )}
-                
-                {depositData && !loading && (
-                  <>
-                    {depositData.invoice_url && (
-                      <div className="text-center">
-                        <a 
-                          href={depositData.invoice_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Open Payment Page
-                        </a>
-                        <p className="text-xs text-slate-500 mt-2">
-                          Click to complete payment on NOWPayments
-                        </p>
-                      </div>
-                    )}
-                    
-                    {depositData.pay_address && (
-                      <div className="space-y-2 pt-4 border-t">
-                        <Label>Or send directly to address ({wallet.currency})</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            value={depositData.pay_address} 
-                            readOnly 
-                            className="font-mono text-xs bg-slate-50"
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => handleCopy(depositData.pay_address)}
-                          >
-                            {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
-                        {depositData.pay_amount && (
-                          <p className="text-sm text-slate-600">
-                            Amount: <strong>{depositData.pay_amount} {depositData.pay_currency?.toUpperCase()}</strong>
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="text-xs text-slate-500 space-y-1 pt-2">
-                      <p>• {t.minDeposit}</p>
-                      <p>• {t.networkFee}</p>
-                      <p>• Balance updates automatically after confirmation</p>
-                    </div>
-                  </>
-                )}
+    <>
+      <Card className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{icon}</span>
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {wallet.currency}
+                  <Badge variant="outline" className="text-xs">{wallet.network}</Badge>
+                  {wallet.is_primary && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                </CardTitle>
               </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+            <Badge className={wallet.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}>
+              {t.active}
+            </Badge>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          <div className="text-center py-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg">
+            <p className="text-xs text-slate-500 uppercase">{t.balance}</p>
+            <p className="text-2xl font-bold text-slate-900">{formatBalance(wallet.balance)}</p>
+            <p className="text-xs text-slate-500">{wallet.currency}</p>
+          </div>
 
-          {/* Withdraw Dialog */}
-          <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex-1">
-                <ArrowUpFromLine className="w-4 h-4 mr-2" /> {t.withdraw}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>{t.withdraw} USDT</DialogTitle>
-                <DialogDescription>{t.withdrawNote}</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="p-2 bg-emerald-50 rounded">
+              <p className="text-emerald-600 font-medium">{formatBalance(availableBalance, 2)}</p>
+              <p className="text-slate-500">{t.available}</p>
+            </div>
+            <div className="p-2 bg-amber-50 rounded">
+              <p className="text-amber-600 font-medium">{formatBalance(wallet.locked_balance || 0, 2)}</p>
+              <p className="text-slate-500">{t.locked}</p>
+            </div>
+            <div className="p-2 bg-blue-50 rounded">
+              <p className="text-blue-600 font-medium">{formatBalance(wallet.staked_balance || 0, 2)}</p>
+              <p className="text-slate-500">{t.staked}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => setDepositOpen(true)}
+            >
+              <ArrowDownToLine className="w-4 h-4 mr-1" /> {t.deposit}
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setWithdrawOpen(true)}
+            >
+              <ArrowUpFromLine className="w-4 h-4 mr-1" /> {t.withdraw}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deposit Dialog */}
+      <Dialog open={depositOpen} onOpenChange={(open) => {
+        setDepositOpen(open);
+        if (!open) { setDepositData(null); setDepositError(null); }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.deposit} {wallet.currency} ({wallet.network})</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {!depositData && !loading && (
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label>{t.withdrawAmount}</Label>
-                  <div className="relative">
-                    <Input 
-                      type="number"
-                      value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="pr-16"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
-                      USDT
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    Available: {formatCurrency(wallet.balance)} USDT
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t.destinationAddress}</Label>
+                  <Label>Amount (USD)</Label>
                   <Input 
-                    value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
-                    placeholder="TRC20 address..."
-                    className="font-mono text-sm"
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="100"
+                    min="10"
                   />
                 </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  onClick={handleWithdraw}
-                  disabled={loading || !withdrawAmount || !withdrawAddress}
-                  className="w-full bg-red-600 hover:bg-red-700"
-                >
-                  {loading ? t.processing : t.confirmWithdraw}
+                {depositError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {depositError}
+                  </div>
+                )}
+                <Button onClick={handleGetDepositAddress} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                  Generate Address
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardContent>
-    </Card>
+              </div>
+            )}
+            
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
+              </div>
+            )}
+            
+            {depositData && !loading && (
+              <>
+                {depositData.invoice_url && (
+                  <div className="text-center">
+                    <a 
+                      href={depositData.invoice_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Open Payment Page
+                    </a>
+                  </div>
+                )}
+                
+                {depositData.pay_address && (
+                  <div className="space-y-2 pt-4 border-t">
+                    <Label>Send to Address</Label>
+                    <div className="flex gap-2">
+                      <Input value={depositData.pay_address} readOnly className="font-mono text-xs" />
+                      <Button variant="outline" size="icon" onClick={() => handleCopy(depositData.pay_address)}>
+                        {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    {depositData.pay_amount && (
+                      <p className="text-sm">Amount: <strong>{depositData.pay_amount} {wallet.currency}</strong></p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Withdraw Dialog */}
+      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.withdraw} {wallet.currency}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input 
+                type="number"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="0.00"
+              />
+              <p className="text-xs text-slate-500">Available: {formatBalance(availableBalance)} {wallet.currency}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Destination Address ({wallet.network})</Label>
+              <Input 
+                value={withdrawAddress}
+                onChange={(e) => setWithdrawAddress(e.target.value)}
+                placeholder="Enter address..."
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleWithdraw} disabled={loading} className="w-full bg-red-600 hover:bg-red-700">
+              {loading ? t.processing : `Withdraw ${wallet.currency}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 WalletCard.propTypes = {
   wallet: PropTypes.object,
   language: PropTypes.string,
-  onRefresh: PropTypes.func
+  onRefresh: PropTypes.func,
+  compact: PropTypes.bool
 };

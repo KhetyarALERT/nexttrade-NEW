@@ -27,6 +27,7 @@ import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
 import WalletCard from "@/components/profile/WalletCard";
 import TransactionHistory from "@/components/profile/TransactionHistory";
+import StakingPanel from "@/components/profile/StakingPanel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -284,8 +285,8 @@ export default function Profile({ language = "en" }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [demoAccount, setDemoAccount] = useState(null);
-  const [mentorAccount, setMentorAccount] = useState(null);
-  const [mentorWallet, setMentorWallet] = useState(null);
+  const [liveAccount, setLiveAccount] = useState(null);
+  const [wallets, setWallets] = useState([]);
   const [trades, setTrades] = useState([]);
   const [loadingAccount, setLoadingAccount] = useState(false);
 
@@ -317,14 +318,19 @@ export default function Profile({ language = "en" }) {
         setDemoAccount(demoResult.data.data);
       }
 
-      // Get or create mentor account with wallet
-      const mentorResult = await base44.functions.invoke('tradingAccount', { 
+      // Get or create live account with wallet
+      const liveResult = await base44.functions.invoke('tradingAccount', { 
         action: 'getOrCreate',
-        accountType: 'mentor'
+        accountType: 'live'
       });
-      if (mentorResult.data?.success) {
-        setMentorAccount(mentorResult.data.data);
-        setMentorWallet(mentorResult.data.wallet);
+      if (liveResult.data?.success) {
+        setLiveAccount(liveResult.data.data);
+      }
+
+      // Load all wallets
+      const walletsResult = await base44.functions.invoke('wallet', { action: 'list' });
+      if (walletsResult.data?.success) {
+        setWallets(walletsResult.data.data || []);
       }
 
       // Load trades for all accounts
@@ -605,14 +611,14 @@ export default function Profile({ language = "en" }) {
                     </div>
                   )}
 
-                  {/* Mentor Account */}
-                  {mentorAccount && (
+                  {/* Live Account */}
+                  {liveAccount && (
                     <div>
                       <h3 className="text-sm font-semibold text-slate-500 uppercase mb-3">
-                        {language === "en" ? "Mentor Account (Real Trading)" : "حساب المرشد"}
+                        {language === "en" ? "Live Account (Real Trading)" : "الحساب الحقيقي"}
                       </h3>
                       <TradingAccountCard 
-                        account={mentorAccount} 
+                        account={liveAccount} 
                         language={language}
                         onRefresh={loadTradingAccounts}
                       />
@@ -682,36 +688,62 @@ export default function Profile({ language = "en" }) {
               <div className="flex items-center justify-center py-12">
                 <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
               </div>
-            ) : mentorWallet ? (
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="space-y-6">
-                  <WalletCard 
-                    wallet={mentorWallet} 
-                    language={language}
-                    onRefresh={loadTradingAccounts}
-                  />
-                </div>
-                <div>
-                  <TransactionHistory 
-                    walletId={mentorWallet.id}
-                    language={language}
-                  />
-                </div>
-              </div>
             ) : (
-              <div className="text-center py-12">
-                <Wallet className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">
-                  {language === "en" ? "No wallet found" : "لم يتم العثور على محفظة"}
-                </h3>
-                <p className="text-slate-500 mb-4">
-                  {language === "en" 
-                    ? "A wallet will be created with your mentor account" 
-                    : "سيتم إنشاء محفظة مع حساب المرشد الخاص بك"}
-                </p>
-                <Button onClick={loadTradingAccounts} className="bg-blue-600 hover:bg-blue-700">
-                  <RefreshCw className="mr-2 h-4 w-4" /> {language === "en" ? "Retry" : "إعادة المحاولة"}
-                </Button>
+              <div className="space-y-6">
+                {/* Wallets Grid */}
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-blue-600" />
+                        {language === "en" ? "My Wallets" : "محافظي"}
+                      </CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          if (liveAccount) {
+                            await base44.functions.invoke('wallet', { 
+                              action: 'createAll', 
+                              tradingAccountId: liveAccount.id 
+                            });
+                            loadTradingAccounts();
+                          }
+                        }}
+                      >
+                        {language === "en" ? "Add All Currencies" : "إضافة جميع العملات"}
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {wallets.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        {language === "en" ? "No wallets yet" : "لا توجد محافظ بعد"}
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {wallets.map(wallet => (
+                          <WalletCard 
+                            key={wallet.id}
+                            wallet={wallet} 
+                            language={language}
+                            onRefresh={loadTradingAccounts}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Staking */}
+                <StakingPanel 
+                  wallets={wallets}
+                  language={language}
+                  onRefresh={loadTradingAccounts}
+                />
+
+                {/* Transaction History */}
+                <TransactionHistory language={language} />
               </div>
             )}
           </TabsContent>

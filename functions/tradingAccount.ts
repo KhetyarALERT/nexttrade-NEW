@@ -1,11 +1,36 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// Generate unique ID
 const generateId = () => `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// Audit logger
 const audit = (action, userId, data) => {
-  console.log(`[AUDIT] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
+  console.log(`[TRADING_AUDIT] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
+};
+
+// Trading fees (percentage)
+const TRADING_FEES = {
+  maker: 0.02, // 0.02%
+  taker: 0.05  // 0.05%
+};
+
+// Calculate liquidation price
+const calculateLiquidationPrice = (entryPrice, leverage, side, maintenanceMargin = 0.5) => {
+  const marginRatio = 1 / leverage;
+  if (side === 'LONG') {
+    return entryPrice * (1 - marginRatio + maintenanceMargin / 100);
+  } else {
+    return entryPrice * (1 + marginRatio - maintenanceMargin / 100);
+  }
+};
+
+// Simulate slippage based on order size and market conditions
+const calculateSlippage = (orderSize, maxSlippage = 0.5) => {
+  // Base slippage + size impact
+  const baseSlippage = 0.01; // 0.01%
+  const sizeImpact = Math.min(orderSize / 100000, 0.1); // Max 0.1% from size
+  const randomFactor = Math.random() * 0.05; // Random 0-0.05%
+  
+  const totalSlippage = baseSlippage + sizeImpact + randomFactor;
+  return Math.min(totalSlippage, maxSlippage);
 };
 
 Deno.serve(async (req) => {
@@ -26,14 +51,12 @@ Deno.serve(async (req) => {
     if (action === 'getOrCreate') {
       const { accountType = 'demo' } = params;
       
-      // Check if user has trading account of this type
       let accounts = await base44.entities.TradingAccount.filter({ 
         user_id: user.id,
         account_type: accountType
       });
       
-      if (!accounts || accounts.length === 0) {
-        // Create new trading account
+      if (!accounts?.length) {
         const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
         const isDemo = accountType === 'demo';
         
@@ -41,9 +64,9 @@ Deno.serve(async (req) => {
           account_id: accountId,
           user_id: user.id,
           user_email: user.email,
-          nickname: params.nickname || (isDemo ? 'Demo Account' : 'Mentor Account'),
+          nickname: params.nickname || (isDemo ? 'Demo Account' : 'Live Account'),
           account_type: accountType,
-          balance: isDemo ? 10000 : 0, // Demo gets starting balance, mentor starts at 0
+          balance: isDemo ? 10000 : 0,
           equity: isDemo ? 10000 : 0,
           margin_used: 0,
           unrealized_pnl: 0,
@@ -58,112 +81,72 @@ Deno.serve(async (req) => {
         
         audit('ACCOUNT_CREATED', user.id, { account_id: accountId, accountType });
         
-        // For mentor accounts, also create a wallet
+        // Create default USDT wallet for live accounts
         let wallet = null;
         if (!isDemo) {
-          try {
-            const walletId = `W_${generateId()}`;
-            wallet = await base44.asServiceRole.entities.Wallet.create({
-              wallet_id: walletId,
-              trading_account_id: newAccount.id,
-              user_id: user.id,
-              currency: 'USDTTRC20',
-              balance: 0,
-              status: 'active',
-              total_deposited: 0,
-              total_withdrawn: 0
-            });
-            audit('WALLET_AUTO_CREATED', user.id, { walletId, accountId });
-          } catch (err) {
-            console.error('Failed to auto-create wallet:', err.message);
-          }
+          const walletId = `W_${generateId()}`;
+          wallet = await base44.asServiceRole.entities.Wallet.create({
+            wallet_id: walletId,
+            trading_account_id: newAccount.id,
+            user_id: user.id,
+            currency: 'USDT',
+            network: 'TRC20',
+            balance: 0,
+            status: 'active',
+            is_primary: true
+          });
         }
         
-        return Response.json({ 
-          success: true, 
-          data: newAccount,
-          wallet,
-          isNew: true
-        });
+        return Response.json({ success: true, data: newAccount, wallet, isNew: true });
       }
       
-      // Get wallet for mentor account
       let wallet = null;
-      if (accountType === 'mentor') {
+      if (accountType !== 'demo') {
         const wallets = await base44.entities.Wallet.filter({
           trading_account_id: accounts[0].id,
-          user_id: user.id
+          is_primary: true
         });
-        if (wallets && wallets.length > 0) {
-          wallet = wallets[0];
-        }
+        wallet = wallets?.[0] || null;
       }
       
-      return Response.json({ 
-        success: true, 
-        data: accounts[0],
-        wallet,
-        isNew: false
-      });
+      return Response.json({ success: true, data: accounts[0], wallet, isNew: false });
     }
-    
-    // GET ALL USER ACCOUNTS (both demo and mentor)
+
+    // GET ALL ACCOUNTS
     if (action === 'getAllAccounts') {
       const accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
       
-      // Get wallets for each account
       const accountsWithWallets = await Promise.all((accounts || []).map(async (account) => {
-        if (account.account_type === 'mentor') {
+        if (!account.is_demo) {
           const wallets = await base44.entities.Wallet.filter({
             trading_account_id: account.id,
             user_id: user.id
           });
-          return { ...account, wallet: wallets?.[0] || null };
+          return { ...account, wallets: wallets || [] };
         }
-        return { ...account, wallet: null };
+        return { ...account, wallets: [] };
       }));
       
       return Response.json({ success: true, data: accountsWithWallets });
     }
 
-    // LIST USER ACCOUNTS
-    if (action === 'list') {
-      const accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
-      return Response.json({ success: true, data: accounts || [] });
-    }
-
-    // UPDATE ACCOUNT
-    if (action === 'update') {
-      const { accountId, updates } = params;
-      
-      // Verify ownership
-      const accounts = await base44.entities.TradingAccount.filter({ 
-        id: accountId, 
-        user_id: user.id 
-      });
-      
-      if (!accounts || accounts.length === 0) {
-        return Response.json({ success: false, error: 'Account not found' }, { status: 404 });
-      }
-      
-      // Only allow certain fields to be updated
-      const allowedFields = ['nickname', 'default_leverage'];
-      const safeUpdates = {};
-      for (const key of allowedFields) {
-        if (updates[key] !== undefined) safeUpdates[key] = updates[key];
-      }
-      
-      await base44.asServiceRole.entities.TradingAccount.update(accountId, safeUpdates);
-      audit('ACCOUNT_UPDATED', user.id, { accountId, updates: safeUpdates });
-      
-      return Response.json({ success: true });
-    }
-
-    // OPEN TRADE
+    // OPEN TRADE (with slippage, order types, margin validation)
     if (action === 'openTrade') {
-      const { tradingAccountId, symbol, side, quantity, leverage = 10, entryPrice, stopLoss, takeProfit } = params;
+      const { 
+        tradingAccountId, 
+        walletId,
+        symbol, 
+        side, 
+        quantity, 
+        leverage = 10, 
+        entryPrice,
+        orderType = 'MARKET',
+        limitPrice,
+        stopLoss, 
+        takeProfit,
+        maxSlippage = 0.5
+      } = params;
       
-      // Validate inputs
       if (!tradingAccountId || !symbol || !side || !quantity || !entryPrice) {
         return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
       }
@@ -172,30 +155,98 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Invalid side' }, { status: 400 });
       }
       
-      // Get account and verify ownership
+      if (!['MARKET', 'LIMIT'].includes(orderType)) {
+        return Response.json({ success: false, error: 'Invalid order type' }, { status: 400 });
+      }
+      
+      if (leverage < 1 || leverage > 125) {
+        return Response.json({ success: false, error: 'Leverage must be between 1 and 125' }, { status: 400 });
+      }
+      
       const accounts = await base44.entities.TradingAccount.filter({ 
         id: tradingAccountId, 
         user_id: user.id 
       });
       
-      if (!accounts || accounts.length === 0) {
+      if (!accounts?.length) {
         return Response.json({ success: false, error: 'Account not found' }, { status: 404 });
       }
       
       const account = accounts[0];
       
-      // Calculate margin required
-      const notionalValue = quantity * entryPrice;
+      // Calculate slippage for market orders
+      let actualEntryPrice = entryPrice;
+      let actualSlippage = 0;
+      
+      if (orderType === 'MARKET') {
+        actualSlippage = calculateSlippage(quantity * entryPrice, maxSlippage);
+        
+        if (actualSlippage > maxSlippage) {
+          return Response.json({ 
+            success: false, 
+            error: `Slippage ${actualSlippage.toFixed(2)}% exceeds maximum ${maxSlippage}%` 
+          }, { status: 400 });
+        }
+        
+        // Apply slippage
+        if (side === 'LONG') {
+          actualEntryPrice = entryPrice * (1 + actualSlippage / 100);
+        } else {
+          actualEntryPrice = entryPrice * (1 - actualSlippage / 100);
+        }
+      }
+      
+      // Calculate margin and fees
+      const notionalValue = quantity * actualEntryPrice;
       const marginRequired = notionalValue / leverage;
+      const tradingFee = notionalValue * TRADING_FEES.taker / 100;
+      const totalRequired = marginRequired + tradingFee;
       
-      // For demo accounts, use demo_balance; for mentor accounts, use wallet balance
-      const availableBalance = account.is_demo ? account.demo_balance : account.balance;
+      // Calculate liquidation price
+      const liquidationPrice = calculateLiquidationPrice(actualEntryPrice, leverage, side);
       
-      // Check if enough balance
-      if (marginRequired > availableBalance) {
+      // Get available balance
+      let availableBalance = 0;
+      let useWallet = null;
+      
+      if (account.is_demo) {
+        availableBalance = account.demo_balance - account.margin_used;
+      } else {
+        if (!walletId) {
+          // Get primary wallet
+          const wallets = await base44.entities.Wallet.filter({
+            trading_account_id: tradingAccountId,
+            is_primary: true
+          });
+          useWallet = wallets?.[0];
+        } else {
+          const wallets = await base44.entities.Wallet.filter({
+            id: walletId,
+            user_id: user.id
+          });
+          useWallet = wallets?.[0];
+        }
+        
+        if (!useWallet) {
+          return Response.json({ success: false, error: 'No wallet found for trading' }, { status: 400 });
+        }
+        
+        availableBalance = useWallet.balance - useWallet.locked_balance - useWallet.staked_balance;
+      }
+      
+      // Margin validation - prevent over-leveraging
+      const maxPositionValue = availableBalance * leverage;
+      if (notionalValue > maxPositionValue) {
         return Response.json({ 
           success: false, 
-          error: `Insufficient balance. Required: $${marginRequired.toFixed(2)}, Available: $${availableBalance.toFixed(2)}` 
+          error: `Position too large. Max position: $${maxPositionValue.toFixed(2)} with ${leverage}x leverage` 
+        }, { status: 400 });
+      }
+      
+      if (totalRequired > availableBalance) {
+        return Response.json({ 
+          success: false, 
+          error: `Insufficient balance. Required: $${totalRequired.toFixed(2)} (margin: $${marginRequired.toFixed(2)} + fee: $${tradingFee.toFixed(2)}), Available: $${availableBalance.toFixed(2)}` 
         }, { status: 400 });
       }
       
@@ -204,73 +255,90 @@ Deno.serve(async (req) => {
       const trade = await base44.asServiceRole.entities.Trade.create({
         trade_id: tradeId,
         trading_account_id: tradingAccountId,
+        wallet_id: useWallet?.id || null,
         user_id: user.id,
         symbol,
         side,
-        entry_price: entryPrice,
+        order_type: orderType,
+        entry_price: actualEntryPrice,
+        limit_price: orderType === 'LIMIT' ? limitPrice : null,
         quantity,
         leverage,
         margin: marginRequired,
-        status: 'OPEN',
-        pnl: 0,
-        pnl_percent: 0,
+        status: orderType === 'LIMIT' ? 'PENDING' : 'OPEN',
+        fees: tradingFee,
+        slippage: actualSlippage,
+        max_slippage: maxSlippage,
+        liquidation_price: liquidationPrice,
         stop_loss: stopLoss || null,
         take_profit: takeProfit || null
       });
       
-      // Update account balance and margin
+      // Deduct margin and fees
       if (account.is_demo) {
         await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {
-          demo_balance: account.demo_balance - marginRequired,
-          balance: account.demo_balance - marginRequired,
+          demo_balance: account.demo_balance - totalRequired,
+          balance: account.demo_balance - totalRequired,
           margin_used: account.margin_used + marginRequired,
           total_trades: account.total_trades + 1
         });
       } else {
-        // For real accounts, also create wallet transaction for margin
-        const wallets = await base44.entities.Wallet.filter({ trading_account_id: tradingAccountId });
-        if (wallets && wallets.length > 0) {
-          const wallet = wallets[0];
-          
-          // Create margin transaction
-          await base44.asServiceRole.entities.WalletTransaction.create({
-            transaction_id: `TX_M_${generateId()}`,
-            wallet_id: wallet.id,
-            user_id: user.id,
-            type: 'trade_margin',
-            amount: -marginRequired,
-            status: 'completed',
-            reference_id: tradeId,
-            notes: `Margin for trade ${symbol} ${side}`
-          });
-          
-          // Update wallet balance
-          await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-            balance: wallet.balance - marginRequired
-          });
-        }
+        // Create wallet transactions
+        await base44.asServiceRole.entities.WalletTransaction.create({
+          transaction_id: `TX_M_${generateId()}`,
+          wallet_id: useWallet.id,
+          user_id: user.id,
+          type: 'trade_margin',
+          amount: -marginRequired,
+          currency: useWallet.currency,
+          status: 'completed',
+          reference_id: tradeId,
+          notes: `Margin for ${symbol} ${side}`
+        });
+        
+        await base44.asServiceRole.entities.WalletTransaction.create({
+          transaction_id: `TX_F_${generateId()}`,
+          wallet_id: useWallet.id,
+          user_id: user.id,
+          type: 'fee',
+          amount: -tradingFee,
+          currency: useWallet.currency,
+          status: 'completed',
+          reference_id: tradeId,
+          notes: `Trading fee for ${symbol}`
+        });
+        
+        await base44.asServiceRole.entities.Wallet.update(useWallet.id, {
+          balance: useWallet.balance - totalRequired
+        });
         
         await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {
-          balance: account.balance - marginRequired,
+          balance: account.balance - totalRequired,
           margin_used: account.margin_used + marginRequired,
           total_trades: account.total_trades + 1
         });
       }
       
       audit('TRADE_OPENED', user.id, { 
-        tradeId, 
-        symbol, 
-        side, 
-        quantity, 
-        entryPrice, 
-        marginRequired,
-        isDemo: account.is_demo
+        tradeId, symbol, side, quantity, 
+        entryPrice: actualEntryPrice, 
+        marginRequired, tradingFee, 
+        slippage: actualSlippage,
+        liquidationPrice
       });
       
-      return Response.json({ success: true, data: trade });
+      return Response.json({ 
+        success: true, 
+        data: {
+          ...trade,
+          actualSlippage,
+          tradingFee,
+          liquidationPrice
+        }
+      });
     }
 
-    // CLOSE TRADE
+    // CLOSE TRADE (with fees and funding calculation)
     if (action === 'closeTrade') {
       const { tradeId, exitPrice, reason = 'manual' } = params;
       
@@ -278,56 +346,76 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Missing tradeId or exitPrice' }, { status: 400 });
       }
       
-      // Get trade and verify ownership
       const trades = await base44.entities.Trade.filter({ 
         id: tradeId, 
         user_id: user.id,
         status: 'OPEN'
       });
       
-      if (!trades || trades.length === 0) {
+      if (!trades?.length) {
         return Response.json({ success: false, error: 'Trade not found or already closed' }, { status: 404 });
       }
       
       const trade = trades[0];
       
-      // Calculate PnL
-      let pnl = 0;
+      // Calculate closing slippage
+      const closingSlippage = calculateSlippage(trade.quantity * exitPrice, trade.max_slippage || 0.5);
+      let actualExitPrice = exitPrice;
       
       if (trade.side === 'LONG') {
-        pnl = (exitPrice - trade.entry_price) * trade.quantity;
+        actualExitPrice = exitPrice * (1 - closingSlippage / 100);
       } else {
-        pnl = (trade.entry_price - exitPrice) * trade.quantity;
+        actualExitPrice = exitPrice * (1 + closingSlippage / 100);
       }
       
-      const pnlPercent = (pnl / trade.margin) * 100;
-      const isWinning = pnl > 0;
+      // Calculate PnL
+      let grossPnl = 0;
+      if (trade.side === 'LONG') {
+        grossPnl = (actualExitPrice - trade.entry_price) * trade.quantity;
+      } else {
+        grossPnl = (trade.entry_price - actualExitPrice) * trade.quantity;
+      }
+      
+      // Calculate closing fee
+      const notionalValue = trade.quantity * actualExitPrice;
+      const closingFee = notionalValue * TRADING_FEES.taker / 100;
+      
+      // Calculate funding fees (simulated based on holding time)
+      const holdingHours = (Date.now() - new Date(trade.created_date).getTime()) / (1000 * 60 * 60);
+      const fundingRate = 0.01; // 0.01% per 8 hours
+      const fundingPeriods = Math.floor(holdingHours / 8);
+      const fundingFees = notionalValue * (fundingRate / 100) * fundingPeriods;
+      
+      // Net PnL after all fees
+      const totalFees = (trade.fees || 0) + closingFee + fundingFees;
+      const netPnl = grossPnl - closingFee - fundingFees;
+      const pnlPercent = (netPnl / trade.margin) * 100;
+      const isWinning = netPnl > 0;
       
       // Update trade
       await base44.asServiceRole.entities.Trade.update(tradeId, {
-        exit_price: exitPrice,
+        exit_price: actualExitPrice,
         status: 'CLOSED',
-        pnl,
+        pnl: netPnl,
         pnl_percent: pnlPercent,
+        fees: totalFees,
+        funding_fees: fundingFees,
+        slippage: trade.slippage + closingSlippage,
         closed_at: new Date().toISOString(),
         close_reason: reason
       });
       
-      // Get account
-      const accounts = await base44.entities.TradingAccount.filter({ 
-        id: trade.trading_account_id 
-      });
+      // Return margin + PnL to account
+      const returnAmount = trade.margin + netPnl;
       
-      if (accounts && accounts.length > 0) {
+      const accounts = await base44.entities.TradingAccount.filter({ id: trade.trading_account_id });
+      
+      if (accounts?.length) {
         const account = accounts[0];
-        
-        // Return margin + PnL to balance
-        const returnAmount = trade.margin + pnl;
-        const newRealizedPnl = account.realized_pnl + pnl;
+        const newRealizedPnl = account.realized_pnl + netPnl;
         const newWinningTrades = isWinning ? account.winning_trades + 1 : account.winning_trades;
         
         if (account.is_demo) {
-          // Demo account - update demo_balance
           const newDemoBalance = account.demo_balance + returnAmount;
           await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
             demo_balance: newDemoBalance,
@@ -338,27 +426,29 @@ Deno.serve(async (req) => {
             winning_trades: newWinningTrades
           });
         } else {
-          // Real account - update wallet as well
-          const wallets = await base44.entities.Wallet.filter({ trading_account_id: trade.trading_account_id });
-          if (wallets && wallets.length > 0) {
-            const wallet = wallets[0];
-            
-            // Create PnL transaction
-            await base44.asServiceRole.entities.WalletTransaction.create({
-              transaction_id: `TX_P_${generateId()}`,
-              wallet_id: wallet.id,
-              user_id: user.id,
-              type: 'trade_pnl',
-              amount: returnAmount,
-              status: 'completed',
-              reference_id: trade.trade_id,
-              notes: `Closed ${trade.symbol} ${trade.side}: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT`
-            });
-            
-            // Update wallet balance
-            await base44.asServiceRole.entities.Wallet.update(wallet.id, {
-              balance: wallet.balance + returnAmount
-            });
+          // Update wallet
+          if (trade.wallet_id) {
+            const wallets = await base44.entities.Wallet.filter({ id: trade.wallet_id });
+            if (wallets?.length) {
+              const wallet = wallets[0];
+              
+              await base44.asServiceRole.entities.WalletTransaction.create({
+                transaction_id: `TX_P_${generateId()}`,
+                wallet_id: wallet.id,
+                user_id: user.id,
+                type: 'trade_pnl',
+                amount: returnAmount,
+                fee: closingFee + fundingFees,
+                currency: wallet.currency,
+                status: 'completed',
+                reference_id: trade.trade_id,
+                notes: `Closed ${trade.symbol} ${trade.side}: ${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)} USDT (fees: ${totalFees.toFixed(2)})`
+              });
+              
+              await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+                balance: wallet.balance + returnAmount
+              });
+            }
           }
           
           const newBalance = account.balance + returnAmount;
@@ -374,9 +464,11 @@ Deno.serve(async (req) => {
       
       audit('TRADE_CLOSED', user.id, { 
         tradeId, 
-        exitPrice, 
-        pnl, 
-        pnlPercent,
+        exitPrice: actualExitPrice, 
+        grossPnl,
+        netPnl, 
+        totalFees,
+        fundingFees,
         reason 
       });
       
@@ -384,22 +476,25 @@ Deno.serve(async (req) => {
         success: true, 
         data: { 
           tradeId, 
-          pnl, 
+          pnl: netPnl,
+          grossPnl,
           pnlPercent,
-          exitPrice 
+          fees: totalFees,
+          fundingFees,
+          exitPrice: actualExitPrice 
         } 
       });
     }
 
     // GET TRADES
     if (action === 'getTrades') {
-      const { tradingAccountId, status } = params;
+      const { tradingAccountId, status, limit = 50 } = params;
       
-      const query = { user_id: user.id };
+      let query = { user_id: user.id };
       if (tradingAccountId) query.trading_account_id = tradingAccountId;
       if (status) query.status = status;
       
-      const trades = await base44.entities.Trade.filter(query);
+      const trades = await base44.entities.Trade.filter(query, '-created_date', limit);
       return Response.json({ success: true, data: trades || [] });
     }
 
@@ -412,13 +507,67 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, data: trades || [] });
     }
 
+    // CANCEL PENDING ORDER
+    if (action === 'cancelOrder') {
+      const { tradeId } = params;
+      
+      const trades = await base44.entities.Trade.filter({ 
+        id: tradeId, 
+        user_id: user.id,
+        status: 'PENDING'
+      });
+      
+      if (!trades?.length) {
+        return Response.json({ success: false, error: 'Pending order not found' }, { status: 404 });
+      }
+      
+      const trade = trades[0];
+      
+      // Return locked margin
+      const accounts = await base44.entities.TradingAccount.filter({ id: trade.trading_account_id });
+      if (accounts?.length) {
+        const account = accounts[0];
+        
+        if (account.is_demo) {
+          await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
+            demo_balance: account.demo_balance + trade.margin + trade.fees,
+            balance: account.balance + trade.margin + trade.fees,
+            margin_used: Math.max(0, account.margin_used - trade.margin)
+          });
+        } else if (trade.wallet_id) {
+          const wallets = await base44.entities.Wallet.filter({ id: trade.wallet_id });
+          if (wallets?.length) {
+            await base44.asServiceRole.entities.Wallet.update(trade.wallet_id, {
+              balance: wallets[0].balance + trade.margin + trade.fees
+            });
+          }
+          await base44.asServiceRole.entities.TradingAccount.update(trade.trading_account_id, {
+            balance: account.balance + trade.margin + trade.fees,
+            margin_used: Math.max(0, account.margin_used - trade.margin)
+          });
+        }
+      }
+      
+      await base44.asServiceRole.entities.Trade.update(tradeId, {
+        status: 'CANCELLED',
+        close_reason: 'cancelled'
+      });
+      
+      audit('ORDER_CANCELLED', user.id, { tradeId });
+      
+      return Response.json({ success: true });
+    }
+
+    // LIST USER ACCOUNTS
+    if (action === 'list') {
+      const accounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+      return Response.json({ success: true, data: accounts || [] });
+    }
+
     return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
     
   } catch (error) {
     console.error('[TRADING_ACCOUNT_ERROR]', error.message, error.stack);
-    return Response.json({ 
-      success: false, 
-      error: error.message || 'Internal server error' 
-    }, { status: 500 });
+    return Response.json({ success: false, error: error.message || 'Internal server error' }, { status: 500 });
   }
 });

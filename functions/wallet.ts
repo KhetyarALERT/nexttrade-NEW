@@ -3,15 +3,24 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY");
 const NOWPAYMENTS_BASE_URL = "https://api.nowpayments.io/v1";
 
-// Generate unique ID
+// Supported currencies and networks
+const SUPPORTED_CURRENCIES = [
+  { currency: 'USDT', network: 'TRC20', nowpaymentsCurrency: 'usdttrc20', minDeposit: 10, minWithdraw: 20 },
+  { currency: 'USDT', network: 'ERC20', nowpaymentsCurrency: 'usdterc20', minDeposit: 50, minWithdraw: 100 },
+  { currency: 'USDT', network: 'BEP20', nowpaymentsCurrency: 'usdtbsc', minDeposit: 10, minWithdraw: 20 },
+  { currency: 'BTC', network: 'BTC', nowpaymentsCurrency: 'btc', minDeposit: 0.0001, minWithdraw: 0.0005 },
+  { currency: 'ETH', network: 'ERC20', nowpaymentsCurrency: 'eth', minDeposit: 0.01, minWithdraw: 0.02 },
+  { currency: 'BNB', network: 'BEP20', nowpaymentsCurrency: 'bnbbsc', minDeposit: 0.01, minWithdraw: 0.05 },
+  { currency: 'SOL', network: 'SOL', nowpaymentsCurrency: 'sol', minDeposit: 0.1, minWithdraw: 0.5 },
+  { currency: 'XRP', network: 'XRP', nowpaymentsCurrency: 'xrp', minDeposit: 10, minWithdraw: 25 }
+];
+
 const generateId = () => `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// Audit logger
 const audit = (action, userId, data) => {
   console.log(`[WALLET_AUDIT] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
 };
 
-// NOWPayments API call helper (server-side with API key)
 const nowPaymentsRequest = async (endpoint, method = 'GET', body = null) => {
   if (!NOWPAYMENTS_API_KEY) {
     throw new Error('NOWPayments API key not configured');
@@ -25,16 +34,11 @@ const nowPaymentsRequest = async (endpoint, method = 'GET', body = null) => {
     }
   };
   
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
+  if (body) options.body = JSON.stringify(body);
   
-  console.log(`[NOWPAYMENTS] ${method} ${endpoint}`, body ? JSON.stringify(body) : '');
-  
+  console.log(`[NOWPAYMENTS] ${method} ${endpoint}`);
   const response = await fetch(`${NOWPAYMENTS_BASE_URL}${endpoint}`, options);
   const data = await response.json();
-  
-  console.log(`[NOWPAYMENTS] Response:`, JSON.stringify(data));
   
   if (!response.ok) {
     throw new Error(data.message || data.error || `NOWPayments API error: ${response.status}`);
@@ -57,29 +61,14 @@ Deno.serve(async (req) => {
     
     console.log('[WALLET]', { action, userId: user.id });
 
-    // CHECK API STATUS
-    if (action === 'checkStatus') {
-      try {
-        const status = await nowPaymentsRequest('/status');
-        return Response.json({ success: true, data: status });
-      } catch (err) {
-        return Response.json({ success: false, error: err.message });
-      }
+    // GET SUPPORTED CURRENCIES
+    if (action === 'getSupportedCurrencies') {
+      return Response.json({ success: true, data: SUPPORTED_CURRENCIES });
     }
 
-    // GET AVAILABLE CURRENCIES
-    if (action === 'getCurrencies') {
-      try {
-        const currencies = await nowPaymentsRequest('/currencies');
-        return Response.json({ success: true, data: currencies });
-      } catch (err) {
-        return Response.json({ success: false, error: err.message });
-      }
-    }
-
-    // CREATE WALLET FOR TRADING ACCOUNT
+    // CREATE WALLET
     if (action === 'create') {
-      const { tradingAccountId, currency = 'usdttrc20' } = params;
+      const { tradingAccountId, currency = 'USDT', network = 'TRC20' } = params;
       
       if (!tradingAccountId) {
         return Response.json({ success: false, error: 'Trading account ID required' }, { status: 400 });
@@ -91,40 +80,114 @@ Deno.serve(async (req) => {
         user_id: user.id 
       });
       
-      if (!accounts || accounts.length === 0) {
+      if (!accounts?.length) {
         return Response.json({ success: false, error: 'Trading account not found' }, { status: 404 });
       }
       
-      // Check if wallet already exists for this account
+      // Check if wallet already exists
       const existingWallets = await base44.entities.Wallet.filter({
-        trading_account_id: tradingAccountId
+        trading_account_id: tradingAccountId,
+        currency,
+        network
       });
       
-      if (existingWallets && existingWallets.length > 0) {
+      if (existingWallets?.length) {
         return Response.json({ success: true, data: existingWallets[0], existing: true });
       }
       
-      // Create wallet record first
+      // Check if this is the first wallet (make it primary)
+      const allWallets = await base44.entities.Wallet.filter({ trading_account_id: tradingAccountId });
+      const isPrimary = !allWallets?.length;
+      
       const walletId = `W_${generateId()}`;
       const wallet = await base44.asServiceRole.entities.Wallet.create({
         wallet_id: walletId,
         trading_account_id: tradingAccountId,
         user_id: user.id,
-        currency: currency.toUpperCase(),
+        currency,
+        network,
         balance: 0,
-        deposit_address: null,
-        nowpayments_id: null,
+        locked_balance: 0,
+        staked_balance: 0,
         status: 'active',
         total_deposited: 0,
-        total_withdrawn: 0
+        total_withdrawn: 0,
+        is_primary: isPrimary
       });
       
-      audit('WALLET_CREATED', user.id, { walletId, tradingAccountId, currency });
+      audit('WALLET_CREATED', user.id, { walletId, currency, network });
       
       return Response.json({ success: true, data: wallet });
     }
 
-    // GET OR CREATE DEPOSIT ADDRESS (creates NOWPayments invoice)
+    // CREATE MULTIPLE WALLETS (all supported currencies)
+    if (action === 'createAll') {
+      const { tradingAccountId } = params;
+      
+      if (!tradingAccountId) {
+        return Response.json({ success: false, error: 'Trading account ID required' }, { status: 400 });
+      }
+      
+      const accounts = await base44.entities.TradingAccount.filter({ 
+        id: tradingAccountId, 
+        user_id: user.id 
+      });
+      
+      if (!accounts?.length) {
+        return Response.json({ success: false, error: 'Trading account not found' }, { status: 404 });
+      }
+      
+      const createdWallets = [];
+      let isFirst = true;
+      
+      for (const curr of SUPPORTED_CURRENCIES) {
+        const existing = await base44.entities.Wallet.filter({
+          trading_account_id: tradingAccountId,
+          currency: curr.currency,
+          network: curr.network
+        });
+        
+        if (existing?.length) {
+          createdWallets.push(existing[0]);
+          continue;
+        }
+        
+        const walletId = `W_${generateId()}`;
+        const wallet = await base44.asServiceRole.entities.Wallet.create({
+          wallet_id: walletId,
+          trading_account_id: tradingAccountId,
+          user_id: user.id,
+          currency: curr.currency,
+          network: curr.network,
+          balance: 0,
+          locked_balance: 0,
+          staked_balance: 0,
+          status: 'active',
+          total_deposited: 0,
+          total_withdrawn: 0,
+          is_primary: isFirst && curr.currency === 'USDT' && curr.network === 'TRC20'
+        });
+        
+        createdWallets.push(wallet);
+        isFirst = false;
+      }
+      
+      audit('WALLETS_CREATED_ALL', user.id, { tradingAccountId, count: createdWallets.length });
+      
+      return Response.json({ success: true, data: createdWallets });
+    }
+
+    // LIST USER WALLETS
+    if (action === 'list') {
+      const { tradingAccountId } = params;
+      let query = { user_id: user.id };
+      if (tradingAccountId) query.trading_account_id = tradingAccountId;
+      
+      const wallets = await base44.entities.Wallet.filter(query);
+      return Response.json({ success: true, data: wallets || [] });
+    }
+
+    // GET DEPOSIT ADDRESS
     if (action === 'getDepositAddress') {
       const { walletId, amount = 100 } = params;
       
@@ -132,47 +195,44 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Wallet ID required' }, { status: 400 });
       }
       
-      // Get wallet and verify ownership
       const wallets = await base44.entities.Wallet.filter({ 
         id: walletId, 
         user_id: user.id 
       });
       
-      if (!wallets || wallets.length === 0) {
+      if (!wallets?.length) {
         return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
       }
       
       const wallet = wallets[0];
+      const currencyConfig = SUPPORTED_CURRENCIES.find(c => 
+        c.currency === wallet.currency && c.network === wallet.network
+      );
       
-      // Get the IPN callback URL from environment or construct it
+      if (!currencyConfig) {
+        return Response.json({ success: false, error: 'Unsupported currency/network' }, { status: 400 });
+      }
+      
       const appUrl = Deno.env.get('BASE44_APP_URL') || 'https://app.base44.com';
-      const ipnCallbackUrl = `${appUrl}/api/functions/walletWebhook`;
       
-      // Create a new payment/invoice via NOWPayments API
-      // Using the payment endpoint to generate deposit address
       try {
         const paymentData = await nowPaymentsRequest('/invoice', 'POST', {
           price_amount: parseFloat(amount) || 100,
           price_currency: 'usd',
-          pay_currency: wallet.currency.toLowerCase(),
+          pay_currency: currencyConfig.nowpaymentsCurrency,
           order_id: `deposit_${wallet.wallet_id}_${Date.now()}`,
-          order_description: `Deposit to wallet ${wallet.wallet_id}`,
-          ipn_callback_url: ipnCallbackUrl,
+          order_description: `Deposit ${wallet.currency} (${wallet.network}) to wallet`,
+          ipn_callback_url: `${appUrl}/api/functions/walletWebhook`,
           success_url: `${appUrl}/Profile?tab=wallet&deposit=success`,
           cancel_url: `${appUrl}/Profile?tab=wallet&deposit=cancelled`
         });
         
-        // Update wallet with payment info
         await base44.asServiceRole.entities.Wallet.update(walletId, {
           nowpayments_id: paymentData.id,
           deposit_address: paymentData.pay_address || null
         });
         
-        audit('DEPOSIT_ADDRESS_GENERATED', user.id, { 
-          walletId, 
-          invoiceId: paymentData.id,
-          payAddress: paymentData.pay_address
-        });
+        audit('DEPOSIT_ADDRESS_GENERATED', user.id, { walletId, invoiceId: paymentData.id });
         
         return Response.json({ 
           success: true, 
@@ -184,57 +244,16 @@ Deno.serve(async (req) => {
             pay_amount: paymentData.pay_amount,
             price_amount: paymentData.price_amount,
             price_currency: paymentData.price_currency,
-            expiration_estimate_date: paymentData.expiration_estimate_date
+            expiration_estimate_date: paymentData.expiration_estimate_date,
+            min_deposit: currencyConfig.minDeposit
           }
         });
       } catch (err) {
-        console.error('NOWPayments invoice error:', err.message);
-        return Response.json({ 
-          success: false, 
-          error: `Failed to create deposit address: ${err.message}` 
-        }, { status: 500 });
+        return Response.json({ success: false, error: `Failed to create deposit: ${err.message}` }, { status: 500 });
       }
     }
 
-    // GET PAYMENT STATUS
-    if (action === 'getPaymentStatus') {
-      const { paymentId } = params;
-      
-      if (!paymentId) {
-        return Response.json({ success: false, error: 'Payment ID required' }, { status: 400 });
-      }
-      
-      try {
-        const status = await nowPaymentsRequest(`/payment/${paymentId}`);
-        return Response.json({ success: true, data: status });
-      } catch (err) {
-        return Response.json({ success: false, error: err.message }, { status: 500 });
-      }
-    }
-
-    // GET USER WALLETS
-    if (action === 'list') {
-      const wallets = await base44.entities.Wallet.filter({ user_id: user.id });
-      return Response.json({ success: true, data: wallets || [] });
-    }
-
-    // GET WALLET BY ID
-    if (action === 'get') {
-      const { walletId } = params;
-      
-      const wallets = await base44.entities.Wallet.filter({ 
-        id: walletId, 
-        user_id: user.id 
-      });
-      
-      if (!wallets || wallets.length === 0) {
-        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
-      }
-      
-      return Response.json({ success: true, data: wallets[0] });
-    }
-
-    // REQUEST WITHDRAWAL
+    // WITHDRAW
     if (action === 'withdraw') {
       const { walletId, amount, destinationAddress } = params;
       
@@ -244,255 +263,6 @@ Deno.serve(async (req) => {
       
       const withdrawAmount = parseFloat(amount);
       if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
-        return Response.json({ success: false, error: 'Invalid amount' }, { status: 400 });
-      }
-      
-      // Minimum withdrawal (NOWPayments typically has minimums)
-      if (withdrawAmount < 10) {
-        return Response.json({ success: false, error: 'Minimum withdrawal is 10 USDT' }, { status: 400 });
-      }
-      
-      // Get wallet and verify ownership
-      const wallets = await base44.entities.Wallet.filter({ 
-        id: walletId, 
-        user_id: user.id 
-      });
-      
-      if (!wallets || wallets.length === 0) {
-        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
-      }
-      
-      const wallet = wallets[0];
-      
-      // Check balance
-      if (withdrawAmount > wallet.balance) {
-        return Response.json({ 
-          success: false, 
-          error: `Insufficient balance. Available: ${wallet.balance.toFixed(2)} USDT` 
-        }, { status: 400 });
-      }
-      
-      // Create pending transaction record
-      const txId = `TX_W_${generateId()}`;
-      await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: txId,
-        wallet_id: walletId,
-        user_id: user.id,
-        type: 'withdrawal',
-        amount: -withdrawAmount,
-        fee: 0,
-        status: 'pending',
-        destination_address: destinationAddress,
-        notes: 'Withdrawal request submitted'
-      });
-      
-      // Request payout from NOWPayments
-      try {
-        // NOWPayments payout endpoint
-        const payoutData = await nowPaymentsRequest('/payout', 'POST', {
-          withdrawals: [{
-            address: destinationAddress,
-            currency: wallet.currency.toLowerCase(),
-            amount: withdrawAmount,
-            ipn_callback_url: `${Deno.env.get('BASE44_APP_URL') || 'https://app.base44.com'}/api/functions/walletWebhook`
-          }]
-        });
-        
-        // Update transaction with NOWPayments payout ID
-        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ 
-          transaction_id: txId 
-        });
-        if (txRecords && txRecords.length > 0) {
-          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
-            nowpayments_id: payoutData.id || payoutData.withdrawals?.[0]?.id,
-            status: 'pending'
-          });
-        }
-        
-        // Deduct from wallet balance immediately (pending withdrawal)
-        await base44.asServiceRole.entities.Wallet.update(walletId, {
-          balance: wallet.balance - withdrawAmount
-        });
-        
-        // Update trading account balance
-        const accounts = await base44.entities.TradingAccount.filter({ 
-          id: wallet.trading_account_id 
-        });
-        if (accounts && accounts.length > 0) {
-          const account = accounts[0];
-          await base44.asServiceRole.entities.TradingAccount.update(wallet.trading_account_id, {
-            balance: Math.max(0, account.balance - withdrawAmount),
-            equity: Math.max(0, account.equity - withdrawAmount)
-          });
-        }
-        
-        audit('WITHDRAWAL_REQUESTED', user.id, { 
-          walletId, 
-          amount: withdrawAmount, 
-          destinationAddress, 
-          txId,
-          payoutId: payoutData.id
-        });
-        
-        return Response.json({ 
-          success: true, 
-          data: { 
-            transactionId: txId, 
-            status: 'pending',
-            message: 'Withdrawal request submitted. Processing may take up to 24 hours.'
-          } 
-        });
-        
-      } catch (err) {
-        console.error('NOWPayments payout error:', err.message);
-        
-        // Mark transaction as failed
-        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ 
-          transaction_id: txId 
-        });
-        if (txRecords && txRecords.length > 0) {
-          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
-            status: 'failed',
-            notes: `Payout failed: ${err.message}`
-          });
-        }
-        
-        return Response.json({ 
-          success: false, 
-          error: `Withdrawal failed: ${err.message}` 
-        }, { status: 500 });
-      }
-    }
-
-    // INTERNAL TRANSFER BETWEEN USER'S WALLETS
-    if (action === 'transfer') {
-      const { fromWalletId, toWalletId, amount } = params;
-      
-      if (!fromWalletId || !toWalletId || !amount) {
-        return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-      }
-      
-      const transferAmount = parseFloat(amount);
-      if (isNaN(transferAmount) || transferAmount <= 0) {
-        return Response.json({ success: false, error: 'Invalid amount' }, { status: 400 });
-      }
-      
-      // Verify both wallets belong to user
-      const fromWallets = await base44.entities.Wallet.filter({ 
-        id: fromWalletId, 
-        user_id: user.id 
-      });
-      const toWallets = await base44.entities.Wallet.filter({ 
-        id: toWalletId, 
-        user_id: user.id 
-      });
-      
-      if (!fromWallets?.length || !toWallets?.length) {
-        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
-      }
-      
-      const fromWallet = fromWallets[0];
-      const toWallet = toWallets[0];
-      
-      // Check balance
-      if (transferAmount > fromWallet.balance) {
-        return Response.json({ 
-          success: false, 
-          error: `Insufficient balance. Available: ${fromWallet.balance.toFixed(2)} USDT` 
-        }, { status: 400 });
-      }
-      
-      const transferId = `TRF_${generateId()}`;
-      
-      // Create outgoing transaction
-      await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: `${transferId}_OUT`,
-        wallet_id: fromWalletId,
-        user_id: user.id,
-        type: 'internal_transfer_out',
-        amount: -transferAmount,
-        status: 'completed',
-        reference_id: transferId,
-        notes: `Transfer to wallet ${toWallet.wallet_id}`
-      });
-      
-      // Create incoming transaction
-      await base44.asServiceRole.entities.WalletTransaction.create({
-        transaction_id: `${transferId}_IN`,
-        wallet_id: toWalletId,
-        user_id: user.id,
-        type: 'internal_transfer_in',
-        amount: transferAmount,
-        status: 'completed',
-        reference_id: transferId,
-        notes: `Transfer from wallet ${fromWallet.wallet_id}`
-      });
-      
-      // Update wallet balances
-      await base44.asServiceRole.entities.Wallet.update(fromWalletId, {
-        balance: fromWallet.balance - transferAmount
-      });
-      await base44.asServiceRole.entities.Wallet.update(toWalletId, {
-        balance: toWallet.balance + transferAmount
-      });
-      
-      // Update trading account balances
-      const fromAccounts = await base44.entities.TradingAccount.filter({ 
-        id: fromWallet.trading_account_id 
-      });
-      const toAccounts = await base44.entities.TradingAccount.filter({ 
-        id: toWallet.trading_account_id 
-      });
-      
-      if (fromAccounts?.length) {
-        const acc = fromAccounts[0];
-        await base44.asServiceRole.entities.TradingAccount.update(fromWallet.trading_account_id, {
-          balance: Math.max(0, acc.balance - transferAmount),
-          equity: Math.max(0, acc.equity - transferAmount)
-        });
-      }
-      if (toAccounts?.length) {
-        const acc = toAccounts[0];
-        await base44.asServiceRole.entities.TradingAccount.update(toWallet.trading_account_id, {
-          balance: acc.balance + transferAmount,
-          equity: acc.equity + transferAmount
-        });
-      }
-      
-      audit('INTERNAL_TRANSFER', user.id, { fromWalletId, toWalletId, amount: transferAmount, transferId });
-      
-      return Response.json({ success: true, data: { transferId, status: 'completed' } });
-    }
-
-    // GET TRANSACTIONS
-    if (action === 'getTransactions') {
-      const { walletId, limit = 50 } = params;
-      
-      let query = { user_id: user.id };
-      if (walletId) {
-        // Verify wallet ownership
-        const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
-        if (!wallets?.length) {
-          return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
-        }
-        query.wallet_id = walletId;
-      }
-      
-      const transactions = await base44.entities.WalletTransaction.filter(query, '-created_date', limit);
-      return Response.json({ success: true, data: transactions || [] });
-    }
-
-    // MANUAL DEPOSIT (for testing/admin)
-    if (action === 'manualDeposit') {
-      const { walletId, amount, txid } = params;
-      
-      // This should ideally be admin-only, but for now allow user to trigger
-      if (!walletId || !amount) {
-        return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-      }
-      
-      const depositAmount = parseFloat(amount);
-      if (isNaN(depositAmount) || depositAmount <= 0) {
         return Response.json({ success: false, error: 'Invalid amount' }, { status: 400 });
       }
       
@@ -506,51 +276,353 @@ Deno.serve(async (req) => {
       }
       
       const wallet = wallets[0];
+      const currencyConfig = SUPPORTED_CURRENCIES.find(c => 
+        c.currency === wallet.currency && c.network === wallet.network
+      );
       
-      // Create deposit transaction
-      const txId = `TX_D_${generateId()}`;
+      if (withdrawAmount < (currencyConfig?.minWithdraw || 10)) {
+        return Response.json({ 
+          success: false, 
+          error: `Minimum withdrawal is ${currencyConfig?.minWithdraw || 10} ${wallet.currency}` 
+        }, { status: 400 });
+      }
+      
+      const availableBalance = wallet.balance - wallet.locked_balance - wallet.staked_balance;
+      if (withdrawAmount > availableBalance) {
+        return Response.json({ 
+          success: false, 
+          error: `Insufficient balance. Available: ${availableBalance.toFixed(4)} ${wallet.currency}` 
+        }, { status: 400 });
+      }
+      
+      const txId = `TX_W_${generateId()}`;
       await base44.asServiceRole.entities.WalletTransaction.create({
         transaction_id: txId,
         wallet_id: walletId,
         user_id: user.id,
-        type: 'deposit',
-        amount: depositAmount,
+        type: 'withdrawal',
+        amount: -withdrawAmount,
+        currency: wallet.currency,
+        network: wallet.network,
+        status: 'pending',
+        destination_address: destinationAddress
+      });
+      
+      try {
+        const payoutData = await nowPaymentsRequest('/payout', 'POST', {
+          withdrawals: [{
+            address: destinationAddress,
+            currency: currencyConfig.nowpaymentsCurrency,
+            amount: withdrawAmount,
+            ipn_callback_url: `${Deno.env.get('BASE44_APP_URL') || 'https://app.base44.com'}/api/functions/walletWebhook`
+          }]
+        });
+        
+        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ transaction_id: txId });
+        if (txRecords?.length) {
+          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
+            nowpayments_id: payoutData.id || payoutData.withdrawals?.[0]?.id
+          });
+        }
+        
+        await base44.asServiceRole.entities.Wallet.update(walletId, {
+          balance: wallet.balance - withdrawAmount,
+          total_withdrawn: wallet.total_withdrawn + withdrawAmount
+        });
+        
+        audit('WITHDRAWAL_REQUESTED', user.id, { walletId, amount: withdrawAmount, txId });
+        
+        return Response.json({ success: true, data: { transactionId: txId, status: 'pending' } });
+        
+      } catch (err) {
+        const txRecords = await base44.asServiceRole.entities.WalletTransaction.filter({ transaction_id: txId });
+        if (txRecords?.length) {
+          await base44.asServiceRole.entities.WalletTransaction.update(txRecords[0].id, {
+            status: 'failed',
+            notes: err.message
+          });
+        }
+        return Response.json({ success: false, error: `Withdrawal failed: ${err.message}` }, { status: 500 });
+      }
+    }
+
+    // INTERNAL TRANSFER
+    if (action === 'transfer') {
+      const { fromWalletId, toWalletId, amount } = params;
+      
+      if (!fromWalletId || !toWalletId || !amount) {
+        return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      }
+      
+      const transferAmount = parseFloat(amount);
+      if (isNaN(transferAmount) || transferAmount <= 0) {
+        return Response.json({ success: false, error: 'Invalid amount' }, { status: 400 });
+      }
+      
+      const fromWallets = await base44.entities.Wallet.filter({ id: fromWalletId, user_id: user.id });
+      const toWallets = await base44.entities.Wallet.filter({ id: toWalletId, user_id: user.id });
+      
+      if (!fromWallets?.length || !toWallets?.length) {
+        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
+      }
+      
+      const fromWallet = fromWallets[0];
+      const toWallet = toWallets[0];
+      
+      // Must be same currency for direct transfer
+      if (fromWallet.currency !== toWallet.currency) {
+        return Response.json({ success: false, error: 'Currency mismatch. Use conversion for different currencies.' }, { status: 400 });
+      }
+      
+      const availableBalance = fromWallet.balance - fromWallet.locked_balance - fromWallet.staked_balance;
+      if (transferAmount > availableBalance) {
+        return Response.json({ 
+          success: false, 
+          error: `Insufficient balance. Available: ${availableBalance.toFixed(4)} ${fromWallet.currency}` 
+        }, { status: 400 });
+      }
+      
+      const transferId = `TRF_${generateId()}`;
+      
+      await base44.asServiceRole.entities.WalletTransaction.create({
+        transaction_id: `${transferId}_OUT`,
+        wallet_id: fromWalletId,
+        user_id: user.id,
+        type: 'internal_transfer_out',
+        amount: -transferAmount,
+        currency: fromWallet.currency,
         status: 'completed',
-        external_txid: txid || null,
-        notes: 'Manual deposit'
+        reference_id: transferId
       });
       
-      // Update wallet balance
-      const newBalance = wallet.balance + depositAmount;
-      await base44.asServiceRole.entities.Wallet.update(walletId, {
-        balance: newBalance,
-        total_deposited: wallet.total_deposited + depositAmount
+      await base44.asServiceRole.entities.WalletTransaction.create({
+        transaction_id: `${transferId}_IN`,
+        wallet_id: toWalletId,
+        user_id: user.id,
+        type: 'internal_transfer_in',
+        amount: transferAmount,
+        currency: toWallet.currency,
+        status: 'completed',
+        reference_id: transferId
       });
       
-      // Update trading account balance
-      const accounts = await base44.entities.TradingAccount.filter({ 
-        id: wallet.trading_account_id 
+      await base44.asServiceRole.entities.Wallet.update(fromWalletId, {
+        balance: fromWallet.balance - transferAmount
       });
-      if (accounts?.length) {
-        const account = accounts[0];
-        await base44.asServiceRole.entities.TradingAccount.update(wallet.trading_account_id, {
-          balance: account.balance + depositAmount,
-          equity: account.equity + depositAmount
+      await base44.asServiceRole.entities.Wallet.update(toWalletId, {
+        balance: toWallet.balance + transferAmount
+      });
+      
+      audit('INTERNAL_TRANSFER', user.id, { fromWalletId, toWalletId, amount: transferAmount, transferId });
+      
+      return Response.json({ success: true, data: { transferId, status: 'completed' } });
+    }
+
+    // GET TRANSACTIONS WITH FILTERING
+    if (action === 'getTransactions') {
+      const { walletId, type, status, startDate, endDate, limit = 50, skip = 0, sortBy = '-created_date' } = params;
+      
+      let query = { user_id: user.id };
+      if (walletId) {
+        const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
+        if (!wallets?.length) {
+          return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
+        }
+        query.wallet_id = walletId;
+      }
+      if (type) query.type = type;
+      if (status) query.status = status;
+      
+      let transactions = await base44.entities.WalletTransaction.filter(query, sortBy, limit + skip);
+      
+      // Apply date filtering in memory (Base44 doesn't support date range queries directly)
+      if (startDate || endDate) {
+        transactions = transactions.filter(tx => {
+          const txDate = new Date(tx.created_date);
+          if (startDate && txDate < new Date(startDate)) return false;
+          if (endDate && txDate > new Date(endDate)) return false;
+          return true;
         });
       }
       
-      audit('MANUAL_DEPOSIT', user.id, { walletId, amount: depositAmount, txId });
+      // Apply pagination
+      transactions = transactions.slice(skip, skip + limit);
       
-      return Response.json({ success: true, data: { transactionId: txId, newBalance } });
+      return Response.json({ success: true, data: transactions || [] });
+    }
+
+    // STAKE USDT
+    if (action === 'stake') {
+      const { walletId, amount, lockPeriodDays = 30 } = params;
+      
+      if (!walletId || !amount) {
+        return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      }
+      
+      const stakeAmount = parseFloat(amount);
+      if (isNaN(stakeAmount) || stakeAmount < 100) {
+        return Response.json({ success: false, error: 'Minimum stake amount is 100 USDT' }, { status: 400 });
+      }
+      
+      const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
+      if (!wallets?.length) {
+        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
+      }
+      
+      const wallet = wallets[0];
+      if (wallet.currency !== 'USDT') {
+        return Response.json({ success: false, error: 'Only USDT staking is supported' }, { status: 400 });
+      }
+      
+      const availableBalance = wallet.balance - wallet.locked_balance - wallet.staked_balance;
+      if (stakeAmount > availableBalance) {
+        return Response.json({ 
+          success: false, 
+          error: `Insufficient balance. Available: ${availableBalance.toFixed(2)} USDT` 
+        }, { status: 400 });
+      }
+      
+      // APY based on lock period
+      const apyRates = { 30: 5, 60: 7, 90: 10, 180: 12 };
+      const apy = apyRates[lockPeriodDays] || 5;
+      
+      const positionId = `STK_${generateId()}`;
+      const startDate = new Date();
+      const unlockDate = new Date(startDate.getTime() + lockPeriodDays * 24 * 60 * 60 * 1000);
+      
+      await base44.asServiceRole.entities.StakingPosition.create({
+        position_id: positionId,
+        wallet_id: walletId,
+        user_id: user.id,
+        currency: 'USDT',
+        amount: stakeAmount,
+        apy,
+        earned_rewards: 0,
+        lock_period_days: lockPeriodDays,
+        start_date: startDate.toISOString(),
+        unlock_date: unlockDate.toISOString(),
+        last_reward_date: startDate.toISOString(),
+        status: 'active'
+      });
+      
+      await base44.asServiceRole.entities.WalletTransaction.create({
+        transaction_id: `TX_STK_${generateId()}`,
+        wallet_id: walletId,
+        user_id: user.id,
+        type: 'staking_lock',
+        amount: -stakeAmount,
+        currency: 'USDT',
+        status: 'completed',
+        reference_id: positionId
+      });
+      
+      await base44.asServiceRole.entities.Wallet.update(walletId, {
+        staked_balance: wallet.staked_balance + stakeAmount
+      });
+      
+      audit('STAKING_CREATED', user.id, { positionId, amount: stakeAmount, apy, lockPeriodDays });
+      
+      return Response.json({ 
+        success: true, 
+        data: { positionId, amount: stakeAmount, apy, unlockDate: unlockDate.toISOString() } 
+      });
+    }
+
+    // GET STAKING POSITIONS
+    if (action === 'getStakingPositions') {
+      const positions = await base44.entities.StakingPosition.filter({ user_id: user.id });
+      return Response.json({ success: true, data: positions || [] });
+    }
+
+    // UNSTAKE
+    if (action === 'unstake') {
+      const { positionId } = params;
+      
+      if (!positionId) {
+        return Response.json({ success: false, error: 'Position ID required' }, { status: 400 });
+      }
+      
+      const positions = await base44.entities.StakingPosition.filter({ 
+        id: positionId, 
+        user_id: user.id,
+        status: 'active'
+      });
+      
+      if (!positions?.length) {
+        return Response.json({ success: false, error: 'Staking position not found' }, { status: 404 });
+      }
+      
+      const position = positions[0];
+      const now = new Date();
+      const unlockDate = new Date(position.unlock_date);
+      
+      // Early unstake penalty (50% of rewards)
+      let penalty = 0;
+      if (now < unlockDate) {
+        penalty = position.earned_rewards * 0.5;
+      }
+      
+      const totalReturn = position.amount + position.earned_rewards - penalty;
+      
+      const wallets = await base44.entities.Wallet.filter({ id: position.wallet_id });
+      if (wallets?.length) {
+        const wallet = wallets[0];
+        
+        await base44.asServiceRole.entities.WalletTransaction.create({
+          transaction_id: `TX_USTK_${generateId()}`,
+          wallet_id: wallet.id,
+          user_id: user.id,
+          type: 'staking_unlock',
+          amount: totalReturn,
+          currency: 'USDT',
+          status: 'completed',
+          reference_id: position.position_id,
+          notes: penalty > 0 ? `Early unstake penalty: ${penalty.toFixed(2)} USDT` : null
+        });
+        
+        await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+          balance: wallet.balance + totalReturn,
+          staked_balance: Math.max(0, wallet.staked_balance - position.amount)
+        });
+      }
+      
+      await base44.asServiceRole.entities.StakingPosition.update(positionId, {
+        status: 'completed'
+      });
+      
+      audit('STAKING_UNSTAKED', user.id, { positionId, totalReturn, penalty });
+      
+      return Response.json({ success: true, data: { totalReturn, penalty } });
+    }
+
+    // SET PRIMARY WALLET
+    if (action === 'setPrimary') {
+      const { walletId } = params;
+      
+      const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
+      if (!wallets?.length) {
+        return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
+      }
+      
+      const wallet = wallets[0];
+      
+      // Remove primary from other wallets of same account
+      const allWallets = await base44.entities.Wallet.filter({ trading_account_id: wallet.trading_account_id });
+      for (const w of allWallets || []) {
+        if (w.is_primary) {
+          await base44.asServiceRole.entities.Wallet.update(w.id, { is_primary: false });
+        }
+      }
+      
+      await base44.asServiceRole.entities.Wallet.update(walletId, { is_primary: true });
+      
+      return Response.json({ success: true });
     }
 
     return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
     
   } catch (error) {
     console.error('[WALLET_ERROR]', error.message, error.stack);
-    return Response.json({ 
-      success: false, 
-      error: error.message || 'Internal server error' 
-    }, { status: 500 });
+    return Response.json({ success: false, error: error.message || 'Internal server error' }, { status: 500 });
   }
 });
