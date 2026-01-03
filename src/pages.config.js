@@ -1,21 +1,21 @@
 import About from './pages/About';
 import Contact from './pages/Contact';
+import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import Trading from './pages/Trading';
 import index from './pages/index';
-import Dashboard from './pages/Dashboard';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "About": About,
     "Contact": Contact,
+    "Dashboard": Dashboard,
     "Home": Home,
     "Profile": Profile,
     "Trading": Trading,
     "index": index,
-    "Dashboard": Dashboard,
 }
 
 export const pagesConfig = {
