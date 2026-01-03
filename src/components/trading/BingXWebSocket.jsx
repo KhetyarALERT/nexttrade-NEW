@@ -62,9 +62,19 @@ class BingXWebSocketClient {
     });
   }
 
-  handleMessage(data) {
+  async handleMessage(data) {
     try {
-      const message = JSON.parse(data);
+      let text = data;
+      
+      // Handle Blob data
+      if (data instanceof Blob) {
+        text = await data.text();
+      }
+      
+      // Handle pong responses
+      if (text === 'Pong' || text === 'pong') return;
+      
+      const message = JSON.parse(text);
       
       if (message.pong) return;
 
@@ -77,7 +87,10 @@ class BingXWebSocketClient {
         this.listeners.get('*').forEach(callback => callback(message));
       }
     } catch (error) {
-      console.error(`[BingX WS ${this.type}] Parse error:`, error);
+      // Silently ignore parse errors for non-JSON responses
+      if (!String(data).includes('Pong')) {
+        console.warn(`[BingX WS ${this.type}] Parse warning:`, error.message);
+      }
     }
   }
 

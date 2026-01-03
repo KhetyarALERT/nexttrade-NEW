@@ -128,14 +128,22 @@ class MarketStore {
       this.startPing();
     };
     
-    this.ws.onmessage = (event) => {
-      if (event.data === 'Pong') return;
-      
+    this.ws.onmessage = async (event) => {
       try {
-        const msg = JSON.parse(event.data);
+        let text = event.data;
+        
+        // Handle Blob data
+        if (event.data instanceof Blob) {
+          text = await event.data.text();
+        }
+        
+        // Ignore pong responses
+        if (text === 'Pong' || text === 'pong') return;
+        
+        const msg = JSON.parse(text);
         this.handleMessage(msg);
       } catch (e) {
-        // Ignore parse errors
+        // Silently ignore parse errors
       }
     };
     
