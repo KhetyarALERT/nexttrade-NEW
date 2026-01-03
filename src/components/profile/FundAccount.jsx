@@ -29,9 +29,9 @@ import {
   ChevronDown,
   ExternalLink,
   AlertTriangle,
-  QrCode,
   Eye,
-  EyeOff
+  EyeOff,
+  MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -180,6 +180,28 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
     }
   };
 
+  const [addressValid, setAddressValid] = useState(null);
+  const [validatingAddress, setValidatingAddress] = useState(false);
+
+  const validateWithdrawAddress = async () => {
+    if (!withdrawAddress || !selectedCurrency || !selectedNetwork) return;
+    
+    setValidatingAddress(true);
+    try {
+      const result = await base44.functions.invoke('wallet', {
+        action: 'validateAddress',
+        address: withdrawAddress,
+        currency: selectedCurrency,
+        network: selectedNetwork
+      });
+      setAddressValid(result.data?.data?.valid || false);
+    } catch {
+      setAddressValid(null);
+    } finally {
+      setValidatingAddress(false);
+    }
+  };
+
   const handleWithdraw = async () => {
     if (!selectedNetwork || !withdrawAddress || !amount) {
       toast.error("Please fill all fields");
@@ -202,10 +224,11 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
       });
       
       if (result.data?.success) {
-        toast.success("Withdrawal submitted");
+        toast.success(`Withdrawal submitted. Fee: ${result.data.data.fee}`);
         setActiveModal(null);
         setAmount("");
         setWithdrawAddress("");
+        setAddressValid(null);
         if (onRefresh) onRefresh();
       } else {
         toast.error(result.data?.error || "Withdrawal failed");
@@ -304,7 +327,7 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Button 
             onClick={() => { setActiveModal('deposit'); setDepositData(null); }}
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -649,12 +672,29 @@ export default function FundAccount({ wallets = [], language = "en", onRefresh, 
               <div className="space-y-3">
                 <div>
                   <label className="text-slate-400 text-sm mb-1.5 block">Withdrawal address</label>
-                  <Input
-                    value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
-                    placeholder="Enter address"
-                    className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={withdrawAddress}
+                      onChange={(e) => { setWithdrawAddress(e.target.value); setAddressValid(null); }}
+                      onBlur={validateWithdrawAddress}
+                      placeholder="Enter address"
+                      className={`bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-10 ${
+                        addressValid === true ? 'border-emerald-500' : addressValid === false ? 'border-red-500' : ''
+                      }`}
+                    />
+                    {validatingAddress && (
+                      <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-slate-400" />
+                    )}
+                    {!validatingAddress && addressValid === true && (
+                      <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                    )}
+                    {!validatingAddress && addressValid === false && (
+                      <AlertTriangle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  {addressValid === false && (
+                    <p className="text-xs text-red-400 mt-1">Invalid address for this network</p>
+                  )}
                 </div>
                 
                 <div>
