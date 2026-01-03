@@ -1,227 +1,280 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
+import { createChart, ColorType } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Maximize2, Minimize2, Activity } from "lucide-react";
+import { Loader2, Maximize2, ArrowUp, ArrowDown } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 import { marketStore } from "./marketStore";
 
-export default function ProfessionalChart({ 
-  symbol = "BTC-USDT", 
-  interval = "15m", 
-  onIntervalChange, 
-  onPriceUpdate,
-  trades = [] // New prop for trades
-}) {
+const TIMEFRAMES = [
+  { label: "1m", value: "1m" },
+  { label: "5m", value: "5m" },
+  { label: "15m", value: "15m" },
+  { label: "1H", value: "1h" },
+  { label: "4H", value: "4h" },
+  { label: "1D", value: "1d" }
+];
+
+const normalizeTime = (t) => t > 1e12 ? Math.floor(t / 1000) : Math.floor(t);
+
+export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
-  const seriesRef = useRef(null);
+  const candleSeriesRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  
+  const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [error, setError] = useState(null);
+  const [wsConnected, setWsConnected] = useState(marketStore.connected);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
 
-  // Initialize chart
+  // Initialize chart ONCE
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current || chartRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "#131722" },
-        textColor: "#d1d4dc",
+        background: { type: ColorType.Solid, color: '#131722' },
+        textColor: '#787B86',
+        attributionLogo: false,
       },
       grid: {
-        vertLines: { color: "#1f2937" },
-        horzLines: { color: "#1f2937" },
+        vertLines: { color: '#1f2937', style: 1 },
+        horzLines: { color: '#1f2937', style: 1 },
       },
       crosshair: {
-        mode: CrosshairMode.Normal,
+        mode: 1,
+        vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
+        horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
       },
-      rightPriceScale: {
-        borderColor: "#1f2937",
-      },
-      timeScale: {
-        borderColor: "#1f2937",
-        timeVisible: true,
-      },
+      rightPriceScale: { borderColor: '#2B2B43', scaleMargins: { top: 0.1, bottom: 0.2 } },
+      timeScale: { borderColor: '#2B2B43', timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 8 },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: "#26a69a",
-      downColor: "#ef5350",
-      borderVisible: false,
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
+    candleSeriesRef.current = chart.addCandlestickSeries({
+      upColor: '#26A69A', downColor: '#EF5350',
+      borderUpColor: '#26A69A', borderDownColor: '#EF5350',
+      wickUpColor: '#26A69A', wickDownColor: '#EF5350',
+    });
+
+    volumeSeriesRef.current = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0.85, bottom: 0 },
     });
 
     chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
 
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
+      if (chartContainerRef.current && chartRef.current) {
+        chart.applyOptions({ 
           width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
+          height: chartContainerRef.current.clientHeight
         });
       }
     };
 
-    window.addEventListener("resize", handleResize);
-    
-    // Initial resize
+    window.addEventListener('resize', handleResize);
     handleResize();
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+      chartRef.current = null;
       chart.remove();
     };
   }, []);
 
-  // Update markers when trades change
+  // Load initial data ONCE, then subscribe to store
   useEffect(() => {
-    if (!seriesRef.current || !trades.length) {
-      if (seriesRef.current) seriesRef.current.setMarkers([]);
-      return;
-    }
-
-    const markers = trades
-      .filter(t => t.status === 'OPEN' || t.status === 'PENDING')
-      .map(t => ({
-        time: new Date(t.created_date).getTime() / 1000,
-        position: t.side === 'LONG' ? 'belowBar' : 'aboveBar',
-        color: t.side === 'LONG' ? '#26a69a' : '#ef5350',
-        shape: t.side === 'LONG' ? 'arrowUp' : 'arrowDown',
-        text: `${t.side} ${t.quantity} @ ${t.entry_price}`
-      }));
-
-    // Sort markers by time as required by lightweight-charts
-    markers.sort((a, b) => a.time - b.time);
-
-    try {
-      seriesRef.current.setMarkers(markers);
-    } catch (e) {
-      // Ignore markers errors if time is out of range
-      console.log('Markers error', e);
-    }
-  }, [trades]);
-
-  // Fetch historical data
-  useEffect(() => {
-    const fetchHistory = async () => {
+    let unsubCandle = null;
+    let unsubConnection = null;
+    
+    const init = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
-        await marketStore.initSymbol(symbol, interval);
-        const data = marketStore.getCandles(symbol);
-        if (seriesRef.current && data.length > 0) {
-          seriesRef.current.setData(data);
-          
-          // Update current price from last candle
-          const lastCandle = data[data.length - 1];
-          if (lastCandle) {
-            setCurrentPrice(lastCandle.close);
-            if (onPriceUpdate) onPriceUpdate(lastCandle.close);
+        // Fetch REST candles ONCE
+        const result = await base44.functions.invoke('bingxMarketData', {
+          action: 'getKlines',
+          params: { symbol, interval: timeframe, limit: 500 }
+        });
+
+        if (!result.data?.success || !result.data?.data) {
+          throw new Error(result.data?.error || 'Failed to fetch klines');
+        }
+
+        // Normalize, dedupe, sort
+        const raw = result.data.data.map(k => ({
+          time: normalizeTime(k.time),
+          open: parseFloat(k.open),
+          high: parseFloat(k.high),
+          low: parseFloat(k.low),
+          close: parseFloat(k.close),
+          volume: parseFloat(k.volume)
+        }));
+        
+        raw.sort((a, b) => a.time - b.time);
+        
+        const seen = new Set();
+        const candles = [];
+        for (let i = raw.length - 1; i >= 0; i--) {
+          if (!seen.has(raw[i].time)) {
+            seen.add(raw[i].time);
+            candles.unshift(raw[i]);
           }
         }
-      } catch (error) {
-        console.error("Failed to fetch history:", error);
+        
+        // Store candles in marketStore
+        marketStore.setCandles(symbol, timeframe, candles);
+        
+        // Set chart data ONCE
+        if (candleSeriesRef.current && volumeSeriesRef.current) {
+          candleSeriesRef.current.setData(candles);
+          volumeSeriesRef.current.setData(candles.map(k => ({
+            time: k.time,
+            value: k.volume,
+            color: k.close >= k.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+          })));
+        }
+        
+        // Set initial price
+        const last = candles[candles.length - 1];
+        const first = candles[0];
+        setCurrentPrice(last.close);
+        setPriceChange(((last.close - first.open) / first.open) * 100);
+        if (onPriceUpdate) onPriceUpdate(last.close);
+        
+        // Subscribe to WebSocket via store
+        marketStore.subscribeWS(`${symbol}@kline_${timeframe}`);
+        marketStore.subscribeWS(`${symbol}@trade`);
+        
+        // Subscribe to store updates
+        const candleKey = marketStore.getCandleKey(symbol, timeframe);
+        unsubCandle = marketStore.subscribe(`candle:${candleKey}`, (candle) => {
+          // Check refs before updating to avoid "Object is disposed" error
+          if (candleSeriesRef.current && chartRef.current) {
+            try {
+              candleSeriesRef.current.update(candle);
+              if (volumeSeriesRef.current) {
+                volumeSeriesRef.current.update({
+                  time: candle.time,
+                  value: candle.volume,
+                  color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                });
+              }
+            } catch (e) {
+              // Chart may have been disposed
+            }
+          }
+          setCurrentPrice(candle.close);
+          if (onPriceUpdate) onPriceUpdate(candle.close);
+        });
+        
+      } catch (err) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchHistory();
-
-    // Subscribe to real-time updates
-    const handleUpdate = ({ symbol: updatedSymbol, candle, ticker }) => {
-      if (updatedSymbol === symbol) {
-        if (seriesRef.current && candle) {
-          seriesRef.current.update(candle);
-        }
-        if (ticker) {
-          setCurrentPrice(ticker.price);
-          setPriceChange(ticker.change);
-          if (onPriceUpdate) onPriceUpdate(ticker.price);
-        }
-      }
-    };
-
-    const unsubscribe = marketStore.subscribe(handleUpdate);
-    setWsConnected(true);
-
-    return () => {
-      unsubscribe();
-    };
-  }, [symbol, interval, onPriceUpdate]);
-
-  const toggleFullscreen = () => {
-    if (!chartContainerRef.current) return;
     
-    if (!isFullscreen) {
-      if (chartContainerRef.current.requestFullscreen) {
-        chartContainerRef.current.requestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-    setIsFullscreen(!isFullscreen);
+    // Subscribe to connection status
+    unsubConnection = marketStore.subscribe('connected', setWsConnected);
+    setWsConnected(marketStore.connected);
+    
+    init();
+    
+    return () => {
+      if (unsubCandle) unsubCandle();
+      if (unsubConnection) unsubConnection();
+      marketStore.unsubscribeWS(`${symbol}@kline_${timeframe}`);
+      marketStore.unsubscribeWS(`${symbol}@trade`);
+    };
+  }, [symbol, timeframe, onPriceUpdate]);
+
+  const formatPrice = (p) => {
+    if (!p) return '0.00';
+    if (p >= 1000) return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return p >= 1 ? p.toFixed(2) : p.toFixed(6);
   };
 
+  const isPositive = priceChange >= 0;
+
   return (
-    <Card className="h-full border-0 rounded-none bg-[#131722] flex flex-col relative group">
-      {/* Chart Controls */}
-      <div className="flex items-center justify-between p-2 border-b border-slate-800 bg-[#131722]">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white text-lg">{symbol.replace('-', '/')}</span>
-            <span className="text-xs text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">Perpetual</span>
+    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
+              {symbol.split('-')[0].substring(0, 2)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">{symbol}</span>
+                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+              </div>
+              <div className="text-[10px] text-gray-500">Perpetual</div>
+            </div>
           </div>
-          <div className="flex gap-1">
-            {['1m', '5m', '15m', '1h', '4h', '1d'].map((tf) => (
-              <button
-                key={tf}
-                onClick={() => onIntervalChange && onIntervalChange(tf)}
-                className={`text-xs px-2 py-1 rounded transition-colors ${
-                  interval === tf 
-                    ? 'text-blue-400 font-medium bg-blue-400/10' 
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {tf}
-              </button>
-            ))}
+          
+          <div className="flex items-baseline gap-2">
+            <span className={`text-2xl font-bold font-mono ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              ${formatPrice(currentPrice)}
+            </span>
+            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              {isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+              {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className={`font-mono font-medium ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </p>
-            <p className={`text-xs ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {priceChange >= 0 ? '+' : ''}{priceChange}%
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-slate-400 hover:text-white">
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+
+        <div className="flex items-center gap-1">
+          {TIMEFRAMES.map(tf => (
+            <Button
+              key={tf.value}
+              variant="ghost"
+              size="sm"
+              onClick={() => setTimeframe(tf.value)}
+              className={`h-7 px-2.5 text-xs font-medium ${
+                tf.value === timeframe 
+                  ? 'bg-[#2962FF] text-white hover:bg-[#2962FF]' 
+                  : 'text-gray-400 hover:text-white hover:bg-[#2B2B43]'
+              }`}
+            >
+              {tf.label}
+            </Button>
+          ))}
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white">
+            <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Chart Container */}
-      <div ref={chartContainerRef} className="flex-1 w-full relative">
+      <div className="relative">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#131722] z-10">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
           </div>
         )}
+        {error && (
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <p className="text-red-500 text-sm">{error}</p>
+          </div>
+        )}
+        <div ref={chartContainerRef} className="w-full h-[500px]" />
       </div>
-
-      {/* Connection Status */}
-      <div className="absolute bottom-1 right-1 flex items-center gap-1.5 px-2 py-1 bg-black/40 rounded text-[10px] text-slate-400 pointer-events-none">
-        <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500' : 'bg-red-500'}`} />
-        {wsConnected ? 'Real-time' : 'Connecting...'}
+      
+      <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+          <span>{wsConnected ? 'Live' : 'Reconnecting...'}</span>
+        </div>
+        <span>NextTrade</span>
       </div>
     </Card>
   );
@@ -229,8 +282,5 @@ export default function ProfessionalChart({
 
 ProfessionalChart.propTypes = {
   symbol: PropTypes.string,
-  interval: PropTypes.string,
-  onIntervalChange: PropTypes.func,
-  onPriceUpdate: PropTypes.func,
-  trades: PropTypes.array
+  onPriceUpdate: PropTypes.func
 };
