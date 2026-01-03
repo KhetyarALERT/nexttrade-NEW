@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import ProfessionalChart from "@/components/trading/ProfessionalChart";
 import OrderPanel from "@/components/trading/OrderPanel";
+import TradingHistory from "@/components/trading/TradingHistory";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -350,6 +351,18 @@ export default function Trading({ language = "en" }) {
             />
           </div>
         </div>
+        
+        {/* Bottom Panel - Trading History */}
+        <TradingHistory 
+          tradingAccountId={account?.id}
+          currentPrices={
+            Object.keys(marketData).reduce((acc, key) => {
+              acc[key] = marketData[key].price;
+              return acc;
+            }, {})
+          }
+          onRefresh={handleTradeSuccess}
+        />
       </div>
 
       {/* Transfer Dialog */}

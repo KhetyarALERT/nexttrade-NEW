@@ -24,6 +24,8 @@ export default function OrderPanel({
   const [amount, setAmount] = useState("");
   const [amountType, setAmountType] = useState("usdt");
   const [leverage, setLeverage] = useState([10]);
+  const [takeProfit, setTakeProfit] = useState("");
+  const [stopLoss, setStopLoss] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const baseAsset = symbol.split('-')[0];
@@ -79,7 +81,9 @@ export default function OrderPanel({
         entryPrice: effectivePrice,
         leverage: leverage[0],
         orderType: orderType.toUpperCase(),
-        limitPrice: orderType === 'limit' ? parseFloat(price) : null
+        limitPrice: orderType === 'limit' ? parseFloat(price) : null,
+        takeProfit: takeProfit ? parseFloat(takeProfit) : null,
+        stopLoss: stopLoss ? parseFloat(stopLoss) : null
       });
 
       if (result.data?.success) {
@@ -241,6 +245,29 @@ export default function OrderPanel({
                 {percent}%
               </Button>
             ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs text-gray-400 uppercase">Take Profit</Label>
+              <Input
+                type="number"
+                value={takeProfit}
+                onChange={(e) => setTakeProfit(e.target.value)}
+                placeholder="0.00"
+                className="h-8 text-xs bg-[#131722] border-[#2B2B43] text-white mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs text-gray-400 uppercase">Stop Loss</Label>
+              <Input
+                type="number"
+                value={stopLoss}
+                onChange={(e) => setStopLoss(e.target.value)}
+                placeholder="0.00"
+                className="h-8 text-xs bg-[#131722] border-[#2B2B43] text-white mt-1"
+              />
+            </div>
           </div>
 
           <div className="bg-[#131722] rounded-lg p-3 text-xs space-y-2">
