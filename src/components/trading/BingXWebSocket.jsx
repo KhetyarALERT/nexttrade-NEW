@@ -1,20 +1,11 @@
 /**
- * BingX WebSocket Manager - Market Data ONLY (No Auth)
- * 
- * Spot: wss://open-api.bingx.com/market
- * Futures/Swap: wss://open-api-swap.bingx.com/market
- * 
- * Features:
- * - Public streams only
- * - Multi-symbol support
- * - Auto-reconnect with backoff
- * - Heartbeat (ping/pong)
- * - NO REST polling
+ * BingX WebSocket Client - Frontend Implementation
+ * Handles real-time market data for Spot and Futures
  */
 
-class BingXWebSocket {
+class BingXWebSocketClient {
   constructor(type = 'spot') {
-    this.type = type; // 'spot' or 'futures'
+    this.type = type;
     this.ws = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
@@ -24,16 +15,13 @@ class BingXWebSocket {
     this.connected = false;
     this.listeners = new Map();
     
+    // Use correct BingX WebSocket URLs
     this.baseUrl = type === 'spot' 
       ? 'wss://open-api.bingx.com/market'
       : 'wss://open-api-swap.bingx.com/market';
   }
 
   connect() {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      return Promise.resolve();
-    }
-
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.baseUrl);
@@ -78,18 +66,13 @@ class BingXWebSocket {
     try {
       const message = JSON.parse(data);
       
-      // Handle pong response
-      if (message.pong) {
-        return;
-      }
+      if (message.pong) return;
 
-      // Emit message to listeners
       const dataType = message.dataType || message.e;
       if (dataType && this.listeners.has(dataType)) {
         this.listeners.get(dataType).forEach(callback => callback(message));
       }
       
-      // Emit to all listeners
       if (this.listeners.has('*')) {
         this.listeners.get('*').forEach(callback => callback(message));
       }
@@ -104,7 +87,7 @@ class BingXWebSocket {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ ping: Date.now() }));
       }
-    }, 30000); // 30 seconds
+    }, 30000);
   }
 
   stopHeartbeat() {
@@ -125,61 +108,42 @@ class BingXWebSocket {
       30000
     );
     
-    console.log(`[BingX WS ${this.type}] Reconnecting in ${delay}ms...`);
     this.reconnectAttempts++;
-    
-    setTimeout(() => {
-      this.connect().catch(console.error);
-    }, delay);
+    setTimeout(() => this.connect().catch(console.error), delay);
   }
 
-  /**
-   * Subscribe to market data streams
-   * @param {string} symbol - e.g., "BTC-USDT" for spot, "BTC-USDT" for futures
-   * @param {string} dataType - e.g., "trade", "kline_1m", "ticker", "depth"
-   */
   subscribe(symbol, dataType) {
     const subscription = {
       id: `${symbol}_${dataType}`,
+      reqType: 'sub',
       dataType: `${symbol}@${dataType}`
     };
 
-    this.subscriptions.add(subscription);
+    this.subscriptions.add(JSON.stringify(subscription));
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        id: subscription.id,
-        reqType: 'sub',
-        dataType: subscription.dataType
-      }));
+      this.ws.send(JSON.stringify(subscription));
     }
   }
 
-  /**
-   * Unsubscribe from market data
-   */
   unsubscribe(symbol, dataType) {
-    const id = `${symbol}_${dataType}`;
-    const dataTypeStr = `${symbol}@${dataType}`;
-    
+    const subscription = {
+      id: `${symbol}_${dataType}`,
+      reqType: 'unsub',
+      dataType: `${symbol}@${dataType}`
+    };
+
     this.subscriptions.forEach(sub => {
-      if (sub.id === id) {
+      if (sub.includes(`${symbol}_${dataType}`)) {
         this.subscriptions.delete(sub);
       }
     });
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        id,
-        reqType: 'unsub',
-        dataType: dataTypeStr
-      }));
+      this.ws.send(JSON.stringify(subscription));
     }
   }
 
-  /**
-   * Add event listener
-   */
   on(dataType, callback) {
     if (!this.listeners.has(dataType)) {
       this.listeners.set(dataType, new Set());
@@ -187,9 +151,6 @@ class BingXWebSocket {
     this.listeners.get(dataType).add(callback);
   }
 
-  /**
-   * Remove event listener
-   */
   off(dataType, callback) {
     if (this.listeners.has(dataType)) {
       this.listeners.get(dataType).delete(callback);
@@ -203,8 +164,6 @@ class BingXWebSocket {
       this.ws = null;
     }
     this.connected = false;
-    this.subscriptions.clear();
-    this.listeners.clear();
   }
 
   isConnected() {
@@ -212,7 +171,4 @@ class BingXWebSocket {
   }
 }
 
-// Export for frontend use
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = BingXWebSocket;
-}
+export default BingXWebSocketClient;
