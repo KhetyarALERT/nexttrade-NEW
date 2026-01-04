@@ -10,7 +10,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, 
   const candleSeriesRef = useRef(null);
   const priceLinesRef = useRef([]);
 
-  // Init chart
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -40,7 +39,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, 
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      // Cleanup price lines
       priceLinesRef.current.forEach((line) => { try { candleSeriesRef.current?.removePriceLine(line); } catch (_) {} });
       priceLinesRef.current = [];
       candleSeriesRef.current = null;
@@ -49,7 +47,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, 
     };
   }, []);
 
-  // Load candles when symbol changes
   useEffect(() => {
     let isActive = true;
     const load = async () => {
@@ -64,13 +61,11 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, 
     return () => { isActive = false; };
   }, [symbol]);
 
-  // Subscribe to ticker for live last price + callback
   useEffect(() => {
     const onTick = ({ symbol: s, ticker }) => {
       if (s !== symbol || !ticker?.price || !candleSeriesRef.current) return;
       const time = Math.floor(Date.now() / 1000);
       const price = parseFloat(ticker.price);
-      // Update last bar visually using close price
       candleSeriesRef.current.update({ time, open: price, high: price, low: price, close: price });
       if (onPriceUpdate) onPriceUpdate(price);
     };
@@ -84,10 +79,8 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, 
     };
   }, [symbol, onPriceUpdate]);
 
-  // Draw position lines
   useEffect(() => {
     if (!candleSeriesRef.current) return;
-    // Clear existing
     priceLinesRef.current.forEach((line) => { try { candleSeriesRef.current?.removePriceLine(line); } catch (_) {} });
     priceLinesRef.current = [];
 

@@ -25,7 +25,6 @@ import { marketStore } from "@/components/trading/marketStore";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 
-// BingX USDT-M Perpetual Futures symbols fallback
 const FUTURES_SYMBOLS = [
   { symbol: "BTC-USDT", name: "Bitcoin" },
   { symbol: "ETH-USDT", name: "Ethereum" },
@@ -66,14 +65,12 @@ export default function Trading({ language = "en" }) {
 
   useEffect(() => { loadAccount(); }, [loadAccount]);
 
-  // Subscribe only to selected symbol
   useEffect(() => {
     if (!selectedSymbol) return;
     marketStore.subscribeToSymbol(selectedSymbol);
     return () => marketStore.unsubscribeFromSymbol(selectedSymbol);
   }, [selectedSymbol]);
 
-  // Listen to ticker updates
   useEffect(() => {
     const handleTicker = ({ symbol, ticker }) => {
       setMarketData(prev => ({ ...prev, [symbol]: { price: ticker.price, change: ticker.change } }));
@@ -117,7 +114,6 @@ export default function Trading({ language = "en" }) {
   return (
     <div className="min-h-screen bg-[#0d0d1a]">
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
-        {/* Top Bar */}
         <div className="bg-[#1a1a2e] border-b border-slate-700/50 px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -183,7 +179,6 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="flex-1 grid grid-rows-[1fr_auto] lg:grid-rows-1 lg:grid-cols-[1fr_400px] overflow-hidden">
           <div className="min-h-[300px] lg:min-h-0 lg:h-full bg-[#131722] overflow-hidden">
             <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
