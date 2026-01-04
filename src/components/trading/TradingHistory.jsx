@@ -116,14 +116,17 @@ export default function TradingHistory({
               <div className="p-0">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-[#131722] z-10">
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                    <tr className="text-[12px] uppercase tracking-wider text-slate-400 border-b border-slate-800/50">
                       <th className="px-4 py-2 font-semibold">Symbol</th>
-                      <th className="px-4 py-2 font-semibold">Side</th>
-                      <th className="px-4 py-2 font-semibold">Size</th>
-                      <th className="px-4 py-2 font-semibold">Entry Price</th>
-                      <th className="px-4 py-2 font-semibold">Mark Price</th>
-                      <th className="px-4 py-2 font-semibold">PnL (ROE%)</th>
-                      <th className="px-4 py-2 font-semibold text-right">Action</th>
+                      <th className="px-4 py-2 font-semibold">Value</th>
+                      <th className="px-4 py-2 font-semibold">Entry</th>
+                      <th className="px-4 py-2 font-semibold">Mark</th>
+                      <th className="px-4 py-2 font-semibold">Unrealized PnL</th>
+                      <th className="px-4 py-2 font-semibold">ROE%</th>
+                      <th className="px-4 py-2 font-semibold">Liq</th>
+                      <th className="px-4 py-2 font-semibold">Margin</th>
+                      <th className="px-4 py-2 font-semibold">TP/SL</th>
+                      <th className="px-4 py-2 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/30">

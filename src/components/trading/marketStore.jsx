@@ -218,29 +218,40 @@ class MarketStore {
     }
     
     if (channel === 'ticker') {
-      const now = Date.now();
-      const last = this.lastTickerEmit[symbol] || 0;
-      const d = msg.data || {};
-      const price = parseFloat(d.c ?? d.lastPrice ?? d.price ?? 0);
-      let change = parseFloat(d.p ?? d.priceChangePercent ?? d.change ?? NaN);
-      const high = parseFloat(d.h ?? d.highPrice ?? d.high ?? 0);
-      const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
-      const volume = parseFloat(d.v ?? d.volume ?? 0);
-      const open = parseFloat(d.o ?? d.open ?? d.openPrice ?? NaN);
-      if ((isNaN(change) || change === 0) && !isNaN(open) && open > 0 && price > 0) {
-        change = ((price - open) / open) * 100;
-      }
-      const mark = parseFloat(d.markPrice ?? d.mark ?? d.c ?? price);
-      const ticker = { price, mark, change: Number.isFinite(change) ? change : 0, high, low, volume };
-      if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', symbol, ticker); } catch(_) {} this.loggedFirstTicker = true; }
-      this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
-      if (!Number.isNaN(price) && price > 0) {
-        this.updatePrice(symbol, price);
-      }
-      if (now - last >= 250) {
-        this.lastTickerEmit[symbol] = now;
-        this.emit(`ticker:${symbol}`, this.tickers[symbol]);
-        this.emit('ticker', { symbol, ticker: this.tickers[symbol] });
+      const handleOne = (sym, d) => {
+        const now = Date.now();
+        const last = this.lastTickerEmit[sym] || 0;
+        const price = parseFloat(d.c ?? d.lastPrice ?? d.price ?? 0);
+        let change = parseFloat(d.p ?? d.priceChangePercent ?? d.change ?? NaN);
+        const high = parseFloat(d.h ?? d.highPrice ?? d.high ?? 0);
+        const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
+        const volume = parseFloat(d.v ?? d.volume ?? 0);
+        const open = parseFloat(d.o ?? d.open ?? d.openPrice ?? NaN);
+        if ((isNaN(change) || change === 0) && !isNaN(open) && open > 0 && price > 0) {
+          change = ((price - open) / open) * 100;
+        }
+        const mark = parseFloat(d.markPrice ?? d.mark ?? d.c ?? price);
+        const ticker = { price, mark, change: Number.isFinite(change) ? change : 0, high, low, volume };
+        if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', sym, ticker); } catch(_) {} this.loggedFirstTicker = true; }
+        this.tickers[sym] = { ...this.tickers[sym], ...ticker };
+        if (!Number.isNaN(price) && price > 0) {
+          this.updatePrice(sym, price);
+        }
+        if (now - last >= 250) {
+          this.lastTickerEmit[sym] = now;
+          this.emit(`ticker:${sym}`, this.tickers[sym]);
+          this.emit('ticker', { symbol: sym, ticker: this.tickers[sym] });
+        }
+      };
+
+      if (Array.isArray(msg.data)) {
+        msg.data.forEach((d) => {
+          const raw = String(d.s || d.symbol || symbol || '').replace('[','').replace(']','');
+          const sym = raw.replace('/', '-').toUpperCase();
+          handleOne(sym, d);
+        });
+      } else {
+        handleOne(symbol, msg.data || {});
       }
     }
   }
