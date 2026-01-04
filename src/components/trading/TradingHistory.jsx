@@ -4,6 +4,8 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toDisplayFormat } from "@/components/utils/symbolFormat";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { RefreshCw, List, History, Clock } from "lucide-react";
 
 export default function TradingHistory({
   tradingAccountId,
@@ -14,6 +16,7 @@ export default function TradingHistory({
 }) {
   const [loading, setLoading] = useState(false);
   const [trades, setTrades] = useState([]);
+  const [activeTab, setActiveTab] = useState("positions");
 
   const load = useCallback(async () => {
     if (!tradingAccountId) return;
@@ -39,11 +42,9 @@ export default function TradingHistory({
 
   const columns = [
     { key: 'opened_at', label: 'Opened', format: (v) => formatDateTime(v) },
-    { key: 'closed_at', label: 'Closed', format: (v) => v ? formatDateTime(v) : '-' },
     { key: 'symbol', label: 'Symbol', format: (v) => toDisplayFormat(v) },
-    { key: 'side', label: 'Side', format: (v) => <span className={v === 'LONG' ? 'text-emerald-500' : 'text-red-500'}>{v}</span> },
-    { key: 'leverage', label: 'Lev', format: (v) => <span className="text-purple-400">{v}x</span> },
-    { key: 'order_type', label: 'Type' },
+    { key: 'side', label: 'Side', format: (v) => <span className={v === 'LONG' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{v}</span> },
+    { key: 'leverage', label: 'Lev', format: (v) => <span className="text-blue-400 font-medium">{v}x</span> },
     { key: 'quantity', label: 'Size', format: (v) => formatSize(v) },
     { key: 'entry_price', label: 'Entry', render: (row) => formatPrice(row.avg_entry_price ?? row.entry_price) },
     { key: 'exit_price', label: 'Exit', render: (row) => row.status === 'CLOSED' ? formatPrice(row.avg_exit_price ?? row.exit_price) : '-' },
@@ -53,122 +54,176 @@ export default function TradingHistory({
       const n = Number(v);
       return <span className={n >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{n.toFixed(2)}%</span>;
     } },
-    { key: 'fee_total', label: 'Fee', format: (v) => v === undefined || v === null ? '-' : <span className="text-yellow-500">-${Number(v).toFixed(4)}</span> },
-    { key: 'close_reason', label: 'Close Reason', format: formatCloseReason },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Status', format: (v) => <Badge variant="outline" className={`text-[10px] uppercase ${v === 'OPEN' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/5' : 'border-slate-600 text-slate-400'}`}>{v}</Badge> },
   ];
 
+  const openPositions = trades.filter((t) => t.status === "OPEN");
+  const pendingOrders = trades.filter((t) => t.status === "PENDING");
+
   return (
-    <div className="h-full w-full bg-[#131722] text-white">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#2B2B43]">
-        <div className="text-sm font-medium">Positions & Orders</div>
+    <div className="h-full flex flex-col bg-[#131722] text-slate-300">
+      <div className="flex items-center justify-between px-4 h-10 border-b border-slate-800/50 shrink-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+          <TabsList className="bg-transparent h-full p-0 gap-6">
+            <TabsTrigger value="positions" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
+              Positions <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px]">{openPositions.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
+              Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px]">{pendingOrders.length}</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
+              Trade History
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="border-slate-600 text-slate-300">
-            {trades.filter((t) => t.status === "OPEN").length} Open
-          </Badge>
-          <Badge variant="outline" className="border-slate-600 text-slate-300">
-            {trades.filter((t) => t.status === "PENDING").length} Orders
-          </Badge>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => { load(); onRefresh?.(); }}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+            className="h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all"
           >
-            {loading ? "Refreshing..." : "Refresh"}
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-[11px]">Refresh</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-0 divide-y md:divide-y-0 md:divide-x divide-[#2B2B43]">
-        {/* Open Positions */}
-        <div className="p-3 overflow-auto max-h-48 md:max-h-none">
-          <div className="text-xs text-slate-400 mb-2">Open Positions</div>
-          {trades.filter((t) => t.status === "OPEN").map((t) => (
-            <div key={t.id} className="flex items-center justify-between py-2 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <span className={`text-[11px] px-2 py-0.5 rounded ${t.side === "LONG" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}>
-                  {t.side}
-                </span>
-                <div className="text-sm font-mono">{toDisplayFormat(t.symbol)}</div>
+      <div className="flex-1 overflow-hidden relative">
+        <Tabs value={activeTab} className="h-full">
+          <TabsContent value="positions" className="h-full m-0 overflow-auto custom-scrollbar">
+            {openPositions.length > 0 ? (
+              <div className="p-0">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#131722] z-10">
+                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                      <th className="px-4 py-2 font-semibold">Symbol</th>
+                      <th className="px-4 py-2 font-semibold">Side</th>
+                      <th className="px-4 py-2 font-semibold">Size</th>
+                      <th className="px-4 py-2 font-semibold">Entry Price</th>
+                      <th className="px-4 py-2 font-semibold">Mark Price</th>
+                      <th className="px-4 py-2 font-semibold">PnL (ROE%)</th>
+                      <th className="px-4 py-2 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/30">
+                    {openPositions.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-white">{toDisplayFormat(t.symbol)}</span>
+                            <span className="text-[10px] text-slate-500">{t.leverage}x Isolated</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-bold ${t.side === "LONG" ? "text-emerald-400" : "text-rose-400"}`}>{t.side}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.entry_price)}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">-</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className={Number(t.realized_pnl || 0) >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                              {formatPnL(t.realized_pnl)}
+                            </span>
+                            <span className={`text-[10px] ${Number(t.realized_pnl_percent || 0) >= 0 ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
+                              ({Number(t.realized_pnl_percent || 0).toFixed(2)}%)
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-right text-xs text-slate-300">
-                <div>Entry: {formatPrice(t.entry_price)}</div>
-                {t.take_profit && <div className="text-emerald-300">TP: {formatPrice(t.take_profit)}</div>}
-                {t.stop_loss && <div className="text-rose-300">SL: {formatPrice(t.stop_loss)}</div>}
-              </div>
-            </div>
-          ))}
-          {trades.filter((t) => t.status === "OPEN").length === 0 && (
-            <div className="text-xs text-slate-500">No open positions</div>
-          )}
-        </div>
+            ) : (
+              <EmptyState icon={<List className="h-8 w-8" />} message="No open positions" />
+            )}
+          </TabsContent>
 
-        {/* Pending Orders */}
-        <div className="p-3 overflow-auto max-h-48 md:max-h-none">
-          <div className="text-xs text-slate-400 mb-2">Pending Orders</div>
-          {trades.filter((t) => t.status === "PENDING").map((t) => (
-            <div key={t.id} className="flex items-center justify-between py-2 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] px-2 py-0.5 rounded bg-slate-500/20 text-slate-300">
-                  {t.order_type}
-                </span>
-                <div className="text-sm font-mono">{toDisplayFormat(t.symbol)}</div>
+          <TabsContent value="orders" className="h-full m-0 overflow-auto custom-scrollbar">
+            {pendingOrders.length > 0 ? (
+              <div className="p-0">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#131722] z-10">
+                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                      <th className="px-4 py-2 font-semibold">Symbol</th>
+                      <th className="px-4 py-2 font-semibold">Type</th>
+                      <th className="px-4 py-2 font-semibold">Side</th>
+                      <th className="px-4 py-2 font-semibold">Price</th>
+                      <th className="px-4 py-2 font-semibold">Amount</th>
+                      <th className="px-4 py-2 font-semibold text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/30">
+                    {pendingOrders.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-4 py-3 text-sm font-bold text-white">{toDisplayFormat(t.symbol)}</td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{t.order_type}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-bold ${t.side === "LONG" ? "text-emerald-400" : "text-rose-400"}`}>{t.side}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.limit_price || t.stop_price)}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px] text-rose-400 hover:bg-rose-500/10">Cancel</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="text-right text-xs text-slate-300">
-                {t.limit_price && <div>Limit: {formatPrice(t.limit_price)}</div>}
-                {t.oco_stop_price && <div>Stop: {formatPrice(t.oco_stop_price)}</div>}
-              </div>
-            </div>
-          ))}
-          {trades.filter((t) => t.status === "PENDING").length === 0 && (
-            <div className="text-xs text-slate-500">No pending orders</div>
-          )}
-        </div>
-      </div>
+            ) : (
+              <EmptyState icon={<Clock className="h-8 w-8" />} message="No pending orders" />
+            )}
+          </TabsContent>
 
-      {/* Full Trade History Table */}
-      <div className="p-3 overflow-auto">
-        <div className="text-xs text-slate-400 mb-2">Trade History</div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-sm">
-            <thead>
-              <tr className="text-slate-400 border-b border-slate-700">
-                {columns.map(col => (
-                  <th key={col.key} className="px-2 py-2 text-left whitespace-nowrap">{col.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {trades.map(trade => (
-                <tr key={trade.id} className="border-b border-slate-800 hover:bg-slate-800/40">
-                  {columns.map(col => (
-                    <td key={col.key} className="px-2 py-2 whitespace-nowrap">
-                      {col.render ? col.render(trade) : col.format ? col.format(trade[col.key]) : (trade[col.key] ?? '-')}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <TabsContent value="history" className="h-full m-0 overflow-auto custom-scrollbar">
+            {trades.length > 0 ? (
+              <div className="p-0">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#131722] z-10">
+                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                      {columns.map(col => (
+                        <th key={col.key} className="px-4 py-2 font-semibold whitespace-nowrap">{col.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/30">
+                    {trades.map(trade => (
+                      <tr key={trade.id} className="hover:bg-slate-800/20 transition-colors">
+                        {columns.map(col => (
+                          <td key={col.key} className="px-4 py-2.5 whitespace-nowrap text-xs">
+                            {col.render ? col.render(trade) : col.format ? col.format(trade[col.key]) : (trade[col.key] ?? '-')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState icon={<History className="h-8 w-8" />} message="No trade history" />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 
-  function formatCloseReason(reason) {
-    if (!reason) return '-';
-    const map = {
-      manual: { text: 'Manual Close', cls: 'text-blue-400' },
-      take_profit: { text: 'TP Hit', cls: 'text-emerald-400' },
-      stop_loss: { text: 'SL Hit', cls: 'text-rose-400' },
-      liquidation: { text: 'Liquidated', cls: 'text-orange-400' },
-      trailing_stop: { text: 'Trailing Stop', cls: 'text-cyan-400' },
-      cancelled: { text: 'Cancelled', cls: 'text-slate-400' },
-    };
-    const cfg = map[reason] || { text: reason, cls: 'text-slate-300' };
-    return <span className={cfg.cls}>{cfg.text}</span>;
+  function EmptyState({ icon, message }) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 opacity-50">
+        {icon}
+        <span className="text-xs font-medium">{message}</span>
+      </div>
+    );
   }
+
   function formatDateTime(date) {
     if (!date) return '-';
     return new Date(date).toLocaleString('en-AE', { timeZone: 'Asia/Dubai', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -176,7 +231,7 @@ export default function TradingHistory({
   function formatPrice(v) { if (v === undefined || v === null) return '-'; return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 6 })}`; }
   function formatPnL(v) { if (v === undefined || v === null) return '-'; const n = Number(v); const cls = n >= 0 ? 'text-emerald-400' : 'text-rose-400'; return <span className={cls}>{n >= 0 ? '+' : ''}{n.toFixed(2)}</span>; }
   function formatSize(v) { if (v === undefined || v === null) return '-'; const n = Number(v); return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }); }
-  }
+}
 
 TradingHistory.propTypes = {
   tradingAccountId: PropTypes.string,
