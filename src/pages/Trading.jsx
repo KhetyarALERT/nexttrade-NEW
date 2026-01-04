@@ -164,7 +164,7 @@ export default function Trading({ language = "en" }) {
   useEffect(() => {
     const existing = marketStore.getAllTickers?.() || {};
     setMarketData((prev) => ({ ...prev, ...existing }));
-    availableSymbols.slice(0, 40).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
+    availableSymbols.slice(0, 50).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
   }, [availableSymbols]);
 
   const filteredSymbols = availableSymbols.filter(
@@ -298,7 +298,7 @@ export default function Trading({ language = "en" }) {
           <PanelGroup direction="vertical" className="h-full">
             <Panel defaultSize={70} minSize={30} className="relative flex flex-col overflow-hidden">
               <div className="flex-1 bg-[#131722] relative overflow-hidden">
-                <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} />
+                <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
               </div>
             </Panel>
 

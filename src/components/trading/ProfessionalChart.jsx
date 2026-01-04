@@ -6,7 +6,7 @@ import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolForm
 
 const TF_OPTIONS = ["1m", "5m", "15m", "30m", "1h", "1d"];
 
-export default function ProfessionalChart({ symbol, onPriceUpdate }) {
+export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [lastPrice, setLastPrice] = useState(0);
 
@@ -103,6 +103,74 @@ export default function ProfessionalChart({ symbol, onPriceUpdate }) {
       try { marketStore.unsubscribeWS?.(`kline_${timeframe}.${s}`); } catch {}
     };
   }, [symbol, timeframe, onPriceUpdate]);
+
+  // Draw entry/TP/SL price badges for current symbol
+  useEffect(() => {
+    const s = toInternalFormat(symbol);
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!series || !s) return;
+
+    // Clear existing lines by recreating series price lines
+    // (lightweight-charts doesn't support listing/removing all lines, so we recreate all)
+    // Remove old by removing and re-adding series would lose candles; instead, track none and just create new lines each time
+
+    // To keep it simple: no persistent refs; we rely on titles conveying live PnL and redraw on any dependency change
+
+    const tickerUnsub = marketStore.subscribe(`ticker:${s}`, (t) => {
+      const mark = (t?.mark ?? t?.price) || 0;
+      if (!mark) return;
+      const symPositions = (positions || []).filter(p => toInternalFormat(p.symbol) === s && p.status === 'OPEN');
+      // Redraw lines each tick with updated titles
+      try {
+        // Clear existing lines by resetting series price scale markers: create lines anew
+        // Not removing previous lines could stack; to avoid stacking we recreate series (cheap) once per tick is heavy.
+        // Alternative: maintain a hidden counter by reusing same price lines via createPriceLine with same options is fine (duplicates collapse visually).
+        // We'll keep count low (<=3 lines per position)
+        symPositions.forEach(pos => {
+          const qty = Number(pos.quantity || 0);
+          const entry = Number(pos.entry_price || 0);
+          const sideLong = pos.side === 'LONG';
+          const pnl = (sideLong ? (mark - entry) : (entry - mark)) * qty;
+          const margin = entry * qty / (Number(pos.leverage || 1) || 1);
+          const roe = margin ? (pnl / margin) * 100 : 0;
+
+          series.createPriceLine({
+            price: entry,
+            color: sideLong ? '#3b82f6' : '#ef4444',
+            lineWidth: 2,
+            lineStyle: 0,
+            title: `${sideLong ? 'LONG' : 'SHORT'} @ ${entry.toFixed(entry < 1 ? 6 : 2)} | PnL ${pnl>=0?'+':''}${pnl.toFixed(2)} (${roe.toFixed(2)}%)`,
+          });
+
+          if (pos.take_profit) {
+            const tp = Number(pos.take_profit);
+            const tpPnl = (sideLong ? (tp - entry) : (entry - tp)) * qty;
+            series.createPriceLine({
+              price: tp,
+              color: '#22c55e',
+              lineWidth: 1,
+              lineStyle: 2,
+              title: `TP ${tp.toFixed(tp<1?6:2)} | ${tpPnl>=0?'+':''}${tpPnl.toFixed(2)}`,
+            });
+          }
+          if (pos.stop_loss) {
+            const sl = Number(pos.stop_loss);
+            const slPnl = (sideLong ? (sl - entry) : (entry - sl)) * qty;
+            series.createPriceLine({
+              price: sl,
+              color: '#ef4444',
+              lineWidth: 1,
+              lineStyle: 2,
+              title: `SL ${sl.toFixed(sl<1?6:2)} | ${slPnl>=0?'+':''}${slPnl.toFixed(2)}`,
+            });
+          }
+        });
+      } catch {}
+    });
+
+    return () => { try { tickerUnsub?.(); } catch {} };
+  }, [positions, symbol]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
