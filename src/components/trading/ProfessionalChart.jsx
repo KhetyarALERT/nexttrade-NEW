@@ -1,166 +1,286 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { marketStore } from "@/components/trading/marketStore";
-import { createChart, CrosshairMode } from "lightweight-charts";
+import { createChart, ColorType } from "lightweight-charts";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, Maximize2, ArrowUp, ArrowDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolFormat";
+import { marketStore } from "./marketStore";
 
-export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [] }) {
-  const [price, setPrice] = useState(0);
-  const [timeframe, setTimeframe] = useState('15m');
-  const containerRef = useRef(null);
+const TIMEFRAMES = [
+  { label: "1m", value: "1m" },
+  { label: "5m", value: "5m" },
+  { label: "15m", value: "15m" },
+  { label: "1H", value: "1h" },
+  { label: "4H", value: "4h" },
+  { label: "1D", value: "1d" }
+];
+
+const normalizeTime = (t) => t > 1e12 ? Math.floor(t / 1000) : Math.floor(t);
+
+export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
+  const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
-  const seriesRef = useRef(null);
-  const priceLinesRef = useRef([]);
+  const candleSeriesRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  
+  const [timeframe, setTimeframe] = useState("15m");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [wsConnected, setWsConnected] = useState(marketStore.connected);
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [priceChange, setPriceChange] = useState(0);
 
-  // Create chart once
+  // Initialize chart ONCE
   useEffect(() => {
-    if (!containerRef.current) return;
-    if (chartRef.current) return;
+    if (!chartContainerRef.current || chartRef.current) return;
 
-    const chart = createChart(containerRef.current, {
-      layout: { background: { color: '#0f1220' }, textColor: '#e5e7eb' },
-      grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
-      crosshair: { mode: CrosshairMode.Magnet },
-    });
-    const candleSeries = chart.addCandlestickSeries({
-      priceFormat: {
-        type: 'price',
-        precision: 2,
-        minMove: 0.01,
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#131722' },
+        textColor: '#787B86',
+        attributionLogo: false,
       },
-      upColor: '#10b981', downColor: '#ef4444',
-      borderDownColor: '#ef4444', borderUpColor: '#10b981',
-      wickDownColor: '#ef4444', wickUpColor: '#10b981'
+      grid: {
+        vertLines: { color: '#1f2937', style: 1 },
+        horzLines: { color: '#1f2937', style: 1 },
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
+        horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
+      },
+      rightPriceScale: { borderColor: '#2B2B43', scaleMargins: { top: 0.1, bottom: 0.2 } },
+      timeScale: { borderColor: '#2B2B43', timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 8 },
+    });
+
+    candleSeriesRef.current = chart.addCandlestickSeries({
+      upColor: '#26A69A', downColor: '#EF5350',
+      borderUpColor: '#26A69A', borderDownColor: '#EF5350',
+      wickUpColor: '#26A69A', wickDownColor: '#EF5350',
+    });
+
+    volumeSeriesRef.current = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0.85, bottom: 0 },
     });
 
     chartRef.current = chart;
-    seriesRef.current = candleSeries;
-
-    // Remove any TradingView branding anchors if injected by the lib
-    setTimeout(() => {
-      const el = containerRef.current;
-      if (!el) return;
-      el.querySelectorAll('a[href*="tradingview"], [class*="tradingview"]').forEach((n) => n.remove());
-    }, 0);
 
     const handleResize = () => {
-      chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
+      if (chartContainerRef.current && chartRef.current) {
+        chart.applyOptions({ 
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight
+        });
+      }
     };
+
+    window.addEventListener('resize', handleResize);
     handleResize();
-    const obs = new ResizeObserver(handleResize);
-    obs.observe(containerRef.current);
-    return () => { obs.disconnect(); chart.remove(); chartRef.current = null; seriesRef.current = null; };
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+      chartRef.current = null;
+      chart.remove();
+    };
   }, []);
 
-  // Subscribe to live ticker and fetch klines when symbol changes
+  // Load initial data ONCE, then subscribe to store
   useEffect(() => {
-    const s = toInternalFormat(symbol);
-    if (!s || !seriesRef.current) return;
-
-    marketStore.subscribeToSymbol(s);
-    marketStore.subscribeToCandles(s, timeframe);
-    const key = `${s}_${timeframe}`;
-    const unsubCandle = marketStore.subscribe(`candle:${key}`, (candle) => {
-      if (seriesRef.current) seriesRef.current.update(candle);
-      const p = candle?.close;
-      if (p) { setPrice(p); if (onPriceUpdate) onPriceUpdate(p); }
-    });
-    const unsubTicker = marketStore.subscribe(`ticker:${s}`, (ticker) => {
-      const p = (ticker?.mark ?? ticker?.price) || 0;
-      setPrice(p);
-      if (onPriceUpdate) onPriceUpdate(p);
-    });
-
-    // Initial price
-    const t = marketStore.getAllTickers?.()[s];
-    if (t?.price) { setPrice(t.price); if (onPriceUpdate) onPriceUpdate(t.price); }
-
-    // Load historical klines
-    (async () => {
+    let unsubCandle = null;
+    let unsubConnection = null;
+    
+    const init = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        const res = await base44.functions.invoke('bingxMarketData', { action: 'getKlines', params: { symbol: s, interval: timeframe, limit: 500 } });
-        const candles = res.data?.data || [];
-        seriesRef.current.setData(candles);
-        marketStore.setCandles?.(s, timeframe, candles);
-        const last = candles.length ? candles[candles.length - 1] : null;
-        if (last?.close) {
-          setPrice(last.close);
-          if (onPriceUpdate) onPriceUpdate(last.close);
-        }
-      } catch (e) {
-        console.error('Failed to load klines', e);
-      }
-    })();
+        // Fetch REST candles ONCE
+        const result = await base44.functions.invoke('bingxMarketData', {
+          action: 'getKlines',
+          params: { symbol, interval: timeframe, limit: 500 }
+        });
 
-    return () => { unsubTicker?.(); unsubCandle?.(); marketStore.unsubscribeFromSymbol(s); marketStore.unsubscribeWS?.(`kline_${timeframe}.${s}`); };
+        if (!result.data?.success || !result.data?.data) {
+          throw new Error(result.data?.error || 'Failed to fetch klines');
+        }
+
+        // Normalize, dedupe, sort
+        const raw = result.data.data.map(k => ({
+          time: normalizeTime(k.time),
+          open: parseFloat(k.open),
+          high: parseFloat(k.high),
+          low: parseFloat(k.low),
+          close: parseFloat(k.close),
+          volume: parseFloat(k.volume)
+        }));
+        
+        raw.sort((a, b) => a.time - b.time);
+        
+        const seen = new Set();
+        const candles = [];
+        for (let i = raw.length - 1; i >= 0; i--) {
+          if (!seen.has(raw[i].time)) {
+            seen.add(raw[i].time);
+            candles.unshift(raw[i]);
+          }
+        }
+        
+        // Store candles in marketStore
+        marketStore.setCandles(symbol, timeframe, candles);
+        
+        // Set chart data ONCE
+        if (candleSeriesRef.current && volumeSeriesRef.current) {
+          candleSeriesRef.current.setData(candles);
+          volumeSeriesRef.current.setData(candles.map(k => ({
+            time: k.time,
+            value: k.volume,
+            color: k.close >= k.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+          })));
+        }
+        
+        // Set initial price
+        const last = candles[candles.length - 1];
+        const first = candles[0];
+        setCurrentPrice(last.close);
+        setPriceChange(((last.close - first.open) / first.open) * 100);
+        if (onPriceUpdate) onPriceUpdate(last.close);
+        
+        // Subscribe to WebSocket via store
+        marketStore.subscribeWS(`${symbol}@kline_${timeframe}`);
+        marketStore.subscribeWS(`${symbol}@trade`);
+        
+        // Subscribe to store updates
+        const candleKey = marketStore.getCandleKey(symbol, timeframe);
+        unsubCandle = marketStore.subscribe(`candle:${candleKey}`, (candle) => {
+          // Check refs before updating to avoid "Object is disposed" error
+          if (candleSeriesRef.current && chartRef.current) {
+            try {
+              candleSeriesRef.current.update(candle);
+              if (volumeSeriesRef.current) {
+                volumeSeriesRef.current.update({
+                  time: candle.time,
+                  value: candle.volume,
+                  color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+                });
+              }
+            } catch (e) {
+              // Chart may have been disposed
+            }
+          }
+          setCurrentPrice(candle.close);
+          if (onPriceUpdate) onPriceUpdate(candle.close);
+        });
+        
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    // Subscribe to connection status
+    unsubConnection = marketStore.subscribe('connected', setWsConnected);
+    setWsConnected(marketStore.connected);
+    
+    init();
+    
+    return () => {
+      if (unsubCandle) unsubCandle();
+      if (unsubConnection) unsubConnection();
+      marketStore.unsubscribeWS(`${symbol}@kline_${timeframe}`);
+      marketStore.unsubscribeWS(`${symbol}@trade`);
+    };
   }, [symbol, timeframe, onPriceUpdate]);
 
-  // Draw position lines
-  useEffect(() => {
-    const s = toInternalFormat(symbol);
-    if (!seriesRef.current) return;
-    // Clear old
-    priceLinesRef.current.forEach(line => seriesRef.current.removePriceLine(line));
-    priceLinesRef.current = [];
+  const formatPrice = (p) => {
+    if (!p) return '0.00';
+    if (p >= 1000) return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return p >= 1 ? p.toFixed(2) : p.toFixed(6);
+  };
 
-    const symbolPositions = (positions || []).filter(p => toInternalFormat(p.symbol) === s);
-    symbolPositions.forEach(pos => {
-      if (pos.entry_price) {
-        const line = seriesRef.current.createPriceLine({
-          price: parseFloat(pos.entry_price),
-          color: pos.side === 'LONG' ? '#3b82f6' : '#ef4444',
-          lineWidth: 2, lineStyle: 0,
-          title: `Entry ${pos.side}`
-        });
-        priceLinesRef.current.push(line);
-      }
-      if (pos.take_profit) {
-        const line = seriesRef.current.createPriceLine({ price: parseFloat(pos.take_profit), color: '#22c55e', lineWidth: 1, lineStyle: 2, title: 'TP' });
-        priceLinesRef.current.push(line);
-      }
-      if (pos.stop_loss) {
-        const line = seriesRef.current.createPriceLine({ price: parseFloat(pos.stop_loss), color: '#ef4444', lineWidth: 1, lineStyle: 2, title: 'SL' });
-        priceLinesRef.current.push(line);
-      }
-      if (pos.liquidation_price) {
-        const line = seriesRef.current.createPriceLine({ price: parseFloat(pos.liquidation_price), color: '#f97316', lineWidth: 1, lineStyle: 1, title: 'LIQ' });
-        priceLinesRef.current.push(line);
-      }
-    });
-  }, [positions, symbol]);
+  const isPositive = priceChange >= 0;
 
   return (
-    <div className="w-full h-full bg-[#0f1220] text-white flex flex-col">
-      <div className="flex gap-1 p-2 bg-gray-900 border-b border-gray-800">
-        {['1m','5m','15m','1h','4h','1d','1w'].map(tf => (
-          <button
-            key={tf}
-            onClick={() => setTimeframe(tf)}
-            className={`px-3 py-1 text-xs rounded ${timeframe===tf ? 'bg-yellow-500 text-black font-bold' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
-          >
-            {tf.toUpperCase()}
-          </button>
-        ))}
+    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
+              {symbol.split('-')[0].substring(0, 2)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">{symbol}</span>
+                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+              </div>
+              <div className="text-[10px] text-gray-500">Perpetual</div>
+            </div>
+          </div>
+          
+          <div className="flex items-baseline gap-2">
+            <span className={`text-2xl font-bold font-mono ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              ${formatPrice(currentPrice)}
+            </span>
+            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
+              {isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+              {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {TIMEFRAMES.map(tf => (
+            <Button
+              key={tf.value}
+              variant="ghost"
+              size="sm"
+              onClick={() => setTimeframe(tf.value)}
+              className={`h-7 px-2.5 text-xs font-medium ${
+                tf.value === timeframe 
+                  ? 'bg-[#2962FF] text-white hover:bg-[#2962FF]' 
+                  : 'text-gray-400 hover:text-white hover:bg-[#2B2B43]'
+              }`}
+            >
+              {tf.label}
+            </Button>
+          ))}
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white">
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <div ref={containerRef} className="flex-1 relative">
-        <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
-        <div className="absolute top-2 right-3 text-xs font-mono">{price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}` : '--'}</div>
+
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
+          </div>
+        )}
+        {error && (
+          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
+            <p className="text-red-500 text-sm">{error}</p>
+          </div>
+        )}
+        <div ref={chartContainerRef} className="w-full h-[500px]" />
       </div>
-      {/* Hide TradingView logos/watermarks if any external widget injects them */}
-      <style>{`
-        .tradingview-widget-copyright,
-        .tv-watermark, .tv-logo, .chart-controls-bar a[href*="tradingview"],
-        [class*="tradingview-"] a[href*="tradingview"] { display: none !important; opacity:0 !important; visibility:hidden !important; }
-      `}</style>
-    </div>
+      
+      <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`} />
+          <span>{wsConnected ? 'Live' : 'Reconnecting...'}</span>
+        </div>
+        <span>NextTrade</span>
+      </div>
+    </Card>
   );
 }
 
 ProfessionalChart.propTypes = {
   symbol: PropTypes.string,
-  onPriceUpdate: PropTypes.func,
-  positions: PropTypes.array,
+  onPriceUpdate: PropTypes.func
 };
