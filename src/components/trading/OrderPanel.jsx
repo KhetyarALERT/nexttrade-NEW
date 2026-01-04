@@ -202,7 +202,7 @@ export default function OrderPanel({
 
         <div className="space-y-4">
           <Tabs value={orderType} onValueChange={setOrderType} className="w-full">
-            <TabsList className="bg-[#131722] w-full justify-start h-8 mb-2 p-0 overflow-x-auto">
+            <TabsList className="bg-[#131722] w-full justify-start h-8 mb-2 p-0 whitespace-nowrap overflow-visible flex flex-wrap gap-1">
               {['market', 'limit', 'stop', 'trailing', 'oco'].map(type => (
                 <TabsTrigger 
                   key={type}

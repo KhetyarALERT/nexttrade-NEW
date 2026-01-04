@@ -26,6 +26,8 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolFormat";
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import CurrenciesPanel from "@/components/trading/CurrenciesPanel";
+import { ArrowLeft, Home, History, Wallet, Settings } from "lucide-react";
 
 // Fallback list
 const FUTURES_SYMBOLS = [
@@ -184,12 +186,26 @@ export default function Trading({ language = "en" }) {
               </Button>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Main Content - Resizable Panels */}
-        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-          {/* Left: Chart + Positions (vertical split) */}
-          <Panel defaultSize={70} minSize={40} className="overflow-hidden">
+          {/* Nav actions */}
+          <div className="px-4 py-2 flex items-center gap-2 border-b border-[#2B2B43] bg-[#121428]">
+          <button onClick={() => window.history.back()} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><ArrowLeft className="h-4 w-4"/>Back</button>
+          <a href={createPageUrl("Home")} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Home className="h-4 w-4"/>Home</a>
+          <a href={createPageUrl("Profile") + "?tab=trades"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><History className="h-4 w-4"/>History</a>
+          <a href={createPageUrl("Profile") + "?tab=assets"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Wallet className="h-4 w-4"/>Wallet</a>
+          <a href={createPageUrl("Profile") + "?tab=notifications"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Settings className="h-4 w-4"/>Settings</a>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 flex overflow-hidden">
+          {/* Left: Currencies */}
+          <div className="w-64 min-w-64 max-w-64 bg-[#0f1220] border-r border-[#2B2B43]">
+            <CurrenciesPanel selectedSymbol={selectedSymbol} onSelect={handleSymbolSelect} />
+          </div>
+
+          {/* Center: Chart + Positions (resizable vertical) */}
+          <div className="flex-1 overflow-hidden">
             <PanelGroup direction="vertical" className="h-full overflow-hidden">
               <Panel defaultSize={65} minSize={30} className="overflow-hidden">
                 <div className="h-full bg-[#131722]">
@@ -203,17 +219,13 @@ export default function Trading({ language = "en" }) {
                 </div>
               </Panel>
             </PanelGroup>
-          </Panel>
+          </div>
 
-          <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-blue-500 cursor-col-resize" />
-
-          {/* Right: Order Panel */}
-          <Panel defaultSize={30} minSize={20} maxSize={40} className="overflow-hidden">
-            <div className="h-full bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto">
-              <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
-            </div>
-          </Panel>
-        </PanelGroup>
+          {/* Right: Fixed width Order Panel */}
+          <div className="w-80 min-w-80 max-w-80 bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto flex-shrink-0">
+            <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
+          </div>
+          </div>
       </div>
 
       <ClientExecutionEngine positions={positions} openOrders={openOrders} onTrigger={handleTradeSuccess} userId={account?.user_id} />

@@ -153,8 +153,17 @@ export default function TradingHistory({
   );
 
   function formatCloseReason(reason) {
-    const labels = { manual: '🖱️ Manual', take_profit: '🎯 TP Hit', stop_loss: '🛑 SL Hit', liquidation: '💀 Liquidated', trailing_stop: '📈 Trailing Stop', cancelled: '🚫 Cancelled' };
-    return labels[reason] || reason || '-';
+    if (!reason) return '-';
+    const map = {
+      manual: { text: 'Manual Close', cls: 'text-blue-400' },
+      take_profit: { text: 'TP Hit', cls: 'text-emerald-400' },
+      stop_loss: { text: 'SL Hit', cls: 'text-rose-400' },
+      liquidation: { text: 'Liquidated', cls: 'text-orange-400' },
+      trailing_stop: { text: 'Trailing Stop', cls: 'text-cyan-400' },
+      cancelled: { text: 'Cancelled', cls: 'text-slate-400' },
+    };
+    const cfg = map[reason] || { text: reason, cls: 'text-slate-300' };
+    return <span className={cfg.cls}>{cfg.text}</span>;
   }
   function formatDateTime(date) {
     if (!date) return '-';

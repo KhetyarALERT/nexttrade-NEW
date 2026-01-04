@@ -30,31 +30,7 @@ export default function Layout({ children }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Load Voiceflow AI Widget
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.onload = function () {
-      if (window.voiceflow && window.voiceflow.chat) {
-        window.voiceflow.chat.load({
-          verify: { projectID: '6918692fdeba3b67d318f103' },
-          url: 'https://general-runtime.voiceflow.com',
-          versionID: 'production',
-          voice: {
-            url: "https://runtime-api.voiceflow.com"
-          }
-        });
-      }
-    };
-    script.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs";
-    document.body.appendChild(script);
 
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    };
-  }, []);
 
   const isRTL = language === "ar";
   const isTradingPage = location.pathname === createPageUrl("Trading") || location.pathname === "/Trading";
