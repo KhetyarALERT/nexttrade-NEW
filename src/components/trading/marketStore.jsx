@@ -254,7 +254,7 @@ class MarketStore {
     // Send JSON ping every 18s (BingX)
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ id: 'ping', reqType: 'ping' }));
+        this.ws.send(JSON.stringify({ id: Date.now(), reqType: 'ping' }));
       }
     }, 18000);
     // Heartbeat watchdog

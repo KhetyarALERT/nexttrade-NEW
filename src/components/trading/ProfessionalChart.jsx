@@ -116,13 +116,21 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
   }, [positions, symbol]);
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-[#0f1220] text-white relative">
-      <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
-      <div className="absolute top-2 right-3 text-xs font-mono">{price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}` : '--'}</div>
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1 bg-black/30 rounded px-1 py-0.5">
+    <div className="w-full h-full bg-[#0f1220] text-white flex flex-col">
+      <div className="flex gap-1 p-2 bg-gray-900 border-b border-gray-800">
         {['1m','5m','15m','1h','4h','1d','1w'].map(tf => (
-          <button key={tf} onClick={() => setTimeframe(tf)} className={`px-2 py-0.5 text-[10px] rounded ${timeframe===tf ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}>{tf.toUpperCase()}</button>
+          <button
+            key={tf}
+            onClick={() => setTimeframe(tf)}
+            className={`px-3 py-1 text-xs rounded ${timeframe===tf ? 'bg-yellow-500 text-black font-bold' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            {tf.toUpperCase()}
+          </button>
         ))}
+      </div>
+      <div ref={containerRef} className="flex-1 relative">
+        <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
+        <div className="absolute top-2 right-3 text-xs font-mono">{price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}` : '--'}</div>
       </div>
     </div>
   );
