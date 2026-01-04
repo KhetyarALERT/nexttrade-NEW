@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { marketStore } from "@/components/trading/marketStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -6,14 +7,14 @@ import { createPageUrl } from "@/utils";
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 
 const COINS = [
-  { id: "bitcoin", binance: "btcusdt" },
-  { id: "ethereum", binance: "ethusdt" },
-  { id: "solana", binance: "solusdt" },
-  { id: "dogecoin", binance: "dogeusdt" },
-  { id: "pepe", binance: "pepeusdt" },
-  { id: "binance-coin", binance: "bnbusdt" },
-  { id: "ripple", binance: "xrpusdt" },
-  { id: "cardano", binance: "adausdt" },
+  { id: "bitcoin", binance: "btcusdt", bingx: "BTC-USDT" },
+  { id: "ethereum", binance: "ethusdt", bingx: "ETH-USDT" },
+  { id: "solana", binance: "solusdt", bingx: "SOL-USDT" },
+  { id: "dogecoin", binance: "dogeusdt", bingx: "DOGE-USDT" },
+  { id: "pepe", binance: "pepeusdt", bingx: "PEPE-USDT" },
+  { id: "binance-coin", binance: "bnbusdt", bingx: "BNB-USDT" },
+  { id: "ripple", binance: "xrpusdt", bingx: "XRP-USDT" },
+  { id: "cardano", binance: "adausdt", bingx: "ADA-USDT" },
   // add more if needed
 ];
 
@@ -70,46 +71,35 @@ export default function CryptoPriceTable({ language = "en" }) {
 
     fetchInitial();
 
-    // Binance WS for live updates
-    const streams = COINS.filter(c => c.binance).map(c => `${c.binance}@ticker`).join("/");
-    if (streams) {
-      const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
-      const connect = () => {
-        ws.current = new WebSocket(url);
-        ws.current.onopen = () => setConnected(true);
-        ws.current.onmessage = (event) => {
-          const msg = JSON.parse(event.data);
-          if (msg.stream && msg.data) {
-            const stream = msg.stream.split("@")[0].toLowerCase();
-            const d = msg.data;
-            setMarketData(prev =>
-              prev.map(coin => {
-                if (coin.binanceSymbol?.toLowerCase() === stream) {
-                  const oldPrice = coin.current_price || 1;
-                  const newPrice = parseFloat(d.c);
-                  const newCap = coin.market_cap * (newPrice / oldPrice);
-                  return {
-                    ...coin,
-                    current_price: newPrice,
-                    price_change_percentage_24h: parseFloat(d.P),
-                    total_volume: parseFloat(d.q),
-                    market_cap: newCap
-                  };
-                }
-                return coin;
-              })
-            );
-          }
-        };
-        ws.current.onclose = () => {
-          setConnected(false);
-          setTimeout(connect, 3000);
-        };
-      };
-      connect();
-    }
+    // Subscribe to shared market store (BingX) for live updates
+    setConnected(marketStore.connected);
+    const unsubConn = marketStore.subscribe('connected', setConnected);
 
-    return () => ws.current?.close();
+    // Ensure tickers are subscribed
+    COINS.filter(c => c.bingx).forEach(c => marketStore.subscribeToTicker(c.bingx));
+
+    const unsubTicker = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
+      setMarketData(prev => prev.map(coin => {
+        const match = coin.binanceSymbol?.toUpperCase().replace('USDT','-USDT') === symbol;
+        if (match) {
+          const oldPrice = coin.current_price || ticker.price || 1;
+          const newPrice = ticker.price || oldPrice;
+          const newCap = coin.market_cap ? coin.market_cap * (newPrice / oldPrice) : coin.market_cap;
+          return {
+            ...coin,
+            current_price: newPrice,
+            price_change_percentage_24h: typeof ticker.change === 'number' ? ticker.change : coin.price_change_percentage_24h,
+            market_cap: newCap
+          };
+        }
+        return coin;
+      }));
+    });
+
+    return () => {
+      if (unsubConn) unsubConn();
+      if (unsubTicker) unsubTicker();
+    };
   }, []);
 
   const formatPrice = (p) => {

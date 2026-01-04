@@ -3,7 +3,8 @@ import PropTypes from "prop-types";
 import { createChart, ColorType } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Maximize2, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Maximize2, ArrowUp, ArrowDown, X } from "lucide-react";
+import CryptoIcon from "@/components/ui/CryptoIcon";
 import { base44 } from "@/api/base44Client";
 import { marketStore } from "./marketStore";
 
@@ -30,6 +31,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const [wsConnected, setWsConnected] = useState(marketStore.connected);
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Initialize chart ONCE
   useEffect(() => {
@@ -206,16 +208,14 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const isPositive = priceChange >= 0;
 
   return (
-    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
+    <Card className={`border-0 shadow-none bg-[#131722] overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
-              {symbol.split('-')[0].substring(0, 2)}
-            </div>
+            <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-sm">{symbol}</span>
+                <span className="text-white font-bold text-sm">{symbol.replace('-', '/')}</span>
                 <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               </div>
               <div className="text-[10px] text-gray-500">Perpetual</div>
@@ -249,13 +249,13 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
               {tf.label}
             </Button>
           ))}
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white">
-            <Maximize2 className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-white" onClick={() => setIsFullscreen(v => !v)}>
+            {isFullscreen ? <X className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative" style={{ height: isFullscreen ? 'calc(100vh - 100px)' : undefined }}>
         {loading && (
           <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
             <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
@@ -266,7 +266,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
             <p className="text-red-500 text-sm">{error}</p>
           </div>
         )}
-        <div ref={chartContainerRef} className="w-full h-[500px]" />
+        <div ref={chartContainerRef} className="w-full h-full" />
       </div>
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">

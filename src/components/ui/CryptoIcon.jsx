@@ -24,8 +24,8 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
   
   if (imgError) {
     return (
-      <div 
-        className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold ${className}`}
+      <div
+        className={`${sizeClasses[size]} rounded-full bg-slate-800 text-white font-bold flex items-center justify-center ring-1 ring-white/10 ${className}`}
         style={{ fontSize: fontSizes[size] }}
       >
         {symbol?.charAt(0) || "?"}
@@ -33,9 +33,10 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
     );
   }
 
+  const src = `https://cryptoicons.org/api/icon/${symbol?.toLowerCase()}/200`;
   return (
-    <img 
-      src={`https://www.cryptocompare.com/media/37746251/${symbol?.toLowerCase()}.png`}
+    <img
+      src={src}
       alt={symbol}
       className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
       onError={() => setImgError(true)}
