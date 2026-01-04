@@ -41,15 +41,19 @@ export default function TradingHistory({
     { key: 'opened_at', label: 'Opened', format: (v) => formatDateTime(v) },
     { key: 'closed_at', label: 'Closed', format: (v) => v ? formatDateTime(v) : '-' },
     { key: 'symbol', label: 'Symbol', format: (v) => toDisplayFormat(v) },
-    { key: 'side', label: 'Side' },
-    { key: 'leverage', label: 'Lev', format: (v) => `${v}x` },
+    { key: 'side', label: 'Side', format: (v) => <span className={v === 'LONG' ? 'text-emerald-500' : 'text-red-500'}>{v}</span> },
+    { key: 'leverage', label: 'Lev', format: (v) => <span className="text-purple-400">{v}x</span> },
     { key: 'order_type', label: 'Type' },
     { key: 'quantity', label: 'Size' },
     { key: 'avg_entry_price', label: 'Entry', format: formatPrice },
     { key: 'avg_exit_price', label: 'Exit', format: formatPrice },
     { key: 'realized_pnl', label: 'P&L', format: formatPnL },
-    { key: 'realized_pnl_percent', label: 'ROE%', format: (v) => v === undefined ? '-' : `${Number(v).toFixed(2)}%` },
-    { key: 'fee_total', label: 'Fee', format: (v) => v === undefined ? '-' : `-$${Number(v).toFixed(4)}` },
+    { key: 'realized_pnl_percent', label: 'ROE%', format: (v) => {
+      if (v === undefined || v === null) return '-';
+      const n = Number(v);
+      return <span className={n >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{n.toFixed(2)}%</span>;
+    } },
+    { key: 'fee_total', label: 'Fee', format: (v) => v === undefined || v === null ? '-' : <span className="text-yellow-500">-${Number(v).toFixed(4)}</span> },
     { key: 'close_reason', label: 'Close Reason', format: formatCloseReason },
     { key: 'status', label: 'Status' },
   ];
