@@ -21,6 +21,11 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
   };
 
   const symbol = currency?.toUpperCase();
+  const [srcIndex, setSrcIndex] = useState(0);
+  const sources = [
+    `https://cryptoicons.org/api/icon/${symbol?.toLowerCase()}/200`,
+    `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${symbol?.toLowerCase()}.png`
+  ];
   
   if (imgError) {
     return (
@@ -33,13 +38,14 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
     );
   }
 
-  const src = `https://cryptoicons.org/api/icon/${symbol?.toLowerCase()}/200`;
   return (
     <img
-      src={src}
+      src={sources[srcIndex]}
       alt={symbol}
       className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
-      onError={() => setImgError(true)}
+      onError={() => {
+        if (srcIndex < sources.length - 1) setSrcIndex(srcIndex + 1); else setImgError(true);
+      }}
     />
   );
 }

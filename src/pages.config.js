@@ -3,8 +3,8 @@ import Contact from './pages/Contact';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
-import Trading from './pages/Trading';
 import index from './pages/index';
+import Trading from './pages/Trading';
 import __Layout from './Layout.jsx';
 
 
@@ -14,8 +14,8 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Home": Home,
     "Profile": Profile,
-    "Trading": Trading,
     "index": index,
+    "Trading": Trading,
 }
 
 export const pagesConfig = {

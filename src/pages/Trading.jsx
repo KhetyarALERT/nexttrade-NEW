@@ -166,7 +166,7 @@ export default function Trading({ language = "en" }) {
 
   return (
     <div className="min-h-screen bg-[#0d0d1a]">
-      <div className="flex flex-col h-[calc(100vh-80px)]">
+      <div className="flex flex-col min-h-[calc(100vh-80px)]">
         {/* Top Bar with Symbol Selector */}
         <div className="bg-[#1a1a2e] border-b border-slate-700/50 px-4 py-2">
           <div className="flex items-center justify-between">
@@ -271,10 +271,10 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Main Content - Fixed height calculation */}
-        <div className="flex overflow-hidden" style={{ height: 'calc(100% - 56px - 280px)' }}>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Chart Section */}
-          <div className="flex-1 min-w-0 bg-[#131722]">
+          <div className="flex-1 min-w-0 bg-[#131722] h-[45vh] md:h-auto order-1 md:order-none">
             <ProfessionalChart
               symbol={selectedSymbol}
               onPriceUpdate={handlePriceUpdate}
@@ -282,7 +282,7 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Order Panel */}
-          <div className="w-72 flex-shrink-0 bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto">
+          <div className="w-full md:w-80 lg:w-96 xl:w-[420px] flex-shrink-0 bg-[#1E222D] border-t md:border-t-0 md:border-l border-[#2B2B43] overflow-y-auto">
             <OrderPanel
               symbol={selectedSymbol}
               currentPrice={currentPrice}
@@ -293,14 +293,16 @@ export default function Trading({ language = "en" }) {
             />
           </div>
         </div>
-        
+
         {/* Bottom Panel - Trading History */}
-        <TradingHistory 
-          tradingAccountId={account?.id}
-          onRefresh={handleTradeSuccess}
-          onPositionsUpdate={setPositions}
-          onOpenOrdersUpdate={setOpenOrders}
-        />
+        <div className="flex-none min-h-[220px] max-h-[40vh]">
+          <TradingHistory 
+            tradingAccountId={account?.id}
+            onRefresh={handleTradeSuccess}
+            onPositionsUpdate={setPositions}
+            onOpenOrdersUpdate={setOpenOrders}
+          />
+        </div>
       </div>
       
       {/* Client-Side Execution Engine */}
