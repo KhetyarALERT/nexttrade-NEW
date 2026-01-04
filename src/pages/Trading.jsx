@@ -89,6 +89,14 @@ export default function Trading({ language = "en" }) {
 
   const handlePriceUpdate = useCallback((price) => setCurrentPrice(price), []);
 
+  // Keep selected symbol price in sync from store as a fallback
+  useEffect(() => {
+    const unsub = marketStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
+      if (t?.price) setCurrentPrice(t.price);
+    });
+    return () => unsub();
+  }, [selectedSymbol]);
+
   const handleTradeSuccess = useCallback(() => { loadAccount(); setRefreshSignal(v => v + 1); }, [loadAccount]);
 
   useEffect(() => {
@@ -110,8 +118,14 @@ export default function Trading({ language = "en" }) {
     fetchContracts();
   }, []);
 
-  // Subscribe tickers for dropdown list
+  // Seed dropdown prices from current store and subscribe tickers for dropdown list
   useEffect(() => {
+    // seed existing
+    const existing = marketStore.getAllTickers?.() || {};
+    if (existing && Object.keys(existing).length) {
+      setMarketData(prev => ({ ...prev, ...existing }));
+    }
+    // subscribe
     availableSymbols.slice(0, 120).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
   }, [availableSymbols]);
 
@@ -145,7 +159,7 @@ export default function Trading({ language = "en" }) {
                   </div>
                   <div>
                     {filteredSymbols.map(({ symbol, name }) => {
-                      const data = marketData[symbol] || { price: 0, change: 0 };
+                      const data = marketData[symbol] || marketStore.getAllTickers?.()[symbol] || { price: 0, change: 0 };
                       const isSelected = symbol === selectedSymbol;
                       return (
                         <DropdownMenuItem key={symbol} onClick={() => handleSymbolSelect(symbol)} className={`flex items-center justify-between p-3 cursor-pointer ${isSelected ? 'bg-blue-600/20' : 'hover:bg-slate-700/50'}`}>

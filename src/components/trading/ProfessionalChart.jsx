@@ -132,6 +132,12 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
         <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
         <div className="absolute top-2 right-3 text-xs font-mono">{price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}` : '--'}</div>
       </div>
+      {/* Hide TradingView logos/watermarks if any external widget injects them */}
+      <style>{`
+        .tradingview-widget-copyright,
+        .tv-watermark, .tv-logo, .chart-controls-bar a[href*="tradingview"],
+        [class*="tradingview-"] a[href*="tradingview"] { display: none !important; opacity:0 !important; visibility:hidden !important; }
+      `}</style>
     </div>
   );
 }

@@ -10,7 +10,7 @@ const WS_FUTURES_URL = 'wss://open-api-swap.bingx.com/swap-market';
 
 class MarketStore {
   constructor() {
-    this.prices = {};           // { symbol: price }
+    this.prices = {};           // { symbol: price }  // map of last prices used across UI
     this.tickers = {};          // { symbol: { price, change, high, low, volume } }
     this.candles = {};          // { symbol_interval: candle[] }
     this.subscribers = {};      // { event: callback[] }

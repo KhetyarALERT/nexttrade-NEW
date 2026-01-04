@@ -44,9 +44,9 @@ export default function TradingHistory({
     { key: 'side', label: 'Side', format: (v) => <span className={v === 'LONG' ? 'text-emerald-500' : 'text-red-500'}>{v}</span> },
     { key: 'leverage', label: 'Lev', format: (v) => <span className="text-purple-400">{v}x</span> },
     { key: 'order_type', label: 'Type' },
-    { key: 'quantity', label: 'Size' },
-    { key: 'avg_entry_price', label: 'Entry', format: formatPrice },
-    { key: 'avg_exit_price', label: 'Exit', format: formatPrice },
+    { key: 'quantity', label: 'Size', format: (v) => formatSize(v) },
+    { key: 'entry_price', label: 'Entry', render: (row) => formatPrice(row.avg_entry_price ?? row.entry_price) },
+    { key: 'exit_price', label: 'Exit', render: (row) => row.status === 'CLOSED' ? formatPrice(row.avg_exit_price ?? row.exit_price) : '-' },
     { key: 'realized_pnl', label: 'P&L', format: formatPnL },
     { key: 'realized_pnl_percent', label: 'ROE%', format: (v) => {
       if (v === undefined || v === null) return '-';
@@ -144,7 +144,7 @@ export default function TradingHistory({
                 <tr key={trade.id} className="border-b border-slate-800 hover:bg-slate-800/40">
                   {columns.map(col => (
                     <td key={col.key} className="px-2 py-2 whitespace-nowrap">
-                      {col.format ? col.format(trade[col.key]) : (trade[col.key] ?? '-')}
+                      {col.render ? col.render(trade) : col.format ? col.format(trade[col.key]) : (trade[col.key] ?? '-')}
                     </td>
                   ))}
                 </tr>
@@ -175,7 +175,8 @@ export default function TradingHistory({
   }
   function formatPrice(v) { if (v === undefined || v === null) return '-'; return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 6 })}`; }
   function formatPnL(v) { if (v === undefined || v === null) return '-'; const n = Number(v); const cls = n >= 0 ? 'text-emerald-400' : 'text-rose-400'; return <span className={cls}>{n >= 0 ? '+' : ''}{n.toFixed(2)}</span>; }
-}
+  function formatSize(v) { if (v === undefined || v === null) return '-'; const n = Number(v); return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }); }
+  }
 
 TradingHistory.propTypes = {
   tradingAccountId: PropTypes.string,

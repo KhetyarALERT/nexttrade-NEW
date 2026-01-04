@@ -207,6 +207,12 @@ export default function Profile({ language = "en" }) {
     base44.auth.logout();
   }, []);
 
+  const formatSize = useCallback((v) => {
+    if (v === undefined || v === null) return '-';
+    const n = Number(v);
+    return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4 sm:p-8">
@@ -556,7 +562,7 @@ export default function Profile({ language = "en" }) {
                               {trade.side}
                             </Badge>
                           </TableCell>
-                          <TableCell>{trade.quantity}</TableCell>
+                          <TableCell>{formatSize(trade.quantity)}</TableCell>
                           <TableCell className={trade.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                             {trade.pnl >= 0 ? '+' : ''}{trade.pnl?.toFixed(2)}
                           </TableCell>
