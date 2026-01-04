@@ -112,7 +112,7 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
       <div className="absolute top-2 right-3 text-xs font-mono">{price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}` : '--'}</div>
       <div className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1 bg-black/30 rounded px-1 py-0.5">
-        {['1m','5m','15m','1h','4h','1d'].map(tf => (
+        {['1m','5m','15m','1h','4h','1d','1w'].map(tf => (
           <button key={tf} onClick={() => setTimeframe(tf)} className={`px-2 py-0.5 text-[10px] rounded ${timeframe===tf ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white'}`}>{tf.toUpperCase()}</button>
         ))}
       </div>

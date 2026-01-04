@@ -27,21 +27,11 @@ import { createPageUrl } from "@/utils";
 import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolFormat";
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import CurrenciesPanel from "@/components/trading/CurrenciesPanel";
-import { ArrowLeft, Home, History, Wallet, Settings } from "lucide-react";
+import CURRENCY_LIST from "@/components/trading/CurrencyList";
+import { ArrowLeft } from "lucide-react";
 
-// Fallback list
-const FUTURES_SYMBOLS = [
-  { symbol: "BTC-USDT", name: "Bitcoin" },
-  { symbol: "ETH-USDT", name: "Ethereum" },
-  { symbol: "SOL-USDT", name: "Solana" },
-  { symbol: "BNB-USDT", name: "BNB" },
-  { symbol: "XRP-USDT", name: "XRP" },
-  { symbol: "DOGE-USDT", name: "Dogecoin" },
-  { symbol: "ADA-USDT", name: "Cardano" },
-  { symbol: "AVAX-USDT", name: "Avalanche" },
-  { symbol: "LINK-USDT", name: "Chainlink" },
-  { symbol: "DOT-USDT", name: "Polkadot" }
-];
+// Central list used as fallback
+  const FUTURES_SYMBOLS = CURRENCY_LIST.map(s => ({ symbol: s, name: s.replace('-USDT','') }));
 
 export default function Trading({ language = "en" }) {
   const [selectedSymbol, setSelectedSymbol] = useState(() => localStorage.getItem('trading_symbol') || "BTC-USDT");
@@ -56,6 +46,7 @@ export default function Trading({ language = "en" }) {
   const [openOrders, setOpenOrders] = useState([]);
   const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
   const [refreshSignal, setRefreshSignal] = useState(0);
+  const [currenciesCollapsed, setCurrenciesCollapsed] = useState(false);
 
   useEffect(() => { localStorage.setItem('trading_symbol', selectedSymbol); }, [selectedSymbol]);
 
@@ -189,19 +180,15 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Nav actions */}
-          <div className="px-4 py-2 flex items-center gap-2 border-b border-[#2B2B43] bg-[#121428]">
-          <button onClick={() => window.history.back()} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><ArrowLeft className="h-4 w-4"/>Back</button>
-          <a href={createPageUrl("Home")} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Home className="h-4 w-4"/>Home</a>
-          <a href={createPageUrl("Profile") + "?tab=trades"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><History className="h-4 w-4"/>History</a>
-          <a href={createPageUrl("Profile") + "?tab=assets"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Wallet className="h-4 w-4"/>Wallet</a>
-          <a href={createPageUrl("Profile") + "?tab=notifications"} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><Settings className="h-4 w-4"/>Settings</a>
+          <div className="px-3 py-2 flex items-center gap-2 border-b border-[#2B2B43] bg-[#121428]">
+            <button onClick={() => window.history.back()} className="text-slate-300 hover:text-white text-xs flex items-center gap-1"><ArrowLeft className="h-4 w-4"/>Back</button>
           </div>
 
           {/* Main Content */}
           <div className="flex-1 flex overflow-hidden">
-          {/* Left: Currencies */}
-          <div className="w-64 min-w-64 max-w-64 bg-[#0f1220] border-r border-[#2B2B43]">
-            <CurrenciesPanel selectedSymbol={selectedSymbol} onSelect={handleSymbolSelect} />
+          {/* Left: Currencies (collapsible) */}
+          <div className={`${true ? '' : ''} bg-[#0f1220] border-r border-[#2B2B43]`} style={{width: currenciesCollapsed ? 56 : 256, minWidth: currenciesCollapsed ? 56 : 256, maxWidth: currenciesCollapsed ? 56 : 256}}>
+            <CurrenciesPanel selectedSymbol={selectedSymbol} onSelect={handleSymbolSelect} collapsed={currenciesCollapsed} onToggle={() => setCurrenciesCollapsed(v => !v)} />
           </div>
 
           {/* Center: Chart + Positions (resizable vertical) */}

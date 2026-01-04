@@ -245,15 +245,13 @@ class MarketStore {
 
   // Ping to keep connection alive
   startPing() {
-    // Send Ping every 20s
+    // Send JSON ping every 18s (BingX)
     this.pingInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send('Ping');
+        this.ws.send(JSON.stringify({ id: 'ping', reqType: 'ping' }));
       }
-    }, 20000);
-    
-    // Heartbeat check every 30s
-    // If no message received in 30s, reconnect
+    }, 18000);
+    // Heartbeat watchdog
     this.resetHeartbeat();
   }
 
@@ -308,6 +306,7 @@ class MarketStore {
   // Disconnect
   disconnect() {
     this.stopPing();
+    if (this.pingInterval) { clearInterval(this.pingInterval); this.pingInterval = null; }
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
