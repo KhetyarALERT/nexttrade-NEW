@@ -243,7 +243,7 @@ export default function Layout({ children }) {
           </div>
         }
       </nav>
-      )
+      )}
 
       {/* Main Content */}
       <main className={isTradingPage ? "" : "pt-20"}>
@@ -322,7 +322,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       </footer>
-      )
+      )}
       
       <NotificationSettings 
         open={notificationSettingsOpen} 
