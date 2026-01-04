@@ -53,6 +53,8 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
     const key = `${s}_${timeframe}`;
     const unsubCandle = marketStore.subscribe(`candle:${key}`, (candle) => {
       if (seriesRef.current) seriesRef.current.update(candle);
+      const p = candle?.close;
+      if (p) { setPrice(p); if (onPriceUpdate) onPriceUpdate(p); }
     });
     const unsubTicker = marketStore.subscribe(`ticker:${s}`, (ticker) => {
       const p = ticker?.price || 0;

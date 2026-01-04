@@ -26,7 +26,7 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolFormat";
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import CurrenciesPanel from "@/components/trading/CurrenciesPanel";
+
 import CURRENCY_LIST from "@/components/trading/CurrencyList";
 import { ArrowLeft } from "lucide-react";
 
@@ -46,7 +46,7 @@ export default function Trading({ language = "en" }) {
   const [openOrders, setOpenOrders] = useState([]);
   const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
   const [refreshSignal, setRefreshSignal] = useState(0);
-  const [currenciesCollapsed, setCurrenciesCollapsed] = useState(false);
+
 
   useEffect(() => { localStorage.setItem('trading_symbol', selectedSymbol); }, [selectedSymbol]);
 
@@ -95,15 +95,25 @@ export default function Trading({ language = "en" }) {
     const fetchContracts = async () => {
       try {
         const res = await base44.functions.invoke('bingxMarketData', { action: 'getContracts' });
-        const list = res.data?.data || [];
-        if (list.length) {
-          const symbols = list.filter(c => c.symbol?.endsWith('-USDT')).slice(0, 80).map(c => ({ symbol: c.symbol, name: c.symbol.replace('-USDT', '') }));
-          setAvailableSymbols(symbols);
-        }
+         const list = res.data?.data || [];
+         if (list.length) {
+           const seen = new Set();
+           const symbols = list
+             .filter(c => c.symbol?.endsWith('-USDT'))
+             .map(c => ({ symbol: String(c.symbol).toUpperCase(), name: c.symbol.replace('-USDT', '') }))
+             .filter(({ symbol }) => (seen.has(symbol) ? false : (seen.add(symbol), true)))
+             .slice(0, 120);
+           setAvailableSymbols(symbols);
+         }
       } catch (_) { /* keep fallback */ }
     };
     fetchContracts();
   }, []);
+
+  // Subscribe tickers for dropdown list
+  useEffect(() => {
+    availableSymbols.slice(0, 120).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
+  }, [availableSymbols]);
 
   const filteredSymbols = availableSymbols.filter(s => s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()));
   const balance = account?.is_demo ? (account?.demo_balance || 0) : (account?.balance || 0);
@@ -117,11 +127,45 @@ export default function Trading({ language = "en" }) {
         <div className="bg-[#1a1a2e] border-b border-slate-700/50 px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
-                <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
-                <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-2">
+                    <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
+                    <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
+                    <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80 bg-[#1a1a2e] border-slate-700 p-0 max-h-96 overflow-y-auto">
+                  <div className="p-2 sticky top-0 bg-[#1a1a2e] border-b border-slate-700 z-10">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input placeholder="Search symbols..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 h-8 bg-slate-800 border-slate-600 text-white text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    {filteredSymbols.map(({ symbol, name }) => {
+                      const data = marketData[symbol] || { price: 0, change: 0 };
+                      const isSelected = symbol === selectedSymbol;
+                      return (
+                        <DropdownMenuItem key={symbol} onClick={() => handleSymbolSelect(symbol)} className={`flex items-center justify-between p-3 cursor-pointer ${isSelected ? 'bg-blue-600/20' : 'hover:bg-slate-700/50'}`}>
+                          <div className="flex items-center gap-2">
+                            <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
+                            <div>
+                              <p className="text-white text-sm font-medium">{toDisplayFormat(symbol)}</p>
+                              <p className="text-slate-400 text-xs">{name}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white text-sm font-mono">${data.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: data.price < 1 ? 6 : 2 })}</p>
+                            <p className={`text-xs ${data.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{data.change >= 0 ? '+' : ''}{data.change?.toFixed(2)}%</p>
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <div className="flex items-center gap-3">
                 <span className="text-white text-xl font-bold font-mono">${currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: currentPrice < 1 ? 6 : 2 })}</span>
@@ -152,32 +196,27 @@ export default function Trading({ language = "en" }) {
 
           {/* Main Content */}
           <div className="flex-1 flex overflow-hidden">
-          {/* Left: Currencies (collapsible) */}
-          <div className={`${true ? '' : ''} bg-[#0f1220] border-r border-[#2B2B43]`} style={{width: currenciesCollapsed ? 56 : 256, minWidth: currenciesCollapsed ? 56 : 256, maxWidth: currenciesCollapsed ? 56 : 256}}>
-            <CurrenciesPanel selectedSymbol={selectedSymbol} onSelect={handleSymbolSelect} collapsed={currenciesCollapsed} onToggle={() => setCurrenciesCollapsed(v => !v)} />
-          </div>
+            {/* Center: Chart + Positions (resizable vertical) */}
+            <div className="flex-1 overflow-hidden">
+              <PanelGroup direction="vertical" className="h-full overflow-hidden">
+                <Panel defaultSize={65} minSize={30} className="overflow-hidden">
+                  <div className="h-full bg-[#131722]">
+                    <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
+                  </div>
+                </Panel>
+                <PanelResizeHandle className="h-1 bg-slate-700 hover:bg-blue-500 cursor-row-resize" />
+                <Panel defaultSize={35} minSize={20} className="overflow-hidden">
+                  <div className="h-full bg-[#131722] border-t border-[#2B2B43]">
+                    <TradingHistory tradingAccountId={account?.id} onRefresh={handleTradeSuccess} onPositionsUpdate={setPositions} onOpenOrdersUpdate={setOpenOrders} refreshSignal={refreshSignal} />
+                  </div>
+                </Panel>
+              </PanelGroup>
+            </div>
 
-          {/* Center: Chart + Positions (resizable vertical) */}
-          <div className="flex-1 overflow-hidden">
-            <PanelGroup direction="vertical" className="h-full overflow-hidden">
-              <Panel defaultSize={65} minSize={30} className="overflow-hidden">
-                <div className="h-full bg-[#131722]">
-                  <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
-                </div>
-              </Panel>
-              <PanelResizeHandle className="h-1 bg-slate-700 hover:bg-blue-500 cursor-row-resize" />
-              <Panel defaultSize={35} minSize={20} className="overflow-hidden">
-                <div className="h-full bg-[#131722] border-t border-[#2B2B43]">
-                  <TradingHistory tradingAccountId={account?.id} onRefresh={handleTradeSuccess} onPositionsUpdate={setPositions} onOpenOrdersUpdate={setOpenOrders} refreshSignal={refreshSignal} />
-                </div>
-              </Panel>
-            </PanelGroup>
-          </div>
-
-          {/* Right: Fixed width Order Panel */}
-          <div className="w-80 min-w-80 max-w-80 bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto flex-shrink-0">
-            <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
-          </div>
+            {/* Right: Fixed width Order Panel */}
+            <div className="w-80 min-w-80 max-w-80 bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto flex-shrink-0">
+              <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
+            </div>
           </div>
       </div>
 
