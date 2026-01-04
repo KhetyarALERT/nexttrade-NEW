@@ -11,7 +11,7 @@ import TPSLDialog from "@/components/trading/TPSLDialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
-export default function TradingHistory({ tradingAccountId, onRefresh, onPositionsUpdate, onOpenOrdersUpdate }) {
+export default function TradingHistory({ tradingAccountId, onRefresh, onPositionsUpdate, onOpenOrdersUpdate, refreshSignal = 0 }) {
   const [activeTab, setActiveTab] = useState("positions");
   const [positions, setPositions] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
@@ -55,8 +55,8 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
   }, [tradingAccountId, onPositionsUpdate, onOpenOrdersUpdate]);
 
   useEffect(() => {
-    fetchData(); // initial load only
-  }, [fetchData]);
+    fetchData(); // initial load and on refreshSignal changes
+  }, [fetchData, refreshSignal]);
 
   // Real-time price subscription via WebSocket only
   useEffect(() => {
@@ -377,5 +377,6 @@ TradingHistory.propTypes = {
   tradingAccountId: PropTypes.string,
   onRefresh: PropTypes.func,
   onPositionsUpdate: PropTypes.func,
-  onOpenOrdersUpdate: PropTypes.func
+  onOpenOrdersUpdate: PropTypes.func,
+  refreshSignal: PropTypes.number
 };

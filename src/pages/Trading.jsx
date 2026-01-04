@@ -138,8 +138,11 @@ export default function Trading({ language = "en" }) {
     setCurrentPrice(price);
   }, []);
 
+  const [refreshSignal, setRefreshSignal] = useState(0);
+
   const handleTradeSuccess = useCallback(() => {
     loadAccount();
+    setRefreshSignal((v) => v + 1);
   }, [loadAccount]);
 
   const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
@@ -290,18 +293,14 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Chart Section */}
-          <div className="flex-1 min-w-0 bg-[#131722] h-[50vh] md:h-[60vh] lg:h-[65vh] order-1 md:order-none">
-            <ProfessionalChart
-              symbol={selectedSymbol}
-              onPriceUpdate={handlePriceUpdate}
-            />
+        {/* Main Content - Responsive Grid */}
+        <div className="flex-1 grid grid-rows-[1fr_auto] lg:grid-rows-1 lg:grid-cols-[1fr_400px] overflow-hidden">
+          {/* Left: Chart */}
+          <div className="min-h-[300px] lg:min-h-0 lg:h-full bg-[#131722] overflow-hidden">
+            <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} />
           </div>
-
-          {/* Order Panel */}
-          <div className="w-full md:w-80 lg:w-96 xl:w-[420px] flex-shrink-0 bg-[#1E222D] border-t md:border-t-0 md:border-l border-[#2B2B43] overflow-y-auto">
+          {/* Right: Order Panel */}
+          <div className="h-[350px] lg:h-full bg-[#1E222D] border-t lg:border-t-0 lg:border-l border-[#2B2B43] overflow-y-auto">
             <OrderPanel
               symbol={selectedSymbol}
               currentPrice={currentPrice}
@@ -313,13 +312,14 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Bottom Panel - Trading History */}
-        <div className="flex-none min-h-[220px] max-h-[40vh]">
+        {/* Bottom: Positions/Orders */}
+        <div className="flex-none h-[250px] bg-[#131722] border-t border-[#2B2B43] overflow-hidden">
           <TradingHistory 
             tradingAccountId={account?.id}
             onRefresh={handleTradeSuccess}
             onPositionsUpdate={setPositions}
             onOpenOrdersUpdate={setOpenOrders}
+            refreshSignal={refreshSignal}
           />
         </div>
       </div>
