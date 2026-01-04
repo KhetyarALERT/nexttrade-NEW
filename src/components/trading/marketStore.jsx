@@ -132,17 +132,19 @@ class MarketStore {
     this.ws.onmessage = async (event) => {
       try {
         let text = event.data;
-        
         // Handle Blob data
         if (event.data instanceof Blob) {
           text = await event.data.text();
         }
-        
-        // Ignore pong responses
+        // Try to parse JSON message if possible
+        let msg = null;
+        try { msg = JSON.parse(text); } catch (_) {}
+        // Ignore ping/pong responses from BingX
+        if (msg && (msg.dataType === 'pong' || msg.ping || msg.reqType === 'pong')) return;
         if (text === 'Pong' || text === 'pong') return;
-        
-        const msg = JSON.parse(text);
-        this.handleMessage(msg);
+        if (msg) {
+          this.handleMessage(msg);
+        }
       } catch (e) {
         // Silently ignore parse errors
       }
@@ -201,13 +203,16 @@ class MarketStore {
       const last = this.lastTickerEmit[symbol] || 0;
       const ticker = {
         price: parseFloat(msg.data.c),
-        change: parseFloat(msg.data.p),
+        change: parseFloat(msg.data.p || 0),
         high: parseFloat(msg.data.h),
         low: parseFloat(msg.data.l),
         volume: parseFloat(msg.data.v)
       };
-      // Always update store
+      // Always update store and price cache
       this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
+      if (!Number.isNaN(ticker.price) && ticker.price > 0) {
+        this.updatePrice(symbol, ticker.price);
+      }
       // Throttle UI emits to max once per 250ms per symbol
       if (now - last >= 250) {
         this.lastTickerEmit[symbol] = now;
