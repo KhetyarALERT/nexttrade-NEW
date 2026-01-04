@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Wallet, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { Wallet, Loader2, RefreshCw, AlertCircle, Info, ChevronRight } from "lucide-react";
 
 export default function OrderPanel({ 
   symbol = "BTC-USDT", 
@@ -171,287 +171,164 @@ export default function OrderPanel({
   }
 
   const marginRequired = usdtAmount / leverage[0];
-  const maxUSDT = balance * leverage[0];
-  const maxCrypto = effectivePrice > 0 ? maxUSDT / effectivePrice : 0;
 
   return (
-    <Card className="bg-[#1E222D] border-0 rounded-none h-full overflow-y-auto">
-      <CardHeader className="border-b border-[#2B2B43] pb-3 px-4">
-        <CardTitle className="text-sm font-bold text-white flex items-center justify-between">
-          Place Order
-          <span className="text-xs font-normal text-gray-400">{symbol}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
-        <Tabs value={orderSide} onValueChange={setOrderSide} className="mb-4">
-          <TabsList className="grid w-full grid-cols-2 bg-[#131722] p-1 h-10">
+    <div className="flex flex-col h-full bg-[#1a1a2e] text-slate-300">
+      <div className="p-4 border-b border-slate-800/50">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">Place Order</h2>
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-slate-800/50 px-2 py-1 rounded-full">
+            <Wallet className="h-3 w-3" />
+            <span>${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+          </div>
+        </div>
+
+        <Tabs value={orderSide} onValueChange={setOrderSide} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-900/50 p-1 h-11 rounded-xl">
             <TabsTrigger 
               value="buy" 
-              className="data-[state=active]:bg-[#26A69A] data-[state=active]:text-white text-gray-400 text-sm font-medium"
+              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-slate-400 text-xs font-bold rounded-lg transition-all"
             >
-              Buy / Long
+              BUY / LONG
             </TabsTrigger>
             <TabsTrigger 
               value="sell" 
-              className="data-[state=active]:bg-[#EF5350] data-[state=active]:text-white text-gray-400 text-sm font-medium"
+              className="data-[state=active]:bg-rose-500 data-[state=active]:text-white text-slate-400 text-xs font-bold rounded-lg transition-all"
             >
-              Sell / Short
+              SELL / SHORT
             </TabsTrigger>
           </TabsList>
         </Tabs>
+      </div>
 
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
         <div className="space-y-4">
-          <Tabs value={orderType} onValueChange={setOrderType} className="w-full">
-            <TabsList className="bg-[#131722] w-full justify-start h-8 mb-2 p-0 whitespace-nowrap overflow-visible flex flex-wrap gap-1">
-              {['market', 'limit', 'stop', 'trailing', 'oco'].map(type => (
-                <TabsTrigger 
-                  key={type}
-                  value={type} 
-                  className="text-xs px-3 data-[state=active]:text-[#2962FF] data-[state=active]:bg-transparent data-[state=active]:underline underline-offset-4"
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Order Type</Label>
+            <Select value={orderType} onValueChange={setOrderType}>
+              <SelectTrigger className="w-[120px] h-8 bg-slate-800/50 border-slate-700 text-xs rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1a1a2e] border-slate-700 text-slate-300">
+                <SelectItem value="market">Market</SelectItem>
+                <SelectItem value="limit">Limit</SelectItem>
+                <SelectItem value="stop">Stop</SelectItem>
+                <SelectItem value="trailing">Trailing</SelectItem>
+                <SelectItem value="oco">OCO</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {orderType !== 'market' && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                  {orderType === 'limit' ? 'Limit Price' : 'Trigger Price'}
+                </Label>
+                <span className="text-[10px] text-blue-400 cursor-pointer hover:underline" onClick={() => setPrice(currentPrice.toString())}>Last: {currentPrice.toFixed(2)}</span>
+              </div>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={orderType === 'limit' ? price : stopPrice}
+                  onChange={(e) => orderType === 'limit' ? setPrice(e.target.value) : setStopPrice(e.target.value)}
+                  className="h-10 bg-slate-900/50 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500/50 pr-12"
+                  placeholder="0.00"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600">USDT</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Amount</Label>
+              <div className="flex bg-slate-800/50 rounded-lg p-0.5">
+                <button 
+                  onClick={() => setAmountType('usdt')}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'usdt' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
                 >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+                  USDT
+                </button>
+                <button 
+                  onClick={() => setAmountType('crypto')}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'crypto' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
+                >
+                  {baseAsset}
+                </button>
+              </div>
+            </div>
+            <div className="relative">
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="h-10 bg-slate-900/50 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500/50 pr-12"
+                placeholder="0.00"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600 uppercase">{amountType === 'usdt' ? 'USDT' : baseAsset}</span>
+            </div>
+          </div>
 
-            <TabsContent value="market" className="mt-0 space-y-4">
-              <div className="bg-[#131722] p-2 rounded text-xs text-gray-400 text-center border border-[#2B2B43]">
-                Order will be executed at best available price
-              </div>
-            </TabsContent>
-
-            <TabsContent value="limit" className="mt-0 space-y-4">
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
-                <Input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder={currentPrice.toFixed(2)}
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="stop" className="mt-0 space-y-4">
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Trigger Price</Label>
-                <Input
-                  type="number"
-                  value={stopPrice}
-                  onChange={(e) => setStopPrice(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder={currentPrice.toFixed(2)}
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Limit Price (Optional)</Label>
-                <Input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder="Market"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="trailing" className="mt-0 space-y-4">
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Callback Rate (%)</Label>
-                <Input
-                  type="number"
-                  value={trailingPercent}
-                  onChange={(e) => setTrailingPercent(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder="1.0"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-400 uppercase">Activation Price (Optional)</Label>
-                <Input
-                  type="number"
-                  value={trailingActivation}
-                  onChange={(e) => setTrailingActivation(e.target.value)}
-                  className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                  placeholder="Current"
-                />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="oco" className="mt-0 space-y-4">
-              <div className="p-2 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-200">
-                <span className="font-bold">OCO Order:</span> Combines a Limit order (Profit) and a Stop-Limit order (Loss). If one triggers, the other is cancelled.
-              </div>
-              <div className="space-y-3 pt-2 border-t border-dashed border-slate-700">
-                <p className="text-xs font-bold text-emerald-400">1. Take Profit (Limit)</p>
-                <div>
-                  <Label className="text-xs text-gray-400 uppercase">Price</Label>
-                  <Input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                    placeholder="Limit Price"
-                  />
-                </div>
-              </div>
-              <div className="space-y-3 pt-2 border-t border-dashed border-slate-700">
-                <p className="text-xs font-bold text-red-400">2. Stop Loss (Stop-Limit)</p>
-                <div>
-                  <Label className="text-xs text-gray-400 uppercase">Stop Trigger</Label>
-                  <Input
-                    type="number"
-                    value={stopPrice}
-                    onChange={(e) => setStopPrice(e.target.value)}
-                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                    placeholder="Trigger Price"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-gray-400 uppercase">Limit Price</Label>
-                  <Input
-                    type="number"
-                    value={stopLimitPrice}
-                    onChange={(e) => setStopLimitPrice(e.target.value)}
-                    className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white mt-1"
-                    placeholder="Execution Price"
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs text-gray-400 uppercase">Leverage</Label>
-              <span className="text-xs font-bold text-white bg-[#2962FF] px-2 py-1 rounded">{leverage[0]}x</span>
+          <div className="space-y-3 pt-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Leverage</Label>
+              <span className="text-xs font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">{leverage[0]}x</span>
             </div>
             <Slider
               value={leverage}
               onValueChange={setLeverage}
-              min={1}
               max={125}
+              min={1}
               step={1}
               className="py-2"
             />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-xs text-gray-400 uppercase">Amount</Label>
-              <Select value={amountType} onValueChange={setAmountType}>
-                <SelectTrigger className="h-7 w-24 text-xs bg-[#131722] border-[#2B2B43] text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1E222D] border-[#2B2B43]">
-                  <SelectItem value="usdt" className="text-white">USDT</SelectItem>
-                  <SelectItem value="crypto" className="text-white">{baseAsset}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="h-9 text-sm bg-[#131722] border-[#2B2B43] text-white"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Wallet className="w-3 h-3" />
-                <span>{balance.toFixed(2)} USDT</span>
-              </div>
-              <span className="text-xs text-gray-500">
-                ≈ {amountType === 'usdt' ? `${cryptoAmount.toFixed(6)} ${baseAsset}` : `${usdtAmount.toFixed(2)} USDT`}
-              </span>
+            <div className="flex justify-between text-[9px] text-slate-600 font-bold">
+              <span>1x</span>
+              <span>25x</span>
+              <span>50x</span>
+              <span>75x</span>
+              <span>100x</span>
+              <span>125x</span>
             </div>
           </div>
-
-          <div className="grid grid-cols-4 gap-2">
-            {[25, 50, 75, 100].map(percent => (
-              <Button
-                key={percent}
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const val = amountType === 'usdt' 
-                    ? (maxUSDT * percent / 100).toFixed(2)
-                    : (maxCrypto * percent / 100).toFixed(6);
-                  setAmount(val);
-                }}
-                className="h-7 text-xs bg-[#131722] border-[#2B2B43] text-gray-400 hover:text-white hover:bg-[#2B2B43]"
-              >
-                {percent}%
-              </Button>
-            ))}
-          </div>
-
-          {/* TP/SL Fields (Always visible or collapsible? Keep visible for easy access) */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label className="text-xs text-gray-400 uppercase">Take Profit</Label>
-              <Input
-                type="number"
-                value={takeProfit}
-                onChange={(e) => setTakeProfit(e.target.value)}
-                placeholder="0.00"
-                className="h-8 text-xs bg-[#131722] border-[#2B2B43] text-white mt-1"
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-gray-400 uppercase">Stop Loss</Label>
-              <Input
-                type="number"
-                value={stopLoss}
-                onChange={(e) => setStopLoss(e.target.value)}
-                placeholder="0.00"
-                className="h-8 text-xs bg-[#131722] border-[#2B2B43] text-white mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="bg-[#131722] rounded-lg p-3 text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Position Size</span>
-              <span className="text-white font-mono">{cryptoAmount.toFixed(6)} {baseAsset}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Value</span>
-              <span className="text-white font-mono">{usdtAmount.toFixed(2)} USDT</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Margin Required</span>
-              <span className="text-white font-mono">{marginRequired.toFixed(2)} USDT</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Max Position</span>
-              <span className="text-gray-300 font-mono">{maxCrypto.toFixed(4)} {baseAsset}</span>
-            </div>
-          </div>
-
-          <Button
-            onClick={handlePlaceOrder}
-            disabled={isSubmitting || !amount || currentPrice <= 0 || !tradingAccountId}
-            className={`w-full h-11 font-bold text-white text-sm ${
-              orderSide === 'buy' 
-                ? 'bg-[#26A69A] hover:bg-[#26A69A]/90' 
-                : 'bg-[#EF5350] hover:bg-[#EF5350]/90'
-            }`}
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : currentPrice <= 0 ? (
-              <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Loading Price...</>
-            ) : !tradingAccountId ? (
-              "Loading Account..."
-            ) : (
-              `${orderSide === 'buy' ? 'Buy/Long' : 'Sell/Short'} ${baseAsset}`
-            )}
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="pt-4 border-t border-slate-800/50 space-y-3">
+          <div className="flex justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Margin Required</span>
+            <span className="text-white font-bold font-mono">${marginRequired.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Max Size</span>
+            <span className="text-slate-300 font-bold font-mono">{(balance * leverage[0] / (effectivePrice || 1)).toFixed(4)} {baseAsset}</span>
+          </div>
+        </div>
+
+        <Button 
+          onClick={handlePlaceOrder}
+          disabled={isSubmitting || !amount}
+          className={`w-full h-12 rounded-xl font-bold text-sm shadow-lg transition-all active:scale-[0.98] ${
+            orderSide === 'buy' 
+              ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' 
+              : 'bg-rose-500 hover:bg-rose-600 shadow-rose-500/20'
+          }`}
+        >
+          {isSubmitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            `${orderSide === 'buy' ? 'OPEN LONG' : 'OPEN SHORT'}`
+          )}
+        </Button>
+
+        <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 flex gap-3">
+          <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            Trading futures involves significant risk. Ensure you have adequate margin to avoid liquidation.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
