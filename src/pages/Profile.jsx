@@ -561,7 +561,7 @@ export default function Profile({ language = "en" }) {
                             {trade.pnl >= 0 ? '+' : ''}{trade.pnl?.toFixed(2)}
                           </TableCell>
                           <TableCell className="text-right text-xs text-slate-500">
-                            {new Date(trade.created_date).toLocaleDateString()}
+                            {new Date(trade.opened_at || trade.created_date).toLocaleDateString()}
                           </TableCell>
                         </TableRow>
                       ))}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { base44 } from "@/api/base44Client";
 import { marketStore } from "@/components/trading/marketStore";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ export default function ClientExecutionEngine({
   onTrigger,
   userId
 }) {
+  const processedTriggers = useRef(new Set());
+
   useEffect(() => {
     if (!positions.length && !openOrders.length) return;
 
@@ -89,6 +91,10 @@ export default function ClientExecutionEngine({
         }
 
         if (action === 'close') {
+          const triggerId = `${trade.id}_${reason}_${Math.round(price*100)}`;
+          if (processedTriggers.current.has(triggerId)) return;
+          processedTriggers.current.add(triggerId);
+          setTimeout(() => processedTriggers.current.delete(triggerId), 60000);
           console.log(`[EXEC] Triggered ${reason} for ${trade.symbol} at ${price}`);
           try {
             await base44.functions.invoke('tradingAccount', {
@@ -140,6 +146,10 @@ export default function ClientExecutionEngine({
         }
 
         if (triggered) {
+          const triggerId = `order_${order.id}_${Math.round(price*100)}`;
+          if (processedTriggers.current.has(triggerId)) return;
+          processedTriggers.current.add(triggerId);
+          setTimeout(() => processedTriggers.current.delete(triggerId), 60000);
           console.log(`[EXEC] Executing order ${order.id} for ${order.symbol} at ${price}`);
           try {
             await base44.functions.invoke('tradingAccount', {

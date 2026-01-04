@@ -208,7 +208,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const isPositive = priceChange >= 0;
 
   return (
-    <Card className={`border-0 shadow-none bg-[#131722] overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+    <Card className={`border-0 shadow-none bg-[#131722] overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50' : 'h-full'} flex flex-col`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
@@ -255,7 +255,10 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         </div>
       </div>
 
-      <div className="relative" style={{ height: isFullscreen ? 'calc(100vh - 100px)' : undefined }}>
+      <div 
+        className="relative flex-1"
+        style={{ height: isFullscreen ? 'calc(100vh - 100px)' : '100%', minHeight: '400px' }}
+      >
         {loading && (
           <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
             <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
@@ -266,7 +269,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
             <p className="text-red-500 text-sm">{error}</p>
           </div>
         )}
-        <div ref={chartContainerRef} className="w-full h-full" />
+        <div ref={chartContainerRef} className="absolute inset-0" />
       </div>
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">

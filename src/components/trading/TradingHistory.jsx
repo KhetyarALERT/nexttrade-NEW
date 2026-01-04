@@ -55,10 +55,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
   }, [tradingAccountId, onPositionsUpdate, onOpenOrdersUpdate]);
 
   useEffect(() => {
-    fetchData();
-    // Poll every 10s instead of 5s to reduce API calls
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    fetchData(); // initial load only
   }, [fetchData]);
 
   // Real-time price subscription via WebSocket only
@@ -163,7 +160,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
   };
 
   return (
-    <div className="h-[280px] bg-[#131722] border-t border-[#2B2B43] flex flex-col">
+    <div className="h-full min-h-[200px] bg-[#131722] border-t border-[#2B2B43] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <div className="flex items-center justify-between px-4 border-b border-[#2B2B43] bg-[#1a1a2e]">
           <TabsList className="bg-transparent h-10 p-0 gap-6">

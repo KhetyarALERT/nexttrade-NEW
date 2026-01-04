@@ -193,7 +193,7 @@ export default function CryptoPriceTable({ language = "en" }) {
         </div>
 
         <div className="p-3 bg-gray-900/50 text-center">
-          <p className="text-xs text-gray-500 uppercase">Data via CoinGecko • Live updates via Binance</p>
+          <p className="text-xs text-gray-500 uppercase">Data via CoinGecko • Live updates via BingX</p>
         </div>
       </CardContent>
     </Card>
