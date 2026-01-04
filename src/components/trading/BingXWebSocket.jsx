@@ -32,10 +32,19 @@ class BingXWebSocketClient {
           this.reconnectAttempts = 0;
           this.startHeartbeat();
           
-          // Resubscribe to existing subscriptions
-          this.subscriptions.forEach(sub => {
-            this.ws.send(JSON.stringify(sub));
-          });
+          // Resubscribe to existing subscriptions (guard OPEN)
+          setTimeout(() => {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+            this.subscriptions.forEach(sub => {
+              try {
+                let payload = sub;
+                if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { /* keep string */ } }
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                  this.ws.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
+                }
+              } catch {}
+            });
+          }, 0);
           
           resolve();
         };

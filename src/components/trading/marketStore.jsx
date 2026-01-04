@@ -160,14 +160,17 @@ class MarketStore {
       this.emit('connected', true);
       this.reconnectAttempts = 0;
       
-      // Resubscribe to all active subscriptions
-      this.subscriptions.forEach(sub => {
-        this.ws.send(JSON.stringify({
-          id: `sub_${Date.now()}`,
-          reqType: "sub",
-          dataType: sub
-        }));
-      });
+      // Resubscribe to all active subscriptions (guard OPEN)
+      setTimeout(() => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.subscriptions.forEach(sub => {
+          try {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({ id: `sub_${Date.now()}`, reqType: 'sub', dataType: sub }));
+            }
+          } catch (e) { /* ignore */ }
+        });
+      }, 0);
       
       // Start ping
       this.startPing();
