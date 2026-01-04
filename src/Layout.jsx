@@ -57,6 +57,7 @@ export default function Layout({ children }) {
   }, []);
 
   const isRTL = language === "ar";
+  const isTradingPage = location.pathname === createPageUrl("Trading") || location.pathname === "/Trading";
 
   const navigation = [
   { name: { en: "Home", ar: "الرئيسية" }, url: createPageUrl("Home") },
@@ -121,6 +122,7 @@ export default function Layout({ children }) {
       `}</style>
 
       {/* Navigation */}
+      {!isTradingPage && (
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? 'glass-effect shadow-lg' : 'bg-transparent'}`
@@ -241,13 +243,15 @@ export default function Layout({ children }) {
           </div>
         }
       </nav>
+      )
 
       {/* Main Content */}
-      <main className="pt-20">
+      <main className={isTradingPage ? "" : "pt-20"}>
         {React.cloneElement(children, { language })}
       </main>
 
       {/* Footer */}
+      {!isTradingPage && (
       <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
@@ -318,6 +322,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       </footer>
+      )
       
       <NotificationSettings 
         open={notificationSettingsOpen} 

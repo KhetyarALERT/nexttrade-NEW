@@ -19,11 +19,13 @@ const TIMEFRAMES = [
 
 const normalizeTime = (t) => t > 1e12 ? Math.floor(t / 1000) : Math.floor(t);
 
-export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }) {
+export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate, positions = [] }) {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
+  const priceLinesRef = useRef([]);
+  const priceLinesRef = useRef([]);
   
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
@@ -84,12 +86,69 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      // Cleanup price lines
+      priceLinesRef.current.forEach(line => { try { candleSeriesRef.current?.removePriceLine(line); } catch(e) {} });
+      priceLinesRef.current = [];
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       chartRef.current = null;
       chart.remove();
     };
   }, []);
+
+  // Draw position lines for current symbol
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+    // Clear previous lines
+    priceLinesRef.current.forEach(line => { try { candleSeriesRef.current.removePriceLine(line); } catch(e) {} });
+    priceLinesRef.current = [];
+
+    positions.filter(p => p.symbol === symbol).forEach(pos => {
+      if (pos.entry_price) {
+        const entry = candleSeriesRef.current.createPriceLine({ price: pos.entry_price, color: '#ffffff', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: `Entry ${pos.side}` });
+        priceLinesRef.current.push(entry);
+      }
+      if (pos.take_profit) {
+        const tp = candleSeriesRef.current.createPriceLine({ price: pos.take_profit, color: '#26A69A', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'TP' });
+        priceLinesRef.current.push(tp);
+      }
+      if (pos.stop_loss) {
+        const sl = candleSeriesRef.current.createPriceLine({ price: pos.stop_loss, color: '#EF5350', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'SL' });
+        priceLinesRef.current.push(sl);
+      }
+      if (pos.liquidation_price) {
+        const liq = candleSeriesRef.current.createPriceLine({ price: pos.liquidation_price, color: '#F59E0B', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'LIQ' });
+        priceLinesRef.current.push(liq);
+      }
+    });
+  }, [positions, symbol]);
+
+  // Draw position lines for current symbol
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+    // Clear previous lines
+    priceLinesRef.current.forEach(line => { try { candleSeriesRef.current.removePriceLine(line); } catch(e) {} });
+    priceLinesRef.current = [];
+
+    positions.filter(p => p.symbol === symbol).forEach(pos => {
+      if (pos.entry_price) {
+        const entry = candleSeriesRef.current.createPriceLine({ price: pos.entry_price, color: '#ffffff', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: `Entry ${pos.side}` });
+        priceLinesRef.current.push(entry);
+      }
+      if (pos.take_profit) {
+        const tp = candleSeriesRef.current.createPriceLine({ price: pos.take_profit, color: '#26A69A', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'TP' });
+        priceLinesRef.current.push(tp);
+      }
+      if (pos.stop_loss) {
+        const sl = candleSeriesRef.current.createPriceLine({ price: pos.stop_loss, color: '#EF5350', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: 'SL' });
+        priceLinesRef.current.push(sl);
+      }
+      if (pos.liquidation_price) {
+        const liq = candleSeriesRef.current.createPriceLine({ price: pos.liquidation_price, color: '#F59E0B', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'LIQ' });
+        priceLinesRef.current.push(liq);
+      }
+    });
+  }, [positions, symbol]);
 
   // Load initial data ONCE, then subscribe to store
   useEffect(() => {

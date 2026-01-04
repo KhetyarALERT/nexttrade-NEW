@@ -18,6 +18,7 @@ class MarketStore {
     this.subscriptions = new Set();
     this.connected = false;
     this.reconnectTimeout = null;
+    this.lastTickerEmit = {}; // throttle map per symbol
   }
 
   // Subscribe to store events
@@ -195,13 +196,23 @@ class MarketStore {
     }
     
     if (channel === 'ticker') {
-      this.updateTicker(symbol, {
+      const now = Date.now();
+      const last = this.lastTickerEmit[symbol] || 0;
+      const ticker = {
         price: parseFloat(msg.data.c),
         change: parseFloat(msg.data.p),
         high: parseFloat(msg.data.h),
         low: parseFloat(msg.data.l),
         volume: parseFloat(msg.data.v)
-      });
+      };
+      // Always update store
+      this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
+      // Throttle UI emits to max once per 250ms per symbol
+      if (now - last >= 250) {
+        this.lastTickerEmit[symbol] = now;
+        this.emit(`ticker:${symbol}`, this.tickers[symbol]);
+        this.emit('ticker', { symbol, ticker: this.tickers[symbol] });
+      }
     }
   }
 
@@ -270,6 +281,18 @@ class MarketStore {
   // Subscribe to ticker channel for a symbol
   subscribeToTicker(symbol) {
     this.subscribeWS(`${symbol}@ticker`);
+  }
+
+  // Convenience: subscribe to one symbol (ticker + trade)
+  subscribeToSymbol(symbol) {
+    this.subscribeWS(`${symbol}@ticker`);
+    this.subscribeWS(`${symbol}@trade`);
+  }
+
+  // Unsubscribe convenience for one symbol
+  unsubscribeFromSymbol(symbol) {
+    this.unsubscribeWS(`${symbol}@ticker`);
+    this.unsubscribeWS(`${symbol}@trade`);
   }
 
   // Subscribe to trade channel for a symbol

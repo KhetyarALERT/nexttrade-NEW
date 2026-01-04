@@ -41,10 +41,9 @@ async function executeOrder(base44, trade, price) {
     
     await base44.asServiceRole.entities.Trade.update(trade.id, {
       status: 'OPEN',
-      entry_price: price, // Fill at market price or limit price? usually limit price for limit orders, but slippage?
-      // If it's a limit order, we fill at trade.limit_price or better. 
-      // For simplicity in this demo, fill at current market price if it satisfies limit.
-      open_at: new Date().toISOString()
+      entry_price: price,
+      opened_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     });
     
     // Send notification
@@ -65,8 +64,19 @@ async function executeOrder(base44, trade, price) {
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   
-  // This function might be called by scheduler, so user might not be present or is system
-  // We use service role for everything
+  // Auth: allow scheduler via bearer secret OR admin users
+  const authHeader = req.headers.get('authorization') || '';
+  const expected = Deno.env.get('INTERNAL_API_SECRET');
+  let isAdmin = false;
+  try {
+    const me = await base44.auth.me();
+    isAdmin = me?.role === 'admin';
+  } catch (_) {}
+  if (!expected || authHeader !== `Bearer ${expected}`) {
+    if (!isAdmin) {
+      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+  }
   
   try {
     console.log('[CHECK_ORDERS] Starting check...');

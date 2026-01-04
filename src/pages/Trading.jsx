@@ -92,10 +92,14 @@ export default function Trading({ language = "en" }) {
     loadAccount();
   }, [loadAccount]);
 
-  // Subscribe to WebSocket tickers whenever list changes
+  // Subscribe only to the currently selected symbol
   useEffect(() => {
-    availableSymbols.forEach(s => marketStore.subscribeToTicker(s.symbol));
-  }, [availableSymbols]);
+    if (!selectedSymbol) return;
+    marketStore.subscribeToSymbol(selectedSymbol);
+    return () => {
+      marketStore.unsubscribeFromSymbol(selectedSymbol);
+    };
+  }, [selectedSymbol]);
 
   // Listen to ticker updates
   useEffect(() => {
@@ -293,7 +297,7 @@ export default function Trading({ language = "en" }) {
         <div className="flex-1 grid grid-rows-[1fr_auto] lg:grid-rows-1 lg:grid-cols-[1fr_400px] overflow-hidden">
           {/* Left: Chart */}
           <div className="min-h-[300px] lg:min-h-0 lg:h-full bg-[#131722] overflow-hidden">
-            <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} />
+            <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
           </div>
           {/* Right: Order Panel */}
           <div className="h-[350px] lg:h-full bg-[#1E222D] border-t lg:border-t-0 lg:border-l border-[#2B2B43] overflow-y-auto">

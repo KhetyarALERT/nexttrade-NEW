@@ -11,6 +11,56 @@ import TPSLDialog from "@/components/trading/TPSLDialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+// Timezone-aware formatter using Intl API (no extra deps)
+const formatDateInTZ = (date, fmt = 'MM-dd HH:mm') => {
+  try {
+    const tz = localStorage.getItem('user_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const d = new Date(date);
+    const parts = new Intl.DateTimeFormat(undefined, {
+      timeZone: tz,
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    }).formatToParts(d).reduce((acc, p) => (acc[p.type] = p.value, acc), {});
+    // Build MM-dd HH:mm
+    return `${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+  } catch (e) {
+    return format(new Date(date), 'MM-dd HH:mm');
+  }
+};
+
+function LivePnL({ position }) {
+  const [price, setPrice] = useState(marketStore.getPrice(position.symbol) || 0);
+
+  useEffect(() => {
+    const handleTicker = ({ symbol, ticker }) => {
+      if (symbol === position.symbol && ticker?.price) setPrice(ticker.price);
+    };
+    const unsub = marketStore.subscribe('ticker', handleTicker);
+    marketStore.subscribeToTicker(position.symbol);
+    const initial = marketStore.tickers[position.symbol];
+    if (initial?.price) setPrice(initial.price);
+    return () => unsub();
+  }, [position.symbol]);
+
+  const pnl = position.side === 'LONG'
+    ? (price - position.entry_price) * position.quantity
+    : (position.entry_price - price) * position.quantity;
+  const roe = (pnl / position.margin) * 100;
+
+  return (
+    <>
+      <td className="px-3 py-2 font-mono text-white">{price ? price.toFixed(2) : '--'}</td>
+      <td className="px-3 py-2 font-mono">
+        <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+          {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+        </span>
+        <span className={`ml-1 text-[10px] ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+          ({roe >= 0 ? '+' : ''}{roe.toFixed(2)}%)
+        </span>
+      </td>
+    </>
+  );
+}
+
 export default function TradingHistory({ tradingAccountId, onRefresh, onPositionsUpdate, onOpenOrdersUpdate, refreshSignal = 0 }) {
   const [activeTab, setActiveTab] = useState("positions");
   const [positions, setPositions] = useState([]);
@@ -220,15 +270,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
                         </td>
                         <td className="px-3 py-2 font-mono">{pos.quantity?.toFixed(4)}</td>
                         <td className="px-3 py-2 font-mono">{pos.entry_price?.toFixed(2)}</td>
-                        <td className="px-3 py-2 font-mono text-white">{markPrice?.toFixed(2) || '--'}</td>
-                        <td className="px-3 py-2 font-mono">
-                          <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
-                          </span>
-                          <span className={`ml-1 text-[10px] ${roe >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            ({roe >= 0 ? '+' : ''}{roe.toFixed(2)}%)
-                          </span>
-                        </td>
+                        <LivePnL position={pos} />
                         <td className="px-3 py-2 font-mono text-amber-400">
                           <div className="flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
@@ -290,7 +332,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
                 <tbody className="divide-y divide-[#2B2B43]/50">
                   {openOrders.map((order) => (
                     <tr key={order.id} className="text-slate-300 hover:bg-[#1f2937]/30">
-                      <td className="px-3 py-2 text-slate-500">{format(new Date(order.created_date), 'MM-dd HH:mm')}</td>
+                      <td className="px-3 py-2 text-slate-500">{formatDateInTZ(order.created_date)}</td>
                       <td className="px-3 py-2 font-medium text-white">{order.symbol}</td>
                       <td className="px-3 py-2">{order.order_type}</td>
                       <td className={`px-3 py-2 ${order.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -338,7 +380,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
                 <tbody className="divide-y divide-[#2B2B43]/50">
                   {tradeHistory.map((trade) => (
                     <tr key={trade.id} className="text-slate-300 hover:bg-[#1f2937]/30">
-                      <td className="px-3 py-2 text-slate-500">{format(new Date(trade.closed_at || trade.opened_at || trade.created_date), 'MM-dd HH:mm')}</td>
+                      <td className="px-3 py-2 text-slate-500">{formatDateInTZ(trade.closed_at || trade.opened_at || trade.created_date)}</td>
                       <td className="px-3 py-2 font-medium text-white">{trade.symbol}</td>
                       <td className={`px-3 py-2 ${trade.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trade.side}
