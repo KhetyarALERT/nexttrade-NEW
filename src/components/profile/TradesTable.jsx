@@ -47,6 +47,12 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
     return price >= 1 ? price.toFixed(2) : price.toFixed(6);
   };
 
+  const formatSize = (v) => {
+    if (v === undefined || v === null) return '-';
+    const n = Number(v);
+    return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+  };
+
   const calculateUnrealizedPnl = (trade) => {
     if (trade.status !== 'OPEN') return trade.pnl || 0;
     
@@ -99,7 +105,7 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
                     )}
                   </Badge>
                 </TableCell>
-                <TableCell>{trade.quantity}</TableCell>
+                <TableCell>{formatSize(trade.quantity)}</TableCell>
                 <TableCell className="font-mono">${formatPrice(trade.entry_price)}</TableCell>
                 <TableCell className="font-mono">${formatPrice(currentPrice)}</TableCell>
                 <TableCell className={`font-bold ${isProfit ? 'text-emerald-600' : 'text-red-500'}`}>

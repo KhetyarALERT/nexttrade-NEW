@@ -40,6 +40,7 @@ export default function Trading({ language = "en" }) {
   const [marketData, setMarketData] = useState({});
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [accountLoaded, setAccountLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
   const [positions, setPositions] = useState([]);
@@ -51,14 +52,18 @@ export default function Trading({ language = "en" }) {
   useEffect(() => { localStorage.setItem('trading_symbol', selectedSymbol); }, [selectedSymbol]);
 
   const loadAccount = useCallback(async () => {
+    if (accountLoaded || loading) return;
     setLoading(true);
     try {
       const res = await base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'demo' });
-      if (res.data?.success) setAccount(res.data.data);
+      if (res.data?.success) {
+        setAccount(res.data.data);
+        setAccountLoaded(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [accountLoaded, loading]);
 
   useEffect(() => { loadAccount(); }, [loadAccount]);
 
@@ -149,7 +154,7 @@ export default function Trading({ language = "en" }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-2">
-                    <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
+                    <CryptoIcon currency={(selectedSymbol || '').replace('/', '-').split('-')[0]} size="sm" />
                     <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
                     <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
                     <ChevronDown className="h-4 w-4 text-slate-400" />

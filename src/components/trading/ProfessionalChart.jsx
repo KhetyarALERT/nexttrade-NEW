@@ -34,6 +34,13 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
     chartRef.current = chart;
     seriesRef.current = candleSeries;
 
+    // Remove any TradingView branding anchors if injected by the lib
+    setTimeout(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      el.querySelectorAll('a[href*="tradingview"], [class*="tradingview"]').forEach((n) => n.remove());
+    }, 0);
+
     const handleResize = () => {
       chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
     };
