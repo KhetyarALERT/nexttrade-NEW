@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
     if (action === 'executePendingOrder') {
       const { tradeId, entryPrice } = params;
       if (!tradeId || !entryPrice) return Response.json({ success: false }, { status: 400 });
-      await base44.asServiceRole.entities.Trade.update(tradeId, { status: 'OPEN', entry_price: entryPrice, open_at: new Date().toISOString() });
+      await base44.asServiceRole.entities.Trade.update(tradeId, { status: 'OPEN', entry_price: entryPrice, opened_at: new Date().toISOString(), updated_at: new Date().toISOString() });
       return Response.json({ success: true });
     }
 
