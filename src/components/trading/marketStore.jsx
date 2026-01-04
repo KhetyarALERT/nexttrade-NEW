@@ -360,21 +360,19 @@ class MarketStore {
     }
   }
 
-  // Subscribe to ticker channel for a symbol (prefer bracket form)
+  // Subscribe to ticker channel for a symbol (subscribe to both variants)
   subscribeToTicker(symbol) {
-    const topic = `ticker.[${symbol}]`;
-    this.subscribeWS(topic);
-    console.log('[STORE] Subscribed:', topic);
+    const topics = [`ticker.${symbol}`, `ticker.[${symbol}]`];
+    topics.forEach(t => { this.subscribeWS(t); console.log('[STORE] Subscribed:', t); });
   }
 
   // Convenience: subscribe to one symbol (ticker + trade)
   subscribeToSymbol(symbol) {
-    const t1 = `ticker.[${symbol}]`;
-    const t2 = `trade.[${symbol}]`;
-    this.subscribeWS(t1);
-    this.subscribeWS(t2);
-    console.log('[STORE] Subscribed:', t1);
-    console.log('[STORE] Subscribed:', t2);
+    const topics = [
+      `ticker.${symbol}`, `ticker.[${symbol}]`,
+      `trade.${symbol}`, `trade.[${symbol}]`
+    ];
+    topics.forEach(t => { this.subscribeWS(t); console.log('[STORE] Subscribed:', t); });
   }
 
   // Unsubscribe convenience for one symbol
@@ -393,9 +391,8 @@ class MarketStore {
 
   // Subscribe to candle channel for a symbol
   subscribeToCandles(symbol, interval = '1m') {
-    const topic = `kline_${interval}.[${symbol}]`;
-    this.subscribeWS(topic);
-    console.log('[STORE] Subscribed:', topic);
+    const topics = [`kline_${interval}.${symbol}`, `kline_${interval}.[${symbol}]`];
+    topics.forEach(t => { this.subscribeWS(t); console.log('[STORE] Subscribed:', t); });
   }
 
   // Disconnect

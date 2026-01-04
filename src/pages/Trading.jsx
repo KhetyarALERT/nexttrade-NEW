@@ -221,7 +221,7 @@ export default function Trading({ language = "en" }) {
                 {filteredSymbols.map(({ symbol, name }) => {
                   const tmap = marketStore.getAllTickers?.() || {};
                   const ticker = tmap[symbol] || marketData[symbol] || {};
-                  const priceVal = marketStore.getPrice?.(symbol) || ticker.price || 0;
+                  const priceVal = marketStore.getPrice?.(symbol) || ticker.mark || ticker.price || 0;
                   const changeVal = ticker.change ?? 0;
                   const isSelected = symbol === selectedSymbol;
                   return (
