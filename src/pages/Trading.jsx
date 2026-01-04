@@ -129,7 +129,12 @@ export default function Trading({ language = "en" }) {
     availableSymbols.slice(0, 120).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
   }, [availableSymbols]);
 
-  const filteredSymbols = availableSymbols.filter(s => s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredSymbols = availableSymbols
+    .filter(s => s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(({ symbol }) => {
+      const t = (marketStore.getAllTickers?.() || {})[symbol] || marketData[symbol];
+      return t && Number(t.price) > 0;
+    });
   const balance = account?.is_demo ? (account?.demo_balance || 0) : (account?.balance || 0);
 
   const t = language === "ar" ? { balance: "الرصيد", equity: "الأسهم", margin: "الهامش", transfer: "تحويل", perpetual: "دائم" } : { balance: "Balance", equity: "Equity", margin: "Margin", transfer: "Transfer", perpetual: "Perpetual" };
