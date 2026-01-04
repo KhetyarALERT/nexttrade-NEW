@@ -69,7 +69,7 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       if (p) { setPrice(p); if (onPriceUpdate) onPriceUpdate(p); }
     });
     const unsubTicker = marketStore.subscribe(`ticker:${s}`, (ticker) => {
-      const p = ticker?.price || 0;
+      const p = (ticker?.mark ?? ticker?.price) || 0;
       setPrice(p);
       if (onPriceUpdate) onPriceUpdate(p);
     });
