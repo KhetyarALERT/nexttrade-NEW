@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { marketStore } from "@/components/trading/marketStore";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -45,8 +45,6 @@ const Sparkline = ({ data = [], width = 120, height = 40 }) => {
 
 export default function CryptoPriceTable({ language = "en" }) {
   const [marketData, setMarketData] = useState([]);
-  const [connected, setConnected] = useState(false);
-  const ws = useRef(null);
 
   useEffect(() => {
     // Initial fetch from CoinGecko
@@ -71,35 +69,8 @@ export default function CryptoPriceTable({ language = "en" }) {
 
     fetchInitial();
 
-    // Subscribe to shared market store (BingX) for live updates
-    setConnected(marketStore.connected);
-    const unsubConn = marketStore.subscribe('connected', setConnected);
-
-    // Ensure tickers are subscribed
-    COINS.filter(c => c.bingx).forEach(c => marketStore.subscribeToTicker(c.bingx));
-
-    const unsubTicker = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
-      setMarketData(prev => prev.map(coin => {
-        const match = coin.binanceSymbol?.toUpperCase().replace('USDT','-USDT') === symbol;
-        if (match) {
-          const oldPrice = coin.current_price || ticker.price || 1;
-          const newPrice = ticker.price || oldPrice;
-          const newCap = coin.market_cap ? coin.market_cap * (newPrice / oldPrice) : coin.market_cap;
-          return {
-            ...coin,
-            current_price: newPrice,
-            price_change_percentage_24h: typeof ticker.change === 'number' ? ticker.change : coin.price_change_percentage_24h,
-            market_cap: newCap
-          };
-        }
-        return coin;
-      }));
-    });
-
-    return () => {
-      if (unsubConn) unsubConn();
-      if (unsubTicker) unsubTicker();
-    };
+    // Home page: CoinGecko-only updates (no WS)
+    return () => {};
   }, []);
 
   const formatPrice = (p) => {
@@ -136,10 +107,7 @@ export default function CryptoPriceTable({ language = "en" }) {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold">Live Crypto Markets</h3>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
-                <span className="text-xs text-gray-400">{connected ? "Real-time" : "Connecting..."}</span>
-              </div>
+              <div className="text-xs text-gray-400">Data via CoinGecko</div>
             </div>
           </div>
         </div>
@@ -193,7 +161,7 @@ export default function CryptoPriceTable({ language = "en" }) {
         </div>
 
         <div className="p-3 bg-gray-900/50 text-center">
-          <p className="text-xs text-gray-500 uppercase">Data via CoinGecko • Live updates via BingX</p>
+          <p className="text-xs text-gray-500 uppercase">Data via CoinGecko</p>
         </div>
       </CardContent>
     </Card>

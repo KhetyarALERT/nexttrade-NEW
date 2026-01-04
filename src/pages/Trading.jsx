@@ -153,7 +153,7 @@ export default function Trading({ language = "en" }) {
                             <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
                             <div>
                               <p className="text-white text-sm font-medium">{toDisplayFormat(symbol)}</p>
-                              <p className="text-slate-400 text-xs">{name}</p>
+
                             </div>
                           </div>
                           <div className="text-right">
