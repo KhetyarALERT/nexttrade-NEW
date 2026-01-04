@@ -26,6 +26,11 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       crosshair: { mode: CrosshairMode.Magnet },
     });
     const candleSeries = chart.addCandlestickSeries({
+      priceFormat: {
+        type: 'price',
+        precision: 2,
+        minMove: 0.01,
+      },
       upColor: '#10b981', downColor: '#ef4444',
       borderDownColor: '#ef4444', borderUpColor: '#10b981',
       wickDownColor: '#ef4444', wickUpColor: '#10b981'

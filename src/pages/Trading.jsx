@@ -39,7 +39,7 @@ export default function Trading({ language = "en" }) {
   const [priceChange, setPriceChange] = useState(0);
   const [marketData, setMarketData] = useState({});
   const [account, setAccount] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [accountLoaded, setAccountLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [transferOpen, setTransferOpen] = useState(false);
@@ -94,12 +94,15 @@ export default function Trading({ language = "en" }) {
 
   const handlePriceUpdate = useCallback((price) => setCurrentPrice(price), []);
 
-  // Keep selected symbol price in sync from store as a fallback
+  // Keep selected symbol price in sync from store (ticker + price)
   useEffect(() => {
-    const unsub = marketStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
+    const unsubTicker = marketStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
       if (t?.price) setCurrentPrice(t.price);
     });
-    return () => unsub();
+    const unsubPrice = marketStore.subscribe(`price:${selectedSymbol}`, (p) => {
+      if (p) setCurrentPrice(p);
+    });
+    return () => { unsubTicker(); unsubPrice(); };
   }, [selectedSymbol]);
 
   const handleTradeSuccess = useCallback(() => { loadAccount(); setRefreshSignal(v => v + 1); }, [loadAccount]);
@@ -134,12 +137,9 @@ export default function Trading({ language = "en" }) {
     availableSymbols.slice(0, 120).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
   }, [availableSymbols]);
 
-  const filteredSymbols = availableSymbols
-    .filter(s => s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter(({ symbol }) => {
-      const t = (marketStore.getAllTickers?.() || {})[symbol] || marketData[symbol];
-      return t && Number(t.price) > 0;
-    });
+  const filteredSymbols = availableSymbols.filter(
+    s => s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || (s.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
   const balance = account?.is_demo ? (account?.demo_balance || 0) : (account?.balance || 0);
 
   const t = language === "ar" ? { balance: "الرصيد", equity: "الأسهم", margin: "الهامش", transfer: "تحويل", perpetual: "دائم" } : { balance: "Balance", equity: "Equity", margin: "Margin", transfer: "Transfer", perpetual: "Perpetual" };
@@ -169,7 +169,10 @@ export default function Trading({ language = "en" }) {
                   </div>
                   <div>
                     {filteredSymbols.map(({ symbol, name }) => {
-                      const data = marketData[symbol] || marketStore.getAllTickers?.()[symbol] || { price: 0, change: 0 };
+                      const tmap = marketStore.getAllTickers?.() || {};
+                      const ticker = tmap[symbol] || marketData[symbol] || {};
+                      const priceVal = (marketStore.getPrice?.(symbol)) || ticker.price || 0;
+                      const changeVal = (ticker.change ?? 0);
                       const isSelected = symbol === selectedSymbol;
                       return (
                         <DropdownMenuItem key={symbol} onClick={() => handleSymbolSelect(symbol)} className={`flex items-center justify-between p-3 cursor-pointer ${isSelected ? 'bg-blue-600/20' : 'hover:bg-slate-700/50'}`}>
@@ -181,8 +184,8 @@ export default function Trading({ language = "en" }) {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-white text-sm font-mono">${data.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: data.price < 1 ? 6 : 2 })}</p>
-                            <p className={`text-xs ${data.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{data.change >= 0 ? '+' : ''}{data.change?.toFixed(2)}%</p>
+                            <p className="text-white text-sm font-mono">${priceVal?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: priceVal < 1 ? 6 : 2 })}</p>
+                            <p className={`text-xs ${changeVal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{changeVal >= 0 ? '+' : ''}{Number(changeVal || 0).toFixed(2)}%</p>
                           </div>
                         </DropdownMenuItem>
                       );
