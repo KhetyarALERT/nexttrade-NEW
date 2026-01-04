@@ -142,12 +142,31 @@ export default function Trading({ language = "en" }) {
     loadAccount();
   }, [loadAccount]);
 
-  const filteredSymbols = FUTURES_SYMBOLS.filter(s => 
+  const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
+
+  useEffect(() => {
+    const fetchSymbols = async () => {
+      try {
+        const res = await base44.functions.invoke('bingxMarketData', { action: 'getContracts' });
+        const list = res.data?.data || [];
+        if (list.length) {
+          const symbols = list
+            .filter(c => c.symbol?.endsWith('-USDT'))
+            .slice(0, 50)
+            .map(c => ({ symbol: c.symbol, name: c.symbol.replace('-USDT', ''), icon: c.symbol[0] }));
+          setAvailableSymbols(symbols);
+        }
+      } catch (e) { /* keep fallback */ }
+    };
+    fetchSymbols();
+  }, []);
+
+  const filteredSymbols = availableSymbols.filter(s => 
     s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (s.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const selectedSymbolData = FUTURES_SYMBOLS.find(s => s.symbol === selectedSymbol);
+  const selectedSymbolData = availableSymbols.find(s => s.symbol === selectedSymbol);
   const balance = account?.is_demo ? (account?.demo_balance || 0) : (account?.balance || 0);
 
   const t = language === "ar" ? {

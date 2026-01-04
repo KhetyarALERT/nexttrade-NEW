@@ -131,7 +131,7 @@ export default function CryptoPriceTable({ language = "en" }) {
       <CardContent className="p-0">
         <div className="p-4 bg-gray-900/80 border-b border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-2">
+            <div className="w-10 h-10 rounded-xl bg-white/90 backdrop-blur flex items-center justify-center p-2">
               <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
             </div>
             <div className="flex-1">

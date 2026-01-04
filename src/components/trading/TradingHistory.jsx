@@ -338,7 +338,7 @@ export default function TradingHistory({ tradingAccountId, onRefresh, onPosition
                 <tbody className="divide-y divide-[#2B2B43]/50">
                   {tradeHistory.map((trade) => (
                     <tr key={trade.id} className="text-slate-300 hover:bg-[#1f2937]/30">
-                      <td className="px-3 py-2 text-slate-500">{format(new Date(trade.closed_at || trade.created_date), 'MM-dd HH:mm')}</td>
+                      <td className="px-3 py-2 text-slate-500">{format(new Date(trade.closed_at || trade.opened_at || trade.created_date), 'MM-dd HH:mm')}</td>
                       <td className="px-3 py-2 font-medium text-white">{trade.symbol}</td>
                       <td className={`px-3 py-2 ${trade.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
                         {trade.side}

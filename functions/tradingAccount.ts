@@ -36,7 +36,8 @@ async function closeTradeInternal(base44, trade, exitPrice, reason) {
     pnl_percent: pnlPercent,
     fees: (trade.fees || 0) + closingFee,
     closed_at: new Date().toISOString(),
-    close_reason: reason
+    close_reason: reason,
+    updated_at: new Date().toISOString()
   });
   
   const returnAmount = trade.margin + netPnl;
@@ -156,6 +157,7 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: `Insufficient balance. Need $${totalRequired.toFixed(2)}` }, { status: 400 });
       }
       
+      const nowISO = new Date().toISOString();
       const trade = await base44.asServiceRole.entities.Trade.create({
         trading_account_id: tradingAccountId, wallet_id: useWallet?.id || null, user_id: user.id,
         symbol, side, order_type: orderType, entry_price: actualEntryPrice, limit_price: limitPrice || null,
@@ -163,7 +165,9 @@ Deno.serve(async (req) => {
         max_slippage: maxSlippage, liquidation_price: liquidationPrice, stop_loss: stopLoss || null,
         take_profit: takeProfit || null, trailing_stop_percent: trailingStopPercent || null,
         trailing_stop_activation: trailingStopActivation || null, oco_stop_price: oco_stop_price || null,
-        oco_limit_price: oco_limit_price || null
+        oco_limit_price: oco_limit_price || null,
+        opened_at: status === 'OPEN' ? nowISO : nowISO,
+        created_at: nowISO
       });
       
       if (account.is_demo) {
@@ -209,6 +213,7 @@ Deno.serve(async (req) => {
       if (takeProfit !== undefined) updateData.take_profit = takeProfit;
       if (trailingStopTrigger !== undefined) updateData.trailing_stop_trigger = trailingStopTrigger;
       
+      updateData.updated_at = new Date().toISOString();
       await base44.asServiceRole.entities.Trade.update(tradeId, updateData);
       return Response.json({ success: true });
     }
