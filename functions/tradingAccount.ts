@@ -4,7 +4,7 @@ const audit = (action, userId, data) => {
   console.log(`[TRADING_AUDIT] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
 };
 
-const TRADING_FEES = { maker: 0.02, taker: 0.05 };
+const TRADING_FEES = { maker: 0.02, taker: 0.05 }; // percentages
 
 const calculateLiquidationPrice = (entryPrice, leverage, side, maintenanceMargin = 0.5) => {
   const marginRatio = 1 / leverage;
@@ -28,13 +28,20 @@ async function closeTradeInternal(base44, trade, exitPrice, reason) {
   const closingFee = notionalValue * TRADING_FEES.taker / 100;
   const netPnl = grossPnl - closingFee;
   const pnlPercent = (netPnl / trade.margin) * 100;
-  
+
+  const feeTotal = (trade.fee_total ?? trade.fees ?? 0) + closingFee;
+
   await base44.asServiceRole.entities.Trade.update(trade.id, {
     exit_price: exitPrice,
+    avg_exit_price: exitPrice,
     status: 'CLOSED',
     pnl: netPnl,
     pnl_percent: pnlPercent,
-    fees: (trade.fees || 0) + closingFee,
+    realized_pnl: netPnl,
+    realized_pnl_percent: pnlPercent,
+    fee_close: closingFee,
+    fee_total: feeTotal,
+    fees: feeTotal,
     closed_at: new Date().toISOString(),
     close_reason: reason,
     updated_at: new Date().toISOString()
@@ -159,16 +166,22 @@ Deno.serve(async (req) => {
       
       const nowISO = new Date().toISOString();
       const trade = await base44.asServiceRole.entities.Trade.create({
-        trading_account_id: tradingAccountId, wallet_id: useWallet?.id || null, user_id: user.id,
-        symbol, side, order_type: orderType, entry_price: actualEntryPrice, limit_price: limitPrice || null,
-        quantity, leverage, margin: marginRequired, status, fees: tradingFee, slippage: actualSlippage,
-        max_slippage: maxSlippage, liquidation_price: liquidationPrice, stop_loss: stopLoss || null,
-        take_profit: takeProfit || null, trailing_stop_percent: trailingStopPercent || null,
-        trailing_stop_activation: trailingStopActivation || null, oco_stop_price: oco_stop_price || null,
-        oco_limit_price: oco_limit_price || null,
-        opened_at: status === 'OPEN' ? nowISO : nowISO,
-        created_at: nowISO
-      });
+                trading_account_id: tradingAccountId, wallet_id: useWallet?.id || null, user_id: user.id,
+                symbol, side, order_type: orderType, entry_price: actualEntryPrice, limit_price: limitPrice || null,
+                quantity, leverage, margin: marginRequired, status, slippage: actualSlippage,
+                max_slippage: maxSlippage, liquidation_price: liquidationPrice, stop_loss: stopLoss || null,
+                take_profit: takeProfit || null, trailing_stop_percent: trailingStopPercent || null,
+                trailing_stop_activation: trailingStopActivation || null, oco_stop_price: oco_stop_price || null,
+                oco_limit_price: oco_limit_price || null,
+                opened_at: status === 'OPEN' ? nowISO : nowISO,
+                created_at: nowISO,
+                avg_entry_price: actualEntryPrice,
+                fee_open: tradingFee,
+                fee_total: tradingFee,
+                unrealized_pnl: 0,
+                realized_pnl: 0,
+                realized_pnl_percent: 0
+              });
       
       if (account.is_demo) {
         await base44.asServiceRole.entities.TradingAccount.update(tradingAccountId, {

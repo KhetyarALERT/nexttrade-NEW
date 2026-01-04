@@ -24,6 +24,8 @@ import ClientExecutionEngine from "@/components/trading/ClientExecutionEngine";
 import { marketStore } from "@/components/trading/marketStore";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
+import { toInternalFormat, toDisplayFormat } from "@/components/utils/symbolFormat";
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 // Fallback list
 const FUTURES_SYMBOLS = [
@@ -126,7 +128,7 @@ export default function Trading({ language = "en" }) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-2">
                     <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
-                    <span className="font-bold">{selectedSymbol.replace('-', '/')}</span>
+                    <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
                     <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
                     <ChevronDown className="h-4 w-4 text-slate-400" />
                   </Button>
@@ -147,7 +149,7 @@ export default function Trading({ language = "en" }) {
                           <div className="flex items-center gap-2">
                             <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
                             <div>
-                              <p className="text-white text-sm font-medium">{symbol.replace('-', '/')}</p>
+                              <p className="text-white text-sm font-medium">{toDisplayFormat(symbol)}</p>
                               <p className="text-slate-400 text-xs">{name}</p>
                             </div>
                           </div>
@@ -184,20 +186,34 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 grid grid-rows-[1fr_auto] lg:grid-rows-1 lg:grid-cols-[1fr_400px] overflow-hidden">
-          <div className="min-h-[300px] lg:min-h-0 lg:h-full bg-[#131722] overflow-hidden">
-            <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
-          </div>
-          <div className="h[350px] lg:h-full bg-[#1E222D] border-t lg:border-t-0 lg:border-l border-[#2B2B43] overflow-y-auto">
-            <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
-          </div>
-        </div>
+        {/* Main Content - Resizable Panels */}
+        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+          {/* Left: Chart + Positions (vertical split) */}
+          <Panel defaultSize={70} minSize={40} className="overflow-hidden">
+            <PanelGroup direction="vertical" className="h-full overflow-hidden">
+              <Panel defaultSize={65} minSize={30} className="overflow-hidden">
+                <div className="h-full bg-[#131722]">
+                  <ProfessionalChart symbol={selectedSymbol} onPriceUpdate={handlePriceUpdate} positions={positions} />
+                </div>
+              </Panel>
+              <PanelResizeHandle className="h-1 bg-slate-700 hover:bg-blue-500 cursor-row-resize" />
+              <Panel defaultSize={35} minSize={20} className="overflow-hidden">
+                <div className="h-full bg-[#131722] border-t border-[#2B2B43]">
+                  <TradingHistory tradingAccountId={account?.id} onRefresh={handleTradeSuccess} onPositionsUpdate={setPositions} onOpenOrdersUpdate={setOpenOrders} refreshSignal={refreshSignal} />
+                </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
 
-        {/* Bottom */}
-        <div className="flex-none h-[250px] bg-[#131722] border-t border-[#2B2B43] overflow-hidden">
-          <TradingHistory tradingAccountId={account?.id} onRefresh={handleTradeSuccess} onPositionsUpdate={setPositions} onOpenOrdersUpdate={setOpenOrders} refreshSignal={refreshSignal} />
-        </div>
+          <PanelResizeHandle className="w-1 bg-slate-700 hover:bg-blue-500 cursor-col-resize" />
+
+          {/* Right: Order Panel */}
+          <Panel defaultSize={30} minSize={20} maxSize={40} className="overflow-hidden">
+            <div className="h-full bg-[#1E222D] border-l border-[#2B2B43] overflow-y-auto">
+              <OrderPanel symbol={selectedSymbol} currentPrice={currentPrice} balance={balance} tradingAccountId={account?.id} onOrderSuccess={handleTradeSuccess} language={language} />
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
 
       <ClientExecutionEngine positions={positions} openOrders={openOrders} onTrigger={handleTradeSuccess} userId={account?.user_id} />
