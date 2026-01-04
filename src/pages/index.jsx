@@ -1,4 +1,4 @@
-import Layout from "./Layout.jsx";
+import Layout from "../Layout.js";
 
 import About from "./About";
 
@@ -6,7 +6,7 @@ import Contact from "./Contact";
 
 import Home from "./Home";
 
-import Trading from "./Trading";
+import Trading from "./Trading.js";
 
 import Profile from "./Profile";
 
