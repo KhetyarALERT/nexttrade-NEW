@@ -10,7 +10,7 @@ import Trading from "./Trading";
 
 import Profile from "./Profile";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
     
