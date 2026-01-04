@@ -53,6 +53,12 @@ export default function TradingHistory({
     return () => unsub();
   }, []);
 
+  // Subscribe tickers for all symbols in positions/orders so mark price updates
+  useEffect(() => {
+    const symbols = Array.from(new Set(trades.map(t => t.symbol)));
+    symbols.forEach(s => marketStore.subscribeToTicker(s));
+  }, [trades]);
+
   const columns = [
     { key: 'opened_at', label: 'Opened', format: (v) => formatDateTime(v) },
     { key: 'symbol', label: 'Symbol', format: (v) => toDisplayFormat(v) },
@@ -134,7 +140,15 @@ export default function TradingHistory({
                         </td>
                         <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
                         <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.entry_price)}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(prices[t.symbol])}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">
+                          {formatPrice(prices[t.symbol])}
+                          {(t.take_profit || t.stop_loss) && (
+                            <div className="text-[10px] mt-0.5 text-slate-500">
+                              {t.take_profit && <span className="text-emerald-400">TP {formatPrice(t.take_profit)}</span>}
+                              {t.stop_loss && <span className="ml-2 text-rose-400">SL {formatPrice(t.stop_loss)}</span>}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col">
                             {prices[t.symbol] ? (
@@ -251,9 +265,9 @@ export default function TradingHistory({
     if (!date) return '-';
     return new Date(date).toLocaleString('en-AE', { timeZone: 'Asia/Dubai', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
-  function formatPrice(v) { if (v === undefined || v === null) return '-'; return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 6 })}`; }
+  function formatPrice(v) { if (v === undefined || v === null || isNaN(Number(v))) return '-'; const n = Number(v); return `$${n.toLocaleString(undefined, { maximumFractionDigits: n >= 1 ? 0 : 6 })}`; }
   function formatPnL(v) { if (v === undefined || v === null) return '-'; const n = Number(v); const cls = n >= 0 ? 'text-emerald-400' : 'text-rose-400'; return <span className={cls}>{n >= 0 ? '+' : ''}{n.toFixed(2)}</span>; }
-  function formatSize(v) { if (v === undefined || v === null) return '-'; const n = Number(v); return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 }); }
+  function formatSize(v) { if (v === undefined || v === null) return '-'; const n = Number(v); return n.toLocaleString(undefined, { maximumFractionDigits: n >= 1 ? 2 : 6 }); }
 }
 
 TradingHistory.propTypes = {

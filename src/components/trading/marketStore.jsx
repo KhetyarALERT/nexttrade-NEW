@@ -222,12 +222,16 @@ class MarketStore {
       const last = this.lastTickerEmit[symbol] || 0;
       const d = msg.data || {};
       const price = parseFloat(d.c ?? d.lastPrice ?? d.price ?? 0);
-      const change = parseFloat(d.p ?? d.priceChangePercent ?? d.change ?? 0);
+      let change = parseFloat(d.p ?? d.priceChangePercent ?? d.change ?? NaN);
       const high = parseFloat(d.h ?? d.highPrice ?? d.high ?? 0);
       const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
       const volume = parseFloat(d.v ?? d.volume ?? 0);
+      const open = parseFloat(d.o ?? d.open ?? d.openPrice ?? NaN);
+      if ((isNaN(change) || change === 0) && !isNaN(open) && open > 0 && price > 0) {
+        change = ((price - open) / open) * 100;
+      }
       const mark = parseFloat(d.markPrice ?? d.mark ?? d.c ?? price);
-      const ticker = { price, mark, change, high, low, volume };
+      const ticker = { price, mark, change: Number.isFinite(change) ? change : 0, high, low, volume };
       if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', symbol, ticker); } catch(_) {} this.loggedFirstTicker = true; }
       this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
       if (!Number.isNaN(price) && price > 0) {
@@ -246,12 +250,9 @@ class MarketStore {
     this.subscriptions.add(dataType);
     
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        id: `sub_${Date.now()}`,
-        reqType: "sub",
-        dataType
-      }));
-      console.log(`[STORE] Subscribed: ${dataType}`);
+      const payload = { id: `sub_${Date.now()}`, reqType: "sub", dataType };
+      this.ws.send(JSON.stringify(payload));
+      console.log('[STORE] Subscribed:', payload);
     }
   }
 

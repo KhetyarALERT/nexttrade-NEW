@@ -316,17 +316,22 @@ export default function OrderPanel({
             <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick SL</Label>
             <div className="flex gap-1">
               {[0.5,1,1.5,2].map(p => (
-                <Button key={p} size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => applySL(p)}>{p}%</Button>
+                <Button key={p} size="sm" className="h-7 px-2 text-[10px] bg-rose-600/80 hover:bg-rose-600 text-white" onClick={() => applySL(p)}>{p}%</Button>
               ))}
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => {
+                const v = parseFloat(prompt('Enter SL %')); if (!isNaN(v) && v>0) applySL(v);
+              }}>Custom</Button>
             </div>
           </div>
           <div className="flex items-center justify-between">
             <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick TP</Label>
             <div className="flex gap-1">
               {[1,2,4].map(p => (
-                <Button key={p} size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => applyTP(p)}>{p}%</Button>
+                <Button key={p} size="sm" className="h-7 px-2 text-[10px] bg-emerald-600/80 hover:bg-emerald-600 text-white" onClick={() => applyTP(p)}>{p}%</Button>
               ))}
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-slate-400">Custom</Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => {
+                const v = parseFloat(prompt('Enter TP %')); if (!isNaN(v) && v>0) applyTP(v);
+              }}>Custom</Button>
             </div>
           </div>
           {(takeProfit || stopLoss) && (
