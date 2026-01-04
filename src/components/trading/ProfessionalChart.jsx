@@ -1,10 +1,10 @@
-// ProfessionalChart.jsx - Stabilized subs, no loop triggers; update only on mount
+// ProfessionalChart.jsx - Removed top price bar (dup); focus chart only
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { createChart, ColorType } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Maximize2, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Maximize2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { marketStore } from "./marketStore";
 
@@ -29,10 +29,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wsConnected, setWsConnected] = useState(marketStore.connected);
-  const [currentPrice, setCurrentPrice] = useState(0);
-  const [priceChange, setPriceChange] = useState(0);
 
-  // Initialize chart ONCE (no deps to avoid remount loops)
   useEffect(() => {
     if (!chartContainerRef.current || chartRef.current) return;
 
@@ -68,7 +65,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     };
   }, []);
 
-  // Load data/stable subs (deps minimized; unsub on cleanup only)
   useEffect(() => {
     let unsubCandle = null;
     let unsubConnection = null;
@@ -116,12 +112,8 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         }
         
         const last = candles[candles.length - 1] || { close: 0 };
-        const first = candles[0] || { open: last.close };
-        setCurrentPrice(last.close);
-        setPriceChange(((last.close - first.open) / first.open) * 100);
         if (onPriceUpdate) onPriceUpdate(last.close);
         
-        // Stable subs (assume store handles shared WS; add pings in store if loop persists)
         marketStore.subscribeWS(`${symbol}@kline_${timeframe}`);
         marketStore.subscribeWS(`${symbol}@trade`);
         
@@ -139,10 +131,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
               }
             } catch (e) {}
           }
-          setCurrentPrice(candle.close);
-          // Recalc priceChange on tick (use daily open from store or API if needed; here from initial first.open)
-          const open = first.open || candle.open; // Improve: Fetch 1d open for accurate %
-          setPriceChange(((candle.close - open) / open) * 100);
           if (onPriceUpdate) onPriceUpdate(candle.close);
         });
         
@@ -164,44 +152,11 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       marketStore.unsubscribeWS(`${symbol}@kline_${timeframe}`);
       marketStore.unsubscribeWS(`${symbol}@trade`);
     };
-  }, [symbol, timeframe, onPriceUpdate]); // Deps ok, but store should prevent loop
-
-  const formatPrice = (p) => {
-    if (!p) return '0.00';
-    if (p >= 1000) return p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return p >= 1 ? p.toFixed(2) : p.toFixed(6);
-  };
-
-  const isPositive = priceChange >= 0;
+  }, [symbol, timeframe, onPriceUpdate]);
 
   return (
-    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2B2B43]">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-bold text-xs">
-              {symbol.split('-')[0].substring(0, 2)}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-sm">{symbol}</span>
-                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-              </div>
-              <div className="text-[10px] text-gray-500">Perpetual</div>
-            </div>
-          </div>
-          
-          <div className="flex items-baseline gap-2">
-            <span className={`text-2xl font-bold font-mono ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
-              ${formatPrice(currentPrice)}
-            </span>
-            <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-[#26A69A]' : 'text-[#EF5350]'}`}>
-              {isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-              {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
-            </div>
-          </div>
-        </div>
-
+    <Card className="border-0 shadow-none bg-[#131722] overflow-hidden h-full">
+      <div className="flex items-center justify-end px-4 py-2 border-b border-[#2B2B43]">
         <div className="flex items-center gap-1">
           {TIMEFRAMES.map(tf => (
             <Button
@@ -220,10 +175,10 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative flex-1">
         {loading && (<div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10"><Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" /></div>)}
         {error && (<div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10"><p className="text-red-500 text-sm">{error}</p></div>)}
-        <div ref={chartContainerRef} className="w-full h-[500px]" />
+        <div ref={chartContainerRef} className="w-full h-full" />
       </div>
       
       <div className="px-4 py-2 border-t border-[#2B2B43] flex items-center justify-between text-[10px] text-gray-500">
