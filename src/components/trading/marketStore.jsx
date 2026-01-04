@@ -4,14 +4,16 @@
  * WebSocket feeds this store, components subscribe to it
  */
 
+import { base44 } from "@/api/base44Client";
+
 // WebSocket endpoints (PUBLIC - no auth)
 // Using swap-market endpoint for better stability
 const WS_FUTURES_URL = 'wss://open-api-swap.bingx.com/swap-market';
 
 class MarketStore {
   constructor() {
-    this.prices = {};           // { symbol: price }  // map of last prices used across UI
-    this.tickers = {};          // { symbol: { price, change, high, low, volume } }
+    this.prices = {};           // { symbol: price }
+    this.tickers = {};          // { symbol: { price, change, high, low, volume, mark } }
     this.candles = {};          // { symbol_interval: candle[] }
     this.subscribers = {};      // { event: callback[] }
     this.ws = null;
@@ -22,6 +24,8 @@ class MarketStore {
     this.debugLoggedRaw = false;
     this.debugLoggedParsed = false;
     this.loggedFirstTicker = false;
+    this.candlePreloadInFlight = new Map();
+    this.reconnectAttempts = 0;
   }
 
   // Subscribe to store events
@@ -102,6 +106,37 @@ class MarketStore {
     return this.candles[this.getCandleKey(symbol, interval)] || [];
   }
 
+  // Preload historical candles via REST (seed once)
+  async preloadCandles(symbol, interval = '1m', limit = 500) {
+    const key = this.getCandleKey(symbol, interval);
+    if (Array.isArray(this.candles[key]) && this.candles[key].length > 0) return this.candles[key];
+
+    if (this.candlePreloadInFlight.has(key)) return this.candlePreloadInFlight.get(key);
+
+    const p = (async () => {
+      try {
+        const res = await base44.functions.invoke('bingxMarketData', {
+          action: 'getKlines',
+          params: { symbol, interval, limit }
+        });
+        const candles = res.data?.data || [];
+        console.log('[STORE] REST klines fetched', symbol, interval, Array.isArray(candles) ? candles.length : 0);
+        if (Array.isArray(candles) && candles.length) {
+          this.setCandles(symbol, interval, candles);
+        }
+        return this.candles[key] || [];
+      } catch (e) {
+        console.log('[STORE] REST klines failed', symbol, interval, e?.message || e);
+        return this.candles[key] || [];
+      } finally {
+        this.candlePreloadInFlight.delete(key);
+      }
+    })();
+
+    this.candlePreloadInFlight.set(key, p);
+    return p;
+  }
+
   // Get price
   getPrice(symbol) {
     return this.prices[symbol] || 0;
@@ -120,9 +155,10 @@ class MarketStore {
     this.ws = new WebSocket(WS_FUTURES_URL);
     
     this.ws.onopen = () => {
-      console.log('[STORE] WebSocket connected');
+      console.log('[STORE] WS connected');
       this.connected = true;
       this.emit('connected', true);
+      this.reconnectAttempts = 0;
       
       // Resubscribe to all active subscriptions
       this.subscriptions.forEach(sub => {
@@ -158,17 +194,22 @@ class MarketStore {
       }
     };
     
-    this.ws.onclose = () => {
-      console.log('[STORE] WebSocket disconnected');
+    this.ws.onclose = (evt) => {
+      console.log('[STORE] WS disconnected', evt?.code, evt?.reason || '');
       this.connected = false;
       this.emit('connected', false);
       this.stopPing();
       
-      // Clear any existing heartbeat timeout
       if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
 
-      // Reconnect after 3 seconds
-      this.reconnectTimeout = setTimeout(() => this.connect(), 3000);
+      // Exponential backoff with jitter
+      this.reconnectAttempts = Math.min(this.reconnectAttempts + 1, 5);
+      const backoffs = [1000, 2000, 5000, 15000, 60000];
+      const base = backoffs[this.reconnectAttempts - 1];
+      const jitter = Math.floor(base * 0.2 * Math.random());
+      const delay = base + jitter;
+      console.log(`[STORE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+      this.reconnectTimeout = setTimeout(() => this.connect(), delay);
     };
     
     this.ws.onerror = (err) => {

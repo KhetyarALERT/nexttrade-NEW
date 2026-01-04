@@ -81,16 +81,16 @@ export default function Trading({ language = "en" }) {
 
   useEffect(() => {
     const handleTicker = ({ symbol, ticker }) => {
-      setMarketData((prev) => ({ ...prev, [symbol]: { price: ticker.price, change: ticker.change } }));
+      setMarketData((prev) => ({ ...prev, [symbol]: { price: ticker.price, mark: ticker.mark, change: ticker.change } }));
       if (symbol === selectedSymbol) {
-        setCurrentPrice(ticker.price);
+        setCurrentPrice((ticker.mark ?? ticker.price) || 0);
         setPriceChange(ticker.change || 0);
       }
     };
     const unsub = marketStore.subscribe("ticker", handleTicker);
     const t = marketStore.getAllTickers?.()[selectedSymbol];
     if (t) {
-      setCurrentPrice(t.price);
+      setCurrentPrice((t.mark ?? t.price) || 0);
       setPriceChange(t.change || 0);
     }
     return () => unsub();
@@ -100,7 +100,7 @@ export default function Trading({ language = "en" }) {
     setSelectedSymbol(symbol);
     const data = marketData[symbol];
     if (data) {
-      setCurrentPrice(data.price);
+      setCurrentPrice((data.mark ?? data.price) || 0);
       setPriceChange(data.change || 0);
     }
   };
@@ -109,8 +109,8 @@ export default function Trading({ language = "en" }) {
 
   useEffect(() => {
     const unsubTicker = marketStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
-      if (t?.price) setCurrentPrice(t.price);
-      if (t?.change) setPriceChange(t.change);
+      if (t?.mark || t?.price) setCurrentPrice((t.mark ?? t.price) || 0);
+      if (t?.change !== undefined) setPriceChange(t.change);
     });
     const unsubPrice = marketStore.subscribe(`price:${selectedSymbol}`, (p) => {
       if (p) setCurrentPrice(p);
