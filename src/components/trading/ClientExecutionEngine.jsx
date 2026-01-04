@@ -153,10 +153,6 @@ export default function ClientExecutionEngine({
           console.log(`[EXEC] Executing order ${order.id} for ${order.symbol} at ${price}`);
           try {
             await base44.functions.invoke('tradingAccount', {
-              action: 'openTrade', // Re-using openTrade? No, we need 'executeOrder' or update status
-              // Actually tradingAccount's openTrade creates a NEW trade. 
-              // We need to update the PENDING trade to OPEN.
-              // Let's call a specific action for this.
               action: 'executePendingOrder',
               tradeId: order.id,
               entryPrice: price
