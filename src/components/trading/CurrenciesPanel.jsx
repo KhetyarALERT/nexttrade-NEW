@@ -28,7 +28,7 @@ export default function CurrenciesPanel({ selectedSymbol, onSelect, collapsed = 
     const base = [...new Set([...favorites, ...CURRENCY_LIST])];
     return base
       .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-      .map(symbol => ({ symbol, price: tickers[symbol]?.price || 0, change: tickers[symbol]?.change || 0 }));
+      .map(symbol => ({ symbol, price: tickers[symbol]?.mark ?? tickers[symbol]?.price || 0, change: tickers[symbol]?.change ?? 0 }));
   }, [favorites, search, tickers]);
 
   const toggleFav = (s) => {

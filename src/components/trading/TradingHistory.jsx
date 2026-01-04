@@ -116,13 +116,15 @@ export default function TradingHistory({
               <div className="p-0">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-[#131722] z-10">
-                    <tr className="text-[12px] uppercase tracking-wider text-slate-400 border-b border-slate-800/50">
+                    <tr className="text-[13px] uppercase tracking-wider text-slate-300 border-b border-slate-800/50">
                       <th className="px-4 py-2 font-semibold">Symbol</th>
-                      <th className="px-4 py-2 font-semibold">Value</th>
+                      <th className="px-4 py-2 font-semibold">Position Value</th>
                       <th className="px-4 py-2 font-semibold">Entry</th>
+                      <th className="px-4 py-2 font-semibold">Breakeven</th>
                       <th className="px-4 py-2 font-semibold">Mark</th>
                       <th className="px-4 py-2 font-semibold">Unrealized PnL</th>
                       <th className="px-4 py-2 font-semibold">ROE%</th>
+                      <th className="px-4 py-2 font-semibold">Risk</th>
                       <th className="px-4 py-2 font-semibold">Liq</th>
                       <th className="px-4 py-2 font-semibold">Margin</th>
                       <th className="px-4 py-2 font-semibold">TP/SL</th>
@@ -136,21 +138,25 @@ export default function TradingHistory({
                       const margin = (t.entry_price * t.quantity) / (t.leverage || 1);
                       const pnl = (t.side === 'LONG' ? (mark - t.entry_price) : (t.entry_price - mark)) * t.quantity;
                       const roe = margin ? (pnl / margin) * 100 : 0;
+                      const breakeven = t.entry_price; // approximation without fees
+                      const riskPct = (t.liquidation_price && mark) ? (Math.abs(mark - t.liquidation_price) / mark) * 100 : null;
                       return (
-                        <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group text-sm">
+                        <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group text-[13px]">
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="text-base font-bold text-white">{toDisplayFormat(t.symbol)}</span>
+                              <span className="text-[15px] font-bold text-white">{toDisplayFormat(t.symbol)}</span>
                               <span className="text-[11px] text-slate-500">{t.leverage}x Isolated • {t.side === 'LONG' ? 'Long' : 'Short'} • Size {formatSize(t.quantity)}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 font-mono">{formatPrice(value)}</td>
                           <td className="px-4 py-3 font-mono">{formatPrice(t.entry_price)}</td>
+                          <td className="px-4 py-3 font-mono">{formatPrice(breakeven)}</td>
                           <td className="px-4 py-3 font-mono">{formatPrice(mark)}</td>
                           <td className="px-4 py-3">
                             <span className={`${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold`}>{formatPnL(pnl)}</span>
                           </td>
                           <td className={`px-4 py-3 font-mono ${roe>=0?'text-emerald-400':'text-rose-400'}`}>{Number.isFinite(roe) ? roe.toFixed(2) + '%' : '--'}</td>
+                          <td className="px-4 py-3 font-mono">{riskPct !== null ? riskPct.toFixed(2) + '%' : '--'}</td>
                           <td className="px-4 py-3 font-mono text-amber-400">{t.liquidation_price ? t.liquidation_price.toFixed(0) : '-'}</td>
                           <td className="px-4 py-3 font-mono">{formatPrice(margin)}</td>
                           <td className="px-4 py-3">
@@ -164,6 +170,7 @@ export default function TradingHistory({
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add TP/SL</Button>
+                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700">Reverse</Button>
                               <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
                             </div>
                           </td>
