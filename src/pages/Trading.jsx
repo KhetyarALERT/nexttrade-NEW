@@ -65,7 +65,6 @@ export default function Trading({ language = "en" }) {
   const [positions, setPositions] = useState([]);
   const [openOrders, setOpenOrders] = useState([]);
   const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
-  const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
 
   // Save symbol preference
   useEffect(() => {
