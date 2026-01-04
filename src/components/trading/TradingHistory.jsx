@@ -130,52 +130,46 @@ export default function TradingHistory({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/30">
-                    {openPositions.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group">
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-white">{toDisplayFormat(t.symbol)}</span>
-                            <span className="text-[10px] text-slate-500">{t.leverage}x Isolated</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs font-bold ${t.side === "LONG" ? "text-emerald-400" : "text-rose-400"}`}>{t.side}</span>
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.entry_price)}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">
-                          {formatPrice(prices[t.symbol])}
-                          {(t.take_profit || t.stop_loss) && (
-                            <div className="text-[10px] mt-0.5 text-slate-500">
-                              {t.take_profit && <span className="text-emerald-400">TP {formatPrice(t.take_profit)}</span>}
-                              {t.stop_loss && <span className="ml-2 text-rose-400">SL {formatPrice(t.stop_loss)}</span>}
+                    {openPositions.map((t) => {
+                      const mark = prices[t.symbol] || t.entry_price || 0;
+                      const value = mark * t.quantity;
+                      const margin = (t.entry_price * t.quantity) / (t.leverage || 1);
+                      const pnl = (t.side === 'LONG' ? (mark - t.entry_price) : (t.entry_price - mark)) * t.quantity;
+                      const roe = margin ? (pnl / margin) * 100 : 0;
+                      return (
+                        <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group text-sm">
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col">
+                              <span className="text-base font-bold text-white">{toDisplayFormat(t.symbol)}</span>
+                              <span className="text-[11px] text-slate-500">{t.leverage}x Isolated • {t.side === 'LONG' ? 'Long' : 'Short'} • Size {formatSize(t.quantity)}</span>
                             </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            {prices[t.symbol] ? (
-                              <>
-                                <span className={(((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)) >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                                  {formatPnL((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)}
-                                </span>
-                                <span className={`text-[10px] ${(((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)) >= 0 ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
-                                  ({((((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity) / ((t.entry_price * t.quantity) / (t.leverage || 1))) * 100).toFixed(2)}%)
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-slate-500">--</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add SL/TP</Button>
-                            <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3 font-mono">{formatPrice(value)}</td>
+                          <td className="px-4 py-3 font-mono">{formatPrice(t.entry_price)}</td>
+                          <td className="px-4 py-3 font-mono">{formatPrice(mark)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'} font-bold`}>{formatPnL(pnl)}</span>
+                          </td>
+                          <td className={`px-4 py-3 font-mono ${roe>=0?'text-emerald-400':'text-rose-400'}`}>{Number.isFinite(roe) ? roe.toFixed(2) + '%' : '--'}</td>
+                          <td className="px-4 py-3 font-mono text-amber-400">{t.liquidation_price ? t.liquidation_price.toFixed(0) : '-'}</td>
+                          <td className="px-4 py-3 font-mono">{formatPrice(margin)}</td>
+                          <td className="px-4 py-3">
+                            {(t.take_profit || t.stop_loss) ? (
+                              <div className="text-[12px]">
+                                {t.take_profit && <span className="text-emerald-400 font-mono">TP {formatPrice(t.take_profit)}</span>}
+                                {t.stop_loss && <span className="ml-2 text-rose-400 font-mono">SL {formatPrice(t.stop_loss)}</span>}
+                              </div>
+                            ) : <span className="text-slate-500 text-[12px]">--</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add TP/SL</Button>
+                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

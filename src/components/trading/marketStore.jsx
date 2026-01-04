@@ -207,13 +207,16 @@ class MarketStore {
         close: parseFloat(k.c),
         volume: parseFloat(k.v || 0)
       };
-      this.updateCandle(symbol, interval, candle);
+      const symFromData = String(k.s || symbol || '').replace('[','').replace(']','').replace('/', '-').toUpperCase();
+      this.updateCandle(symFromData || symbol, interval, candle);
     }
     
     if (channel === 'trade') {
-      const price = parseFloat(msg.data.p);
+      const d = msg.data || {};
+      const symFromData = String(d.s || symbol || '').replace('[','').replace(']','').replace('/', '-').toUpperCase();
+      const price = parseFloat(d.p ?? d.price ?? 0);
       if (price > 0) {
-        this.updatePrice(symbol, price);
+        this.updatePrice(symFromData || symbol, price);
       }
     }
     
@@ -251,7 +254,10 @@ class MarketStore {
           handleOne(sym, d);
         });
       } else {
-        handleOne(symbol, msg.data || {});
+        const d = msg.data || {};
+        const raw = String(d.s || d.symbol || symbol || '').replace('[','').replace(']','');
+        const sym = raw.replace('/', '-').toUpperCase();
+        handleOne(sym, d);
       }
     }
   }
