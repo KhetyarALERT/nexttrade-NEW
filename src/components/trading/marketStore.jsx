@@ -310,11 +310,28 @@ class MarketStore {
   subscribeWS(dataType) {
     this.subscriptions.add(dataType);
     
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      const payload = { id: `sub_${Date.now()}`, reqType: "sub", dataType };
-      this.ws.send(JSON.stringify(payload));
-      console.log('[STORE] Subscribed:', payload);
-    }
+    // Defer send until socket is OPEN
+    const trySend = () => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          const payload = { id: `sub_${Date.now()}`, reqType: 'sub', dataType };
+          this.ws.send(JSON.stringify(payload));
+          console.log('[STORE] Subscribed:', payload);
+        } catch {}
+      } else {
+        // Retry once after short delay if still connecting
+        setTimeout(() => {
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            try {
+              const payload = { id: `sub_${Date.now()}`, reqType: 'sub', dataType };
+              this.ws.send(JSON.stringify(payload));
+              console.log('[STORE] Subscribed (retry):', payload);
+            } catch {}
+          }
+        }, 200);
+      }
+    };
+    trySend();
   }
 
   // Unsubscribe from WebSocket channel
