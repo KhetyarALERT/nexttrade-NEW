@@ -47,7 +47,7 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
     // Subscribe to WebSocket for top pairs
     TOP_PAIRS.slice(0, 10).forEach(t => {
       try {
-        marketStore.subscribeWS?.(`${t.symbol}@ticker`);
+        marketStore.subscribeToTicker?.(t.symbol);
       } catch (e) {}
     });
     

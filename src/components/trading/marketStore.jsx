@@ -174,8 +174,15 @@ class MarketStore {
 
     if (!msg.dataType || !msg.data) return;
     
-    const [rawSymbol, channel] = msg.dataType.split('@');
-    const symbol = String(rawSymbol).replace('/', '-').toUpperCase();
+    let channel, rawSymbol;
+    if (typeof msg.dataType === 'string') {
+      if (msg.dataType.includes('.')) {
+        [channel, rawSymbol] = msg.dataType.split('.');
+      } else if (msg.dataType.includes('@')) {
+        [rawSymbol, channel] = msg.dataType.split('@');
+      }
+    }
+    const symbol = String(rawSymbol || '').replace('/', '-').toUpperCase();
     
     if (channel?.startsWith('kline_')) {
       const interval = channel.replace('kline_', '');
@@ -201,19 +208,17 @@ class MarketStore {
     if (channel === 'ticker') {
       const now = Date.now();
       const last = this.lastTickerEmit[symbol] || 0;
-      const ticker = {
-        price: parseFloat(msg.data.c),
-        change: parseFloat(msg.data.p || 0),
-        high: parseFloat(msg.data.h),
-        low: parseFloat(msg.data.l),
-        volume: parseFloat(msg.data.v)
-      };
-      // Always update store and price cache
+      const d = msg.data || {};
+      const price = parseFloat(d.c ?? d.lastPrice ?? d.price ?? 0);
+      const change = parseFloat(d.p ?? d.priceChangePercent ?? d.change ?? 0);
+      const high = parseFloat(d.h ?? d.highPrice ?? d.high ?? 0);
+      const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
+      const volume = parseFloat(d.v ?? d.volume ?? 0);
+      const ticker = { price, change, high, low, volume };
       this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
-      if (!Number.isNaN(ticker.price) && ticker.price > 0) {
-        this.updatePrice(symbol, ticker.price);
+      if (!Number.isNaN(price) && price > 0) {
+        this.updatePrice(symbol, price);
       }
-      // Throttle UI emits to max once per 250ms per symbol
       if (now - last >= 250) {
         this.lastTickerEmit[symbol] = now;
         this.emit(`ticker:${symbol}`, this.tickers[symbol]);
@@ -284,29 +289,29 @@ class MarketStore {
 
   // Subscribe to ticker channel for a symbol
   subscribeToTicker(symbol) {
-    this.subscribeWS(`${symbol}@ticker`);
+    this.subscribeWS(`ticker.${symbol}`);
   }
 
   // Convenience: subscribe to one symbol (ticker + trade)
   subscribeToSymbol(symbol) {
-    this.subscribeWS(`${symbol}@ticker`);
-    this.subscribeWS(`${symbol}@trade`);
+    this.subscribeWS(`ticker.${symbol}`);
+    this.subscribeWS(`trade.${symbol}`);
   }
 
   // Unsubscribe convenience for one symbol
   unsubscribeFromSymbol(symbol) {
-    this.unsubscribeWS(`${symbol}@ticker`);
-    this.unsubscribeWS(`${symbol}@trade`);
+    this.unsubscribeWS(`ticker.${symbol}`);
+    this.unsubscribeWS(`trade.${symbol}`);
   }
 
   // Subscribe to trade channel for a symbol
   subscribeToTrade(symbol) {
-    this.subscribeWS(`${symbol}@trade`);
+    this.subscribeWS(`trade.${symbol}`);
   }
 
   // Subscribe to candle channel for a symbol
   subscribeToCandles(symbol, interval = '1m') {
-    this.subscribeWS(`${symbol}@kline_${interval}`);
+    this.subscribeWS(`kline_${interval}.${symbol}`);
   }
 
   // Disconnect
