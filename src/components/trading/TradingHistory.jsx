@@ -48,7 +48,7 @@ export default function TradingHistory({
   // Live price subscription for Mark Price + PnL
   useEffect(() => {
     const unsub = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
-      setPrices(prev => ({ ...prev, [symbol]: ticker.price || prev[symbol] }));
+      setPrices(prev => ({ ...prev, [symbol]: (ticker.mark ?? ticker.price) || prev[symbol] }));
     });
     return () => unsub();
   }, []);

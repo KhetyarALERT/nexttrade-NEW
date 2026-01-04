@@ -193,7 +193,7 @@ class MarketStore {
         [rawSymbol, channel] = msg.dataType.split('@');
       }
     }
-    const symbol = String(rawSymbol || '').replace('/', '-').toUpperCase();
+    const symbol = String(rawSymbol || '').replace('[','').replace(']','').replace('/', '-').toUpperCase();
     if (!this.debugLoggedParsed && channel && symbol) { try { console.log('[STORE] First WS parsed:', msg.dataType, '->', channel, symbol); } catch(_) {} this.debugLoggedParsed = true; }
     
     if (channel?.startsWith('kline_')) {
@@ -226,7 +226,8 @@ class MarketStore {
       const high = parseFloat(d.h ?? d.highPrice ?? d.high ?? 0);
       const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
       const volume = parseFloat(d.v ?? d.volume ?? 0);
-      const ticker = { price, change, high, low, volume };
+      const mark = parseFloat(d.markPrice ?? d.mark ?? d.c ?? price);
+      const ticker = { price, mark, change, high, low, volume };
       if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', symbol, ticker); } catch(_) {} this.loggedFirstTicker = true; }
       this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
       if (!Number.isNaN(price) && price > 0) {
@@ -303,28 +304,35 @@ class MarketStore {
   // Subscribe to ticker channel for a symbol
   subscribeToTicker(symbol) {
     this.subscribeWS(`ticker.${symbol}`);
+    this.subscribeWS(`ticker.[${symbol}]`);
   }
 
   // Convenience: subscribe to one symbol (ticker + trade)
   subscribeToSymbol(symbol) {
     this.subscribeWS(`ticker.${symbol}`);
+    this.subscribeWS(`ticker.[${symbol}]`);
     this.subscribeWS(`trade.${symbol}`);
+    this.subscribeWS(`trade.[${symbol}]`);
   }
 
   // Unsubscribe convenience for one symbol
   unsubscribeFromSymbol(symbol) {
     this.unsubscribeWS(`ticker.${symbol}`);
+    this.unsubscribeWS(`ticker.[${symbol}]`);
     this.unsubscribeWS(`trade.${symbol}`);
+    this.unsubscribeWS(`trade.[${symbol}]`);
   }
 
   // Subscribe to trade channel for a symbol
   subscribeToTrade(symbol) {
     this.subscribeWS(`trade.${symbol}`);
+    this.subscribeWS(`trade.[${symbol}]`);
   }
 
   // Subscribe to candle channel for a symbol
   subscribeToCandles(symbol, interval = '1m') {
     this.subscribeWS(`kline_${interval}.${symbol}`);
+    this.subscribeWS(`kline_${interval}.[${symbol}]`);
   }
 
   // Disconnect
