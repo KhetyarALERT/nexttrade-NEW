@@ -274,7 +274,7 @@ export default function Trading({ language = "en" }) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Chart Section */}
-          <div className="flex-1 min-w-0 bg-[#131722] h-[45vh] md:h-auto order-1 md:order-none">
+          <div className="flex-1 min-w-0 bg-[#131722] h-[50vh] md:h-[60vh] lg:h-[65vh] order-1 md:order-none">
             <ProfessionalChart
               symbol={selectedSymbol}
               onPriceUpdate={handlePriceUpdate}
