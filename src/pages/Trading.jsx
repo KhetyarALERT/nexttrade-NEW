@@ -91,13 +91,10 @@ export default function Trading({ language = "en" }) {
     loadAccount();
   }, [loadAccount]);
 
-  // Subscribe to WebSocket tickers ONCE on mount
+  // Subscribe to WebSocket tickers whenever list changes
   useEffect(() => {
-    // Subscribe to all symbols once
-    FUTURES_SYMBOLS.forEach(s => marketStore.subscribeToTicker(s.symbol));
-    
-    // This runs once on mount, don't resubscribe
-  }, []);
+    availableSymbols.forEach(s => marketStore.subscribeToTicker(s.symbol));
+  }, [availableSymbols]);
 
   // Listen to ticker updates
   useEffect(() => {
