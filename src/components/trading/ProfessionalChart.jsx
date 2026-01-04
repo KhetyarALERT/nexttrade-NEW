@@ -49,6 +49,11 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
     if (!s || !seriesRef.current) return;
 
     marketStore.subscribeToSymbol(s);
+    marketStore.subscribeToCandles(s, timeframe);
+    const key = `${s}_${timeframe}`;
+    const unsubCandle = marketStore.subscribe(`candle:${key}`, (candle) => {
+      if (seriesRef.current) seriesRef.current.update(candle);
+    });
     const unsubTicker = marketStore.subscribe(`ticker:${s}`, (ticker) => {
       const p = ticker?.price || 0;
       setPrice(p);
@@ -65,12 +70,13 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
         const res = await base44.functions.invoke('bingxMarketData', { action: 'getKlines', params: { symbol: s, interval: timeframe, limit: 500 } });
         const candles = res.data?.data || [];
         seriesRef.current.setData(candles);
+        marketStore.setCandles?.(s, timeframe, candles);
       } catch (e) {
         console.error('Failed to load klines', e);
       }
     })();
 
-    return () => { unsubTicker?.(); marketStore.unsubscribeFromSymbol(s); };
+    return () => { unsubTicker?.(); unsubCandle?.(); marketStore.unsubscribeFromSymbol(s); marketStore.unsubscribeWS?.(`${s}@kline_${timeframe}`); };
   }, [symbol, timeframe, onPriceUpdate]);
 
   // Draw position lines

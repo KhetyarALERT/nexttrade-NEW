@@ -117,45 +117,11 @@ export default function Trading({ language = "en" }) {
         <div className="bg-[#1a1a2e] border-b border-slate-700/50 px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-2">
-                    <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
-                    <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
-                    <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-72 bg-[#1a1a2e] border-slate-700 p-0 max-h-[400px] overflow-hidden">
-                  <div className="p-2 border-b border-slate-700">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input placeholder="Search symbols..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 h-8 bg-slate-800 border-slate-600 text-white text-sm" />
-                    </div>
-                  </div>
-                  <div className="overflow-y-auto max-h[300px]">
-                    {filteredSymbols.map(({ symbol, name }) => {
-                      const data = marketData[symbol] || { price: 0, change: 0 };
-                      const isSelected = symbol === selectedSymbol;
-                      return (
-                        <DropdownMenuItem key={symbol} onClick={() => handleSymbolSelect(symbol)} className={`flex items-center justify-between p-3 cursor-pointer ${isSelected ? 'bg-blue-600/20' : 'hover:bg-slate-700/50'}`}>
-                          <div className="flex items-center gap-2">
-                            <CryptoIcon currency={symbol.split('-')[0]} size="sm" />
-                            <div>
-                              <p className="text-white text-sm font-medium">{toDisplayFormat(symbol)}</p>
-                              <p className="text-slate-400 text-xs">{name}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white text-sm font-mono">${data.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: data.price < 1 ? 6 : 2 })}</p>
-                            <p className={`text-xs ${data.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{data.change >= 0 ? '+' : ''}{data.change?.toFixed(2)}%</p>
-                          </div>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <CryptoIcon currency={selectedSymbol.split('-')[0]} size="sm" />
+                <span className="font-bold">{toDisplayFormat(selectedSymbol)}</span>
+                <Badge variant="outline" className="bg-blue-600/20 text-blue-400 border-blue-500/50 text-[10px]">{t.perpetual}</Badge>
+              </div>
 
               <div className="flex items-center gap-3">
                 <span className="text-white text-xl font-bold font-mono">${currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: currentPrice < 1 ? 6 : 2 })}</span>

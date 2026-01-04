@@ -172,7 +172,8 @@ class MarketStore {
 
     if (!msg.dataType || !msg.data) return;
     
-    const [symbol, channel] = msg.dataType.split('@');
+    const [rawSymbol, channel] = msg.dataType.split('@');
+    const symbol = String(rawSymbol).replace('/', '-').toUpperCase();
     
     if (channel?.startsWith('kline_')) {
       const interval = channel.replace('kline_', '');
