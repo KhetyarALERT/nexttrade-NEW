@@ -34,7 +34,10 @@ import { ArrowLeft } from "lucide-react";
   const FUTURES_SYMBOLS = CURRENCY_LIST.map(s => ({ symbol: s, name: s.replace('-USDT','') }));
 
 export default function Trading({ language = "en" }) {
-  const [selectedSymbol, setSelectedSymbol] = useState(() => localStorage.getItem('trading_symbol') || "BTC-USDT");
+  const [selectedSymbol, setSelectedSymbol] = useState(() => {
+    const stored = localStorage.getItem('trading_symbol');
+    return toInternalFormat(stored || 'BTC-USDT');
+  });
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
   const [marketData, setMarketData] = useState({});
@@ -67,11 +70,12 @@ export default function Trading({ language = "en" }) {
 
   useEffect(() => { loadAccount(); }, [loadAccount]);
 
-  // Subscribe only to selected symbol
+  // Subscribe only to selected symbol (normalize to DASH)
   useEffect(() => {
     if (!selectedSymbol) return;
-    marketStore.subscribeToSymbol(selectedSymbol);
-    return () => marketStore.unsubscribeFromSymbol(selectedSymbol);
+    const sym = toInternalFormat(selectedSymbol);
+    marketStore.subscribeToSymbol(sym);
+    return () => marketStore.unsubscribeFromSymbol(sym);
   }, [selectedSymbol]);
 
   // Listen to ticker updates
@@ -126,15 +130,13 @@ export default function Trading({ language = "en" }) {
     fetchContracts();
   }, []);
 
-  // Seed dropdown prices from current store and subscribe tickers for dropdown list
+  // Seed dropdown prices from current store and subscribe tickers for dropdown list (limit to 40 to avoid WS overload)
   useEffect(() => {
-    // seed existing
     const existing = marketStore.getAllTickers?.() || {};
     if (existing && Object.keys(existing).length) {
       setMarketData(prev => ({ ...prev, ...existing }));
     }
-    // subscribe
-    availableSymbols.slice(0, 120).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
+    availableSymbols.slice(0, 40).forEach(({ symbol }) => marketStore.subscribeToTicker(symbol));
   }, [availableSymbols]);
 
   const filteredSymbols = availableSymbols.filter(
