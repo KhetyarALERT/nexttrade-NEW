@@ -4,7 +4,6 @@ import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import index from './pages/index';
-import Trading from './pages/Trading';
 import __Layout from './Layout.jsx';
 
 
@@ -15,7 +14,6 @@ export const PAGES = {
     "Home": Home,
     "Profile": Profile,
     "index": index,
-    "Trading": Trading,
 }
 
 export const pagesConfig = {
