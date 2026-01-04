@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import ProfessionalChart from "@/components/trading/ProfessionalChart";
+import ProfessionalChart from "@/components/trading/ProfessionalChart.jsx";
 import OrderPanel from "@/components/trading/OrderPanel";
 import TradingHistory from "@/components/trading/TradingHistory";
 import ClientExecutionEngine from "@/components/trading/ClientExecutionEngine";
