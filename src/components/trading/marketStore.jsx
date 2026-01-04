@@ -19,6 +19,8 @@ class MarketStore {
     this.connected = false;
     this.reconnectTimeout = null;
     this.lastTickerEmit = {}; // throttle map per symbol
+    this.debugLoggedRaw = false;
+    this.debugLoggedParsed = false;
   }
 
   // Subscribe to store events
@@ -65,6 +67,11 @@ class MarketStore {
     const key = this.getCandleKey(symbol, interval);
     this.candles[key] = candles;
     this.emit(`candles:${key}`, candles);
+    // Seed last price from REST preload for immediate UI display
+    const last = Array.isArray(candles) && candles.length ? candles[candles.length - 1] : null;
+    if (last?.close > 0) {
+      this.updatePrice(symbol, last.close);
+    }
   }
 
   // Update candle (from WebSocket)
@@ -172,7 +179,10 @@ class MarketStore {
   handleMessage(msg) {
     this.resetHeartbeat(); // Reset watchdog on any valid message
 
-    if (!msg.dataType || !msg.data) return;
+    if (!msg.dataType || !msg.data) {
+      if (!this.debugLoggedRaw) { try { console.log('[STORE] First WS message (unparsed):', msg); } catch(_) {} this.debugLoggedRaw = true; }
+      return;
+    }
     
     let channel, rawSymbol;
     if (typeof msg.dataType === 'string') {
@@ -183,6 +193,7 @@ class MarketStore {
       }
     }
     const symbol = String(rawSymbol || '').replace('/', '-').toUpperCase();
+    if (!this.debugLoggedParsed && channel && symbol) { try { console.log('[STORE] First WS parsed:', msg.dataType, '->', channel, symbol); } catch(_) {} this.debugLoggedParsed = true; }
     
     if (channel?.startsWith('kline_')) {
       const interval = channel.replace('kline_', '');

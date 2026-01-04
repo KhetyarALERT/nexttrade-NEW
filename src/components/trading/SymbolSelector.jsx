@@ -43,14 +43,20 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
         p.symbol === symbol ? { ...p, price: ticker.price || p.price, change: ticker.change || p.change } : p
       ));
     });
-    
+
     // Subscribe to WebSocket for top pairs
     TOP_PAIRS.slice(0, 10).forEach(t => {
       try {
         marketStore.subscribeToTicker?.(t.symbol);
       } catch (e) {}
     });
-    
+
+    // Seed from any existing store data immediately
+    const existing = marketStore.getAllTickers?.() || {};
+    if (Object.keys(existing).length) {
+      setPairs(prev => prev.map(p => ({ ...p, price: existing[p.symbol]?.price || p.price, change: existing[p.symbol]?.change || p.change })));
+    }
+
     return () => unsub();
   }, []);
 

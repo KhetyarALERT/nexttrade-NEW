@@ -85,6 +85,11 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
         const candles = res.data?.data || [];
         seriesRef.current.setData(candles);
         marketStore.setCandles?.(s, timeframe, candles);
+        const last = candles.length ? candles[candles.length - 1] : null;
+        if (last?.close) {
+          setPrice(last.close);
+          if (onPriceUpdate) onPriceUpdate(last.close);
+        }
       } catch (e) {
         console.error('Failed to load klines', e);
       }
