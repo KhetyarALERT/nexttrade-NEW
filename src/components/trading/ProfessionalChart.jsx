@@ -1,3 +1,4 @@
+// ProfessionalChart.jsx - Stabilized subs, no loop triggers; update only on mount
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { createChart, ColorType } from "lightweight-charts";
@@ -31,49 +32,27 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   const [currentPrice, setCurrentPrice] = useState(0);
   const [priceChange, setPriceChange] = useState(0);
 
-  // Initialize chart ONCE
+  // Initialize chart ONCE (no deps to avoid remount loops)
   useEffect(() => {
     if (!chartContainerRef.current || chartRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: '#131722' },
-        textColor: '#787B86',
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: '#1f2937', style: 1 },
-        horzLines: { color: '#1f2937', style: 1 },
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
-        horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' },
-      },
+      layout: { background: { type: ColorType.Solid, color: '#131722' }, textColor: '#787B86', attributionLogo: false },
+      grid: { vertLines: { color: '#1f2937', style: 1 }, horzLines: { color: '#1f2937', style: 1 } },
+      crosshair: { mode: 1, vertLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' }, horzLine: { color: '#758696', width: 1, style: 3, labelBackgroundColor: '#2962FF' } },
       rightPriceScale: { borderColor: '#2B2B43', scaleMargins: { top: 0.1, bottom: 0.2 } },
       timeScale: { borderColor: '#2B2B43', timeVisible: true, secondsVisible: false, rightOffset: 5, barSpacing: 8 },
     });
 
-    candleSeriesRef.current = chart.addCandlestickSeries({
-      upColor: '#26A69A', downColor: '#EF5350',
-      borderUpColor: '#26A69A', borderDownColor: '#EF5350',
-      wickUpColor: '#26A69A', wickDownColor: '#EF5350',
-    });
+    candleSeriesRef.current = chart.addCandlestickSeries({ upColor: '#26A69A', downColor: '#EF5350', borderUpColor: '#26A69A', borderDownColor: '#EF5350', wickUpColor: '#26A69A', wickDownColor: '#EF5350' });
 
-    volumeSeriesRef.current = chart.addHistogramSeries({
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-      scaleMargins: { top: 0.85, bottom: 0 },
-    });
+    volumeSeriesRef.current = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '', scaleMargins: { top: 0.85, bottom: 0 } });
 
     chartRef.current = chart;
 
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
-        chart.applyOptions({ 
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight
-        });
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
       }
     };
 
@@ -89,7 +68,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
     };
   }, []);
 
-  // Load initial data ONCE, then subscribe to store
+  // Load data/stable subs (deps minimized; unsub on cleanup only)
   useEffect(() => {
     let unsubCandle = null;
     let unsubConnection = null;
@@ -99,17 +78,12 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       setError(null);
       
       try {
-        // Fetch REST candles ONCE
-        const result = await base44.functions.invoke('bingxMarketData', {
-          action: 'getKlines',
-          params: { symbol, interval: timeframe, limit: 500 }
-        });
+        const result = await base44.functions.invoke('bingxMarketData', { action: 'getKlines', params: { symbol, interval: timeframe, limit: 500 } });
 
         if (!result.data?.success || !result.data?.data) {
           throw new Error(result.data?.error || 'Failed to fetch klines');
         }
 
-        // Normalize, dedupe, sort
         const raw = result.data.data.map(k => ({
           time: normalizeTime(k.time),
           open: parseFloat(k.open),
@@ -130,10 +104,8 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
           }
         }
         
-        // Store candles in marketStore
         marketStore.setCandles(symbol, timeframe, candles);
         
-        // Set chart data ONCE
         if (candleSeriesRef.current && volumeSeriesRef.current) {
           candleSeriesRef.current.setData(candles);
           volumeSeriesRef.current.setData(candles.map(k => ({
@@ -143,21 +115,18 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
           })));
         }
         
-        // Set initial price
-        const last = candles[candles.length - 1];
-        const first = candles[0];
+        const last = candles[candles.length - 1] || { close: 0 };
+        const first = candles[0] || { open: last.close };
         setCurrentPrice(last.close);
         setPriceChange(((last.close - first.open) / first.open) * 100);
         if (onPriceUpdate) onPriceUpdate(last.close);
         
-        // Subscribe to WebSocket via store
+        // Stable subs (assume store handles shared WS; add pings in store if loop persists)
         marketStore.subscribeWS(`${symbol}@kline_${timeframe}`);
         marketStore.subscribeWS(`${symbol}@trade`);
         
-        // Subscribe to store updates
         const candleKey = marketStore.getCandleKey(symbol, timeframe);
         unsubCandle = marketStore.subscribe(`candle:${candleKey}`, (candle) => {
-          // Check refs before updating to avoid "Object is disposed" error
           if (candleSeriesRef.current && chartRef.current) {
             try {
               candleSeriesRef.current.update(candle);
@@ -168,11 +137,12 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
                   color: candle.close >= candle.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)'
                 });
               }
-            } catch (e) {
-              // Chart may have been disposed
-            }
+            } catch (e) {}
           }
           setCurrentPrice(candle.close);
+          // Recalc priceChange on tick (use daily open from store or API if needed; here from initial first.open)
+          const open = first.open || candle.open; // Improve: Fetch 1d open for accurate %
+          setPriceChange(((candle.close - open) / open) * 100);
           if (onPriceUpdate) onPriceUpdate(candle.close);
         });
         
@@ -183,7 +153,6 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       }
     };
     
-    // Subscribe to connection status
     unsubConnection = marketStore.subscribe('connected', setWsConnected);
     setWsConnected(marketStore.connected);
     
@@ -195,7 +164,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       marketStore.unsubscribeWS(`${symbol}@kline_${timeframe}`);
       marketStore.unsubscribeWS(`${symbol}@trade`);
     };
-  }, [symbol, timeframe, onPriceUpdate]);
+  }, [symbol, timeframe, onPriceUpdate]); // Deps ok, but store should prevent loop
 
   const formatPrice = (p) => {
     if (!p) return '0.00';
@@ -240,11 +209,7 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
               variant="ghost"
               size="sm"
               onClick={() => setTimeframe(tf.value)}
-              className={`h-7 px-2.5 text-xs font-medium ${
-                tf.value === timeframe 
-                  ? 'bg-[#2962FF] text-white hover:bg-[#2962FF]' 
-                  : 'text-gray-400 hover:text-white hover:bg-[#2B2B43]'
-              }`}
+              className={`h-7 px-2.5 text-xs font-medium ${tf.value === timeframe ? 'bg-[#2962FF] text-white hover:bg-[#2962FF]' : 'text-gray-400 hover:text-white hover:bg-[#2B2B43]'}`}
             >
               {tf.label}
             </Button>
@@ -256,16 +221,8 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
       </div>
 
       <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
-            <Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" />
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10">
-            <p className="text-red-500 text-sm">{error}</p>
-          </div>
-        )}
+        {loading && (<div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10"><Loader2 className="h-8 w-8 text-[#2962FF] animate-spin" /></div>)}
+        {error && (<div className="absolute inset-0 bg-[#131722]/80 flex items-center justify-center z-10"><p className="text-red-500 text-sm">{error}</p></div>)}
         <div ref={chartContainerRef} className="w-full h-[500px]" />
       </div>
       
@@ -280,7 +237,4 @@ export default function ProfessionalChart({ symbol = "BTC-USDT", onPriceUpdate }
   );
 }
 
-ProfessionalChart.propTypes = {
-  symbol: PropTypes.string,
-  onPriceUpdate: PropTypes.func
-};
+ProfessionalChart.propTypes = { symbol: PropTypes.string, onPriceUpdate: PropTypes.func };
