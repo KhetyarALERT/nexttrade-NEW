@@ -21,6 +21,7 @@ class MarketStore {
     this.lastTickerEmit = {}; // throttle map per symbol
     this.debugLoggedRaw = false;
     this.debugLoggedParsed = false;
+    this.loggedFirstTicker = false;
   }
 
   // Subscribe to store events
@@ -226,6 +227,7 @@ class MarketStore {
       const low = parseFloat(d.l ?? d.lowPrice ?? d.low ?? 0);
       const volume = parseFloat(d.v ?? d.volume ?? 0);
       const ticker = { price, change, high, low, volume };
+      if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', symbol, ticker); } catch(_) {} this.loggedFirstTicker = true; }
       this.tickers[symbol] = { ...this.tickers[symbol], ...ticker };
       if (!Number.isNaN(price) && price > 0) {
         this.updatePrice(symbol, price);
@@ -272,7 +274,7 @@ class MarketStore {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ id: Date.now(), reqType: 'ping' }));
       }
-    }, 18000);
+    }, 20000);
     // Heartbeat watchdog
     this.resetHeartbeat();
   }

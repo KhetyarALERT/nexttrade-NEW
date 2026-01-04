@@ -56,6 +56,22 @@ export default function OrderPanel({
     }
   }, [currentPrice, orderType]);
 
+  const pricePrecision = currentPrice < 1 ? 6 : 2;
+  const applySL = (pct) => {
+    if (!currentPrice) return;
+    const cp = currentPrice;
+    const isLong = orderSide === 'buy';
+    const sl = isLong ? cp * (1 - pct/100) : cp * (1 + pct/100);
+    setStopLoss(sl.toFixed(pricePrecision));
+  };
+  const applyTP = (pct) => {
+    if (!currentPrice) return;
+    const cp = currentPrice;
+    const isLong = orderSide === 'buy';
+    const tp = isLong ? cp * (1 + pct/100) : cp * (1 - pct/100);
+    setTakeProfit(tp.toFixed(pricePrecision));
+  };
+
   const handlePlaceOrder = async () => {
     const amountValue = parseFloat(amount);
     if (!amount || amountValue <= 0) {
@@ -292,6 +308,33 @@ export default function OrderPanel({
               <span>125x</span>
             </div>
           </div>
+        </div>
+
+        {/* Quick SL / TP presets */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick SL</Label>
+            <div className="flex gap-1">
+              {[0.5,1,1.5,2].map(p => (
+                <Button key={p} size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => applySL(p)}>{p}%</Button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick TP</Label>
+            <div className="flex gap-1">
+              {[1,2,4].map(p => (
+                <Button key={p} size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => applyTP(p)}>{p}%</Button>
+              ))}
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-slate-400">Custom</Button>
+            </div>
+          </div>
+          {(takeProfit || stopLoss) && (
+            <div className="text-[10px] text-slate-400">
+              {stopLoss && <span>SL: {Number(stopLoss).toFixed(pricePrecision)} </span>}
+              {takeProfit && <span className="ml-2">TP: {Number(takeProfit).toFixed(pricePrecision)}</span>}
+            </div>
+          )}
         </div>
 
         <div className="pt-4 border-t border-slate-800/50 space-y-3">

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { toDisplayFormat } from "@/components/utils/symbolFormat";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RefreshCw, List, History, Clock } from "lucide-react";
+import { marketStore } from "@/components/trading/marketStore";
+import TPSLDialog from "@/components/trading/TPSLDialog";
 
 export default function TradingHistory({
   tradingAccountId,
@@ -17,6 +19,9 @@ export default function TradingHistory({
   const [loading, setLoading] = useState(false);
   const [trades, setTrades] = useState([]);
   const [activeTab, setActiveTab] = useState("positions");
+  const [prices, setPrices] = useState({});
+  const [tpslOpen, setTpslOpen] = useState(false);
+  const [selectedPos, setSelectedPos] = useState(null);
 
   const load = useCallback(async () => {
     if (!tradingAccountId) return;
@@ -39,6 +44,14 @@ export default function TradingHistory({
   useEffect(() => {
     load();
   }, [load, refreshSignal]);
+
+  // Live price subscription for Mark Price + PnL
+  useEffect(() => {
+    const unsub = marketStore.subscribe('ticker', ({ symbol, ticker }) => {
+      setPrices(prev => ({ ...prev, [symbol]: ticker.price || prev[symbol] }));
+    });
+    return () => unsub();
+  }, []);
 
   const columns = [
     { key: 'opened_at', label: 'Opened', format: (v) => formatDateTime(v) },
@@ -121,19 +134,28 @@ export default function TradingHistory({
                         </td>
                         <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
                         <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.entry_price)}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">-</td>
+                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(prices[t.symbol])}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col">
-                            <span className={Number(t.realized_pnl || 0) >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                              {formatPnL(t.realized_pnl)}
-                            </span>
-                            <span className={`text-[10px] ${Number(t.realized_pnl_percent || 0) >= 0 ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
-                              ({Number(t.realized_pnl_percent || 0).toFixed(2)}%)
-                            </span>
+                            {prices[t.symbol] ? (
+                              <>
+                                <span className={(((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)) >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                                  {formatPnL((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)}
+                                </span>
+                                <span className={`text-[10px] ${(((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity)) >= 0 ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
+                                  ({((((t.side === 'LONG' ? (prices[t.symbol]-t.entry_price) : (t.entry_price - prices[t.symbol])) * t.quantity) / ((t.entry_price * t.quantity) / (t.leverage || 1))) * 100).toFixed(2)}%)
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-slate-500">--</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add SL/TP</Button>
+                            <Button size="sm" variant="outline" className="h-7 text-[10px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -212,6 +234,7 @@ export default function TradingHistory({
           </TabsContent>
         </Tabs>
       </div>
+      <TPSLDialog open={tpslOpen} onOpenChange={setTpslOpen} position={selectedPos} currentPrice={selectedPos ? (prices[selectedPos.symbol] || 0) : 0} onSuccess={() => { load(); }} />
     </div>
   );
 

@@ -95,7 +95,7 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       }
     })();
 
-    return () => { unsubTicker?.(); unsubCandle?.(); marketStore.unsubscribeFromSymbol(s); marketStore.unsubscribeWS?.(`${s}@kline_${timeframe}`); };
+    return () => { unsubTicker?.(); unsubCandle?.(); marketStore.unsubscribeFromSymbol(s); marketStore.unsubscribeWS?.(`kline_${timeframe}.${s}`); };
   }, [symbol, timeframe, onPriceUpdate]);
 
   // Draw position lines
