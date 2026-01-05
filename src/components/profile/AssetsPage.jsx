@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -107,12 +108,40 @@ const localizations = {
 };
 
 export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [], demoAccount }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const t = localizations[language] || localizations.en;
+
+  const getSearchParam = (key) => new URLSearchParams(location.search).get(key);
+
+  const normalizeAssetTab = (value) => {
+    if (value === "spot" || value === "futures" || value === "main") return value;
+    return "main";
+  };
+
+  const normalizeModal = (value) => {
+    if (value === "deposit" || value === "withdraw" || value === "transfer") return value;
+    return null;
+  };
+
+  const setSearchParams = (patch) => {
+    const params = new URLSearchParams(location.search);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === "") params.delete(key);
+      else params.set(key, String(value));
+    });
+    const next = params.toString();
+    const current = location.search.startsWith("?") ? location.search.slice(1) : location.search;
+    if (next !== current) {
+      navigate({ pathname: location.pathname, search: next ? `?${next}` : "" }, { replace: true });
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallBalances, setHideSmallBalances] = useState(false);
   const [showBalances, setShowBalances] = useState(true);
-  const [activeTab, setActiveTab] = useState("main");
-  const [activeModal, setActiveModal] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => normalizeAssetTab(getSearchParam("assetTab")));
+  const [activeModal, setActiveModal] = useState(() => normalizeModal(getSearchParam("modal")));
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
   const [selectedNetwork, setSelectedNetwork] = useState("");
   const [withdrawAddress, setWithdrawAddress] = useState("");
@@ -138,6 +167,15 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
     };
     fetchCurrencies();
   }, []);
+
+  // Sync URL params -> local state (enables dropdown shortcuts)
+  useEffect(() => {
+    const nextTab = normalizeAssetTab(getSearchParam("assetTab"));
+    if (nextTab && nextTab !== activeTab) setActiveTab(nextTab);
+
+    const nextModal = normalizeModal(getSearchParam("modal"));
+    if (nextModal !== activeModal) setActiveModal(nextModal);
+  }, [location.search]);
 
   // Calculate totals
   const calculateTotal = () => {
@@ -329,13 +367,35 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+            <Button
+              onClick={() => {
+                setActiveModal('deposit');
+                setSearchParams({ modal: 'deposit' });
+                resetForm();
+              }}
+              className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none"
+            >
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
             </Button>
-            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+            <Button
+              onClick={() => {
+                setActiveModal('withdraw');
+                setSearchParams({ modal: 'withdraw' });
+                resetForm();
+              }}
+              variant="outline"
+              className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none"
+            >
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
             </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+            <Button
+              onClick={() => {
+                setActiveModal('transfer');
+                setSearchParams({ modal: 'transfer' });
+              }}
+              variant="outline"
+              className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none"
+            >
               <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
             </Button>
           </div>
@@ -343,7 +403,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
       </div>
 
       {/* Wallet Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(tab) => {
+          setActiveTab(tab);
+          setSearchParams({ assetTab: tab });
+        }}
+        className="w-full"
+      >
         <TabsList className="w-full justify-start bg-white p-1 rounded-xl border border-slate-200 flex flex-wrap gap-1 overflow-x-hidden">
           <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
             <Wallet className="w-4 h-4 mr-1.5" /> {t.funding}
@@ -369,8 +436,18 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             setHideSmallBalances={setHideSmallBalances}
             formatBalance={formatBalance}
             formatUSD={formatUSD}
-            onDeposit={(currency) => {setSelectedCurrency(currency);setActiveModal('deposit');resetForm();}}
-            onWithdraw={(currency) => {setSelectedCurrency(currency);setActiveModal('withdraw');resetForm();}}
+            onDeposit={(currency) => {
+              setSelectedCurrency(currency);
+              setActiveModal('deposit');
+              setSearchParams({ modal: 'deposit' });
+              resetForm();
+            }}
+            onWithdraw={(currency) => {
+              setSelectedCurrency(currency);
+              setActiveModal('withdraw');
+              setSearchParams({ modal: 'withdraw' });
+              resetForm();
+            }}
             language={language}
             t={t}
           />
@@ -384,8 +461,16 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           </div>
           <SpotWalletView
             spotBalance={0}
-            onDeposit={() => {setActiveModal('deposit');resetForm();}}
-            onWithdraw={() => {setActiveModal('withdraw');resetForm();}}
+            onDeposit={() => {
+              setActiveModal('deposit');
+              setSearchParams({ modal: 'deposit' });
+              resetForm();
+            }}
+            onWithdraw={() => {
+              setActiveModal('withdraw');
+              setSearchParams({ modal: 'withdraw' });
+              resetForm();
+            }}
             showBalances={showBalances} language={language} />
 
         </TabsContent>
@@ -401,14 +486,25 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             trades={trades}
             showBalances={showBalances}
             language={language}
-            onTransfer={() => setActiveModal('transfer')}
+            onTransfer={() => {
+              setActiveModal('transfer');
+              setSearchParams({ modal: 'transfer' });
+            }}
             onRefresh={onRefresh} />
 
         </TabsContent>
       </Tabs>
 
       {/* Deposit Modal */}
-      <Dialog open={activeModal === 'deposit'} onOpenChange={(open) => !open && setActiveModal(null)}>
+      <Dialog
+        open={activeModal === 'deposit'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveModal(null);
+            setSearchParams({ modal: null });
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto bg-white" aria-describedby="deposit-desc">
           <DialogHeader>
             <DialogTitle className="text-slate-900 flex items-center gap-2">
@@ -564,7 +660,15 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
       </Dialog>
 
       {/* Withdraw Modal */}
-      <Dialog open={activeModal === 'withdraw'} onOpenChange={(open) => !open && setActiveModal(null)}>
+      <Dialog
+        open={activeModal === 'withdraw'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveModal(null);
+            setSearchParams({ modal: null });
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto bg-white" aria-describedby="withdraw-desc">
           <DialogHeader>
             <DialogTitle className="text-slate-900 flex items-center gap-2">
@@ -661,7 +765,15 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
       </Dialog>
 
       {/* Transfer Modal */}
-      <Dialog open={activeModal === 'transfer'} onOpenChange={(open) => !open && setActiveModal(null)}>
+      <Dialog
+        open={activeModal === 'transfer'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActiveModal(null);
+            setSearchParams({ modal: null });
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 bg-white" aria-describedby="transfer-desc">
           <DialogHeader>
             <DialogTitle className="text-slate-900">{t.internalTransferTitle}</DialogTitle>

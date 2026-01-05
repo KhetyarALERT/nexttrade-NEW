@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ShieldCheck,
   RefreshCw,
@@ -160,7 +160,23 @@ const normalizeUserProfile = (user = {}) => ({
 export default function Profile({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { toast } = useToast();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  const setSearchParams = (patch, { replace = true } = {}) => {
+    const params = new URLSearchParams(location.search);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === "") params.delete(key);
+      else params.set(key, String(value));
+    });
+    const next = params.toString();
+    const current = location.search.startsWith("?") ? location.search.slice(1) : location.search;
+    if (next !== current) {
+      navigate({ pathname: location.pathname, search: next ? `?${next}` : "" }, { replace });
+    }
+  };
+
+  const activeProfileTab = new URLSearchParams(location.search).get('tab') || "personal";
 
   const avatarInputRef = useRef(null);
 
@@ -544,8 +560,9 @@ export default function Profile({ language = "en" }) {
         </div>
 
         {/* Enhanced Tabs */}
-        <Tabs 
-          defaultValue={new URLSearchParams(window.location.search).get('tab') || "personal"} 
+        <Tabs
+          value={activeProfileTab}
+          onValueChange={(tab) => setSearchParams({ tab })}
           className="space-y-6"
         >
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200 shadow-lg p-2">

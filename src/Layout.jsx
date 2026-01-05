@@ -10,20 +10,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger } from
 "@/components/ui/dropdown-menu";
 import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import NotificationSettings from "@/components/notifications/NotificationSettings";
 import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
+import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, User, Users, Wallet } from "lucide-react";
 
 export default function Layout({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
-  const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [language, setLanguage] = useState("en");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
+  const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
+  const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,12 +52,48 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   const navigation = [
     { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { name: { en: "Trade", ar: "تداول" }, url: createPageUrl("Trading") },
-    { name: { en: "Futures", ar: "عقود" }, url: `${createPageUrl("Trading")}?mode=futures` },
-    { name: { en: "Rewards", ar: "مكافآت" }, url: `${createPageUrl("Profile")}?tab=vouchers` },
+    { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Trading") },
+    { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
+    { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
     { name: { en: "Buy Crypto", ar: "شراء العملات" }, url: createPageUrl("Contact") },
     { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("About") },
   ];
+
+  const accountEmail = user?.email;
+  const accountMenuLabel = accountLabel;
+
+  const loadAccountTotals = async () => {
+    if (!isAuthenticated) return;
+    setLoadingAccountTotals(true);
+    try {
+      const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
+      const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
+
+      const totalUsdt = wallets.reduce((sum, w) => {
+        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
+        return sum;
+      }, 0);
+
+      const totalUsd = wallets.reduce((sum, w) => {
+        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
+        if (w?.currency === "BTC") return sum + (w.balance || 0) * 95000;
+        if (w?.currency === "ETH") return sum + (w.balance || 0) * 3400;
+        return sum + (w.balance || 0);
+      }, 0);
+
+      setAccountTotals({ totalUsd, totalUsdt });
+    } catch (err) {
+      console.error("Failed to load wallet totals:", err);
+      setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
+    } finally {
+      setLoadingAccountTotals(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || isLoadingAuth) return;
+    loadAccountTotals();
+  }, [isAuthenticated, isLoadingAuth]);
 
 
   return (
@@ -168,20 +209,149 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button
-                className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-6 hover:from-blue-700 hover:to-cyan-700"
-                asChild>
+              {isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-4 hover:from-blue-700 hover:to-cyan-700">
+                      <span className="max-w-[160px] truncate">{accountMenuLabel}</span>
+                      <ChevronDown className="w-4 h-4 ml-2 opacity-90" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <div className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-xs text-slate-500">{language === "ar" ? "إجمالي الأصول" : "Total Assets"}</div>
+                          <div className="text-2xl font-semibold text-slate-900">
+                            {accountTotals.totalUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <span className="text-xs font-medium text-slate-500 ml-1">USDT</span>
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            ≈ ${accountTotals.totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={loadAccountTotals}
+                          className="text-xs text-slate-500 hover:text-slate-900"
+                          disabled={loadingAccountTotals}
+                        >
+                          {loadingAccountTotals ? (language === "ar" ? "..." : "…") : (language === "ar" ? "تحديث" : "Refresh")}
+                        </button>
+                      </div>
 
-                {isAuthenticated ? (
-                  <Link to={createPageUrl("Profile") + "?tab=accounts"}>
-                    {accountLabel}
-                  </Link>
-                ) : (
-                  <button type="button" onClick={() => navigateToLogin()}>
-                    {accountLabel}
-                  </button>
-                )}
-              </Button>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button asChild variant="outline" className="w-full">
+                          <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=withdraw"}>
+                            {language === "ar" ? "سحب" : "Withdraw"}
+                          </Link>
+                        </Button>
+                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                          <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=deposit"}>
+                            {language === "ar" ? "إيداع" : "Deposit"}
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="px-2 py-1.5 space-y-1">
+                      <div className="text-sm font-semibold text-slate-900 truncate">{accountMenuLabel}</div>
+                      {accountEmail ? (
+                        <div className="text-xs font-normal text-slate-500 truncate">{accountEmail}</div>
+                      ) : null}
+                      <div className="mt-2">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
+                          {language === "ar" ? "مستخدم" : "Regular user"}
+                        </span>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+
+                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "الحسابات" : "Accounts"}</div>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>
+                        <Wallet className="h-4 w-4" />
+                        {language === "ar" ? "حساب التمويل" : "Fund Account"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=spot"}>
+                        <CreditCard className="h-4 w-4" />
+                        {language === "ar" ? "حساب سبوت" : "Spot Account"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=futures"}>
+                        <CreditCard className="h-4 w-4" />
+                        {language === "ar" ? "حساب العقود" : "Futures Account"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Investing")}>
+                        <Wallet className="h-4 w-4" />
+                        {language === "ar" ? "حساب الثروة" : "Wealth Account"}
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "الحساب" : "Account"}</div>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=personal"}>
+                        <User className="h-4 w-4" />
+                        {language === "ar" ? "المعلومات الشخصية" : "Personal Info"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=security"}>
+                        <Shield className="h-4 w-4" />
+                        {language === "ar" ? "مركز الأمان" : "Security Center"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=notifications"}>
+                        <Settings className="h-4 w-4" />
+                        {language === "ar" ? "التفضيلات" : "Preferences"}
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "المكافآت" : "Rewards"}</div>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Rewards")}>
+                        <Gift className="h-4 w-4" />
+                        {language === "ar" ? "الصفحة الرئيسية للمكافآت" : "Rewards Hub"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=referrals"}>
+                        <Users className="h-4 w-4" />
+                        {language === "ar" ? "دعوة واربح" : "Invite to Earn"}
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        logout(true);
+                      }}
+                      className="text-rose-600 focus:text-rose-700"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {language === "ar" ? "تسجيل الخروج" : "Log Out"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-6 hover:from-blue-700 hover:to-cyan-700"
+                  type="button"
+                  onClick={() => navigateToLogin()}
+                >
+                  {accountLabel}
+                </Button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -234,7 +404,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                 asChild
               >
                 {isAuthenticated ? (
-                  <Link to={createPageUrl("Profile") + "?tab=accounts"} onClick={() => setMobileMenuOpen(false)}>
+                  <Link to={createPageUrl("Profile") + "?tab=personal"} onClick={() => setMobileMenuOpen(false)}>
                     {accountLabel}
                   </Link>
                 ) : (
