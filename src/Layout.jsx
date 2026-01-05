@@ -17,7 +17,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import NotificationSettings from "@/components/notifications/NotificationSettings";
 import { useAuth } from "@/lib/AuthContext";
 
-export default function Layout({ children }) {
+export default function Layout({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
   const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -343,5 +343,6 @@ export default function Layout({ children }) {
 }
 
 Layout.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
+  currentPageName: PropTypes.string,
 };

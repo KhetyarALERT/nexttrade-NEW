@@ -15,7 +15,8 @@ export default function OrderPanel({
   currentPrice = 0, 
   balance = 0, 
   tradingAccountId,
-  onOrderSuccess 
+  onOrderSuccess,
+  language: _language = "en",
 }) {
   const [orderSide, setOrderSide] = useState("buy");
   const [orderType, setOrderType] = useState("market"); // market, limit, stop, trailing, oco
@@ -172,7 +173,7 @@ export default function OrderPanel({
   // Calculate display values
   const effectivePrice = (orderType === 'market' || orderType === 'trailing') 
     ? currentPrice 
-    : parseFloat(price || stopPrice || currentPrice);
+    : parseFloat(String(price || stopPrice || currentPrice));
     
   const amountValue = parseFloat(amount) || 0;
   

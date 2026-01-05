@@ -89,7 +89,7 @@ const logActivity = (action, details) => {
   return logEntry;
 };
 
-const StatCard = ({ title, value, change, icon: Icon, color }) => (
+const StatCard = ({ title, value, change = undefined, icon: Icon, color }) => (
   <Card className="border-slate-200 shadow-sm">
     <CardContent className="p-5">
       <div className="flex items-start justify-between">

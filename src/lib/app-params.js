@@ -2,6 +2,29 @@ const isNode = typeof window === 'undefined';
 const windowObj = isNode ? { localStorage: new Map() } : window;
 const storage = windowObj.localStorage;
 
+const storageSet = (key, value) => {
+	if (storage instanceof Map) {
+		storage.set(key, String(value));
+		return;
+	}
+	storage.setItem(key, String(value));
+}
+
+const storageGet = (key) => {
+	if (storage instanceof Map) {
+		return storage.get(key) ?? null;
+	}
+	return storage.getItem(key);
+}
+
+const storageRemove = (key) => {
+	if (storage instanceof Map) {
+		storage.delete(key);
+		return;
+	}
+	storage.removeItem(key);
+}
+
 const toSnakeCase = (str) => {
 	return str.replace(/([A-Z])/g, '_$1').toLowerCase();
 }
@@ -20,14 +43,14 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 		window.history.replaceState({}, document.title, newUrl);
 	}
 	if (searchParam) {
-		storage.setItem(storageKey, searchParam);
+		storageSet(storageKey, searchParam);
 		return searchParam;
 	}
-	if (defaultValue) {
-		storage.setItem(storageKey, defaultValue);
+	if (defaultValue !== undefined && defaultValue !== null) {
+		storageSet(storageKey, defaultValue);
 		return defaultValue;
 	}
-	const storedValue = storage.getItem(storageKey);
+	const storedValue = storageGet(storageKey);
 	if (storedValue) {
 		return storedValue;
 	}
@@ -36,8 +59,8 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 
 const getAppParams = () => {
 	if (getAppParamValue("clear_access_token") === 'true') {
-		storage.removeItem('base44_access_token');
-		storage.removeItem('base44_token');
+		storageRemove('base44_access_token');
+		storageRemove('base44_token');
 	}
 	return {
 		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),

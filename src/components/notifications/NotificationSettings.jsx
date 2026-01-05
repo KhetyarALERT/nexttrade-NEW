@@ -39,7 +39,30 @@ const COMMON_TIMEZONES = [
 
 export default function NotificationSettings({ open, onOpenChange }) {
   const { preferences, timezone, updatePreferences } = useNotifications();
-  const [localPrefs, setLocalPrefs] = useState({});
+
+  /**
+   * @typedef {Object} NotificationPrefs
+   * @property {boolean} notifications_enabled
+   * @property {boolean} notify_price_alerts
+   * @property {boolean} notify_trade_executions
+   * @property {boolean} notify_margin_warnings
+   * @property {boolean} notify_deposits
+   * @property {boolean} notify_withdrawals
+   * @property {boolean} notify_staking
+   * @property {string} timezone
+   */
+
+  /** @type {[NotificationPrefs, import('react').Dispatch<import('react').SetStateAction<NotificationPrefs>>]} */
+  const [localPrefs, setLocalPrefs] = useState(() => ({
+    notifications_enabled: true,
+    notify_price_alerts: true,
+    notify_trade_executions: true,
+    notify_margin_warnings: true,
+    notify_deposits: true,
+    notify_withdrawals: true,
+    notify_staking: true,
+    timezone: String(timezone || "UTC"),
+  }));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
