@@ -8,14 +8,11 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { 
-  Wallet, 
   ArrowDownToLine, 
   ArrowUpFromLine, 
   Copy, 
@@ -23,8 +20,7 @@ import {
   RefreshCw,
   ExternalLink,
   AlertCircle,
-  Star,
-  Lock
+  Star
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +7,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -22,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { 
   Lock, 
-  Unlock, 
   RefreshCw,
   AlertTriangle
 } from "lucide-react";
@@ -160,43 +157,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     }
   };
 
-  const handleUnstake = async (positionId) => {
-    if (!confirm(t.confirmUnstake)) return;
-
-    setProcessing(true);
-    try {
-      const result = await base44.functions.invoke('wallet', {
-        action: 'unstake',
-        positionId
-      });
-
-      if (result.data?.success) {
-        toast.success(t.unstakeSuccess);
-        loadPositions();
-        if (onRefresh) onRefresh();
-      } else {
-        toast.error(result.data?.error || t.unstakeFailed);
-      }
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const calculateProgress = (startDate, unlockDate) => {
     const start = new Date(startDate).getTime();
     const end = new Date(unlockDate).getTime();
     const now = Date.now();
     return Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
-  };
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString(language === "ar" ? "ar-SA" : "en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    });
   };
 
   const selectedPlan = stakingPlans.find(p => p.days === parseInt(lockPeriod));
