@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { ChevronDown, ArrowLeftRight, Search, ArrowLeft } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Search, ArrowLeft, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,7 @@ export default function Trading({ language = "en" }) {
   const [availableSymbols, setAvailableSymbols] = useState(FUTURES_SYMBOLS);
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [dailyOpen, setDailyOpen] = useState(0);
+  const [wsStatus, setWsStatus] = useState("disconnected"); // WebSocket status
 
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
@@ -105,7 +106,10 @@ export default function Trading({ language = "en" }) {
     }
   };
 
-  const handlePriceUpdate = useCallback((price) => setCurrentPrice(price), []);
+  const handlePriceUpdate = useCallback((price) => {
+    setCurrentPrice(price);
+    setWsStatus("connected"); // Mark WebSocket as active
+  }, []);
 
   useEffect(() => {
     const unsubTicker = marketStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
@@ -176,8 +180,8 @@ export default function Trading({ language = "en" }) {
   const balance = account?.is_demo ? account?.demo_balance || 0 : account?.balance || 0;
 
   const t = language === "ar"
-    ? { balance: "الرصيد", equity: "الأسهم", margin: "الهامش", transfer: "تحويل", perpetual: "دائم" }
-    : { balance: "Balance", equity: "Equity", margin: "Margin", transfer: "Transfer", perpetual: "Perpetual" };
+    ? { balance: "الرصيد", equity: "الأسهم", margin: "الهامش", transfer: "تحويل", perpetual: "دائم", status: "الحالة" }
+    : { balance: "Balance", equity: "Equity", margin: "Margin", transfer: "Transfer", perpetual: "Perpetual", status: "Status" };
 
   return (
     <div className="h-screen flex flex-col bg-[#0d0d1a] text-slate-200 overflow-hidden">
@@ -190,6 +194,7 @@ export default function Trading({ language = "en" }) {
             <div className="h-6 w-[1px] bg-slate-700/50 mx-1" />
           </div>
 
+          {/* Enhanced Token Dropdown with Live Data */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-10 px-3 text-white hover:bg-slate-700/30 gap-3 rounded-lg border border-transparent hover:border-slate-700/50 transition-all">
@@ -201,11 +206,17 @@ export default function Trading({ language = "en" }) {
                       {t.perpetual}
                     </Badge>
                   </div>
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span className={priceChange >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                      {priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%
+                    </span>
+                    <div className={`w-1.5 h-1.5 rounded-full ${wsStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-slate-500"}`} />
+                  </div>
                 </div>
                 <ChevronDown className="h-4 w-4 text-slate-500" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 bg-[#1a1a2e] border-slate-700 p-0 shadow-2xl rounded-xl overflow-hidden">
+            <DropdownMenuContent className="w-[420px] bg-[#1a1a2e] border-slate-700 p-0 shadow-2xl rounded-xl overflow-hidden">
               <div className="p-3 sticky top-0 bg-[#1a1a2e] border-b border-slate-700/50 z-10">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -216,8 +227,12 @@ export default function Trading({ language = "en" }) {
                     className="pl-9 h-9 bg-slate-800/50 border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500/50"
                   />
                 </div>
+                <div className="flex items-center gap-2 mt-2 text-xs">
+                  <Zap className="w-3 h-3 text-emerald-400" />
+                  <span className="text-slate-400">Live data from BingX</span>
+                </div>
               </div>
-              <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
                 {filteredSymbols.map(({ symbol, name }) => {
                   const tmap = marketStore.getAllTickers?.() || {};
                   const ticker = tmap[symbol] || marketData[symbol] || {};
@@ -243,8 +258,9 @@ export default function Trading({ language = "en" }) {
                         <p className="text-white text-sm font-mono font-medium">
                           ${priceVal.toLocaleString(undefined, { minimumFractionDigits: priceVal < 1 ? 6 : 2, maximumFractionDigits: priceVal < 1 ? 6 : 2 })}
                         </p>
-                        <p className={`text-[11px] font-medium ${changeVal >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {changeVal >= 0 ? "+" : ""}{Number(changeVal).toFixed(2)}%
+                        <p className={`text-[11px] font-medium flex items-center gap-1 ${changeVal >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          <span>{changeVal >= 0 ? "+" : ""}{Number(changeVal).toFixed(2)}%</span>
+                          <div className={`w-1 h-1 rounded-full ${changeVal >= 0 ? "bg-emerald-400" : "bg-rose-400"} animate-pulse`} />
                         </p>
                       </div>
                     </DropdownMenuItem>
@@ -254,6 +270,7 @@ export default function Trading({ language = "en" }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Live Price Display */}
           <div className="flex items-center gap-4">
             <div className="flex flex-col">
               <span className="text-white text-lg font-bold font-mono leading-none">
@@ -261,12 +278,22 @@ export default function Trading({ language = "en" }) {
               </span>
               <div className={`flex items-center gap-1 ${priceChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 <span className="text-[11px] font-semibold">{priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${wsStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-slate-500"}`} />
               </div>
             </div>
           </div>
         </div>
 
+        {/* Account Info */}
         <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/30 rounded-lg border border-slate-700/30">
+            <div className={`w-2 h-2 rounded-full ${wsStatus === "connected" ? "bg-emerald-500 animate-pulse" : "bg-slate-500"}`} />
+            <span className="text-xs text-slate-400">{t.status}</span>
+            <span className={`text-xs font-semibold ${wsStatus === "connected" ? "text-emerald-400" : "text-slate-400"}`}>
+              {wsStatus === "connected" ? "Live" : "Connecting..."}
+            </span>
+          </div>
+
           <div className="flex items-center gap-6">
             <div className="flex flex-col items-end">
               <span className="text-slate-500 text-[10px] uppercase tracking-wider font-semibold">{t.balance}</span>
@@ -381,6 +408,17 @@ export default function Trading({ language = "en" }) {
           margin: 0;
           padding: 0;
           overflow: hidden;
+        }
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `}</style>
     </div>
