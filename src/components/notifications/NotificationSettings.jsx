@@ -66,7 +66,7 @@ export default function NotificationSettings({ open, onOpenChange }) {
       });
       toast.success("Settings saved");
       onOpenChange(false);
-    } catch (err) {
+    } catch {
       toast.error("Failed to save settings");
     } finally {
       setSaving(false);

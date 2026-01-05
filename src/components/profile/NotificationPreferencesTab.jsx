@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -114,7 +114,7 @@ export default function NotificationPreferencesTab({ language = "en" }) {
           });
           setMarketPrices(prices);
         }
-      } catch (e) {
+      } catch {
         // Use fallback
         setMarketPrices({
           'BTC-USDT': 96850, 'ETH-USDT': 3420, 'SOL-USDT': 198, 'BNB-USDT': 705,
@@ -182,7 +182,7 @@ export default function NotificationPreferencesTab({ language = "en" }) {
         price_alerts: preferences.price_alerts
       });
       toast.success(t.saved);
-    } catch (err) {
+    } catch {
       toast.error("Failed to save");
     } finally {
       setSaving(false);

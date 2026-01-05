@@ -168,7 +168,7 @@ class MarketStore {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
               this.ws.send(JSON.stringify({ id: `sub_${Date.now()}`, reqType: 'sub', dataType: sub }));
             }
-          } catch (e) { /* ignore */ }
+          } catch { /* ignore */ }
         });
       }, 0);
       
@@ -185,14 +185,14 @@ class MarketStore {
         }
         // Try to parse JSON message if possible
         let msg = null;
-        try { msg = JSON.parse(text); } catch (_) {}
+        try { msg = JSON.parse(text); } catch {}
         // Ignore ping/pong responses from BingX
         if (msg && (msg.dataType === 'pong' || msg.ping || msg.reqType === 'pong')) return;
         if (text === 'Pong' || text === 'pong') return;
         if (msg) {
           this.handleMessage(msg);
         }
-      } catch (e) {
+      } catch {
         // Silently ignore parse errors
       }
     };
@@ -215,7 +215,7 @@ class MarketStore {
       this.reconnectTimeout = setTimeout(() => this.connect(), delay);
     };
     
-    this.ws.onerror = (err) => {
+    this.ws.onerror = () => {
       console.log('[STORE] WebSocket error');
     };
   }
@@ -225,7 +225,7 @@ class MarketStore {
     this.resetHeartbeat(); // Reset watchdog on any valid message
 
     if (!msg.dataType || !msg.data) {
-      if (!this.debugLoggedRaw) { try { console.log('[STORE] First WS message (unparsed):', msg); } catch(_) {} this.debugLoggedRaw = true; }
+      if (!this.debugLoggedRaw) { try { console.log('[STORE] First WS message (unparsed):', msg); } catch {} this.debugLoggedRaw = true; }
       return;
     }
     
@@ -238,7 +238,7 @@ class MarketStore {
       }
     }
     const symbol = String(rawSymbol || '').replace('[','').replace(']','').replace('/', '-').toUpperCase();
-    if (!this.debugLoggedParsed && channel && symbol) { try { console.log('[STORE] First WS parsed:', msg.dataType, '->', channel, symbol); } catch(_) {} this.debugLoggedParsed = true; }
+    if (!this.debugLoggedParsed && channel && symbol) { try { console.log('[STORE] First WS parsed:', msg.dataType, '->', channel, symbol); } catch {} this.debugLoggedParsed = true; }
     
     if (channel?.startsWith('kline_')) {
       const interval = channel.replace('kline_', '');
@@ -279,7 +279,7 @@ class MarketStore {
         }
         const mark = parseFloat(d.markPrice ?? d.mark ?? d.c ?? price);
         const ticker = { price, mark, change: Number.isFinite(change) ? change : 0, high, low, volume };
-        if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', sym, ticker); } catch(_) {} this.loggedFirstTicker = true; }
+        if (!this.loggedFirstTicker) { try { console.log('[STORE] First ticker received for', sym, ticker); } catch {} this.loggedFirstTicker = true; }
         this.tickers[sym] = { ...this.tickers[sym], ...ticker };
         if (!Number.isNaN(price) && price > 0) {
           this.updatePrice(sym, price);

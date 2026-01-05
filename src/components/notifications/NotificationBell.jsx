@@ -1,8 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { Bell, Check, CheckCheck, Settings, TrendingUp, AlertTriangle, Wallet, Lock, Info, X } from "lucide-react";
+import { Bell, Check, CheckCheck, Settings, TrendingUp, AlertTriangle, Wallet, Lock, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,

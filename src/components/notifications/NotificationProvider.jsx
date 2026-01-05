@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Bell, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Wallet, Lock, Info } from "lucide-react";
+import { Bell, TrendingUp, AlertTriangle, CheckCircle, Wallet, Lock, Info } from "lucide-react";
 
 const NotificationContext = createContext(null);
 

@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Star, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
+import { Search, Star, Loader2 } from "lucide-react";
 import { marketStore } from "./marketStore";
 
 // Static top pairs data
@@ -28,7 +28,7 @@ const TOP_PAIRS = [
 export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact = false }) {
   const [search, setSearch] = useState("");
   const [pairs, setPairs] = useState(TOP_PAIRS);
-  const [loading, setLoading] = useState(false);
+  const [loading, _setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [favorites, setFavorites] = useState(() => {
     try {
@@ -48,7 +48,7 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
     TOP_PAIRS.slice(0, 10).forEach(t => {
       try {
         marketStore.subscribeToTicker?.(t.symbol);
-      } catch (e) {}
+      } catch {}
     });
 
     // Seed from any existing store data immediately

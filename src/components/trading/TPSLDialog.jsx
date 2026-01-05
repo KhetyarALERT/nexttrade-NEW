@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Info, X, Link2 } from "lucide-react";
+import { Info, Link2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -81,7 +81,7 @@ export default function TPSLDialog({
     }
   };
 
-  const calculateEstPnL = (targetPrice, isTP) => {
+  const calculateEstPnL = (targetPrice, _isTP) => {
     if (!targetPrice || !position) return 0;
     const price = parseFloat(targetPrice);
     if (position.side === 'LONG') {
@@ -108,7 +108,7 @@ export default function TPSLDialog({
       } else {
         toast.error(result.data?.error || "Failed to update TP/SL");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to update TP/SL");
     } finally {
       setSaving(false);

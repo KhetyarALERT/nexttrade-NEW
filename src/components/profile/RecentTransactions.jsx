@@ -54,12 +54,6 @@ export default function RecentTransactions({ language = "en" }) {
     });
   };
 
-  const formatAmount = (amount) => {
-    if (amount === null || amount === undefined) return "****";
-    const prefix = amount >= 0 ? "+" : "";
-    return `${prefix}${Math.abs(amount).toFixed(2)}`;
-  };
-
   const getTypeLabel = (type) => {
     const labels = {
       deposit: "Deposit",

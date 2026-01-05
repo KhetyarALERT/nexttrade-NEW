@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Activity } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -43,7 +41,7 @@ const Sparkline = ({ data = [], width = 120, height = 40 }) => {
   );
 };
 
-export default function CryptoPriceTable({ language = "en" }) {
+export default function CryptoPriceTable({ language: _language = "en" }) {
   const [marketData, setMarketData] = useState([]);
 
   useEffect(() => {
@@ -80,7 +78,7 @@ export default function CryptoPriceTable({ language = "en" }) {
     return `$${p.toFixed(digits).replace(/\.?0+$/, "")}`;
   };
 
-  const formatCap = (val) => {
+  const _formatCap = (val) => {
     if (!val) return "-";
     if (val >= 1e12) return `$${ (val / 1e12).toFixed(1) }T`;
     if (val >= 1e9) return `$${ (val / 1e9).toFixed(1) }B`;

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -6,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  TrendingUp,
   Shield,
   Zap,
   Globe,
@@ -15,27 +13,19 @@ import {
   Users,
   CheckCircle,
   ArrowRight,
-  BarChart3,
-  Coins,
-  Sparkles,
   Gift,
   Bell,
   Wallet,
   Bot,
-  Activity,
-  TrendingDown,
   Lock,
   ArrowUpRight,
   RefreshCw,
-  ChevronRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import AITradingChat from "../components/home/AITradingChat";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 
 export default function Home({ language = "en" }) {
-  const [hoveredCard, setHoveredCard] = useState(null);
-
   const content = {
     en: {
       hero: {

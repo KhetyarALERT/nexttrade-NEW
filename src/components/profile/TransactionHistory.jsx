@@ -19,7 +19,6 @@ import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
-  Filter,
   Lock,
   Gift,
   Unlock,

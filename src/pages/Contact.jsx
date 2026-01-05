@@ -18,13 +18,11 @@ import {
   Send,
   Clock,
   CheckCircle,
-  TrendingUp,
 } from "lucide-react";
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
-import PropTypes from "prop-types";
 
 export default function Contact({ language = "en" }) {
   const [formData, setFormData] = useState({

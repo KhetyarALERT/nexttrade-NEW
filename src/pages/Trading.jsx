@@ -122,7 +122,7 @@ export default function Trading({ language = "en" }) {
           params: { symbol: selectedSymbol, interval: "1d", limit: 1 },
         });
         if (res.data?.data?.[0]?.open) setDailyOpen(parseFloat(res.data.data[0].open));
-      } catch (_) {}
+      } catch {}
     };
     fetchDailyOpen();
     return () => {
@@ -156,7 +156,7 @@ export default function Trading({ language = "en" }) {
             .slice(0, 120);
           setAvailableSymbols(symbols);
         }
-      } catch (_) {}
+      } catch {}
     };
     fetchContracts();
   }, []);
@@ -359,7 +359,7 @@ export default function Trading({ language = "en" }) {
         </DialogContent>
       </Dialog>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
           height: 4px;

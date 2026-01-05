@@ -5,7 +5,6 @@ import { createPageUrl } from "@/utils";
 import {
   Wallet,
   TrendingUp,
-  TrendingDown,
   Activity,
   Clock,
   Gift,
@@ -14,15 +13,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Copy,
-  CheckCircle,
-  AlertCircle
+  CheckCircle
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -117,7 +113,7 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
 
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   const [balanceData, setBalanceData] = useState({
@@ -126,7 +122,7 @@ export default function Dashboard({ language = "en" }) {
     inPositions: 2500
   });
   
-  const [pnlData, setPnlData] = useState({
+  const [pnlData, _setPnlData] = useState({
     daily: 245.50,
     dailyPercent: 2.45,
     weekly: 1250.00,
@@ -138,8 +134,8 @@ export default function Dashboard({ language = "en" }) {
   });
   
   const [positions, setPositions] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [referralData, setReferralData] = useState({
+  const [orders, _setOrders] = useState([]);
+  const [referralData, _setReferralData] = useState({
     code: "NEXT-7829",
     link: "https://nexttrade.app/ref/NEXT-7829",
     totalReferrals: 12,
@@ -147,7 +143,7 @@ export default function Dashboard({ language = "en" }) {
     totalCommission: 1450.20
   });
   
-  const [vouchers, setVouchers] = useState([
+  const [vouchers, _setVouchers] = useState([
     { id: 1, title: "$50 Trading Bonus", condition: "Min. deposit $500", expiry: "2026-02-15", status: "Active" },
     { id: 2, title: "Zero Fee Trade", condition: "Valid for 5 trades", expiry: "2026-01-30", status: "New" }
   ]);

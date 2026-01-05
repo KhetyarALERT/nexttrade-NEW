@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Activity, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";

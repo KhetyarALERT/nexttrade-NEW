@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Wallet, Loader2, RefreshCw, AlertCircle, Info, ChevronRight } from "lucide-react";
+import { Wallet, Loader2, Info } from "lucide-react";
 
 export default function OrderPanel({ 
   symbol = "BTC-USDT", 
@@ -177,12 +176,12 @@ export default function OrderPanel({
     
   const amountValue = parseFloat(amount) || 0;
   
-  let cryptoAmount, usdtAmount;
+  let _cryptoAmount, usdtAmount;
   if (amountType === 'usdt') {
     usdtAmount = amountValue;
-    cryptoAmount = effectivePrice > 0 ? amountValue / effectivePrice : 0;
+    _cryptoAmount = effectivePrice > 0 ? amountValue / effectivePrice : 0;
   } else {
-    cryptoAmount = amountValue;
+    _cryptoAmount = amountValue;
     usdtAmount = amountValue * effectivePrice;
   }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
