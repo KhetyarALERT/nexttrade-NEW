@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import { base44 } from "@/api/base44Client";
 
-export default function FuturesWalletView({ 
-  tradingAccount, 
-  trades = [], 
+export default function FuturesWalletView({
+  tradingAccount,
+  trades = [],
   showBalances = true,
   onTransfer,
   onRefresh,
@@ -24,14 +24,14 @@ export default function FuturesWalletView({
   const [loading, setLoading] = useState(false);
 
   // Calculate futures account metrics from trading account and trades
-  const openTrades = trades.filter(t => t.status === 'OPEN');
-  
+  const openTrades = trades.filter((t) => t.status === 'OPEN');
+
   const accountAssets = account?.balance || account?.demo_balance || 0;
   const accountBalance = account?.equity || account?.demo_balance || 0;
   const unrealizedPnl = account?.unrealized_pnl || 0;
   const marginUsed = account?.margin_used || 0;
   const availableMargin = accountBalance - marginUsed;
-  const transferable = Math.max(0, availableMargin - (marginUsed * 0.1)); // Keep 10% buffer
+  const transferable = Math.max(0, availableMargin - marginUsed * 0.1); // Keep 10% buffer
 
   const formatValue = (val) => {
     if (!showBalances) return "****";
@@ -47,7 +47,7 @@ export default function FuturesWalletView({
 
   // Group positions by crypto
   const positionsByCrypto = {};
-  openTrades.forEach(trade => {
+  openTrades.forEach((trade) => {
     const crypto = trade.symbol?.split('-')[0] || 'USDT';
     if (!positionsByCrypto[crypto]) {
       positionsByCrypto[crypto] = {
@@ -85,7 +85,7 @@ export default function FuturesWalletView({
     positionsByCrypto['USDT'].availableMargin = availableMargin;
   }
 
-  const filteredAssets = Object.values(positionsByCrypto).filter(asset => {
+  const filteredAssets = Object.values(positionsByCrypto).filter((asset) => {
     if (searchTerm && !asset.crypto.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (hideSmallAssets && asset.accountAssets < 1) return false;
     return true;
@@ -106,12 +106,12 @@ export default function FuturesWalletView({
             </div>
             <div className="text-slate-500 text-xs mt-1">≈ ${showBalances ? formatValue(accountAssets) : "****"}</div>
           </div>
-          <Button 
+          <Button
             onClick={onTransfer}
-            variant="outline" 
-            size="sm"
-            className="border-slate-600 text-white hover:bg-slate-800 rounded-xl"
-          >
+            variant="outline"
+            size="sm" className="bg-emerald-500 text-white px-3 text-xs font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-8 border-slate-600 hover:bg-slate-800">
+
+
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>
         </div>
@@ -119,22 +119,22 @@ export default function FuturesWalletView({
         {/* Tabs */}
         <Tabs defaultValue="usdm" className="mb-4">
           <TabsList className="bg-transparent border-b border-slate-700 w-full justify-start rounded-none p-0 h-auto">
-            <TabsTrigger 
-              value="usdm" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2"
-            >
+            <TabsTrigger
+              value="usdm"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2">
+
               USD-M Perp
             </TabsTrigger>
-            <TabsTrigger 
-              value="coinm" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2"
-            >
+            <TabsTrigger
+              value="coinm"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2">
+
               Coin-M Perp
             </TabsTrigger>
-            <TabsTrigger 
-              value="standard" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2"
-            >
+            <TabsTrigger
+              value="standard"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-yellow-500 data-[state=active]:bg-transparent text-slate-400 data-[state=active]:text-white px-4 py-2">
+
               Standard Futures
             </TabsTrigger>
           </TabsList>
@@ -151,11 +151,11 @@ export default function FuturesWalletView({
           <span className="text-slate-400 text-xs">Today's PnL:</span>
           <span className={`text-xs font-medium ${unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
             {unrealizedPnl >= 0 ? '+' : ''}{showBalances ? `$${formatValue(unrealizedPnl)}` : "****"}
-            {unrealizedPnl !== 0 && accountAssets > 0 && (
-              <span className="ml-1">
-                ({((unrealizedPnl / accountAssets) * 100).toFixed(2)}%)
+            {unrealizedPnl !== 0 && accountAssets > 0 &&
+            <span className="ml-1">
+                ({(unrealizedPnl / accountAssets * 100).toFixed(2)}%)
               </span>
-            )}
+            }
           </span>
         </div>
 
@@ -189,20 +189,20 @@ export default function FuturesWalletView({
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-              />
+                className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" />
+
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer whitespace-nowrap">
               <Checkbox checked={hideSmallAssets} onCheckedChange={setHideSmallAssets} className="border-slate-600" />
               Hide assets &lt; 1 USD
             </label>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleRefresh}
               disabled={loading}
-              className="text-slate-400 hover:text-white"
-            >
+              className="text-slate-400 hover:text-white">
+
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
@@ -223,15 +223,15 @@ export default function FuturesWalletView({
               </tr>
             </thead>
             <tbody>
-              {filteredAssets.length === 0 ? (
-                <tr>
+              {filteredAssets.length === 0 ?
+              <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
                     No assets found
                   </td>
-                </tr>
-              ) : (
-                filteredAssets.map((asset) => (
-                  <tr key={asset.crypto} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                </tr> :
+
+              filteredAssets.map((asset) =>
+              <tr key={asset.crypto} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <CryptoIcon currency={asset.crypto} size="sm" />
@@ -259,24 +259,24 @@ export default function FuturesWalletView({
                       {showBalances ? formatValue(asset.positionMargin) : "****"}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={onTransfer}
-                        className="text-blue-400 hover:text-blue-300 text-xs h-7"
-                      >
+                      <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onTransfer}
+                    className="text-blue-400 hover:text-blue-300 text-xs h-7">
+
                         Transfer
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
+              )
+              }
             </tbody>
           </table>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 FuturesWalletView.propTypes = {
