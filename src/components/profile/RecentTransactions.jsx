@@ -4,7 +4,21 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
+const local = {
+  en: {
+    title: 'Recent Deposits & Withdrawals',
+    view: 'View asset records',
+    noTransactions: 'No recent transactions'
+  },
+  ar: {
+    title: 'الإيداعات والسحوبات الأخيرة',
+    view: 'عرض سجلات الأصول',
+    noTransactions: 'لا توجد معاملات حديثة'
+  }
+};
+
 export default function RecentTransactions({ language = "en" }) {
+  const t = local[language] || local.en;
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,11 +84,11 @@ export default function RecentTransactions({ language = "en" }) {
   };
 
   return (
-    <div className="bg-[#1a1a2e] rounded-xl p-4">
+    <div className="rounded-xl p-4 bg-gradient-to-br from-slate-900 to-slate-800">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white font-medium">Recent Deposits & Withdrawals</h3>
-        <button className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-          View asset records <ChevronRight className="w-4 h-4" />
+        <h3 className="text-white font-medium">{t.title}</h3>
+        <button className="text-indigo-300 hover:text-indigo-200 text-sm flex items-center gap-1">
+          {t.view} <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -84,7 +98,7 @@ export default function RecentTransactions({ language = "en" }) {
         </div>
       ) : transactions.length === 0 ? (
         <div className="text-center py-8 text-slate-500 text-sm">
-          No recent transactions
+          {t.noTransactions}
         </div>
       ) : (
         <ScrollArea className="h-[300px]">

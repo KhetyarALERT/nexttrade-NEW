@@ -15,7 +15,8 @@ export default function FuturesWalletView({
   showBalances = true,
   onTransfer,
   onRefresh,
-  demoAccount
+  demoAccount,
+  language = 'en'
 }) {
   // Use demo account for testing - will sync with trades
   const account = demoAccount || tradingAccount;
@@ -92,9 +93,9 @@ export default function FuturesWalletView({
   });
 
   return (
-    <div className="space-y-4">
-      {/* Header Summary */}
-      <div className="bg-[#1a1a2e] rounded-xl p-4 sm:p-6">
+      <div className="space-y-4">
+        {/* Header Summary */}
+        <div className="rounded-xl p-4 sm:p-6 bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <span className="text-slate-400 text-xs block mb-1">Total Assets ⓘ</span>
@@ -109,7 +110,7 @@ export default function FuturesWalletView({
           <Button
             onClick={onTransfer}
             variant="outline"
-            size="sm" className="bg-emerald-500 text-white px-3 text-xs font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-8 border-slate-600 hover:bg-slate-800">
+            size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 text-xs font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-8 border-slate-600 hover:bg-slate-800">
 
 
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
@@ -180,7 +181,7 @@ export default function FuturesWalletView({
       </div>
 
       {/* Assets Table */}
-      <div className="bg-[#1a1a2e] rounded-xl overflow-hidden">
+      <div className="rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="p-4 border-b border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
@@ -287,3 +288,4 @@ FuturesWalletView.propTypes = {
   onRefresh: PropTypes.func,
   demoAccount: PropTypes.object
 };
+FuturesWalletView.propTypes.language = PropTypes.string;

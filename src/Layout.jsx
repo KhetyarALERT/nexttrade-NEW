@@ -193,30 +193,30 @@ export default function Layout({ children }) {
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen &&
-        <div className="md:hidden glass-effect border-t border-gray-200">
+        {mobileMenuOpen && (
+          <div className="md:hidden glass-effect border-t border-gray-200">
             <div className="px-4 py-6 space-y-4">
-              {navigation.map((item) =>
-            <Link
-              key={item.url}
-              to={item.url}
-              className="block text-gray-700 hover:text-blue-600 font-medium"
-              onClick={() => setMobileMenuOpen(false)}>
-
+              {navigation.map((item) => (
+                <Link
+                  key={item.url}
+                  to={item.url}
+                  className="block text-gray-700 hover:text-blue-600 font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   {item.name[language]}
                 </Link>
-            )}
+              ))}
               <Button
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
-              asChild>
-
+                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
+                asChild
+              >
                 <Link to={createPageUrl("Profile") + "?tab=accounts"} onClick={() => setMobileMenuOpen(false)}>
                   {language === "en" ? "My Account" : "حسابي"}
                 </Link>
               </Button>
             </div>
           </div>
-        }
+        )}
       </nav>
       )}
 

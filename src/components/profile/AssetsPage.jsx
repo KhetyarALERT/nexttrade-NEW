@@ -47,7 +47,49 @@ const NETWORK_CONFIG = {
   XRP: { name: "XRP Ledger", fee: "~0.1 XRP", time: "~5 sec" }
 };
 
+const localizations = {
+  en: {
+    totalBalance: "Total Balance",
+    deposit: "Deposit",
+    withdraw: "Withdraw",
+    transfer: "Transfer",
+    selectCrypto: "Select crypto",
+    selectNetwork: "Select network",
+    depositInfo: "Deposit info",
+    generateDeposit: "Generate Deposit Address",
+    minimum: "Minimum",
+    receiving: "Receiving",
+    sendOnly: (c, n) => `Send only ${c} via ${n}. Other assets will be lost permanently.`,
+    searchPlaceholder: "Search coin",
+    hideSmallBalances: "Hide small balances",
+    noAssets: "No assets. Click Deposit to add funds.",
+    depositAddress: "Deposit Address",
+    openPaymentPage: "Open Payment Page to View Address",
+    available: "Available"
+  },
+  ar: {
+    totalBalance: "الرصيد الكلي",
+    deposit: "إيداع",
+    withdraw: "سحب",
+    transfer: "تحويل",
+    selectCrypto: "اختر العملة",
+    selectNetwork: "اختر الشبكة",
+    depositInfo: "معلومات الإيداع",
+    generateDeposit: "توليد عنوان الإيداع",
+    minimum: "الحد الأدنى",
+    receiving: "الاستلام",
+    sendOnly: (c, n) => `أرسل ${c} عبر ${n} فقط. الأصول الأخرى ستفقد نهائياً.`,
+    searchPlaceholder: "ابحث عن عملة",
+    hideSmallBalances: "إخفاء الأرصدة الصغيرة",
+    noAssets: "لا توجد أصول. اضغط إيداع لإضافة أموال.",
+    depositAddress: "عنوان الإيداع",
+    openPaymentPage: "افتح صفحة الدفع لعرض العنوان",
+    available: "المتاح"
+  }
+};
+
 export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [], demoAccount }) {
+  const t = localizations[language] || localizations.en;
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallBalances, setHideSmallBalances] = useState(false);
   const [showBalances, setShowBalances] = useState(true);
@@ -257,11 +299,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-[#1a1a2e] rounded-xl p-4 sm:p-6">
+      <div className="rounded-xl p-4 sm:p-6 bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-slate-400 text-sm">Total Balance</span>
+              <span className="text-slate-400 text-sm">{t.totalBalance}</span>
               <button onClick={() => setShowBalances(!showBalances)} className="text-slate-400 hover:text-white">
                 {showBalances ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
@@ -269,8 +311,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="text-2xl sm:text-3xl font-bold text-white">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
-              <ArrowDownToLine className="w-4 h-4 mr-1.5" /> Deposit
+            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+              <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
             </Button>
             <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="bg-background text-neutral-950 px-4 py-2 text-sm font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 border-slate-600 hover:bg-slate-800 flex-1 sm:flex-none">
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> Withdraw
@@ -284,7 +326,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Wallet Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start bg-[#1a1a2e] p-1 rounded-lg overflow-x-auto">
+        <TabsList className="w-full justify-start bg-transparent p-1 rounded-lg overflow-x-auto">
           <TabsTrigger value="main" className="text-sm data-[state=active]:bg-blue-600 data-[state=active]:text-white">
             <Wallet className="w-4 h-4 mr-1.5" /> Main Wallet
           </TabsTrigger>
@@ -306,7 +348,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             formatBalance={formatBalance}
             formatUSD={formatUSD}
             onDeposit={(currency) => {setSelectedCurrency(currency);setActiveModal('deposit');resetForm();}}
-            onWithdraw={(currency) => {setSelectedCurrency(currency);setActiveModal('withdraw');resetForm();}} />
+            onWithdraw={(currency) => {setSelectedCurrency(currency);setActiveModal('withdraw');resetForm();}}
+            language={language}
+            t={t}
+          />
 
         </TabsContent>
 
@@ -315,7 +360,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             spotBalance={0}
             onDeposit={() => {setActiveModal('deposit');resetForm();}}
             onWithdraw={() => {setActiveModal('withdraw');resetForm();}}
-            showBalances={showBalances} />
+            showBalances={showBalances} language={language} />
 
         </TabsContent>
 
@@ -325,6 +370,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             demoAccount={demoAccount}
             trades={trades}
             showBalances={showBalances}
+            language={language}
             onTransfer={() => setActiveModal('transfer')}
             onRefresh={onRefresh} />
 
@@ -333,7 +379,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Deposit Modal */}
       <Dialog open={activeModal === 'deposit'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white max-h-[90vh] overflow-y-auto" aria-describedby="deposit-desc">
+        <DialogContent className="sm:max-w-md border border-slate-700 text-white max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="deposit-desc">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <ArrowDownToLine className="w-5 h-5 text-blue-500" /> Deposit
@@ -345,8 +391,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             {/* Step 1: Select Crypto */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">1</div>
-                <span className="font-medium">Select crypto</span>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center text-xs font-bold">1</div>
+                <span className="font-medium">{t.selectCrypto}</span>
               </div>
               
               <Select value={selectedCurrency} onValueChange={(v) => {setSelectedCurrency(v);setSelectedNetwork('');setDepositData(null);}}>
@@ -371,8 +417,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                   key={c.currency}
                   onClick={() => {setSelectedCurrency(c.currency);setSelectedNetwork('');setDepositData(null);}}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                  selectedCurrency === c.currency ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`
-                  }>
+                  selectedCurrency === c.currency ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
+                  `}>
 
                     <CryptoIcon currency={c.currency} size="xs" />
                     {c.currency}
@@ -384,8 +430,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             {/* Step 2: Select Network */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">2</div>
-                <span className="font-medium">Select network</span>
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center text-xs font-bold">2</div>
+                <span className="font-medium">{t.selectNetwork}</span>
               </div>
               
               <Select value={selectedNetwork} onValueChange={(v) => {setSelectedNetwork(v);setDepositData(null);}}>
@@ -404,7 +450,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               {selectedNetwork &&
               <div className="flex items-start gap-2 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
                   <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>Ensure you choose the same network on the withdrawal platform.</span>
+                  <span>{language === 'ar' ? 'تأكد من اختيار نفس الشبكة على منصة السحب.' : 'Ensure you choose the same network on the withdrawal platform.'}</span>
                 </div>
               }
             </div>
@@ -418,8 +464,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                 </div>
                 
                 {!depositData && !loading &&
-              <Button onClick={handleGetDepositAddress} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl">
-                    Generate Deposit Address
+              <Button onClick={handleGetDepositAddress} className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl">
+                    {t.generateDeposit}
                   </Button>
               }
                 
@@ -473,10 +519,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                       </div>
                     </div>
                     
-                    <div className="flex items-start gap-2 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-amber-200">
-                        Send only {selectedCurrency} via {NETWORK_CONFIG[selectedNetwork]?.name || selectedNetwork}. Other assets will be lost permanently.
+                    <div className="flex items-start gap-2 p-3 bg-amber-100/40 border border-amber-200 rounded-lg">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-amber-700">
+                        {t.sendOnly(selectedCurrency, NETWORK_CONFIG[selectedNetwork]?.name || selectedNetwork)}
                       </p>
                     </div>
                   </div>
@@ -489,7 +535,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Withdraw Modal */}
       <Dialog open={activeModal === 'withdraw'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white max-h-[90vh] overflow-y-auto" aria-describedby="withdraw-desc">
+        <DialogContent className="sm:max-w-md border border-slate-700 text-white max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="withdraw-desc">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <ArrowUpFromLine className="w-5 h-5 text-orange-500" /> Withdraw
@@ -586,7 +632,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Transfer Modal */}
       <Dialog open={activeModal === 'transfer'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white" aria-describedby="transfer-desc">
+        <DialogContent className="sm:max-w-md border border-slate-700 text-white bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="transfer-desc">
           <DialogHeader>
             <DialogTitle className="text-white">Internal Transfer</DialogTitle>
           </DialogHeader>
@@ -648,8 +694,9 @@ function CoinLogo({ currency, size = "md" }) {
         alt={currency}
         className={`${sizeClasses[size]} rounded-full`}
         onError={(e) => {
-          e.target.onerror = null;
-          e.target.src = `https://ui-avatars.com/api/?name=${currency}&background=1a1a2e&color=fff&size=32`;
+          const img = e.currentTarget;
+          img.onerror = null;
+          img.src = `https://ui-avatars.com/api/?name=${currency}&background=1a1a2e&color=fff&size=32`;
         }} />);
 
 
@@ -685,7 +732,7 @@ function getCoinImageId(currency) {
 }
 
 // Assets Table Component
-function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, setHideSmallBalances, formatBalance, formatUSD, onDeposit, onWithdraw }) {
+function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, setHideSmallBalances, formatBalance, formatUSD, onDeposit, onWithdraw, language = 'en', t = null }) {
   // Normalize currency names (remove network suffix like "usdttrc20" -> "USDT")
   const normalizedWallets = {};
   Object.entries(wallets).forEach(([currency, currencyWallets]) => {
@@ -701,21 +748,21 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
   });
 
   return (
-    <div className="bg-[#1a1a2e] rounded-xl overflow-hidden">
+    <div className="rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
       <div className="p-4 border-b border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
             <Input
-              placeholder="Search coin"
+              placeholder={t?.searchPlaceholder || 'Search coin'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" />
+              className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-slate-800 border-slate-700 text-white placeholder:text-slate-500`} />
 
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer whitespace-nowrap">
             <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-slate-600" />
-            Hide small balances
+            {t?.hideSmallBalances || 'Hide small balances'}
           </label>
         </div>
       </div>
@@ -723,24 +770,23 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
       <div className="overflow-x-auto">
         <table className="w-full min-w-[400px]">
           <thead>
-            <tr className="text-left text-xs text-slate-400 border-b border-slate-800">
-              <th className="px-4 py-3 font-medium">Coin</th>
-              <th className="px-4 py-3 font-medium">Balance</th>
-              <th className="px-4 py-3 font-medium text-right">Actions</th>
+            <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-slate-400 border-b border-slate-800`}>
+              <th className="px-4 py-3 font-medium">{language === 'ar' ? 'العملة' : 'Coin'}</th>
+              <th className="px-4 py-3 font-medium">{language === 'ar' ? 'الرصيد' : 'Balance'}</th>
+              <th className="px-4 py-3 font-medium text-right">{language === 'ar' ? 'إجراءات' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody>
             {Object.entries(normalizedWallets).length === 0 ?
             <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
-                  No assets. Click Deposit to add funds.
+                  {t?.noAssets || 'No assets. Click Deposit to add funds.'}
                 </td>
               </tr> :
 
             Object.entries(normalizedWallets).map(([currency, currencyWallets]) => {
               const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
               const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
-              const networks = [...new Set(currencyWallets.map((w) => w.network))].join(', ');
 
               return (
                 <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
@@ -759,12 +805,12 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => onDeposit(currency)} className="text-blue-400 hover:text-blue-300 text-sm">
-                          Deposit
+                        <button onClick={() => onDeposit(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
+                          {t?.deposit || 'Deposit'}
                         </button>
                         <span className="text-slate-600">|</span>
-                        <button onClick={() => onWithdraw(currency)} className="text-blue-400 hover:text-blue-300 text-sm">
-                          Withdraw
+                        <button onClick={() => onWithdraw(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
+                          {t?.withdraw || 'Withdraw'}
                         </button>
                       </div>
                     </td>
@@ -799,3 +845,5 @@ AssetsTable.propTypes = {
   onDeposit: PropTypes.func,
   onWithdraw: PropTypes.func
 };
+AssetsTable.propTypes.language = PropTypes.string;
+AssetsTable.propTypes.t = PropTypes.object;

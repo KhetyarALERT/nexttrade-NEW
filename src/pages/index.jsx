@@ -1,4 +1,4 @@
-import Layout from "../Layout.js";
+import Layout from "../Layout.jsx";
 
 import About from "./About";
 

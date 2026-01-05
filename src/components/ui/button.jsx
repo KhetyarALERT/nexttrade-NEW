@@ -34,15 +34,33 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button"
+/**
+ * @typedef {import("react").ComponentPropsWithoutRef<"button">} NativeButtonProps
+ */
+
+/**
+ * @typedef {NativeButtonProps & {
+ *  variant?: keyof typeof buttonVariants.variants.variant,
+ *  size?: keyof typeof buttonVariants.variants.size,
+ *  asChild?: boolean,
+ * }} ButtonProps
+ */
+
+/**
+ * @type {import("react").ForwardRefRenderFunction<HTMLButtonElement, ButtonProps>}
+ */
+function ButtonInner({ className, variant, size, asChild = false, ...props }, ref) {
+  const Comp = asChild ? Slot : "button";
   return (
-    (<Comp
+    <Comp
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
-      {...props} />)
+      {...props}
+    />
   );
-})
+}
+
+const Button = React.forwardRef(ButtonInner)
 Button.displayName = "Button"
 
 export { Button, buttonVariants }

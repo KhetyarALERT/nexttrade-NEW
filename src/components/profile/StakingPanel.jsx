@@ -181,7 +181,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   return (
     <>
-      <div className="bg-[#1a1a2e] rounded-xl p-4">
+      <div className="rounded-xl p-4 bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 text-blue-400" />
@@ -190,7 +190,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
           <Button 
             onClick={() => setStakeOpen(true)} 
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-xs"
+            className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-xs"
           >
             {t.stake}
           </Button>
@@ -302,14 +302,14 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                 </div>
 
                 {selectedPlan && stakeAmount && (
-                  <div className="p-3 bg-emerald-900/20 border border-emerald-700/50 rounded-lg">
-                    <p className="text-sm text-emerald-300">
+                  <div className="p-3 bg-emerald-50/30 border border-emerald-200 rounded-lg">
+                    <p className="text-sm text-emerald-800">
                       Est. earnings: <strong>${((parseFloat(stakeAmount) || 0) * selectedPlan.apy / 100 * (selectedPlan.days / 365)).toFixed(2)}</strong>
                     </p>
                   </div>
                 )}
 
-                <div className="flex items-start gap-2 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg text-amber-300 text-xs">
+                <div className="flex items-start gap-2 p-3 bg-amber-100/40 border border-amber-200 rounded-lg text-amber-700 text-xs">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{t.earlyPenalty}</span>
                 </div>
@@ -321,7 +321,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
             <Button
               onClick={handleStake}
               disabled={processing || !selectedWallet || !stakeAmount}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700"
             >
               {processing ? "Processing..." : `Stake ${stakeAmount || 0} USDT`}
             </Button>

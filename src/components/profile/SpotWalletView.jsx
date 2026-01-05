@@ -49,7 +49,25 @@ const Sparkline = ({ data = [], width = 80, height = 30 }) => {
   );
 };
 
-export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw, showBalances = true }) {
+const i18n = {
+  en: {
+    totalAssets: "Total Assets (USDT)",
+    deposit: "Deposit",
+    withdraw: "Withdraw",
+    search: "Search coin",
+    live: "Live"
+  },
+  ar: {
+    totalAssets: "إجمالي الأصول (USDT)",
+    deposit: "إيداع",
+    withdraw: "سحب",
+    search: "ابحث عن عملة",
+    live: "مباشر"
+  }
+};
+
+export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw, showBalances = true, language = 'en' }) {
+  const t = i18n[language] || i18n.en;
   const [searchTerm, setSearchTerm] = useState("");
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [marketData, setMarketData] = useState([]);
@@ -141,48 +159,48 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-[#1a1a2e] rounded-xl p-4">
+      <div className="rounded-xl p-4 bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <span className="text-slate-400 text-xs block mb-1">Total Assets (USDT)</span>
+            <span className="text-slate-400 text-xs block mb-1">{t.totalAssets}</span>
             <div className="text-2xl font-bold text-white">
               {showBalances ? `$${spotBalance.toFixed(2)}` : "****"}
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={onDeposit} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
-              Deposit
+            <Button onClick={onDeposit} size="sm" className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+              {t.deposit}
             </Button>
             <Button onClick={onWithdraw} size="sm" variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
-              Withdraw
+              {t.withdraw}
             </Button>
           </div>
         </div>
       </div>
 
       {/* Asset List */}
-      <div className="bg-[#1a1a2e] rounded-xl overflow-hidden">
+      <div className="rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="p-4 border-b border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
               <Input
-                placeholder="Search coin"
+                placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-slate-800 border-slate-700 text-white placeholder:text-slate-500`}
               />
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
-              <span className="text-xs text-slate-500">{connected ? "Live" : "..."}</span>
+              <span className="text-xs text-slate-500">{connected ? t.live : "..."}</span>
             </div>
           </div>
         </div>
 
         <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full">
-            <thead className="sticky top-0 bg-[#1a1a2e]">
+            <thead className="sticky top-0 bg-gradient-to-br from-slate-900 to-slate-800">
               <tr className="text-left text-[10px] text-slate-400 border-b border-slate-800 uppercase">
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium text-right">Price</th>
@@ -255,3 +273,4 @@ SpotWalletView.propTypes = {
   onWithdraw: PropTypes.func,
   showBalances: PropTypes.bool
 };
+SpotWalletView.propTypes.language = PropTypes.string;
