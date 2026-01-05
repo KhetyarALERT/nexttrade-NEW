@@ -156,3 +156,8 @@ button:focus-visible {
     @apply bg-background text-foreground;
   }
 }
+
+html,
+body {
+  overflow-x: hidden;
+}

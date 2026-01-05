@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
-import { Search, RefreshCw, TrendingUp, TrendingDown, ArrowLeftRight } from "lucide-react";
+import { Search, RefreshCw, ArrowLeftRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import CryptoIcon from "@/components/ui/CryptoIcon";
-import { base44 } from "@/api/base44Client";
 
 export default function FuturesWalletView({
   tradingAccount,
@@ -16,7 +14,7 @@ export default function FuturesWalletView({
   onTransfer,
   onRefresh,
   demoAccount,
-  language = 'en'
+  language: _language = 'en'
 }) {
   // Use demo account for testing - will sync with trades
   const account = demoAccount || tradingAccount;
@@ -209,17 +207,17 @@ export default function FuturesWalletView({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-hidden">
+          <table className="w-full table-fixed">
             <thead>
               <tr className="text-left text-[10px] text-slate-400 border-b border-slate-800 uppercase">
                 <th className="px-4 py-3 font-medium">Crypto</th>
-                <th className="px-4 py-3 font-medium text-right">Account Assets</th>
-                <th className="px-4 py-3 font-medium text-right">Account Balance</th>
+                <th className="hidden md:table-cell px-4 py-3 font-medium text-right">Account Assets</th>
+                <th className="hidden md:table-cell px-4 py-3 font-medium text-right">Account Balance</th>
                 <th className="px-4 py-3 font-medium text-right">Unrealized PnL</th>
-                <th className="px-4 py-3 font-medium text-right">Transferable</th>
-                <th className="px-4 py-3 font-medium text-right">Available Margin</th>
-                <th className="px-4 py-3 font-medium text-right">Position Margin</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Transferable</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Available Margin</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Position Margin</th>
                 <th className="px-4 py-3 font-medium text-center">Operation</th>
               </tr>
             </thead>
@@ -238,11 +236,16 @@ export default function FuturesWalletView({
                         <CryptoIcon currency={asset.crypto} size="sm" />
                         <span className="text-white font-medium text-sm">{asset.crypto}</span>
                       </div>
+                      <div className="mt-1 text-[10px] text-slate-500 md:hidden">
+                        <span className="text-slate-400">Assets:</span> {showBalances ? formatValue(asset.accountAssets) : "****"}
+                        <span className="mx-2 text-slate-700">•</span>
+                        <span className="text-slate-400">Bal:</span> {showBalances ? formatValue(asset.accountBalance) : "****"}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-sm">
+                    <td className="hidden md:table-cell px-4 py-3 text-right text-white text-sm">
                       {showBalances ? formatValue(asset.accountAssets) : "****"}
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-sm">
+                    <td className="hidden md:table-cell px-4 py-3 text-right text-white text-sm">
                       {showBalances ? formatValue(asset.accountBalance) : "****"}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -250,13 +253,13 @@ export default function FuturesWalletView({
                         {asset.unrealizedPnl >= 0 ? '+' : ''}{showBalances ? formatValue(asset.unrealizedPnl) : "****"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-sm">
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-white text-sm">
                       {showBalances ? formatValue(asset.transferable) : "****"}
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-sm">
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-white text-sm">
                       {showBalances ? formatValue(asset.availableMargin) : "****"}
                     </td>
-                    <td className="px-4 py-3 text-right text-white text-sm">
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-white text-sm">
                       {showBalances ? formatValue(asset.positionMargin) : "****"}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -264,7 +267,7 @@ export default function FuturesWalletView({
                     variant="ghost"
                     size="sm"
                     onClick={onTransfer}
-                    className="text-blue-400 hover:text-blue-300 text-xs h-7">
+                    className="text-indigo-300 hover:text-indigo-200 text-xs h-7 rounded-xl">
 
                         Transfer
                       </Button>

@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe, Menu, X, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+// @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import {
   DropdownMenu,
@@ -45,7 +46,7 @@ export default function Layout({ children }) {
 
   return (
     <NotificationProvider>
-    <div className={`min-h-screen bg-[#FAFAF9] ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen overflow-x-hidden bg-[#FAFAF9] ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
           --primary-600: #2563eb;
@@ -218,7 +219,6 @@ export default function Layout({ children }) {
           </div>
         )}
       </nav>
-      )}
 
       {/* Main Content */}
       <main className={isTradingPage ? "" : "pt-20"}>

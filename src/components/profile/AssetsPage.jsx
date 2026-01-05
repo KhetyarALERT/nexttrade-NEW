@@ -767,8 +767,8 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[400px]">
+      <div className="overflow-x-hidden">
+        <table className="w-full table-fixed">
           <thead>
             <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-slate-400 border-b border-slate-800`}>
               <th className="px-4 py-3 font-medium">{language === 'ar' ? 'العملة' : 'Coin'}</th>
@@ -800,15 +800,14 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-white">{formatBalance(totalAmount)}</div>
-                      <div className="text-slate-500 text-xs">{formatUSD(usdValue)}</div>
+                      <div className="text-white break-words">{formatBalance(totalAmount)}</div>
+                      <div className="text-slate-500 text-xs break-words">{formatUSD(usdValue)}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                         <button onClick={() => onDeposit(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
                           {t?.deposit || 'Deposit'}
                         </button>
-                        <span className="text-slate-600">|</span>
                         <button onClick={() => onWithdraw(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
                           {t?.withdraw || 'Withdraw'}
                         </button>

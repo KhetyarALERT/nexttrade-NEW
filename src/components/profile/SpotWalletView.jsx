@@ -199,13 +199,13 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
         </div>
 
         <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed">
             <thead className="sticky top-0 bg-gradient-to-br from-slate-900 to-slate-800">
               <tr className="text-left text-[10px] text-slate-400 border-b border-slate-800 uppercase">
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium text-right">Price</th>
                 <th className="px-4 py-2 font-medium text-right">24h</th>
-                <th className="px-4 py-2 font-medium text-center">Chart</th>
+                <th className="hidden sm:table-cell px-4 py-2 font-medium text-center">Chart</th>
                 <th className="px-4 py-2 font-medium text-right">Action</th>
               </tr>
             </thead>
@@ -222,11 +222,11 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                   return (
                     <tr key={coin.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                           <img src={coin.image} alt={coin.displaySymbol} className="w-6 h-6 rounded-full" />
-                          <div>
+                          <div className="min-w-0">
                             <div className="text-white font-medium text-sm">{coin.displaySymbol}</div>
-                            <div className="text-slate-500 text-[10px]">{coin.name}</div>
+                            <div className="text-slate-500 text-[10px] truncate">{coin.name}</div>
                           </div>
                         </div>
                       </td>
@@ -239,15 +239,16 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                           {formatPercent(coin.price_change_percentage_24h)}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="hidden sm:table-cell px-4 py-3">
                         <div className="flex justify-center">
                           <Sparkline data={coin.sparkline_in_7d?.price} width={60} height={24} />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link to={createPageUrl("Trading")}>
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-3 rounded-lg">
-                            Trade
+                          <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs h-7 px-2 sm:px-3 rounded-xl">
+                            <span className="hidden sm:inline">Trade</span>
+                            <span className="sm:hidden">Go</span>
                           </Button>
                         </Link>
                       </td>

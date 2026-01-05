@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,8 +21,6 @@ import {
   Activity,
   History,
   Bell,
-  Globe,
-  Settings,
   Sparkles,
   Award,
   Users,
@@ -96,7 +94,11 @@ const translations = {
     welcomeBack: "Welcome back",
     accountOverview: "Account Overview",
     quickActions: "Quick Actions",
-    memberSince: "Member since"
+    memberSince: "Member since",
+    changePhoto: "Change photo",
+    photoUpdated: "Photo updated",
+    invalidPhotoType: "Please select an image file",
+    photoTooLarge: "Image is too large. Please choose a smaller one."
   },
   ar: {
     heroTitle: "مركز الحساب",
@@ -126,7 +128,11 @@ const translations = {
     welcomeBack: "مرحباً بعودتك",
     accountOverview: "نظرة عامة على الحساب",
     quickActions: "إجراءات سريعة",
-    memberSince: "عضو منذ"
+    memberSince: "عضو منذ",
+    changePhoto: "تغيير الصورة",
+    photoUpdated: "تم تحديث الصورة",
+    invalidPhotoType: "يرجى اختيار ملف صورة",
+    photoTooLarge: "حجم الصورة كبير. اختر صورة أصغر."
   }
 };
 
@@ -148,7 +154,8 @@ export default function Profile({ language = "en" }) {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(null);
+  const avatarInputRef = useRef(null);
+
   const [formState, setFormState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -164,7 +171,6 @@ export default function Profile({ language = "en" }) {
     setError(null);
     try {
       const data = await fetchCurrentUser();
-      setUser(data);
       setFormState(normalizeUserProfile(data));
     } catch (err) {
       console.error("Failed to load user", err);
@@ -213,7 +219,11 @@ export default function Profile({ language = "en" }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateCurrentUser({ fullName: formState.fullName, bio: formState.bio });
+      await updateCurrentUser({
+        fullName: formState.fullName,
+        bio: formState.bio,
+        avatarUrl: formState.avatarUrl
+      });
       toast({ 
         title: t.updateSuccess, 
         duration: 2000,
@@ -229,6 +239,43 @@ export default function Profile({ language = "en" }) {
       setSaving(false);
     }
   }, [formState, toast, t.updateSuccess]);
+
+  const applyAvatarFile = useCallback(async (file) => {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      toast({ variant: 'destructive', title: 'Error', description: t.invalidPhotoType });
+      return;
+    }
+
+    // Keep payload reasonable if Base44 stores this field.
+    const maxBytes = 1_500_000;
+    if (file.size > maxBytes) {
+      toast({ variant: 'destructive', title: 'Error', description: t.photoTooLarge });
+      return;
+    }
+
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    setFormState((prev) => ({ ...prev, avatarUrl: String(dataUrl || '') }));
+    toast({ title: t.photoUpdated, duration: 1500, className: "bg-emerald-50 border-emerald-200 text-emerald-900" });
+  }, [toast, t.invalidPhotoType, t.photoTooLarge, t.photoUpdated]);
+
+  const handleAvatarInputChange = useCallback((e) => {
+    const file = e.currentTarget.files?.[0];
+    if (file) applyAvatarFile(file);
+    e.currentTarget.value = '';
+  }, [applyAvatarFile]);
+
+  const handleAvatarDrop = useCallback((e) => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file) applyAvatarFile(file);
+  }, [applyAvatarFile]);
 
   const handleLogout = useCallback(() => {
     base44.auth.logout();
@@ -299,7 +346,11 @@ export default function Profile({ language = "en" }) {
             <div className="flex flex-col gap-6">
               {/* Top Row: Avatar and Info */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div className="relative group">
+                <div
+                  className="relative group"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleAvatarDrop}
+                >
                   <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full opacity-75 blur group-hover:opacity-100 transition duration-300" />
                   <Avatar className="relative h-24 w-24 sm:h-28 sm:w-28 border-4 border-white shadow-2xl ring-2 ring-blue-100">
                     <AvatarImage src={formState.avatarUrl} alt={formState.fullName} />
@@ -307,9 +358,22 @@ export default function Profile({ language = "en" }) {
                       {formState.fullName?.charAt(0)?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <button className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full border-4 border-white bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:scale-110">
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full border-4 border-white bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:scale-110"
+                    aria-label={t.changePhoto}
+                    title={t.changePhoto}
+                  >
                     <Upload className="h-4 w-4" />
                   </button>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarInputChange}
+                  />
                 </div>
                 
                 <div className="flex-1 min-w-0 space-y-2">
@@ -337,9 +401,9 @@ export default function Profile({ language = "en" }) {
                     {t.memberSince}: <span className="font-medium text-slate-700">{memberSinceDate}</span>
                   </p>
                   
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-slate-500">
                     <User className="h-3.5 w-3.5" />
-                    <span className="font-mono">{formState.uuid}</span>
+                    <span className="min-w-0 truncate font-mono">{formState.uuid}</span>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -440,7 +504,7 @@ export default function Profile({ language = "en" }) {
           className="space-y-6"
         >
           <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-lg rounded-2xl border border-slate-200 shadow-lg p-2">
-            <TabsList className="w-full justify-start gap-1 bg-transparent p-0 overflow-x-auto flex-nowrap">
+            <TabsList className="w-full justify-start gap-1 bg-transparent p-0 flex flex-wrap overflow-x-hidden">
               {[
                 { value: "personal", label: t.personalInfo, icon: User },
                 { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Activity },
@@ -453,7 +517,7 @@ export default function Profile({ language = "en" }) {
                 <TabsTrigger 
                   key={tab.value}
                   value={tab.value} 
-                  className="group relative rounded-xl px-4 py-2.5 font-medium text-sm whitespace-nowrap transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 hover:bg-slate-100"
+                  className="group relative rounded-xl px-4 py-2.5 font-medium text-sm whitespace-normal sm:whitespace-nowrap transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 hover:bg-slate-100"
                 >
                   <tab.icon className="mr-2 h-4 w-4 inline-block" />
                   {tab.label}
@@ -905,11 +969,11 @@ export default function Profile({ language = "en" }) {
                       <Gift className="h-4 w-4 text-purple-600" />
                       {t.referralCode}
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Input 
                         value={formState.referralCode} 
                         readOnly 
-                        className="font-mono font-bold text-lg bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
+                        className="min-w-0 flex-1 font-mono font-bold text-lg bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
                       />
                       <Button 
                         variant="outline" 
@@ -926,11 +990,11 @@ export default function Profile({ language = "en" }) {
                       <ExternalLink className="h-4 w-4 text-purple-600" />
                       {t.referralLink}
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Input 
                         value={formState.referralLink} 
                         readOnly 
-                        className="text-xs bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
+                        className="min-w-0 flex-1 text-xs bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
                       />
                       <Button 
                         variant="outline" 

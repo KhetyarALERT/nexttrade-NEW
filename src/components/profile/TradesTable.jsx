@@ -73,17 +73,17 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-hidden">
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow className="bg-slate-50">
             <TableHead className="font-semibold">{t.symbol}</TableHead>
             <TableHead className="font-semibold">{t.side}</TableHead>
-            <TableHead className="font-semibold">{t.size}</TableHead>
-            <TableHead className="font-semibold">{t.entry}</TableHead>
-            <TableHead className="font-semibold">{t.current}</TableHead>
+            <TableHead className="hidden sm:table-cell font-semibold">{t.size}</TableHead>
+            <TableHead className="hidden md:table-cell font-semibold">{t.entry}</TableHead>
+            <TableHead className="hidden md:table-cell font-semibold">{t.current}</TableHead>
             <TableHead className="font-semibold">{t.pnl}</TableHead>
-            <TableHead className="font-semibold">{t.status}</TableHead>
+            <TableHead className="hidden sm:table-cell font-semibold">{t.status}</TableHead>
             <TableHead className="font-semibold text-right">{t.action}</TableHead>
           </TableRow>
         </TableHeader>
@@ -95,7 +95,14 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
             
             return (
               <TableRow key={trade.id} className="hover:bg-slate-50">
-                <TableCell className="font-bold">{trade.symbol}</TableCell>
+                <TableCell className="font-bold">
+                  <div className="min-w-0 truncate">{trade.symbol}</div>
+                  <div className="mt-1 text-[10px] text-slate-500 md:hidden">
+                    <span className="text-slate-400">{t.entry}:</span> ${formatPrice(trade.entry_price)}
+                    <span className="mx-2 text-slate-300">•</span>
+                    <span className="text-slate-400">{t.current}:</span> ${formatPrice(currentPrice)}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <Badge className={trade.side === 'LONG' ? 'bg-emerald-500' : 'bg-red-500'}>
                     {trade.side === 'LONG' ? (
@@ -105,16 +112,16 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
                     )}
                   </Badge>
                 </TableCell>
-                <TableCell>{formatSize(trade.quantity)}</TableCell>
-                <TableCell className="font-mono">${formatPrice(trade.entry_price)}</TableCell>
-                <TableCell className="font-mono">${formatPrice(currentPrice)}</TableCell>
+                <TableCell className="hidden sm:table-cell">{formatSize(trade.quantity)}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono">${formatPrice(trade.entry_price)}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono">${formatPrice(currentPrice)}</TableCell>
                 <TableCell className={`font-bold ${isProfit ? 'text-emerald-600' : 'text-red-500'}`}>
                   {isProfit ? '+' : ''}{unrealizedPnl.toFixed(2)}
                   <span className="text-xs ml-1">
                     ({trade.pnl_percent?.toFixed(1) || ((unrealizedPnl / trade.margin) * 100).toFixed(1)}%)
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <Badge variant={trade.status === 'OPEN' ? 'default' : 'secondary'}>
                     {trade.status === 'OPEN' ? t.open : t.closed}
                   </Badge>
