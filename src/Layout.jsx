@@ -15,9 +15,11 @@ import {
 import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import NotificationSettings from "@/components/notifications/NotificationSettings";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [language, setLanguage] = useState("en");
@@ -36,12 +38,21 @@ export default function Layout({ children }) {
   const isRTL = language === "ar";
   const isTradingPage = false; // always show header/footer per request
 
+  const accountLabel = (() => {
+    if (isLoadingAuth) return language === "en" ? "Account" : "الحساب";
+    if (!isAuthenticated) return language === "en" ? "Login" : "تسجيل الدخول";
+    const name = user?.name || user?.full_name || user?.display_name;
+    return (name && String(name).trim()) || user?.email || (language === "en" ? "My Account" : "حسابي");
+  })();
+
   const navigation = [
-  { name: { en: "Home", ar: "الرئيسية" }, url: createPageUrl("Home") },
-  { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-  { name: { en: "Trading", ar: "التداول" }, url: createPageUrl("Trading") },
-  { name: { en: "Profile", ar: "الملف الشخصي" }, url: createPageUrl("Profile") },
-  { name: { en: "Contact", ar: "اتصل بنا" }, url: createPageUrl("Contact") }];
+    { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
+    { name: { en: "Trade", ar: "تداول" }, url: createPageUrl("Trading") },
+    { name: { en: "Futures", ar: "عقود" }, url: `${createPageUrl("Trading")}?mode=futures` },
+    { name: { en: "Rewards", ar: "مكافآت" }, url: `${createPageUrl("Profile")}?tab=vouchers` },
+    { name: { en: "Buy Crypto", ar: "شراء العملات" }, url: createPageUrl("Contact") },
+    { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("About") },
+  ];
 
 
   return (
@@ -117,19 +128,24 @@ export default function Layout({ children }) {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
-              {navigation.map((item) =>
-              <Link
-                key={item.url}
-                to={item.url}
-                className={`nav-link text-sm font-medium transition-colors ${
-                location.pathname === item.url ?
-                'text-blue-600 active' :
-                'text-gray-700 hover:text-blue-600'}`
-                }>
+              {navigation.map((item) => {
+                const activePath = String(item.url).split("?")[0];
+                const isActive = location.pathname === activePath;
 
-                  {item.name[language]}
-                </Link>
-              )}
+                return (
+                  <Link
+                    key={item.url}
+                    to={item.url}
+                    className={`nav-link text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'text-blue-600 active'
+                        : 'text-gray-700 hover:text-blue-600'
+                    }`}
+                  >
+                    {item.name[language]}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Actions */}
@@ -156,9 +172,15 @@ export default function Layout({ children }) {
                 className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-6 hover:from-blue-700 hover:to-cyan-700"
                 asChild>
 
-                <Link to={createPageUrl("Profile") + "?tab=accounts"}>
-                  {language === "en" ? "My Account" : "حسابي"}
-                </Link>
+                {isAuthenticated ? (
+                  <Link to={createPageUrl("Profile") + "?tab=accounts"}>
+                    {accountLabel}
+                  </Link>
+                ) : (
+                  <button type="button" onClick={() => navigateToLogin()}>
+                    {accountLabel}
+                  </button>
+                )}
               </Button>
             </div>
 
@@ -211,9 +233,21 @@ export default function Layout({ children }) {
                 className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
                 asChild
               >
-                <Link to={createPageUrl("Profile") + "?tab=accounts"} onClick={() => setMobileMenuOpen(false)}>
-                  {language === "en" ? "My Account" : "حسابي"}
-                </Link>
+                {isAuthenticated ? (
+                  <Link to={createPageUrl("Profile") + "?tab=accounts"} onClick={() => setMobileMenuOpen(false)}>
+                    {accountLabel}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigateToLogin();
+                    }}
+                  >
+                    {accountLabel}
+                  </button>
+                )}
               </Button>
             </div>
           </div>

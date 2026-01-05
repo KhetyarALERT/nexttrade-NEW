@@ -29,10 +29,10 @@ export default function Home({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        title: "Trade Smarter with AI Agent & Withdraw Anytime",
-        subtitle: "The premier platform where you have 100% control over your assets. No hidden holds, no withdrawal delays.",
-        cta1: "Start Trading Now",
-        cta2: "View Live Markets"
+        title: "AI-Assisted Trading. Instant Withdrawals.",
+        subtitle: "A professional crypto trading experience with real-time insights and full control of your funds — deposit and withdraw 24/7.",
+        cta1: "Go to Trading",
+        cta2: "Open Dashboard"
       },
       withdrawal: {
         title: "Your Assets, Your Control",
@@ -113,10 +113,10 @@ export default function Home({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "تداول بذكاء مع مساعد الذكاء الاصطناعي واسحب في أي وقت",
-        subtitle: "المنصة الرائدة التي تمنحك تحكماً كاملاً بنسبة 100٪ في أصولك. لا حجز للأموال، ولا تأخير في السحب.",
-        cta1: "ابدأ التداول الآن",
-        cta2: "عرض الأسواق المباشرة"
+        title: "تداول مدعوم بالذكاء الاصطناعي. سحب فوري.",
+        subtitle: "تجربة تداول احترافية مع رؤى لحظية وتحكم كامل بأموالك — إيداع وسحب على مدار الساعة.",
+        cta1: "الانتقال للتداول",
+        cta2: "فتح لوحة التحكم"
       },
       withdrawal: {
         title: "أصولك، تحت تحكمك",
@@ -202,26 +202,8 @@ export default function Home({ language = "en" }) {
   return (
     <div className="overflow-hidden bg-white">
       {/* Hero Section - Enhanced with AI Chat */}
-      <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute w-full h-full" style={{
-            backgroundImage: `radial-gradient(circle at 2px 2px, rgba(59, 130, 246, 0.3) 1px, transparent 0)`,
-            backgroundSize: '50px 50px'
-          }} />
-        </div>
-
-        {/* Background Image Layer */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-          style={{
-            backgroundImage: 'url(https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/1cdf8d782_c7d6b2f5-1e27-4f66-98bd-6e7460b52810.png)'
-          }} />
-
-
-        {/* Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-transparent to-cyan-600/20" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/50 to-slate-950" />
+      <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/40 via-transparent to-cyan-50/40" />
 
         {/* Content Layer */}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 z-20">
@@ -239,23 +221,23 @@ export default function Home({ language = "en" }) {
                 transition={{ delay: 0.1 }}
                 className="flex flex-wrap gap-3 mb-8"
               >
-                <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5" />
+                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Shield className="w-3.5 h-3.5 text-blue-600" />
                   {language === "en" ? "Verified Security" : "أمان موثق"}
                 </Badge>
-                <Badge className="bg-green-500/10 text-green-400 border-green-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5" />
+                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
                   {language === "en" ? "Instant Liquidity" : "سيولة فورية"}
                 </Badge>
-                <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 px-3 py-1 backdrop-blur-md flex items-center gap-2">
-                  <Bot className="w-3.5 h-3.5" />
+                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Bot className="w-3.5 h-3.5 text-indigo-600" />
                   {language === "en" ? "AI Powered" : "مدعوم بالذكاء الاصطناعي"}
                 </Badge>
               </motion.div>
 
               {/* Animated Hero Title */}
               <motion.h1
-                className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight"
+                className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}>
@@ -263,7 +245,7 @@ export default function Home({ language = "en" }) {
               </motion.h1>
 
               <motion.p
-                className="text-xl md:text-2xl text-gray-300 mb-8 max-w-xl"
+                className="text-xl md:text-2xl text-slate-600 mb-8 max-w-xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.8 }}>
@@ -280,7 +262,7 @@ export default function Home({ language = "en" }) {
                   size="lg"
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
                   asChild>
-                  <Link to={createPageUrl("Contact")}>
+                  <Link to={createPageUrl("Trading")}>
                     {t.hero.cta1}
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
@@ -288,9 +270,9 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
+                  className="border-slate-300 text-slate-900 hover:bg-white rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
                   asChild>
-                  <Link to={createPageUrl("Contact")}>{t.hero.cta2}</Link>
+                  <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
               </motion.div>
 
@@ -302,8 +284,8 @@ export default function Home({ language = "en" }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 1.4 + idx * 0.1 }}>
-                    <div className="text-2xl font-bold text-white">{stat.value}</div>
-                    <div className="text-sm text-gray-400 font-medium">{stat.label}</div>
+                    <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
+                    <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
                   </motion.div>
                 )}
               </div>
@@ -315,8 +297,7 @@ export default function Home({ language = "en" }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.5 }}
               className="relative">
-              <div className="absolute -inset-4 bg-blue-500/20 blur-3xl rounded-full animate-pulse" />
-              <div className="relative bg-slate-900/50 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+              <div className="relative bg-white/70 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
                 <AITradingChat language={language} />
               </div>
             </motion.div>
