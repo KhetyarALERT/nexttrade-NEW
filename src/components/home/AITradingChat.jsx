@@ -3,7 +3,7 @@ import {
   TrendingUp,
   User
 } from "lucide-react";
-import nextTradeLogo from "@/assets/nexttrade-logo.png";
+import nextTradeLogo from "../../assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 
 export default function AITradingChat({ language = "en" }) {

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
-import { Search, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, TrendingUp, TrendingDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import CryptoIcon from "@/components/ui/CryptoIcon";
 
 // Same coins as Home page CryptoPriceTable
 const COINS = [
@@ -69,7 +69,6 @@ const i18n = {
 export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw, showBalances = true, language = 'en' }) {
   const t = i18n[language] || i18n.en;
   const [searchTerm, setSearchTerm] = useState("");
-  const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [marketData, setMarketData] = useState([]);
   const [connected, setConnected] = useState(false);
   const ws = useRef(null);
@@ -159,11 +158,11 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="rounded-xl p-4 bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <span className="text-slate-400 text-xs block mb-1">{t.totalAssets}</span>
-            <div className="text-2xl font-bold text-white">
+            <span className="text-slate-600 text-xs block mb-1">{t.totalAssets}</span>
+            <div className="text-2xl font-bold text-slate-900">
               {showBalances ? `$${spotBalance.toFixed(2)}` : "****"}
             </div>
           </div>
@@ -171,7 +170,7 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
             <Button onClick={onDeposit} size="sm" className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               {t.deposit}
             </Button>
-            <Button onClick={onWithdraw} size="sm" variant="outline" className="border-slate-600 text-white hover:bg-slate-800 rounded-xl flex-1 sm:flex-none">
+            <Button onClick={onWithdraw} size="sm" variant="outline" className="border-slate-200 text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
               {t.withdraw}
             </Button>
           </div>
@@ -179,8 +178,8 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
       </div>
 
       {/* Asset List */}
-      <div className="rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
-        <div className="p-4 border-b border-slate-800">
+      <div className="rounded-2xl overflow-hidden bg-white border border-slate-200">
+        <div className="p-4 border-b border-slate-100">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
@@ -188,7 +187,7 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                 placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-slate-800 border-slate-700 text-white placeholder:text-slate-500`}
+                className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -200,8 +199,8 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
 
         <div className="max-h-[500px] overflow-y-auto">
           <table className="w-full table-fixed">
-            <thead className="sticky top-0 bg-gradient-to-br from-slate-900 to-slate-800">
-              <tr className="text-left text-[10px] text-slate-400 border-b border-slate-800 uppercase">
+            <thead className="sticky top-0 bg-white">
+              <tr className="text-left text-[10px] text-slate-500 border-b border-slate-100 uppercase">
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium text-right">Price</th>
                 <th className="px-4 py-2 font-medium text-right">24h</th>
@@ -220,21 +219,21 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                 filteredData.map((coin) => {
                   const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
                   return (
-                    <tr key={coin.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                    <tr key={coin.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          <img src={coin.image} alt={coin.displaySymbol} className="w-6 h-6 rounded-full" />
+                          <CryptoIcon currency={coin.displaySymbol} size="sm" />
                           <div className="min-w-0">
-                            <div className="text-white font-medium text-sm">{coin.displaySymbol}</div>
+                            <div className="text-slate-900 font-medium text-sm">{coin.displaySymbol}</div>
                             <div className="text-slate-500 text-[10px] truncate">{coin.name}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-white text-sm font-medium">{formatPrice(coin.current_price)}</span>
+                        <span className="text-slate-900 text-sm font-medium">{formatPrice(coin.current_price)}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className={`flex items-center justify-end gap-1 text-sm font-medium ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+                        <div className={`flex items-center justify-end gap-1 text-sm font-medium ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}> 
                           {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                           {formatPercent(coin.price_change_percentage_24h)}
                         </div>

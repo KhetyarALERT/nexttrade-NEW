@@ -24,13 +24,14 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
   const [srcIndex, setSrcIndex] = useState(0);
   const sources = [
     `https://cryptoicons.org/api/icon/${symbol?.toLowerCase()}/200`,
+    `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${symbol?.toLowerCase()}.png`,
     `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${symbol?.toLowerCase()}.png`
   ];
   
   if (imgError) {
     return (
       <div
-        className={`${sizeClasses[size]} rounded-full bg-slate-800 text-white font-bold flex items-center justify-center ring-1 ring-white/10 ${className}`}
+        className={`${sizeClasses[size]} rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center ring-1 ring-slate-200 ${className}`}
         style={{ fontSize: fontSizes[size] }}
       >
         {symbol?.charAt(0) || "?"}
@@ -43,8 +44,18 @@ export default function CryptoIcon({ currency, size = "md", className = "" }) {
       src={sources[srcIndex]}
       alt={symbol}
       className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
-      onError={() => {
-        if (srcIndex < sources.length - 1) setSrcIndex(srcIndex + 1); else setImgError(true);
+      loading="lazy"
+      onError={(e) => {
+        // Try next source; if exhausted, render a local fallback.
+        if (srcIndex < sources.length - 1) {
+          setSrcIndex(srcIndex + 1);
+          return;
+        }
+
+        // Avoid infinite error loops if the browser reuses the same src.
+        const img = e.currentTarget;
+        img.onerror = null;
+        setImgError(true);
       }}
     />
   );

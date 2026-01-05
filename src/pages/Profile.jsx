@@ -98,7 +98,11 @@ const translations = {
     changePhoto: "Change photo",
     photoUpdated: "Photo updated",
     invalidPhotoType: "Please select an image file",
-    photoTooLarge: "Image is too large. Please choose a smaller one."
+    photoTooLarge: "Image is too large. Please choose a smaller one.",
+    shareInvite: "Share invite",
+    inviteMessage: "Invite friends to NextTrade",
+    inviteMessageBody: "Join NextTrade using my referral link:",
+    shareNotSupported: "Sharing isn't available here. Link copied instead."
   },
   ar: {
     heroTitle: "مركز الحساب",
@@ -132,7 +136,11 @@ const translations = {
     changePhoto: "تغيير الصورة",
     photoUpdated: "تم تحديث الصورة",
     invalidPhotoType: "يرجى اختيار ملف صورة",
-    photoTooLarge: "حجم الصورة كبير. اختر صورة أصغر."
+    photoTooLarge: "حجم الصورة كبير. اختر صورة أصغر.",
+    shareInvite: "مشاركة الدعوة",
+    inviteMessage: "ادعُ أصدقاءك إلى NextTrade",
+    inviteMessageBody: "انضم إلى NextTrade عبر رابط الإحالة الخاص بي:",
+    shareNotSupported: "المشاركة غير متاحة هنا. تم نسخ الرابط بدلاً من ذلك."
   }
 };
 
@@ -215,6 +223,43 @@ export default function Profile({ language = "en" }) {
       });
     });
   }, [toast, t.copySuccess]);
+
+  const handleShareReferral = useCallback(async () => {
+    const referralLink = formState?.referralLink;
+    if (!referralLink) return;
+
+    const shareTitle = t.inviteMessage;
+    const shareText = `${t.inviteMessageBody} ${referralLink}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: referralLink
+        });
+        return;
+      }
+    } catch {
+      // Fall through to copy.
+    }
+
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast({
+        title: t.shareNotSupported,
+        duration: 2500,
+        className: "bg-slate-50 border-slate-200 text-slate-900"
+      });
+    } catch {
+      // If clipboard isn't available, we still avoid throwing in UI.
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: language === "ar" ? "تعذر مشاركة الرابط" : "Couldn't share the link"
+      });
+    }
+  }, [formState?.referralLink, language, t.inviteMessage, t.inviteMessageBody, t.shareNotSupported, toast]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -351,10 +396,10 @@ export default function Profile({ language = "en" }) {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleAvatarDrop}
                 >
-                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full opacity-75 blur group-hover:opacity-100 transition duration-300" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full opacity-75 blur group-hover:opacity-100 transition duration-300" />
                   <Avatar className="relative h-24 w-24 sm:h-28 sm:w-28 border-4 border-white shadow-2xl ring-2 ring-blue-100">
                     <AvatarImage src={formState.avatarUrl} alt={formState.fullName} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-2xl sm:text-3xl font-bold text-white">
+                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-2xl sm:text-3xl font-bold text-white">
                       {formState.fullName?.charAt(0)?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
@@ -464,8 +509,8 @@ export default function Profile({ language = "en" }) {
                     label: language === "en" ? "Open Trades" : "الصفقات المفتوحة", 
                     value: trades.filter(t => t.status === 'OPEN').length,
                     icon: Activity,
-                    gradient: "from-purple-500 to-pink-600",
-                    bgGradient: "from-purple-50 to-pink-50"
+                    gradient: "from-indigo-500 to-blue-600",
+                    bgGradient: "from-indigo-50 to-blue-50"
                   },
                   { 
                     label: language === "en" ? "Referrals" : "الإحالات", 
@@ -634,10 +679,10 @@ export default function Profile({ language = "en" }) {
                   </CardContent>
                 </Card>
 
-                <Card className="border-slate-200 shadow-xl rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-purple-50">
+                <Card className="border-slate-200 shadow-xl rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-700 shadow-lg">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg">
                         <Award className="h-6 w-6 text-white" />
                       </div>
                       <div className="space-y-2">
@@ -756,9 +801,9 @@ export default function Profile({ language = "en" }) {
                 </Card>
 
                 <Card className="border-slate-200 shadow-xl rounded-3xl overflow-hidden">
-                  <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-purple-50/50 p-6">
+                  <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 p-6">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 shadow-lg">
+                      <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
                         <History className="h-5 w-5 text-white" />
                       </div>
                       <div>
@@ -856,8 +901,8 @@ export default function Profile({ language = "en" }) {
                       : (language === "en" ? "Disabled" : "معطل"), 
                     icon: ShieldCheck, 
                     action: language === "en" ? "Setup" : "إعداد",
-                    gradient: "from-purple-500 to-purple-600",
-                    bgGradient: "from-purple-50 to-purple-50"
+                    gradient: "from-indigo-500 to-blue-600",
+                    bgGradient: "from-indigo-50 to-blue-50"
                   }
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between p-6 hover:bg-slate-50/50 transition-colors duration-200">
@@ -920,8 +965,8 @@ export default function Profile({ language = "en" }) {
                 { 
                   label: language === "en" ? "Yesterday Commission" : "عمولة الأمس", 
                   value: "$0.00",
-                  gradient: "from-purple-500 to-purple-600",
-                  bgGradient: "from-purple-50 to-purple-50"
+                  gradient: "from-indigo-500 to-indigo-600",
+                  bgGradient: "from-indigo-50 to-indigo-50"
                 },
                 { 
                   label: language === "en" ? "30D Commission" : "عمولة 30 يوم", 
@@ -942,10 +987,10 @@ export default function Profile({ language = "en" }) {
             </div>
 
             <Card className="border-slate-200 shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-purple-50/50 p-6">
+              <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/50 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 shadow-lg">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 shadow-lg">
                       <Gift className="h-5 w-5 text-white" />
                     </div>
                     <div>
@@ -953,11 +998,11 @@ export default function Profile({ language = "en" }) {
                         {language === "en" ? "Referral Program" : "برنامج الإحالة"}
                       </CardTitle>
                       <CardDescription className="text-sm text-slate-600">
-                        {language === "en" ? "Earn up to 40% commission" : "اربح حتى 40٪ عمولة"}
+                        {language === "en" ? "Invite friends and earn commissions" : "ادعُ أصدقاءك واربح عمولات"}
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0 shadow-lg px-3 py-1">
+                  <Badge className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 shadow-lg px-3 py-1">
                     {language === "en" ? "Active" : "نشط"}
                   </Badge>
                 </div>
@@ -966,20 +1011,20 @@ export default function Profile({ language = "en" }) {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <Gift className="h-4 w-4 text-purple-600" />
+                      <Gift className="h-4 w-4 text-indigo-600" />
                       {t.referralCode}
                     </Label>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Input 
                         value={formState.referralCode} 
                         readOnly 
-                        className="min-w-0 flex-1 font-mono font-bold text-lg bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
+                        className="min-w-0 flex-1 font-mono font-bold text-lg bg-slate-50 border-slate-200 rounded-xl" 
                       />
                       <Button 
                         variant="outline" 
                         size="icon" 
                         onClick={() => handleCopy(formState.referralCode)} 
-                        className="rounded-xl border-purple-300 hover:bg-purple-50 transition-all duration-300"
+                        className="rounded-xl border-slate-200 hover:bg-slate-50 transition-all duration-300"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -987,20 +1032,20 @@ export default function Profile({ language = "en" }) {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                      <ExternalLink className="h-4 w-4 text-purple-600" />
+                      <ExternalLink className="h-4 w-4 text-indigo-600" />
                       {t.referralLink}
                     </Label>
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Input 
                         value={formState.referralLink} 
                         readOnly 
-                        className="min-w-0 flex-1 text-xs bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 rounded-xl" 
+                        className="min-w-0 flex-1 text-xs bg-slate-50 border-slate-200 rounded-xl" 
                       />
                       <Button 
                         variant="outline" 
                         size="icon" 
                         onClick={() => handleCopy(formState.referralLink)} 
-                        className="rounded-xl border-purple-300 hover:bg-purple-50 transition-all duration-300"
+                        className="rounded-xl border-slate-200 hover:bg-slate-50 transition-all duration-300"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -1008,23 +1053,41 @@ export default function Profile({ language = "en" }) {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-6 border border-purple-100">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={handleShareReferral}
+                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20"
+                  >
+                    <Users className="mr-2 h-4 w-4" />
+                    {t.shareInvite}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCopy(formState.referralLink)}
+                    className="rounded-xl border-slate-200 hover:bg-slate-50"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    {language === "ar" ? "نسخ الرابط" : "Copy link"}
+                  </Button>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-6 border border-slate-200">
                   <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-purple-600" />
+                    <Sparkles className="h-5 w-5 text-indigo-600" />
                     {language === "en" ? "How it works" : "كيف يعمل"}
                   </h4>
                   <ul className="space-y-2 text-sm text-slate-600">
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
                       <span>{language === "en" ? "Share your unique referral link" : "شارك رابط الإحالة الفريد الخاص بك"}</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                      <span>{language === "en" ? "Earn commission on every trade" : "اربح عمولة على كل صفقة"}</span>
+                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                      <span>{language === "en" ? "Earn commissions when they trade" : "اربح عمولات عندما يتداولون"}</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                      <span>{language === "en" ? "Get paid weekly to your wallet" : "احصل على أموالك أسبوعياً في محفظتك"}</span>
+                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                      <span>{language === "en" ? "Commissions are credited to your wallet" : "تُضاف العمولات إلى محفظتك"}</span>
                     </li>
                   </ul>
                 </div>

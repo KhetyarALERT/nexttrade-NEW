@@ -53,6 +53,12 @@ const localizations = {
     deposit: "Deposit",
     withdraw: "Withdraw",
     transfer: "Transfer",
+    funding: "Funding",
+    spot: "Spot",
+    perpetual: "Perpetual",
+    fundingHelp: "Funding wallet is used for deposits, withdrawals, and internal transfers.",
+    spotHelp: "Spot wallet is used for exchange trading and spot balances.",
+    perpetualHelp: "Perpetual wallet is used for futures/perpetual positions and margin.",
     selectCrypto: "Select crypto",
     selectNetwork: "Select network",
     depositInfo: "Deposit info",
@@ -65,13 +71,22 @@ const localizations = {
     noAssets: "No assets. Click Deposit to add funds.",
     depositAddress: "Deposit Address",
     openPaymentPage: "Open Payment Page to View Address",
-    available: "Available"
+    available: "Available",
+    internalTransferTitle: "Internal Transfer",
+    internalTransferDesc: "Transfer between Funding, Spot, and Perpetual wallets (0 fees)",
+    comingSoon: "Coming soon - Transfer between wallet types"
   },
   ar: {
     totalBalance: "الرصيد الكلي",
     deposit: "إيداع",
     withdraw: "سحب",
     transfer: "تحويل",
+    funding: "تمويل",
+    spot: "سبوت",
+    perpetual: "عقود دائمة",
+    fundingHelp: "محفظة التمويل للإيداع والسحب والتحويل الداخلي.",
+    spotHelp: "محفظة السبوت للتداول الفوري وأرصدة السبوت.",
+    perpetualHelp: "محفظة العقود الدائمة للمراكز والهامش.",
     selectCrypto: "اختر العملة",
     selectNetwork: "اختر الشبكة",
     depositInfo: "معلومات الإيداع",
@@ -84,7 +99,10 @@ const localizations = {
     noAssets: "لا توجد أصول. اضغط إيداع لإضافة أموال.",
     depositAddress: "عنوان الإيداع",
     openPaymentPage: "افتح صفحة الدفع لعرض العنوان",
-    available: "المتاح"
+    available: "المتاح",
+    internalTransferTitle: "تحويل داخلي",
+    internalTransferDesc: "تحويل بين محافظ التمويل والسبوت والعقود الدائمة (بدون رسوم)",
+    comingSoon: "قريباً - تحويل بين أنواع المحافظ"
   }
 };
 
@@ -299,26 +317,26 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="rounded-xl p-4 sm:p-6 bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-slate-400 text-sm">{t.totalBalance}</span>
-              <button onClick={() => setShowBalances(!showBalances)} className="text-slate-400 hover:text-white">
+              <span className="text-slate-600 text-sm">{t.totalBalance}</span>
+              <button onClick={() => setShowBalances(!showBalances)} className="text-slate-500 hover:text-slate-900">
                 {showBalances ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-white">{formatUSD(calculateTotal())}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
             </Button>
-            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="bg-background text-neutral-950 px-4 py-2 text-sm font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 border-slate-600 hover:bg-slate-800 flex-1 sm:flex-none">
-              <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> Withdraw
+            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+              <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
             </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="bg-background text-slate-950 px-4 py-2 text-sm font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border shadow-sm hover:text-accent-foreground h-9 border-slate-600 hover:bg-slate-800 flex-1 sm:flex-none">
-              <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
+            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+              <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
             </Button>
           </div>
         </div>
@@ -326,19 +344,23 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Wallet Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start bg-transparent p-1 rounded-lg overflow-x-auto">
-          <TabsTrigger value="main" className="text-sm data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            <Wallet className="w-4 h-4 mr-1.5" /> Main Wallet
+        <TabsList className="w-full justify-start bg-white p-1 rounded-xl border border-slate-200 flex flex-wrap gap-1 overflow-x-hidden">
+          <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+            <Wallet className="w-4 h-4 mr-1.5" /> {t.funding}
           </TabsTrigger>
-          <TabsTrigger value="spot" className="text-sm data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            Spot
+          <TabsTrigger value="spot" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+            {t.spot}
           </TabsTrigger>
-          <TabsTrigger value="futures" className="text-sm data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            Futures
+          <TabsTrigger value="futures" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+            {t.perpetual}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="main" className="mt-4">
+          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+            <span>{t.fundingHelp}</span>
+          </div>
           <AssetsTable
             wallets={groupedWallets}
             searchTerm={searchTerm}
@@ -356,6 +378,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="spot" className="mt-4">
+          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+            <span>{t.spotHelp}</span>
+          </div>
           <SpotWalletView
             spotBalance={0}
             onDeposit={() => {setActiveModal('deposit');resetForm();}}
@@ -365,6 +391,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="futures" className="mt-4">
+          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+            <span>{t.perpetualHelp}</span>
+          </div>
           <FuturesWalletView
             tradingAccount={liveAccount}
             demoAccount={demoAccount}
@@ -379,10 +409,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Deposit Modal */}
       <Dialog open={activeModal === 'deposit'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md border border-slate-700 text-white max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="deposit-desc">
+        <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto bg-white" aria-describedby="deposit-desc">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <ArrowDownToLine className="w-5 h-5 text-blue-500" /> Deposit
+            <DialogTitle className="text-slate-900 flex items-center gap-2">
+              <ArrowDownToLine className="w-5 h-5 text-indigo-600" /> {t.deposit}
             </DialogTitle>
           </DialogHeader>
           <p id="deposit-desc" className="sr-only">Deposit cryptocurrency to your wallet</p>
@@ -396,12 +426,12 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </div>
               
               <Select value={selectedCurrency} onValueChange={(v) => {setSelectedCurrency(v);setSelectedNetwork('');setDepositData(null);}}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="bg-white border-slate-200 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-slate-200">
                   {getUniqueCurrencies().map((c) =>
-                  <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
+                  <SelectItem key={c.currency} value={c.currency} className="text-slate-900 hover:bg-slate-50">
                       <div className="flex items-center gap-2">
                         <CryptoIcon currency={c.currency} size="sm" />
                         {c.currency}
@@ -417,7 +447,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                   key={c.currency}
                   onClick={() => {setSelectedCurrency(c.currency);setSelectedNetwork('');setDepositData(null);}}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                  selectedCurrency === c.currency ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
+                  selectedCurrency === c.currency ? 'bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'}
                   `}>
 
                     <CryptoIcon currency={c.currency} size="xs" />
@@ -435,12 +465,12 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </div>
               
               <Select value={selectedNetwork} onValueChange={(v) => {setSelectedNetwork(v);setDepositData(null);}}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="bg-white border-slate-200 text-slate-900">
                   <SelectValue placeholder="Select network" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-slate-200">
                   {networks.map((n) =>
-                  <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
+                  <SelectItem key={n.network} value={n.network} className="text-slate-900 hover:bg-slate-50">
                       {NETWORK_CONFIG[n.network]?.name || n.network}
                     </SelectItem>
                   )}
@@ -448,7 +478,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </Select>
 
               {selectedNetwork &&
-              <div className="flex items-start gap-2 p-3 bg-slate-800/50 rounded-lg text-xs text-slate-400">
+              <div className="flex items-start gap-2 p-3 bg-slate-50 rounded-lg text-xs text-slate-600 border border-slate-200">
                   <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>{language === 'ar' ? 'تأكد من اختيار نفس الشبكة على منصة السحب.' : 'Ensure you choose the same network on the withdrawal platform.'}</span>
                 </div>
@@ -460,18 +490,18 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">3</div>
-                  <span className="font-medium">Deposit info</span>
+                  <span className="font-medium">{t.depositInfo}</span>
                 </div>
                 
                 {!depositData && !loading &&
-              <Button onClick={handleGetDepositAddress} className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl">
+              <Button onClick={handleGetDepositAddress} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl">
                     {t.generateDeposit}
                   </Button>
               }
                 
                 {loading &&
               <div className="flex justify-center py-6">
-                    <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+                    <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
                   </div>
               }
                 
@@ -485,14 +515,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                           </div>
                         </div>
                         
-                        <div className="p-4 bg-slate-800 rounded-lg">
+                        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-slate-400 text-sm">Deposit Address</span>
-                            <Button variant="ghost" size="sm" onClick={() => handleCopy(depositData.pay_address)} className="text-blue-400 h-auto p-1">
+                            <span className="text-slate-600 text-sm">{t.depositAddress}</span>
+                            <Button variant="ghost" size="sm" onClick={() => handleCopy(depositData.pay_address)} className="text-indigo-600 h-auto p-1">
                               {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             </Button>
                           </div>
-                          <code className="text-white text-xs break-all block">{depositData.pay_address}</code>
+                          <code className="text-slate-900 text-xs break-all block">{depositData.pay_address}</code>
                         </div>
                       </>
                 }
@@ -502,20 +532,20 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
                   href={depositData.invoice_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium">
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium">
 
-                        Open Payment Page to View Address
+                        {t.openPaymentPage}
                       </a>
                 }
                     
                     <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="p-2 bg-slate-800 rounded">
-                        <span className="text-slate-400 block">Minimum</span>
-                        <span className="text-white font-medium">&ge; {depositData.min_deposit || 1} {selectedCurrency}</span>
+                      <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                        <span className="text-slate-500 block">{t.minimum}</span>
+                        <span className="text-slate-900 font-medium">&ge; {depositData.min_deposit || 1} {selectedCurrency}</span>
                       </div>
-                      <div className="p-2 bg-slate-800 rounded">
-                        <span className="text-slate-400 block">Receiving</span>
-                        <span className="text-white font-medium">Fund Account</span>
+                      <div className="p-3 bg-slate-50 rounded border border-slate-200">
+                        <span className="text-slate-500 block">{t.receiving}</span>
+                        <span className="text-slate-900 font-medium">Fund Account</span>
                       </div>
                     </div>
                     
@@ -535,24 +565,24 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Withdraw Modal */}
       <Dialog open={activeModal === 'withdraw'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md border border-slate-700 text-white max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="withdraw-desc">
+        <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto bg-white" aria-describedby="withdraw-desc">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <ArrowUpFromLine className="w-5 h-5 text-orange-500" /> Withdraw
+            <DialogTitle className="text-slate-900 flex items-center gap-2">
+              <ArrowUpFromLine className="w-5 h-5 text-amber-600" /> {t.withdraw}
             </DialogTitle>
           </DialogHeader>
           <p id="withdraw-desc" className="sr-only">Withdraw cryptocurrency from your wallet</p>
           
           <div className="space-y-4">
             <div>
-              <label className="text-slate-400 text-sm mb-1.5 block">Coin</label>
+              <label className="text-slate-600 text-sm mb-1.5 block">Coin</label>
               <Select value={selectedCurrency} onValueChange={(v) => {setSelectedCurrency(v);setSelectedNetwork('');}}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="bg-white border-slate-200 text-slate-900">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-slate-200">
                   {getUniqueCurrencies().map((c) =>
-                  <SelectItem key={c.currency} value={c.currency} className="text-white hover:bg-slate-700">
+                  <SelectItem key={c.currency} value={c.currency} className="text-slate-900 hover:bg-slate-50">
                       <div className="flex items-center gap-2">
                         <CryptoIcon currency={c.currency} size="sm" />
                         {c.currency}
@@ -564,14 +594,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             </div>
             
             <div>
-              <label className="text-slate-400 text-sm mb-1.5 block">Network</label>
+              <label className="text-slate-600 text-sm mb-1.5 block">Network</label>
               <Select value={selectedNetwork} onValueChange={setSelectedNetwork}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="bg-white border-slate-200 text-slate-900">
                   <SelectValue placeholder="Select network" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white border-slate-200">
                   {networks.map((n) =>
-                  <SelectItem key={n.network} value={n.network} className="text-white hover:bg-slate-700">
+                  <SelectItem key={n.network} value={n.network} className="text-slate-900 hover:bg-slate-50">
                       {NETWORK_CONFIG[n.network]?.name || n.network}
                     </SelectItem>
                   )}
@@ -580,14 +610,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             </div>
             
             <div>
-              <label className="text-slate-400 text-sm mb-1.5 block">Withdrawal address</label>
+              <label className="text-slate-600 text-sm mb-1.5 block">Withdrawal address</label>
               <div className="relative">
                 <Input
                   value={withdrawAddress}
                   onChange={(e) => {setWithdrawAddress(e.target.value);setAddressValid(null);}}
                   onBlur={validateWithdrawAddress}
                   placeholder="Enter address"
-                  className={`bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-10 ${
+                  className={`bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 pr-10 ${
                   addressValid === true ? 'border-emerald-500' : addressValid === false ? 'border-red-500' : ''}`
                   } />
 
@@ -598,17 +628,17 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             </div>
             
             <div>
-              <label className="text-slate-400 text-sm mb-1.5 block">Amount</label>
+              <label className="text-slate-600 text-sm mb-1.5 block">Amount</label>
               <div className="relative">
                 <Input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 pr-16" />
+                  className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 pr-16" />
 
                 <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600 text-sm"
                   onClick={() => {
                     const wallet = wallets.find((w) => w.currency === selectedCurrency && w.network === selectedNetwork);
                     if (wallet) setAmount(String(wallet.balance || 0));
@@ -622,9 +652,9 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </p>
             </div>
 
-            <Button onClick={handleWithdraw} disabled={loading || !withdrawAddress || !amount || !selectedNetwork} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50">
+            <Button onClick={handleWithdraw} disabled={loading || !withdrawAddress || !amount || !selectedNetwork} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl disabled:opacity-50">
               {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-              Withdraw
+              {t.withdraw}
             </Button>
           </div>
         </DialogContent>
@@ -632,15 +662,15 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
 
       {/* Transfer Modal */}
       <Dialog open={activeModal === 'transfer'} onOpenChange={(open) => !open && setActiveModal(null)}>
-        <DialogContent className="sm:max-w-md border border-slate-700 text-white bg-gradient-to-br from-slate-900 to-slate-800" aria-describedby="transfer-desc">
+        <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 bg-white" aria-describedby="transfer-desc">
           <DialogHeader>
-            <DialogTitle className="text-white">Internal Transfer</DialogTitle>
+            <DialogTitle className="text-slate-900">{t.internalTransferTitle}</DialogTitle>
           </DialogHeader>
-          <p id="transfer-desc" className="text-slate-400 text-sm">Transfer between Main, Spot, and Futures wallets (0 fees)</p>
+          <p id="transfer-desc" className="text-slate-600 text-sm">{t.internalTransferDesc}</p>
           
           <div className="space-y-4 py-2">
-            <div className="p-4 bg-slate-800/50 rounded-lg text-center text-slate-400">
-              Coming soon - Transfer between wallet types
+            <div className="p-4 bg-slate-50 rounded-lg text-center text-slate-500 border border-slate-200">
+              {t.comingSoon}
             </div>
           </div>
         </DialogContent>
@@ -663,74 +693,6 @@ const CURRENCY_NAMES = {
   USDC: "USD Coin"
 };
 
-// CoinGecko ID mapping
-const COINGECKO_IDS = {
-  USDT: "tether",
-  BTC: "bitcoin",
-  ETH: "ethereum",
-  BNB: "binancecoin",
-  SOL: "solana",
-  XRP: "ripple",
-  TRX: "tron",
-  LTC: "litecoin",
-  DOGE: "dogecoin",
-  USDC: "usd-coin",
-  ADA: "cardano",
-  DOT: "polkadot",
-  MATIC: "matic-network",
-  LINK: "chainlink",
-  AVAX: "avalanche-2"
-};
-
-// High-quality coin logo component using CoinGecko images
-function CoinLogo({ currency, size = "md" }) {
-  const sizeClasses = { xs: "w-4 h-4", sm: "w-5 h-5", md: "w-8 h-8", lg: "w-10 h-10" };
-  const coinId = COINGECKO_IDS[currency?.toUpperCase()];
-
-  if (coinId) {
-    return (
-      <img
-        src={`https://assets.coingecko.com/coins/images/${getCoinImageId(currency)}/small/${coinId.toLowerCase()}.png`}
-        alt={currency}
-        className={`${sizeClasses[size]} rounded-full`}
-        onError={(e) => {
-          const img = e.currentTarget;
-          img.onerror = null;
-          img.src = `https://ui-avatars.com/api/?name=${currency}&background=1a1a2e&color=fff&size=32`;
-        }} />);
-
-
-  }
-
-  return (
-    <div className={`${sizeClasses[size]} rounded-full bg-slate-600 flex items-center justify-center text-white font-bold text-xs`}>
-      {currency?.charAt(0) || "?"}
-    </div>);
-
-}
-
-// CoinGecko image IDs
-function getCoinImageId(currency) {
-  const ids = {
-    BTC: "1",
-    ETH: "279",
-    USDT: "325",
-    BNB: "825",
-    SOL: "4128",
-    XRP: "44",
-    USDC: "6319",
-    ADA: "975",
-    DOGE: "5",
-    TRX: "1094",
-    DOT: "12171",
-    MATIC: "4713",
-    LTC: "2",
-    LINK: "877",
-    AVAX: "12559"
-  };
-  return ids[currency?.toUpperCase()] || "1";
-}
-
 // Assets Table Component
 function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, setHideSmallBalances, formatBalance, formatUSD, onDeposit, onWithdraw, language = 'en', t = null }) {
   // Normalize currency names (remove network suffix like "usdttrc20" -> "USDT")
@@ -748,8 +710,8 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
   });
 
   return (
-    <div className="rounded-xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800">
-      <div className="p-4 border-b border-slate-800">
+    <div className="rounded-2xl overflow-hidden bg-white border border-slate-200">
+      <div className="p-4 border-b border-slate-100">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
@@ -757,11 +719,11 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
               placeholder={t?.searchPlaceholder || 'Search coin'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-slate-800 border-slate-700 text-white placeholder:text-slate-500`} />
+              className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`} />
 
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer whitespace-nowrap">
-            <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-slate-600" />
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer whitespace-nowrap">
+            <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-slate-300" />
             {t?.hideSmallBalances || 'Hide small balances'}
           </label>
         </div>
@@ -770,7 +732,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
       <div className="overflow-x-hidden">
         <table className="w-full table-fixed">
           <thead>
-            <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-slate-400 border-b border-slate-800`}>
+            <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-slate-500 border-b border-slate-100`}>
               <th className="px-4 py-3 font-medium">{language === 'ar' ? 'العملة' : 'Coin'}</th>
               <th className="px-4 py-3 font-medium">{language === 'ar' ? 'الرصيد' : 'Balance'}</th>
               <th className="px-4 py-3 font-medium text-right">{language === 'ar' ? 'إجراءات' : 'Actions'}</th>
@@ -779,7 +741,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
           <tbody>
             {Object.entries(normalizedWallets).length === 0 ?
             <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={3} className="px-4 py-10 text-center text-slate-500">
                   {t?.noAssets || 'No assets. Click Deposit to add funds.'}
                 </td>
               </tr> :
@@ -789,26 +751,26 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
               const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
 
               return (
-                <tr key={currency} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                <tr key={currency} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <CoinLogo currency={currency} />
+                        <CryptoIcon currency={currency} size="md" />
                         <div>
-                          <div className="text-white font-medium">{currency}</div>
+                          <div className="text-slate-900 font-medium">{currency}</div>
                           <div className="text-slate-500 text-xs">{CURRENCY_NAMES[currency] || currency}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-white break-words">{formatBalance(totalAmount)}</div>
+                      <div className="text-slate-900 break-words">{formatBalance(totalAmount)}</div>
                       <div className="text-slate-500 text-xs break-words">{formatUSD(usdValue)}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                        <button onClick={() => onDeposit(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
+                        <button onClick={() => onDeposit(currency)} className="text-indigo-600 hover:text-indigo-700 text-sm">
                           {t?.deposit || 'Deposit'}
                         </button>
-                        <button onClick={() => onWithdraw(currency)} className="text-indigo-300 hover:text-indigo-200 text-sm">
+                        <button onClick={() => onWithdraw(currency)} className="text-indigo-600 hover:text-indigo-700 text-sm">
                           {t?.withdraw || 'Withdraw'}
                         </button>
                       </div>

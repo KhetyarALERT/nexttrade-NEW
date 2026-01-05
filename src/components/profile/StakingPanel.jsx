@@ -62,7 +62,19 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     progress: "التقدم",
     noStakes: "لا توجد استثمارات",
     minAmount: "الحد الأدنى 100 USDT",
-    earlyPenalty: "إلغاء مبكر يخسر 50% من الأرباح"
+    earlyPenalty: "إلغاء مبكر يخسر 50% من الأرباح",
+    fillAllFields: "يرجى تعبئة جميع الحقول",
+    confirmUnstake: "هل أنت متأكد؟ الإلغاء المبكر يخسر 50% من الأرباح.",
+    processing: "جارٍ التنفيذ...",
+    selectWallet: "اختر المحفظة",
+    chooseWallet: "اختر محفظة",
+    noWallets: "لا توجد محافظ USDT",
+    stakingAddressLabel: "عنوان الاستثمار",
+    stakeSuccess: "تم الاستثمار بنجاح",
+    unstakeSuccess: "تم إلغاء الاستثمار",
+    stakingFailed: "فشل الاستثمار",
+    unstakeFailed: "فشل الإلغاء",
+    estEarnings: "الأرباح التقديرية"
   } : {
     title: "USDT Staking",
     activeStakes: "Active Stakes",
@@ -76,7 +88,19 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     progress: "Progress",
     noStakes: "No active stakes",
     minAmount: "Minimum 100 USDT",
-    earlyPenalty: "Early unstake loses 50% of rewards"
+    earlyPenalty: "Early unstake loses 50% of rewards",
+    fillAllFields: "Please fill in all fields",
+    confirmUnstake: "Are you sure? Early unstake will lose 50% of rewards.",
+    processing: "Processing...",
+    selectWallet: "Select Wallet",
+    chooseWallet: "Choose wallet",
+    noWallets: "No USDT wallets available",
+    stakingAddressLabel: "Staking address",
+    stakeSuccess: "Staked successfully",
+    unstakeSuccess: "Unstaked successfully",
+    stakingFailed: "Staking failed",
+    unstakeFailed: "Unstake failed",
+    estEarnings: "Est. earnings"
   };
 
   const usdtWallets = wallets.filter(w => w.currency === 'USDT');
@@ -101,7 +125,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   const handleStake = async () => {
     if (!selectedWallet || !stakeAmount) {
-      toast.error("Please fill in all fields");
+      toast.error(t.fillAllFields);
       return;
     }
 
@@ -121,13 +145,13 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
       });
 
       if (result.data?.success) {
-        toast.success(`Staked ${amount} USDT at ${result.data.data.apy}% APY`);
+        toast.success(t.stakeSuccess);
         setStakeOpen(false);
         setStakeAmount("");
         loadPositions();
         if (onRefresh) onRefresh();
       } else {
-        toast.error(result.data?.error || "Staking failed");
+        toast.error(result.data?.error || t.stakingFailed);
       }
     } catch (err) {
       toast.error(err.message);
@@ -137,7 +161,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
   };
 
   const handleUnstake = async (positionId) => {
-    if (!confirm("Are you sure? Early unstake will lose 50% of rewards.")) return;
+    if (!confirm(t.confirmUnstake)) return;
 
     setProcessing(true);
     try {
@@ -147,11 +171,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
       });
 
       if (result.data?.success) {
-        toast.success(`Unstaked! Returned: ${result.data.data.totalReturn.toFixed(2)} USDT`);
+        toast.success(t.unstakeSuccess);
         loadPositions();
         if (onRefresh) onRefresh();
       } else {
-        toast.error(result.data?.error || "Unstake failed");
+        toast.error(result.data?.error || t.unstakeFailed);
       }
     } catch (err) {
       toast.error(err.message);
@@ -181,11 +205,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   return (
     <>
-      <div className="rounded-xl p-4 bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-blue-400" />
-            <h3 className="text-white font-medium">{t.title}</h3>
+            <Lock className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-slate-900 font-medium">{t.title}</h3>
           </div>
           <Button 
             onClick={() => setStakeOpen(true)} 
@@ -197,13 +221,13 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="p-2 bg-slate-800 rounded">
-            <p className="text-[10px] text-slate-400">Staked</p>
-            <p className="text-sm font-bold text-white">${totalStaked.toFixed(2)}</p>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <p className="text-[10px] text-slate-500">Staked</p>
+            <p className="text-sm font-bold text-slate-900">${totalStaked.toFixed(2)}</p>
           </div>
-          <div className="p-2 bg-slate-800 rounded">
-            <p className="text-[10px] text-slate-400">Earned</p>
-            <p className="text-sm font-bold text-emerald-400">${totalEarned.toFixed(2)}</p>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <p className="text-[10px] text-slate-500">Earned</p>
+            <p className="text-sm font-bold text-emerald-700">${totalEarned.toFixed(2)}</p>
           </div>
         </div>
         
@@ -220,10 +244,10 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
             {positions.filter(p => p.status === 'active').slice(0, 3).map((pos) => {
               const progress = calculateProgress(pos.start_date, pos.unlock_date);
               return (
-                <div key={pos.id} className="p-2 bg-slate-800 rounded">
+                <div key={pos.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-white text-sm">{pos.amount.toFixed(0)} USDT</span>
-                    <span className="text-emerald-400 text-xs">{pos.apy}% APY</span>
+                    <span className="text-slate-900 text-sm">{pos.amount.toFixed(0)} USDT</span>
+                    <span className="text-emerald-700 text-xs">{pos.apy}% APY</span>
                   </div>
                   <Progress value={progress} className="h-1" />
                 </div>
@@ -235,32 +259,40 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
       {/* Stake Dialog */}
       <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
-        <DialogContent className="sm:max-w-md bg-[#1a1a2e] border-slate-700 text-white max-h-[90vh] overflow-y-auto" aria-describedby="stake-description">
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto" aria-describedby="stake-description">
           <DialogHeader>
-            <DialogTitle className="text-white">{t.stake} USDT</DialogTitle>
+            <DialogTitle className="text-slate-900">{t.stake} USDT</DialogTitle>
           </DialogHeader>
-          <div id="stake-description" className="text-slate-400 text-sm space-y-2 pb-4 border-b border-slate-700">
-            <p>Lock your USDT to earn rewards up to 999% APY. Your funds are sent to a secure staking pool and will be returned with rewards at the end of the lock period.</p>
-            <p className="text-xs">Ideal for holders who don't need immediate access to their funds. Early unstaking incurs a 50% penalty on earned rewards.</p>
-            <p className="text-xs text-blue-400">Staking address: {STAKING_ADDRESS}</p>
+          <div id="stake-description" className="text-slate-600 text-sm space-y-2 pb-4 border-b border-slate-200">
+            <p>
+              {language === "en"
+                ? "Lock your USDT to earn staking rewards. Funds are returned with rewards at the end of the lock period."
+                : "قم بقفل USDT لكسب عوائد الاستثمار. سيتم إرجاع الأموال مع الأرباح عند انتهاء مدة القفل."}
+            </p>
+            <p className="text-xs">
+              {language === "en"
+                ? "Early unstaking incurs a 50% penalty on earned rewards."
+                : "الإلغاء المبكر يخصم 50% من الأرباح المكتسبة."}
+            </p>
+            <p className="text-xs text-indigo-600">
+              {t.stakingAddressLabel}: {STAKING_ADDRESS}
+            </p>
           </div>
 
           <div className="space-y-4">
             {usdtWallets.length === 0 ? (
-              <div className="text-center py-4 text-slate-500">
-                No USDT wallets available
-              </div>
+              <div className="text-center py-4 text-slate-500">{t.noWallets}</div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label className="text-slate-300">Select Wallet</Label>
+                  <Label className="text-slate-700">{t.selectWallet}</Label>
                   <Select value={selectedWallet || ""} onValueChange={setSelectedWallet}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                      <SelectValue placeholder="Choose wallet" />
+                    <SelectTrigger className="bg-white border-slate-200 text-slate-900">
+                      <SelectValue placeholder={t.chooseWallet} />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700">
+                    <SelectContent className="bg-white border-slate-200">
                       {usdtWallets.map(w => (
-                        <SelectItem key={w.id} value={w.id} className="text-white hover:bg-slate-700">
+                        <SelectItem key={w.id} value={w.id} className="text-slate-900">
                           {w.currency} ({w.network}) - {(w.balance - (w.locked_balance || 0) - (w.staked_balance || 0)).toFixed(2)} available
                         </SelectItem>
                       ))}
@@ -269,20 +301,20 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">{t.amount}</Label>
+                  <Label className="text-slate-700">{t.amount}</Label>
                   <Input
                     type="number"
                     value={stakeAmount}
                     onChange={(e) => setStakeAmount(e.target.value)}
                     placeholder="100"
                     min="100"
-                    className="bg-slate-800 border-slate-700 text-white"
+                    className="bg-white border-slate-200 text-slate-900"
                   />
                   <p className="text-xs text-slate-500">{t.minAmount}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">{t.period}</Label>
+                  <Label className="text-slate-700">{t.period}</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {stakingPlans.map(plan => (
                       <button
@@ -290,21 +322,21 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                         onClick={() => setLockPeriod(String(plan.days))}
                         className={`p-2 rounded-lg border text-center transition-all ${
                           lockPeriod === String(plan.days)
-                            ? 'border-blue-500 bg-blue-600/20'
-                            : 'border-slate-700 hover:border-slate-600 bg-slate-800'
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
                         }`}
                       >
-                        <p className="font-bold text-white text-xs">{plan.label}</p>
-                        <p className="text-[10px] text-emerald-400">{plan.apy}%</p>
+                        <p className="font-bold text-slate-900 text-xs">{plan.label}</p>
+                        <p className="text-[10px] text-emerald-700">{plan.apy}%</p>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {selectedPlan && stakeAmount && (
-                  <div className="p-3 bg-emerald-50/30 border border-emerald-200 rounded-lg">
-                    <p className="text-sm text-emerald-800">
-                      Est. earnings: <strong>${((parseFloat(stakeAmount) || 0) * selectedPlan.apy / 100 * (selectedPlan.days / 365)).toFixed(2)}</strong>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <p className="text-sm text-emerald-900">
+                      {t.estEarnings}: <strong>${((parseFloat(stakeAmount) || 0) * selectedPlan.apy / 100 * (selectedPlan.days / 365)).toFixed(2)}</strong>
                     </p>
                   </div>
                 )}
@@ -323,7 +355,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
               disabled={processing || !selectedWallet || !stakeAmount}
               className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700"
             >
-              {processing ? "Processing..." : `Stake ${stakeAmount || 0} USDT`}
+              {processing ? t.processing : `${t.stake} ${stakeAmount || 0} USDT`}
             </Button>
           </DialogFooter>
         </DialogContent>
