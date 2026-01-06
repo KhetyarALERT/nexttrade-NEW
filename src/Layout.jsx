@@ -28,6 +28,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const [language, setLanguage] = useState("en");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
+  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0 });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
@@ -84,13 +85,25 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
-      const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
+      const [walletsResult, futuresAccountResult] = await Promise.all([
+        base44.functions.invoke("wallet", { action: "list" }),
+        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
+      ]);
+
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
+      const futuresAccount = futuresAccountResult.data?.success ? futuresAccountResult.data.data : null;
 
       const totalUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
         return sum;
       }, 0);
+
+      const wealthUsdt = wallets.reduce((sum, w) => {
+        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.staked_balance || 0);
+        return sum;
+      }, 0);
+
+      const futuresUsdt = (futuresAccount?.equity ?? futuresAccount?.balance ?? futuresAccount?.demo_balance);
 
       const totalUsd = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
@@ -100,12 +113,25 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       }, 0);
 
       setAccountTotals({ totalUsd, totalUsdt });
+      setAccountBalances({
+        fundingUsdt: totalUsdt,
+        spotUsdt: null,
+        futuresUsdt: typeof futuresUsdt === "number" ? futuresUsdt : null,
+        wealthUsdt,
+      });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
       setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
+      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0 });
     } finally {
       setLoadingAccountTotals(false);
     }
+  };
+
+  const formatUsdt = (val) => {
+    if (val === null || val === undefined) return "—";
+    if (!Number.isFinite(val)) return "—";
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   useEffect(() => {
@@ -116,7 +142,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   return (
     <NotificationProvider>
-    <div className={`min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen overflow-x-hidden bg-[#FAFAF9] text-slate-900 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
           --primary-600: #2563eb;
@@ -129,9 +155,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         }
         
         .glass-effect {
-          background: rgba(2, 6, 23, 0.7);
+          background: rgba(255, 255, 255, 0.75);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(148, 163, 184, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.45);
         }
 
         .nav-link {
@@ -194,7 +220,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="nav-link text-sm font-medium transition-colors text-slate-200 hover:text-white inline-flex items-center gap-1"
+                          className="nav-link text-sm font-medium transition-colors text-slate-700 hover:text-blue-600 inline-flex items-center gap-1"
                         >
                           {item.name[language]}
                           <ChevronDown className="w-4 h-4 opacity-80" />
@@ -228,8 +254,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     to={item.url}
                     className={`nav-link text-sm font-medium transition-colors ${
                       isActive
-                        ? 'text-cyan-300 active'
-                        : 'text-slate-200 hover:text-white'
+                        ? 'text-blue-600 active'
+                        : 'text-slate-700 hover:text-blue-600'
                     }`}
                   >
                     {item.name[language]}
@@ -319,26 +345,50 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "الحسابات" : "Accounts"}</div>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>
-                        <Wallet className="h-4 w-4" />
-                        {language === "ar" ? "حساب التمويل" : "Fund Account"}
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Wallet className="h-4 w-4" />
+                            <span>{language === "ar" ? "حساب التمويل" : "Fund Account"}</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">{formatUsdt(accountBalances.fundingUsdt)} USDT</span>
+                        </div>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=spot"}>
-                        <CreditCard className="h-4 w-4" />
-                        {language === "ar" ? "حساب سبوت" : "Spot Account"}
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            <span>{language === "ar" ? "حساب سبوت" : "Spot Account"}</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">
+                            {accountBalances.spotUsdt === null ? "—" : `${formatUsdt(accountBalances.spotUsdt)} USDT`}
+                          </span>
+                        </div>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=futures"}>
-                        <CreditCard className="h-4 w-4" />
-                        {language === "ar" ? "حساب العقود" : "Futures Account"}
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            <span>{language === "ar" ? "حساب العقود" : "Futures Account"}</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">
+                            {accountBalances.futuresUsdt === null ? "—" : `${formatUsdt(accountBalances.futuresUsdt)} USDT`}
+                          </span>
+                        </div>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Investing")}>
-                        <Wallet className="h-4 w-4" />
-                        {language === "ar" ? "حساب الثروة" : "Wealth Account"}
+                        <div className="flex w-full items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Wallet className="h-4 w-4" />
+                            <span>{language === "ar" ? "حساب الثروة" : "Wealth Account"}</span>
+                          </div>
+                          <span className="text-xs font-medium text-slate-500">{formatUsdt(accountBalances.wealthUsdt)} USDT</span>
+                        </div>
                       </Link>
                     </DropdownMenuItem>
 
@@ -436,26 +486,26 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-effect border-t border-slate-800">
+          <div className="md:hidden glass-effect border-t border-gray-200">
             <div className="px-4 py-6 space-y-4">
               {navigation.map((item) => {
                 if (item.type === "dropdown") {
                   return (
                     <div key={item.name.en} className="space-y-2">
-                      <div className="text-slate-200 font-medium">{item.name[language]}</div>
+                      <div className="text-slate-700 font-medium">{item.name[language]}</div>
                       <div className="pl-3 space-y-2">
                         {item.items.map((sub) => (
                           sub.url ? (
                             <Link
                               key={sub.name.en}
                               to={sub.url}
-                              className="block text-slate-300 hover:text-white text-sm"
+                              className="block text-slate-600 hover:text-blue-600 text-sm"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               {sub.name[language]}
                             </Link>
                           ) : (
-                            <div key={sub.name.en} className="block text-slate-500 text-sm">
+                            <div key={sub.name.en} className="block text-slate-400 text-sm">
                               {sub.name[language]}
                             </div>
                           )
@@ -468,7 +518,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                   <Link
                     key={item.url}
                     to={item.url}
-                    className="block text-slate-200 hover:text-white font-medium"
+                    className="block text-slate-700 hover:text-blue-600 font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.name[language]}

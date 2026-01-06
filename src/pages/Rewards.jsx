@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { Gift, CalendarCheck2, ClipboardCopy, Users, CheckCircle2 } from "lucide-react";
+import { Gift, CalendarCheck2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { fetchCurrentUser } from "@/api/functions";
-import { createPageUrl } from "@/utils";
 
 const STORAGE_KEYS = {
   lastCheckin: "rewards_last_checkin",
@@ -18,29 +15,21 @@ const STORAGE_KEYS = {
 const translations = {
   en: {
     title: "Rewards",
-    subtitle: "Earn more with daily check-in, tasks, and referrals",
+    subtitle: "Earn more with daily check-in and tasks",
     daily: "Daily Check-In",
     checkIn: "Check in",
     checkedIn: "Checked in",
     streak: "Streak",
     tasks: "Tasks",
-    referrals: "Referral Program",
-    referralCode: "Referral code",
-    copy: "Copy",
-    openProfile: "Open referrals",
   },
   ar: {
     title: "المكافآت",
-    subtitle: "اكسب أكثر عبر تسجيل الدخول اليومي والمهام والإحالات",
+    subtitle: "اكسب أكثر عبر تسجيل الدخول اليومي والمهام",
     daily: "تسجيل يومي",
     checkIn: "سجّل الآن",
     checkedIn: "تم التسجيل",
     streak: "سلسلة الأيام",
     tasks: "المهام",
-    referrals: "برنامج الإحالة",
-    referralCode: "كود الإحالة",
-    copy: "نسخ",
-    openProfile: "افتح الإحالات",
   },
 };
 
@@ -55,7 +44,6 @@ function isSameDay(a, b) {
 export default function Rewards({ language = "en" }) {
   const t = translations[language] || translations.en;
 
-  const [referralCode, setReferralCode] = useState("---");
   const [streak, setStreak] = useState(0);
   const [lastCheckin, setLastCheckin] = useState(null);
 
@@ -95,20 +83,6 @@ export default function Rewards({ language = "en" }) {
     }
   }, [defaultTasks]);
 
-  const loadReferralCode = useCallback(async () => {
-    try {
-      const user = await fetchCurrentUser();
-      const code = user?.referralCode || user?.referral_code;
-      if (code) setReferralCode(String(code));
-    } catch (err) {
-      console.error("Failed to load user referral code:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadReferralCode();
-  }, [loadReferralCode]);
-
   const checkedInToday = lastCheckin ? isSameDay(lastCheckin, new Date()) : false;
 
   const persist = useCallback(
@@ -147,15 +121,6 @@ export default function Rewards({ language = "en" }) {
     persist(streak, lastCheckin, nextTasks);
   };
 
-  const copyReferral = async () => {
-    try {
-      await navigator.clipboard.writeText(referralCode);
-      toast.success(language === "ar" ? "تم النسخ" : "Copied");
-    } catch {
-      toast.error(language === "ar" ? "تعذر النسخ" : "Copy failed");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -172,7 +137,7 @@ export default function Rewards({ language = "en" }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Daily */}
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="border-b border-slate-100">
@@ -229,32 +194,6 @@ export default function Rewards({ language = "en" }) {
                   </span>
                 </button>
               ))}
-            </CardContent>
-          </Card>
-
-          {/* Referrals */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5 text-indigo-600" />
-                {t.referrals}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-slate-600">{t.referralCode}</div>
-                <div className="flex gap-2">
-                  <Input value={referralCode} readOnly className="bg-slate-50" />
-                  <Button variant="outline" onClick={copyReferral}>
-                    <ClipboardCopy className="h-4 w-4 mr-2" />
-                    {t.copy}
-                  </Button>
-                </div>
-              </div>
-
-              <Button asChild variant="outline" className="w-full">
-                <a href={createPageUrl("Profile") + "?tab=referrals"}>{t.openProfile}</a>
-              </Button>
             </CardContent>
           </Card>
         </div>

@@ -350,7 +350,7 @@ export default function Profile({ language = "en" }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-4 sm:p-8">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-4 sm:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
           <Skeleton className="h-48 w-full rounded-3xl" />
           <div className="grid gap-4 lg:grid-cols-4">
@@ -367,7 +367,7 @@ export default function Profile({ language = "en" }) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-8">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-8">
         <div className="mx-auto max-w-2xl">
           <Alert variant="destructive" className="border-red-200 bg-red-50">
             <AlertCircle className="h-5 w-5" />
@@ -393,7 +393,7 @@ export default function Profile({ language = "en" }) {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 pb-20 pt-4 sm:pt-8" 
+      className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-4 sm:pt-8" 
       dir={language === "ar" ? "rtl" : "ltr"}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

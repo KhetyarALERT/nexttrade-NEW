@@ -15,6 +15,7 @@ export default function OnChainDeposit({ language = "en" }) {
         step2: "انسخ عنوان الإيداع وأرسل إليه من محفظتك",
         step3: "تأكد من الشبكة الصحيحة لتجنب فقدان الأموال",
         openAssets: "افتح صفحة الإيداع",
+        assets: "الأصول",
         warning: "تحذير: إرسال العملة على شبكة خاطئة قد يؤدي لفقدانها نهائياً.",
       }
     : {
@@ -24,6 +25,7 @@ export default function OnChainDeposit({ language = "en" }) {
         step2: "Copy the deposit address and send from your wallet",
         step3: "Double-check the network to avoid permanent loss",
         openAssets: "Open deposit page",
+        assets: "Assets",
         warning: "Warning: sending via the wrong network may permanently lose funds.",
       };
 
@@ -55,12 +57,17 @@ export default function OnChainDeposit({ language = "en" }) {
               <span>{t.warning}</span>
             </div>
 
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=deposit"}>
-                <ArrowDownToLine className="h-4 w-4 mr-2" />
-                {t.openAssets}
-              </Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=deposit"}>
+                  <ArrowDownToLine className="h-4 w-4 mr-2" />
+                  {t.openAssets}
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>{t.assets}</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

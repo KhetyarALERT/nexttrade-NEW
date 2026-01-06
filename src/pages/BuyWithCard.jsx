@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreditCard, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 export default function BuyWithCard({ language = "en" }) {
@@ -12,6 +13,7 @@ export default function BuyWithCard({ language = "en" }) {
         subtitle: "اشترِ USDT ببطاقة بنكية (قريباً)",
         note: "سيتم تفعيل الشراء بالبطاقة بعد اكتمال مزود الدفع ومتطلبات الامتثال.",
         action: "استخدم الإيداع على السلسلة الآن",
+        assets: "الأصول",
         safety: "نصيحة أمان: لا تشارك بيانات بطاقتك خارج الصفحات الرسمية.",
       }
     : {
@@ -19,6 +21,7 @@ export default function BuyWithCard({ language = "en" }) {
         subtitle: "Buy USDT with a bank card (coming soon)",
         note: "Card purchases will be enabled after the payment provider and compliance checks are finalized.",
         action: "Use on-chain deposit now",
+        assets: "Assets",
         safety: "Safety tip: never share your card details outside official pages.",
       };
 
@@ -44,9 +47,14 @@ export default function BuyWithCard({ language = "en" }) {
           <CardContent className="p-6 space-y-4">
             <p className="text-sm text-slate-600">{t.note}</p>
             <p className="text-xs text-slate-500">{t.safety}</p>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <a href={createPageUrl("OnChainDeposit")}>{t.action}</a>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                <a href={createPageUrl("OnChainDeposit")}>{t.action}</a>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>{t.assets}</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
