@@ -116,7 +116,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   return (
     <NotificationProvider>
-    <div className={`min-h-screen overflow-x-hidden bg-[#FAFAF9] ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen overflow-x-hidden bg-slate-950 text-slate-100 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
           --primary-600: #2563eb;
@@ -129,9 +129,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         }
         
         .glass-effect {
-          background: rgba(255, 255, 255, 0.7);
+          background: rgba(2, 6, 23, 0.7);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(148, 163, 184, 0.18);
         }
 
         .nav-link {
@@ -194,7 +194,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="nav-link text-sm font-medium transition-colors text-gray-700 hover:text-blue-600 inline-flex items-center gap-1"
+                          className="nav-link text-sm font-medium transition-colors text-slate-200 hover:text-white inline-flex items-center gap-1"
                         >
                           {item.name[language]}
                           <ChevronDown className="w-4 h-4 opacity-80" />
@@ -228,8 +228,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     to={item.url}
                     className={`nav-link text-sm font-medium transition-colors ${
                       isActive
-                        ? 'text-blue-600 active'
-                        : 'text-gray-700 hover:text-blue-600'
+                        ? 'text-cyan-300 active'
+                        : 'text-slate-200 hover:text-white'
                     }`}
                   >
                     {item.name[language]}
@@ -436,26 +436,26 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-effect border-t border-gray-200">
+          <div className="md:hidden glass-effect border-t border-slate-800">
             <div className="px-4 py-6 space-y-4">
               {navigation.map((item) => {
                 if (item.type === "dropdown") {
                   return (
                     <div key={item.name.en} className="space-y-2">
-                      <div className="text-gray-700 font-medium">{item.name[language]}</div>
+                      <div className="text-slate-200 font-medium">{item.name[language]}</div>
                       <div className="pl-3 space-y-2">
                         {item.items.map((sub) => (
                           sub.url ? (
                             <Link
                               key={sub.name.en}
                               to={sub.url}
-                              className="block text-gray-600 hover:text-blue-600 text-sm"
+                              className="block text-slate-300 hover:text-white text-sm"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               {sub.name[language]}
                             </Link>
                           ) : (
-                            <div key={sub.name.en} className="block text-gray-400 text-sm">
+                            <div key={sub.name.en} className="block text-slate-500 text-sm">
                               {sub.name[language]}
                             </div>
                           )
@@ -468,7 +468,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                   <Link
                     key={item.url}
                     to={item.url}
-                    className="block text-gray-700 hover:text-blue-600 font-medium"
+                    className="block text-slate-200 hover:text-white font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.name[language]}
