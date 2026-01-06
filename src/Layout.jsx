@@ -51,12 +51,30 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   })();
 
   const navigation = [
+    { type: "link", name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
+    { type: "link", name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Trading") },
+    { type: "link", name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
+    { type: "link", name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
+    {
+      type: "dropdown",
+      name: { en: "Buy Crypto", ar: "شراء العملات" },
+      items: [
+        { name: { en: "Buy with Card", ar: "شراء بالبطاقة" }, url: createPageUrl("BuyWithCard") },
+        { name: { en: "On-chain Deposit", ar: "إيداع على السلسلة" }, url: createPageUrl("OnChainDeposit") },
+        { name: { en: "P2P (Coming soon)", ar: "P2P (قريباً)" }, url: null },
+      ],
+    },
+    { type: "link", name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
+  ];
+
+  const footerQuickLinks = [
     { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Trading") },
+    { name: { en: "Trading", ar: "التداول" }, url: createPageUrl("Trading") },
     { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
     { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
-    { name: { en: "Buy Crypto", ar: "شراء العملات" }, url: createPageUrl("Contact") },
-    { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("About") },
+    { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
+    { name: { en: "About Us", ar: "من نحن" }, url: createPageUrl("About") },
+    { name: { en: "Open Account", ar: "فتح حساب" }, url: createPageUrl("Contact") },
   ];
 
   const accountEmail = user?.email;
@@ -170,6 +188,37 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8">
               {navigation.map((item) => {
+                if (item.type === "dropdown") {
+                  return (
+                    <DropdownMenu key={item.name.en}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="nav-link text-sm font-medium transition-colors text-gray-700 hover:text-blue-600 inline-flex items-center gap-1"
+                        >
+                          {item.name[language]}
+                          <ChevronDown className="w-4 h-4 opacity-80" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56">
+                        {item.items.map((sub) => (
+                          <DropdownMenuItem
+                            key={sub.name.en}
+                            asChild={Boolean(sub.url)}
+                            disabled={!sub.url}
+                          >
+                            {sub.url ? (
+                              <Link to={sub.url}>{sub.name[language]}</Link>
+                            ) : (
+                              <span>{sub.name[language]}</span>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
+
                 const activePath = String(item.url).split("?")[0];
                 const isActive = location.pathname === activePath;
 
@@ -389,16 +438,43 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         {mobileMenuOpen && (
           <div className="md:hidden glass-effect border-t border-gray-200">
             <div className="px-4 py-6 space-y-4">
-              {navigation.map((item) => (
-                <Link
-                  key={item.url}
-                  to={item.url}
-                  className="block text-gray-700 hover:text-blue-600 font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.name[language]}
-                </Link>
-              ))}
+              {navigation.map((item) => {
+                if (item.type === "dropdown") {
+                  return (
+                    <div key={item.name.en} className="space-y-2">
+                      <div className="text-gray-700 font-medium">{item.name[language]}</div>
+                      <div className="pl-3 space-y-2">
+                        {item.items.map((sub) => (
+                          sub.url ? (
+                            <Link
+                              key={sub.name.en}
+                              to={sub.url}
+                              className="block text-gray-600 hover:text-blue-600 text-sm"
+                              onClick={() => setMobileMenuOpen(false)}
+                            >
+                              {sub.name[language]}
+                            </Link>
+                          ) : (
+                            <div key={sub.name.en} className="block text-gray-400 text-sm">
+                              {sub.name[language]}
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <Link
+                    key={item.url}
+                    to={item.url}
+                    className="block text-gray-700 hover:text-blue-600 font-medium"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.name[language]}
+                  </Link>
+                );
+              })}
               <Button
                 className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
                 asChild
@@ -452,13 +528,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             <div>
               <h3 className="font-semibold mb-4">{language === "en" ? "Quick Links" : "روابط سريعة"}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                {navigation.map((item) =>
-                <li key={item.url}>
+                {footerQuickLinks.map((item) => (
+                  <li key={item.url}>
                     <Link to={item.url} className="hover:text-white transition-colors">
                       {item.name[language]}
                     </Link>
                   </li>
-                )}
+                ))}
               </ul>
             </div>
 

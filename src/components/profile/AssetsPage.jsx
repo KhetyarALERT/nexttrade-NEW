@@ -367,35 +367,13 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => {
-                setActiveModal('deposit');
-                setSearchParams({ modal: 'deposit' });
-                resetForm();
-              }}
-              className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none"
-            >
+            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
             </Button>
-            <Button
-              onClick={() => {
-                setActiveModal('withdraw');
-                setSearchParams({ modal: 'withdraw' });
-                resetForm();
-              }}
-              variant="outline"
-              className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none"
-            >
+            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
             </Button>
-            <Button
-              onClick={() => {
-                setActiveModal('transfer');
-                setSearchParams({ modal: 'transfer' });
-              }}
-              variant="outline"
-              className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none"
-            >
+            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
               <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
             </Button>
           </div>
@@ -436,18 +414,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             setHideSmallBalances={setHideSmallBalances}
             formatBalance={formatBalance}
             formatUSD={formatUSD}
-            onDeposit={(currency) => {
-              setSelectedCurrency(currency);
-              setActiveModal('deposit');
-              setSearchParams({ modal: 'deposit' });
-              resetForm();
-            }}
-            onWithdraw={(currency) => {
-              setSelectedCurrency(currency);
-              setActiveModal('withdraw');
-              setSearchParams({ modal: 'withdraw' });
-              resetForm();
-            }}
+            onDeposit={(currency) => {setSelectedCurrency(currency);setActiveModal('deposit');resetForm();}}
+            onWithdraw={(currency) => {setSelectedCurrency(currency);setActiveModal('withdraw');resetForm();}}
             language={language}
             t={t}
           />
@@ -461,16 +429,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           </div>
           <SpotWalletView
             spotBalance={0}
-            onDeposit={() => {
-              setActiveModal('deposit');
-              setSearchParams({ modal: 'deposit' });
-              resetForm();
-            }}
-            onWithdraw={() => {
-              setActiveModal('withdraw');
-              setSearchParams({ modal: 'withdraw' });
-              resetForm();
-            }}
+            onDeposit={() => {setActiveModal('deposit');resetForm();}}
+            onWithdraw={() => {setActiveModal('withdraw');resetForm();}}
             showBalances={showBalances} language={language} />
 
         </TabsContent>
@@ -486,10 +446,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             trades={trades}
             showBalances={showBalances}
             language={language}
-            onTransfer={() => {
-              setActiveModal('transfer');
-              setSearchParams({ modal: 'transfer' });
-            }}
+            onTransfer={() => setActiveModal('transfer')}
             onRefresh={onRefresh} />
 
         </TabsContent>

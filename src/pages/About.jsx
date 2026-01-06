@@ -18,7 +18,7 @@ export default function About({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        badge: "About NextTrade",
+        badge: "About Us",
         title: "Built by Traders, for Traders",
         subtitle: "Your trusted partner in intelligent crypto markets since 2018",
       },
@@ -76,7 +76,7 @@ export default function About({ language = "en" }) {
     },
     ar: {
       hero: {
-        badge: "عن NextTrade",
+        badge: "من نحن",
         title: "صُنع بواسطة متداولين، للمتداولين",
         subtitle: "شريكك الموثوق في أسواق العملات الرقمية الذكية منذ 2018",
       },
