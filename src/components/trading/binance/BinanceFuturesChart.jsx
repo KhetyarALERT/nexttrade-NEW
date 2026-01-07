@@ -37,8 +37,10 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
+  const [markPrice, setMarkPrice] = useState(0);
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const [viewTick, setViewTick] = useState(0);
 
   // Safe UI-only settings (do not affect data pipeline)
   const [chartType, setChartType] = useState("candles");
@@ -95,6 +97,22 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       chartRef.current?.timeScale?.()?.applyOptions?.({ rightOffset: 0 });
     } catch {}
   };
+
+  // Keep mark price (premium index) in sync for correct PnL math.
+  useEffect(() => {
+    if (!normalizedSymbol) return;
+    const unsubPremium = binanceFuturesStore.subscribe(`premium:${normalizedSymbol}`, (p) => {
+      const mp = Number(p?.markPrice || 0);
+      if (Number.isFinite(mp) && mp > 0) setMarkPrice(mp);
+    });
+    const prem = binanceFuturesStore.getPremiumIndex?.(normalizedSymbol);
+    if (prem?.markPrice) setMarkPrice(Number(prem.markPrice));
+    return () => {
+      try {
+        unsubPremium?.();
+      } catch {}
+    };
+  }, [normalizedSymbol]);
 
   const removeOverlayLine = (key) => {
     try {
@@ -236,9 +254,44 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const ro = new ResizeObserver(resize);
     ro.observe(containerRef.current);
 
+    // Force a fast re-render on pan/zoom so HTML labels stay glued to their price lines.
+    let raf = 0;
+    const bumpView = () => {
+      if (disposedRef.current) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setViewTick((v) => v + 1);
+      });
+    };
+
+    try {
+      chart.timeScale?.()?.subscribeVisibleTimeRangeChange?.(bumpView);
+    } catch {}
+    try {
+      chart.timeScale?.()?.subscribeVisibleLogicalRangeChange?.(bumpView);
+    } catch {}
+    try {
+      chart.subscribeCrosshairMove?.(bumpView);
+    } catch {}
+
     return () => {
       try {
         ro.disconnect();
+      } catch {}
+
+      try {
+        if (raf) cancelAnimationFrame(raf);
+      } catch {}
+
+      try {
+        chart.timeScale?.()?.unsubscribeVisibleTimeRangeChange?.(bumpView);
+      } catch {}
+      try {
+        chart.timeScale?.()?.unsubscribeVisibleLogicalRangeChange?.(bumpView);
+      } catch {}
+      try {
+        chart.unsubscribeCrosshairMove?.(bumpView);
       } catch {}
 
       // Important: null refs first so any late-running effects/interval ticks
@@ -547,7 +600,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     }
   }, [pendingOrders]);
 
-  // Left-side labels: show position info + unrealized PNL/ROE, and avoid overlap.
+  // Left-side labels: show position info + unrealized PNL (synced with positions table), and avoid overlap.
   const leftLabelItems = useMemo(() => {
     if (!candleSeriesRef.current) return [];
     const series = candleSeriesRef.current;
@@ -561,15 +614,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const side = String(t?.side || "LONG").toUpperCase();
     const isShort = side === "SHORT";
     const qty = Number(t?.qty ?? t?.quantity ?? t?.positionAmt);
+    const margin = Number(t?.margin);
 
-    if (Number.isFinite(entry) && entry > 0 && Number.isFinite(qty) && qty !== 0 && Number.isFinite(lastPrice) && lastPrice > 0) {
+    const mark = Number(markPrice || lastPrice || 0);
+
+    if (Number.isFinite(entry) && entry > 0 && Number.isFinite(qty) && qty !== 0 && Number.isFinite(mark) && mark > 0) {
       const absQty = Math.abs(qty);
-      const pnl = (isShort ? (entry - lastPrice) : (lastPrice - entry)) * absQty;
-      const notional = entry * absQty;
-      const roe = notional > 0 ? (pnl / notional) * 100 : 0;
+      // Match FuturesActivityTabs: (mark-entry)*qty (or reverse for shorts)
+      const pnl = (isShort ? (entry - mark) : (mark - entry)) * absQty;
+      const pnlPct = Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
 
       const pnlStr = `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)} USDT`;
-      const roeStr = `${roe >= 0 ? "+" : ""}${roe.toFixed(2)}%`;
+      const pctStr = Number.isFinite(pnlPct) ? `${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%` : "—";
       const sideStr = isShort ? "Short" : "Long";
       const qtyStr = formatQty(absQty);
 
@@ -584,7 +640,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           key: "pos",
           y,
           tone: pnl >= 0 ? "posUp" : "posDown",
-          leftText: `${pnlStr} (${roeStr})`,
+          leftText: `${pnlStr} (${pctStr})`,
           rightText: `${sideStr} ${qtyStr}`,
         });
       }
@@ -623,7 +679,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       lastTop = top;
       return { ...it, top };
     });
-  }, [positionTrade, lastPrice, now, isNarrow]);
+  }, [positionTrade, lastPrice, markPrice, isNarrow, viewTick]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
