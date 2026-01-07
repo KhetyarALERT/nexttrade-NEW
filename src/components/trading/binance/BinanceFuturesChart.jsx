@@ -44,7 +44,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
-  const overlayLinesRef = useRef({ entry: null, tp: null, sl: null });
+  const overlayLinesRef = useRef({ entry: null, tp: null, sl: null, liq: null });
 
   const labels = useMemo(() => {
     const isAr = language === "ar";
@@ -293,6 +293,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayLine("entry");
       removeOverlayLine("tp");
       removeOverlayLine("sl");
+      removeOverlayLine("liq");
       return;
     }
 
@@ -349,6 +350,20 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       });
     } else {
       removeOverlayLine("sl");
+    }
+
+    const liq = Number(t.liquidation_price);
+    if (Number.isFinite(liq) && liq > 0) {
+      upsertOverlayLine("liq", {
+        price: liq,
+        color: "#f59e0b",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "Liq",
+      });
+    } else {
+      removeOverlayLine("liq");
     }
   }, [positionTrade, lastPrice, now]);
 

@@ -96,6 +96,8 @@ export default function FuturesTradePanel({
 
   const [tpSlAdvancedOpen, setTpSlAdvancedOpen] = useState(false);
 
+  const [tpSlLastEdited, setTpSlLastEdited] = useState("");
+
   const [botsBusy, setBotsBusy] = useState(false);
   const [botsError, setBotsError] = useState("");
 
@@ -230,6 +232,96 @@ export default function FuturesTradePanel({
     if (Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
     return 0;
   }, [price, lastPrice, orderType]);
+
+  const tpSlBasePrice = useMemo(() => {
+    const p = Number(refPrice || lastPrice);
+    return Number.isFinite(p) && p > 0 ? p : 0;
+  }, [refPrice, lastPrice]);
+
+  const tpSlDigits = useMemo(() => (tpSlBasePrice && tpSlBasePrice < 1 ? 6 : 2), [tpSlBasePrice]);
+
+  const fmtTpSlPrice = (p) => {
+    const n = Number(p);
+    if (!Number.isFinite(n)) return "";
+    return n.toFixed(tpSlDigits);
+  };
+
+  // TP/SL sync: percent <-> trigger price (based on current reference/mark price)
+  useEffect(() => {
+    const base = tpSlBasePrice;
+    if (!base) return;
+
+    const edited = tpSlLastEdited;
+    if (!edited) return;
+
+    const pct = (s) => {
+      const n = parseNum(s);
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const priceNum = (s) => {
+      const n = parseNum(s);
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    // LONG TP
+    if (edited === "longTpRatio") {
+      const r = pct(longTpRatio);
+      if (Number.isFinite(r)) setLongTpTrigger(fmtTpSlPrice(base * (1 + r / 100)));
+      return;
+    }
+    if (edited === "longTpTrigger") {
+      const p = priceNum(longTpTrigger);
+      if (Number.isFinite(p)) setLongTpRatio(((p / base - 1) * 100).toFixed(2));
+      return;
+    }
+
+    // LONG SL (ratio is positive distance)
+    if (edited === "longSlRatio") {
+      const r = pct(longSlRatio);
+      if (Number.isFinite(r)) setLongSlTrigger(fmtTpSlPrice(base * (1 - r / 100)));
+      return;
+    }
+    if (edited === "longSlTrigger") {
+      const p = priceNum(longSlTrigger);
+      if (Number.isFinite(p)) setLongSlRatio(((1 - p / base) * 100).toFixed(2));
+      return;
+    }
+
+    // SHORT TP
+    if (edited === "shortTpRatio") {
+      const r = pct(shortTpRatio);
+      if (Number.isFinite(r)) setShortTpTrigger(fmtTpSlPrice(base * (1 - r / 100)));
+      return;
+    }
+    if (edited === "shortTpTrigger") {
+      const p = priceNum(shortTpTrigger);
+      if (Number.isFinite(p)) setShortTpRatio(((1 - p / base) * 100).toFixed(2));
+      return;
+    }
+
+    // SHORT SL (ratio is positive distance)
+    if (edited === "shortSlRatio") {
+      const r = pct(shortSlRatio);
+      if (Number.isFinite(r)) setShortSlTrigger(fmtTpSlPrice(base * (1 + r / 100)));
+      return;
+    }
+    if (edited === "shortSlTrigger") {
+      const p = priceNum(shortSlTrigger);
+      if (Number.isFinite(p)) setShortSlRatio(((p / base - 1) * 100).toFixed(2));
+    }
+  }, [
+    tpSlLastEdited,
+    tpSlBasePrice,
+    tpSlDigits,
+    longTpRatio,
+    longTpTrigger,
+    longSlRatio,
+    longSlTrigger,
+    shortTpRatio,
+    shortTpTrigger,
+    shortSlRatio,
+    shortSlTrigger,
+  ]);
 
   const doDemoOpen = async (demoSide) => {
     setBotsError("");
@@ -723,11 +815,15 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={longTpTrigger}
-                        onChange={(e) => setLongTpTrigger(e.target.value)}
+                        onChange={(e) => {
+                          setLongTpTrigger(e.target.value);
+                          setTpSlLastEdited("longTpTrigger");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           const step = stepForPrice(parseNum(longTpTrigger) || lastPrice);
                           setLongTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                          setTpSlLastEdited("longTpTrigger");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -742,10 +838,14 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={longTpRatio}
-                        onChange={(e) => setLongTpRatio(e.target.value)}
+                        onChange={(e) => {
+                          setLongTpRatio(e.target.value);
+                          setTpSlLastEdited("longTpRatio");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           setLongTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                          setTpSlLastEdited("longTpRatio");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -760,11 +860,15 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={longSlTrigger}
-                        onChange={(e) => setLongSlTrigger(e.target.value)}
+                        onChange={(e) => {
+                          setLongSlTrigger(e.target.value);
+                          setTpSlLastEdited("longSlTrigger");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           const step = stepForPrice(parseNum(longSlTrigger) || lastPrice);
                           setLongSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                          setTpSlLastEdited("longSlTrigger");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -779,10 +883,14 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={longSlRatio}
-                        onChange={(e) => setLongSlRatio(e.target.value)}
+                        onChange={(e) => {
+                          setLongSlRatio(e.target.value);
+                          setTpSlLastEdited("longSlRatio");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           setLongSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                          setTpSlLastEdited("longSlRatio");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -918,11 +1026,15 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={shortTpTrigger}
-                        onChange={(e) => setShortTpTrigger(e.target.value)}
+                        onChange={(e) => {
+                          setShortTpTrigger(e.target.value);
+                          setTpSlLastEdited("shortTpTrigger");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           const step = stepForPrice(parseNum(shortTpTrigger) || lastPrice);
                           setShortTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                          setTpSlLastEdited("shortTpTrigger");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -937,10 +1049,14 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={shortTpRatio}
-                        onChange={(e) => setShortTpRatio(e.target.value)}
+                        onChange={(e) => {
+                          setShortTpRatio(e.target.value);
+                          setTpSlLastEdited("shortTpRatio");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           setShortTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                          setTpSlLastEdited("shortTpRatio");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -955,11 +1071,15 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={shortSlTrigger}
-                        onChange={(e) => setShortSlTrigger(e.target.value)}
+                        onChange={(e) => {
+                          setShortSlTrigger(e.target.value);
+                          setTpSlLastEdited("shortSlTrigger");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           const step = stepForPrice(parseNum(shortSlTrigger) || lastPrice);
                           setShortSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                          setTpSlLastEdited("shortSlTrigger");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -974,10 +1094,14 @@ export default function FuturesTradePanel({
                     <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                       <input
                         value={shortSlRatio}
-                        onChange={(e) => setShortSlRatio(e.target.value)}
+                        onChange={(e) => {
+                          setShortSlRatio(e.target.value);
+                          setTpSlLastEdited("shortSlRatio");
+                        }}
                         onWheel={(e) => {
                           e.preventDefault();
                           setShortSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                          setTpSlLastEdited("shortSlRatio");
                         }}
                         placeholder={labels.enter}
                         className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"

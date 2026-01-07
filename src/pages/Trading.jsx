@@ -75,7 +75,7 @@ export default function Trading({ language = "en" }) {
     const loadAccounts = async () => {
       try {
         await refreshAccounts();
-      } catch (err) {
+      } catch {
         // Not logged in or backend unavailable.
         if (!cancelled) {
           setDemoAccount(null);
@@ -99,6 +99,29 @@ export default function Trading({ language = "en" }) {
     }
   };
 
+  const [selectedTradeId, setSelectedTradeId] = useState(null);
+
+  const closeTrade = async (tradeId, tradeSymbol) => {
+    if (!tradeId) return;
+    const sym = normalizeBinanceSymbol(tradeSymbol);
+
+    const ticker = sym ? binanceFuturesStore.getTicker(sym) : null;
+    const exitPrice = Number(ticker?.lastPrice ?? (sym === normalizeBinanceSymbol(selectedSymbol) ? lastPrice : 0));
+    if (!Number.isFinite(exitPrice) || exitPrice <= 0) return;
+
+    try {
+      await base44.functions.invoke("tradingAccount", {
+        action: "closeTrade",
+        tradeId,
+        exitPrice,
+        reason: "manual_table",
+      });
+    } finally {
+      await refreshTrades();
+      await refreshAccounts();
+    }
+  };
+
   const openTradeForSymbol = useMemo(() => {
     const sym = normalizeBinanceSymbol(selectedSymbol);
     if (!sym) return null;
@@ -108,12 +131,24 @@ export default function Trading({ language = "en" }) {
     const open = list.filter((t) => t?.status === "OPEN" && normalizeBinanceSymbol(t?.symbol) === sym);
     if (!open.length) return null;
 
+    if (selectedTradeId) {
+      const chosen = open.find((t) => t?.id === selectedTradeId);
+      if (chosen) return chosen;
+    }
+
     if (demoId) {
       const demoOpen = open.find((t) => t?.trading_account_id === demoId);
       if (demoOpen) return demoOpen;
     }
     return open[0];
-  }, [trades, selectedSymbol, demoAccount?.id]);
+  }, [trades, selectedSymbol, demoAccount?.id, selectedTradeId, lastPrice]);
+
+  useEffect(() => {
+    // If the selected trade is no longer open, clear the selection.
+    if (!selectedTradeId) return;
+    const stillOpen = (Array.isArray(trades) ? trades : []).some((t) => t?.id === selectedTradeId && t?.status === "OPEN");
+    if (!stillOpen) setSelectedTradeId(null);
+  }, [trades, selectedTradeId]);
 
   useEffect(() => {
     // Keep the activity panel up-to-date.
@@ -213,7 +248,15 @@ export default function Trading({ language = "en" }) {
             />
           </div>
           <div className="h-[320px] min-h-[240px] max-h-[50vh]">
-            <FuturesActivityTabs symbol={selectedSymbol} language={language} trades={trades} onRefresh={refreshTrades} />
+            <FuturesActivityTabs
+              symbol={selectedSymbol}
+              language={language}
+              trades={trades}
+              onRefresh={refreshTrades}
+              selectedTradeId={selectedTradeId}
+              onSelectTrade={(t) => setSelectedTradeId(t?.id || null)}
+              onCloseTrade={(t) => closeTrade(t?.id, t?.symbol)}
+            />
           </div>
         </section>
 

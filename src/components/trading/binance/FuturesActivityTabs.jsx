@@ -38,7 +38,15 @@ EmptyState.propTypes = {
   subtitle: PropTypes.string.isRequired,
 };
 
-export default function FuturesActivityTabs({ symbol, language, trades = [], onRefresh }) {
+export default function FuturesActivityTabs({
+  symbol,
+  language,
+  trades = [],
+  onRefresh,
+  selectedTradeId,
+  onSelectTrade,
+  onCloseTrade,
+}) {
   const [tab, setTab] = useState("positions");
   const [markBySymbol, setMarkBySymbol] = useState({});
 
@@ -121,6 +129,7 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
         risk: isAr ? "المخاطرة" : "Risk",
         margin: isAr ? "الهامش" : "Margin",
         tpSl: isAr ? "وقف/هدف" : "Position TP/SL",
+        actions: isAr ? "إجراءات" : "Actions",
       },
       common: {
         time: isAr ? "الوقت" : "Time",
@@ -135,6 +144,8 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
         amount: isAr ? "المبلغ" : "Amount",
         asset: isAr ? "الأصل" : "Asset",
         refresh: isAr ? "تحديث" : "Refresh",
+        view: isAr ? "عرض" : "View",
+        close: isAr ? "إغلاق" : "Close",
       },
     };
   }, [language, symbol]);
@@ -188,7 +199,7 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
 
         <TabsContent value="positions" className="m-0">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1200px]">
+            <Table className="min-w-[1320px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-slate-500">{labels.positions.futures}</TableHead>
@@ -202,12 +213,13 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
                   <TableHead className="text-slate-500">{labels.positions.risk}</TableHead>
                   <TableHead className="text-slate-500">{labels.positions.margin}</TableHead>
                   <TableHead className="text-slate-500">{labels.positions.tpSl}</TableHead>
+                  <TableHead className="text-slate-500">{labels.positions.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {openPositions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="p-0">
+                    <TableCell colSpan={12} className="p-0">
                       <EmptyState title={labels.empty.noPositionsTitle} subtitle={labels.empty.noPositionsSubtitle} />
                     </TableCell>
                   </TableRow>
@@ -225,10 +237,27 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
                       : NaN;
                     const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
                     const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
+                    const liq = Number(pos?.liquidation_price);
+                    const liqDistPct =
+                      Number.isFinite(mark) && mark > 0 && Number.isFinite(liq) && liq > 0
+                        ? (Math.abs(mark - liq) / mark) * 100
+                        : NaN;
+                    const riskTone =
+                      Number.isFinite(liqDistPct)
+                        ? liqDistPct < 1
+                          ? "text-rose-300"
+                          : liqDistPct < 3
+                            ? "text-amber-300"
+                            : "text-emerald-300"
+                        : "text-slate-400";
 
                     return (
-                      <TableRow key={pos?.id || `${sym}_${entry}_${qty}`}
-                        className="hover:bg-slate-900/20"
+                      <TableRow
+                        key={pos?.id || `${sym}_${entry}_${qty}`}
+                        className={`hover:bg-slate-900/20 ${pos?.id && selectedTradeId === pos.id ? "bg-slate-900/30" : ""}`}
+                        onClick={() => onSelectTrade?.(pos)}
+                        role={onSelectTrade ? "button" : undefined}
+                        tabIndex={onSelectTrade ? 0 : undefined}
                       >
                         <TableCell className="text-slate-200 font-medium">
                           <div className="flex items-center gap-2">
@@ -253,12 +282,42 @@ export default function FuturesActivityTabs({ symbol, language, trades = [], onR
                         <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(mark)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(pos?.liquidation_price)}</TableCell>
-                        <TableCell className="text-slate-400">—</TableCell>
+                        <TableCell className={riskTone}>
+                          {Number.isFinite(liqDistPct) ? `${liqDistPct.toFixed(2)}%` : "—"}
+                        </TableCell>
                         <TableCell className="text-slate-200">{Number.isFinite(margin) ? formatNum(margin, 2) : "—"}</TableCell>
                         <TableCell className="text-slate-200">
                           <div className="flex items-center gap-2 text-[11px]">
                             <span className="text-emerald-300">TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}</span>
                             <span className="text-rose-300">SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}</span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="text-slate-200">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={pos?.id && selectedTradeId === pos.id ? "secondary" : "ghost"}
+                              className="h-7 px-2 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectTrade?.(pos);
+                              }}
+                            >
+                              {labels.common.view}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 px-2 text-xs bg-rose-600 hover:bg-rose-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCloseTrade?.(pos);
+                              }}
+                            >
+                              {labels.common.close}
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -431,4 +490,7 @@ FuturesActivityTabs.propTypes = {
   language: PropTypes.string,
   trades: PropTypes.array,
   onRefresh: PropTypes.func,
+  selectedTradeId: PropTypes.string,
+  onSelectTrade: PropTypes.func,
+  onCloseTrade: PropTypes.func,
 };
