@@ -34,6 +34,15 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
+  const resetView = () => {
+    try {
+      chartRef.current?.timeScale?.()?.scrollToRealTime?.();
+    } catch {}
+    try {
+      chartRef.current?.timeScale?.()?.applyOptions?.({ rightOffset: 0 });
+    } catch {}
+  };
+
   // Chart init
   useEffect(() => {
     if (!containerRef.current || chartRef.current) return;
@@ -43,6 +52,7 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
       grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      localization: { locale: typeof navigator !== "undefined" ? navigator.language : "en" },
       crosshair: { mode: CrosshairMode.Magnet },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
@@ -129,6 +139,10 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
 
         candleSeriesRef.current.setData(chartCandles);
         volumeSeriesRef.current.setData(volumes);
+
+        // Default to the latest candles after symbol/timeframe switches.
+        // This doesn't lock the view; it only recenters once.
+        resetView();
 
         const last = candles[candles.length - 1];
         if (last?.close) {
@@ -237,6 +251,14 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
             {tf.toUpperCase()}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={resetView}
+          className="ml-2 px-3 py-1 text-xs rounded bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+          title="Reset view to the latest candle"
+        >
+          Reset
+        </button>
         <div className="ml-auto flex items-center gap-3">
           {loading ? <span className="text-xs text-slate-400">Loading…</span> : null}
           {!loading ? (
@@ -248,7 +270,7 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 relative">
+      <div ref={containerRef} className="flex-1 min-h-0 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{symbol}</div>
       </div>
     </div>

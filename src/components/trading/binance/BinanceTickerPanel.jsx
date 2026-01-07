@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { FixedSizeList as List } from "react-window";
 import { Search } from "lucide-react";
@@ -23,6 +23,8 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
   const [symbols, setSymbols] = useState(() => binanceFuturesStore.getSymbols());
   const [_tickersVersion, setTickersVersion] = useState(0);
   const [query, setQuery] = useState("");
+  const listContainerRef = useRef(null);
+  const [listHeight, setListHeight] = useState(() => (typeof height === "number" ? height : 640));
 
   useEffect(() => {
     const unsubSymbols = binanceFuturesStore.subscribe("symbols", (s) => {
@@ -39,6 +41,34 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
       } catch {}
       try {
         unsubTickers?.();
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = listContainerRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const h = el.clientHeight;
+      if (h && Number.isFinite(h)) setListHeight(h);
+    };
+
+    update();
+
+    let ro;
+    try {
+      ro = new ResizeObserver(update);
+      ro.observe(el);
+    } catch {
+      // ignore
+    }
+
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      try {
+        ro?.disconnect?.();
       } catch {}
     };
   }, []);
@@ -114,9 +144,9 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div ref={listContainerRef} className="flex-1 min-h-0">
         <List
-          height={height}
+          height={listHeight}
           width="100%"
           itemCount={filtered.length}
           itemSize={60}

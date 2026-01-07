@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ChevronDown } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import BinanceTickerPanel from "@/components/trading/binance/BinanceTickerPanel";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 
@@ -11,7 +11,7 @@ function formatPrice(p) {
   return p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height }) {
+export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height }) {
   const [open, setOpen] = useState(false);
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
@@ -94,12 +94,15 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#0f1320] border-slate-800 text-white max-w-3xl p-0 overflow-hidden">
+        <DialogContent className="bg-[#0f1320] border-slate-800 text-white p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Select market</DialogTitle>
+            <DialogDescription>Select a USDT-M perpetual symbol to view its live chart and stats.</DialogDescription>
+          </DialogHeader>
           <BinanceTickerPanel
             selectedSymbol={selectedSymbol}
             onSelectSymbol={(s) => onSelectSymbol(s)}
             onAfterSelect={() => setOpen(false)}
-            height={height}
             embedded
           />
         </DialogContent>

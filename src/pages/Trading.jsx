@@ -3,6 +3,8 @@ import PropTypes from "prop-types";
 import { ArrowLeft } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
+import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
+import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 
 function formatPrice(p) {
@@ -19,7 +21,6 @@ export default function Trading({ language = "en" }) {
 
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
-  const [tickerHeight, setTickerHeight] = useState(640);
 
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
@@ -41,15 +42,6 @@ export default function Trading({ language = "en" }) {
     };
   }, []);
 
-  useEffect(() => {
-    const compute = () => {
-      const h = typeof window !== "undefined" ? window.innerHeight : 700;
-      setTickerHeight(Math.max(320, h - 56));
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
 
   useEffect(() => {
     const unsubTicker = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
@@ -80,7 +72,7 @@ export default function Trading({ language = "en" }) {
   }, [language]);
 
   return (
-    <div className="h-screen flex flex-col bg-[#0d0d1a] text-slate-200 overflow-hidden">
+    <div className="h-[calc(100vh-5rem)] flex flex-col bg-[#0d0d1a] text-slate-200 overflow-hidden">
       <header className="h-14 bg-[#1a1a2e] border-b border-slate-700/50 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-4 min-w-0">
           <button
@@ -100,7 +92,6 @@ export default function Trading({ language = "en" }) {
             <BinanceSymbolSelector
               selectedSymbol={selectedSymbol}
               onSelectSymbol={(s) => setSelectedSymbol(s)}
-              height={tickerHeight}
             />
           </div>
         </div>
@@ -121,21 +112,19 @@ export default function Trading({ language = "en" }) {
       </header>
 
       <main className="flex-1 flex overflow-hidden">
-        <section className="flex-1 min-w-0 bg-[#131722]">
-          <BinanceFuturesChart symbol={selectedSymbol} onPriceUpdate={(p) => setLastPrice(p)} />
+        <section className="flex-1 min-w-0 flex flex-col bg-[#131722]">
+          <div className="flex-1 min-h-0">
+            <BinanceFuturesChart symbol={selectedSymbol} onPriceUpdate={(p) => setLastPrice(p)} />
+          </div>
+          <div className="h-[320px] min-h-[240px] max-h-[50vh]">
+            <FuturesActivityTabs symbol={selectedSymbol} />
+          </div>
+        </section>
+
+        <section className="hidden lg:block w-[360px] xl:w-[420px] shrink-0">
+          <FuturesTradePanel symbol={selectedSymbol} />
         </section>
       </main>
-
-      <style>{`
-        html,
-        body,
-        #root {
-          height: 100%;
-          margin: 0;
-          padding: 0;
-          overflow: hidden;
-        }
-      `}</style>
     </div>
   );
 }
