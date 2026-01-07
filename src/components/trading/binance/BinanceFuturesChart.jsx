@@ -219,13 +219,20 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       try {
         ro.disconnect();
       } catch {}
-      try {
-        chart.remove();
-      } catch {}
+
+      // Important: null refs first so any late-running effects/interval ticks
+      // won't call into disposed lightweight-charts objects.
       chartRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       priceLineRef.current = null;
+      try {
+        pendingLinesRef.current = new Map();
+      } catch {}
+
+      try {
+        chart.remove();
+      } catch {}
     };
   }, []);
 
@@ -521,7 +528,13 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const height = containerRef.current?.clientHeight || 0;
     const items = Object.entries(overlayBadges)
       .map(([key, b]) => {
-        const y = series.priceToCoordinate?.(Number(b?.price));
+        let y = Number.NaN;
+        try {
+          y = series.priceToCoordinate?.(Number(b?.price));
+        } catch {
+          // series might be disposed during unmount
+          y = Number.NaN;
+        }
         if (!Number.isFinite(y)) return null;
         return { key, y, ...b };
       })
