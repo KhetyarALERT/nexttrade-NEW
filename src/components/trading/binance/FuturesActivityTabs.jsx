@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -61,6 +61,8 @@ export default function FuturesActivityTabs({
   const [slValue, setSlValue] = useState("");
   const [tpSlBusy, setTpSlBusy] = useState(false);
   const [tpSlError, setTpSlError] = useState("");
+
+  const autoTriggeredRef = useRef(new Set());
 
   const parseNum = (v) => {
     if (v === "" || v === null || v === undefined) return NaN;
@@ -255,6 +257,74 @@ export default function FuturesActivityTabs({
     [trades],
   );
 
+  // Auto-trigger TP/SL on open positions using live mark prices.
+  useEffect(() => {
+    if (!openPositions.length) return;
+
+    const toClose = [];
+
+    for (const pos of openPositions) {
+      const id = pos?.id;
+      if (!id) continue;
+      if (autoTriggeredRef.current.has(id)) continue;
+
+      const sym = normalizeSymbol(pos?.symbol);
+      const mark = Number(markBySymbol[sym]);
+      if (!Number.isFinite(mark) || mark <= 0) continue;
+
+      const side = String(pos?.side || "LONG").toUpperCase();
+      const tp = Number(pos?.take_profit);
+      const sl = Number(pos?.stop_loss);
+      const hasTp = Number.isFinite(tp) && tp > 0;
+      const hasSl = Number.isFinite(sl) && sl > 0;
+
+      // Prefer SL if both are crossed at once.
+      if (hasSl) {
+        const slHit = side === "SHORT" ? mark >= sl : mark <= sl;
+        if (slHit) {
+          toClose.push({ tradeId: id, exitPrice: sl, reason: "sl_trigger" });
+          continue;
+        }
+      }
+
+      if (hasTp) {
+        const tpHit = side === "SHORT" ? mark <= tp : mark >= tp;
+        if (tpHit) {
+          toClose.push({ tradeId: id, exitPrice: tp, reason: "tp_trigger" });
+        }
+      }
+    }
+
+    if (!toClose.length) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      for (const item of toClose) {
+        if (cancelled) return;
+        autoTriggeredRef.current.add(item.tradeId);
+        try {
+          await base44.functions.invoke("tradingAccount", {
+            action: "closeTrade",
+            tradeId: item.tradeId,
+            exitPrice: item.exitPrice,
+            reason: item.reason,
+          });
+        } catch {
+          // If it fails, allow retry later.
+          autoTriggeredRef.current.delete(item.tradeId);
+        }
+      }
+
+      await onRefresh?.();
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [openPositions, markBySymbol, onRefresh]);
+
   const openOrders = useMemo(
     () => (trades || []).filter((t) => String(t?.status || "").toUpperCase() === "PENDING"),
     [trades],
@@ -400,6 +470,18 @@ export default function FuturesActivityTabs({
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${pos?.stop_loss ? "bg-rose-500/10 border-rose-500/20 text-rose-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
                               SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
                             </span>
+
+                            <button
+                              type="button"
+                              className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700/70 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTpSlDialog(pos);
+                              }}
+                              title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
+                            >
+                              {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                            </button>
                           </div>
                         </TableCell>
 
@@ -408,31 +490,8 @@ export default function FuturesActivityTabs({
                             <Button
                               type="button"
                               size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openTpSlDialog(pos);
-                              }}
-                              title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
-                            >
-                              {pos?.take_profit || pos?.stop_loss ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  {labels.common.edit}
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1">
-                                  <Plus className="h-3.5 w-3.5" />
-                                  {labels.common.add}
-                                </span>
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
                               variant={pos?.id && selectedTradeId === pos.id ? "secondary" : "ghost"}
-                              className="h-7 px-2 text-xs"
+                              className="h-7 px-2 text-xs rounded-full"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onSelectTrade?.(pos);
@@ -443,7 +502,7 @@ export default function FuturesActivityTabs({
                             <Button
                               type="button"
                               size="sm"
-                              className="h-7 px-2 text-xs bg-rose-600 hover:bg-rose-500"
+                              className="h-7 px-2 text-xs rounded-full bg-rose-600 hover:bg-rose-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onCloseTrade?.(pos);

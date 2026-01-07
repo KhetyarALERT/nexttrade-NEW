@@ -153,13 +153,6 @@ export default function FuturesTradePanel({
       value: isAr ? "القيمة" : "Value",
       cost: isAr ? "التكلفة" : "Cost",
       leverage: isAr ? "الرافعة" : "Leverage",
-      positionTpSl: isAr ? "هدف/وقف للمركز" : "Position TP/SL",
-      edit: isAr ? "تعديل" : "Edit",
-      update: isAr ? "تحديث" : "Update",
-      cancel: isAr ? "إلغاء" : "Cancel",
-      tp: isAr ? "هدف" : "TP",
-      sl: isAr ? "وقف" : "SL",
-      updateFailed: isAr ? "فشل تحديث TP/SL" : "Failed to update TP/SL",
       tpSl: isAr ? "هدف/وقف" : "TP/SL",
       longTpSl: isAr ? "هدف/وقف شراء" : "Long TP/SL",
       shortTpSl: isAr ? "هدف/وقف بيع" : "Short TP/SL",
@@ -251,8 +244,20 @@ export default function FuturesTradePanel({
       setter((prev) => (prev === nextStr ? prev : nextStr));
     };
 
-    // If the user changes leverage, keep size (amount/total) the same and adjust cost only.
+    // If the user changes leverage:
+    // - By cost: keep cost fixed and recompute total/amount (this is the main futures behavior).
+    // - Other modes: keep size stable and adjust cost only.
     if (lastEdited === "leverage") {
+      if (orderMode === "cost") {
+        if (!Number.isFinite(p) || p <= 0) return;
+        if (!Number.isFinite(c) || c <= 0) return;
+        const nextNotional = c * safeLev;
+        const nextQty = nextNotional / p;
+        setStrIfChanged(setTotal, nextNotional);
+        setStrIfChanged(setAmount, nextQty);
+        return;
+      }
+
       if (Number.isFinite(t) && t >= 0) {
         setStrIfChanged(setCost, t / safeLev);
         return;
@@ -706,6 +711,17 @@ export default function FuturesTradePanel({
                 value={Math.min(125, Math.max(1, Number(leverage) || 10))}
                 onChange={(e) => {
                   setLeverage(Number(e.target.value));
+                  setLastEdited("leverage");
+                }}
+                onWheelCapture={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const dir = e.deltaY > 0 ? -1 : 1;
+                  setLeverage((v) => {
+                    const curr = Number(v) || 10;
+                    const next = Math.min(125, Math.max(1, curr + dir));
+                    return next;
+                  });
                   setLastEdited("leverage");
                 }}
                 className="w-full accent-emerald-500"
