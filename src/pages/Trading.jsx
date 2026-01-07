@@ -13,10 +13,17 @@ function formatPrice(p) {
   return `$${p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
+function normalizeBinanceSymbol(sym) {
+  return String(sym || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 export default function Trading({ language = "en" }) {
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
     const stored = localStorage.getItem("trading_symbol");
-    return stored ? String(stored).toUpperCase() : "BTCUSDT";
+    const normalized = normalizeBinanceSymbol(stored || "BTCUSDT");
+    return normalized || "BTCUSDT";
   });
 
   const [lastPrice, setLastPrice] = useState(0);
@@ -91,7 +98,7 @@ export default function Trading({ language = "en" }) {
             </div>
             <BinanceSymbolSelector
               selectedSymbol={selectedSymbol}
-              onSelectSymbol={(s) => setSelectedSymbol(s)}
+              onSelectSymbol={(s) => setSelectedSymbol(normalizeBinanceSymbol(s))}
               language={language}
             />
           </div>

@@ -15,11 +15,6 @@ function parseNum(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-function clamp(n, min, max) {
-  if (!Number.isFinite(n)) return min;
-  return Math.min(max, Math.max(min, n));
-}
-
 function stepForPrice(p) {
   const n = Number(p);
   if (!Number.isFinite(n) || n <= 0) return 0.01;
@@ -62,9 +57,14 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
   const [total, setTotal] = useState("");
   const [lastEdited, setLastEdited] = useState("amount");
 
-  const [tpSlEnabled, setTpSlEnabled] = useState(false);
-  const [tpPct, setTpPct] = useState("25");
-  const [slPct, setSlPct] = useState("10");
+  const [amountPct, setAmountPct] = useState(0);
+
+  const [tpSlLongEnabled, setTpSlLongEnabled] = useState(true);
+  const [tpSlShortEnabled, setTpSlShortEnabled] = useState(false);
+  const [tpTrigger, setTpTrigger] = useState("");
+  const [tpRatio, setTpRatio] = useState("");
+  const [slTrigger, setSlTrigger] = useState("");
+  const [slRatio, setSlRatio] = useState("");
 
   const baseAsset = useMemo(() => {
     if (!symbol) return "—";
@@ -95,13 +95,14 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
       triggerHint: isAr ? "أمر التفعيل يضع أمرًا عند الوصول لسعر التفعيل." : "Trigger order places an order once a trigger price is reached.",
       triggerPrice: isAr ? "سعر التفعيل" : "Trigger price",
       tpSl: isAr ? "هدف/وقف" : "TP/SL",
-      enabled: isAr ? "مفعل" : "Enabled",
-      off: isAr ? "إيقاف" : "Off",
-      takeProfitPct: isAr ? "هدف الربح %" : "Take Profit %",
-      stopLossPct: isAr ? "وقف الخسارة %" : "Stop Loss %",
-      tpPrice: isAr ? "سعر الهدف" : "TP price",
-      slPrice: isAr ? "سعر الوقف" : "SL price",
-      tpSlHint: isAr ? "يستخدم سعر الأمر الحالي (أو سعر المارك) كمرجع." : "Uses the current order price (or mark price) as a reference.",
+      longTpSl: isAr ? "هدف/وقف شراء" : "Long TP/SL",
+      shortTpSl: isAr ? "هدف/وقف بيع" : "Short TP/SL",
+      advanced: isAr ? "متقدم" : "Advanced",
+      tpTrigger: isAr ? "تفعيل الهدف" : "TP Trigger",
+      tpRatio: isAr ? "نسبة الهدف" : "TP Ratio",
+      slTrigger: isAr ? "تفعيل الوقف" : "SL Trigger",
+      slRatio: isAr ? "نسبة الوقف" : "SL Ratio",
+      percent: isAr ? "%" : "%",
       openLong: isAr ? "فتح شراء" : "Open Long",
       openShort: isAr ? "فتح بيع" : "Open Short",
       disabledTitle: isAr ? "التداول غير مفعل بعد" : "Trading not enabled in Step 1",
@@ -109,6 +110,8 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
       account: isAr ? "الحساب" : "Account",
       balance: isAr ? "الرصيد" : "Balance",
       margin: isAr ? "الهامش" : "Margin",
+      amountSliderHint: isAr ? "شريط النسبة للكمية (سيعمل بالكامل عند ربط الرصيد)." : "Amount % slider (fully works once balance is wired).",
+      botsPlaceholder: isAr ? "لوحة البوتات (قريبًا)." : "Bots panel placeholder.",
     };
   }, [language]);
 
@@ -154,17 +157,23 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
     return 0;
   }, [price, lastPrice]);
 
-  const tpPrice = useMemo(() => {
-    if (!tpSlEnabled || !refPrice) return null;
-    const pct = clamp(parseNum(tpPct), 0, 9999);
-    return side === "open" ? refPrice * (1 + pct / 100) : refPrice * (1 - pct / 100);
-  }, [tpSlEnabled, refPrice, tpPct, side]);
+  const maxQty = useMemo(() => {
+    // Placeholder until balances are wired. Keep slider visible but avoid forcing amount.
+    const availableUsdt = 0;
+    const p = refPrice;
+    if (!availableUsdt || !p) return 0;
+    return availableUsdt / p;
+  }, [refPrice]);
 
-  const slPrice = useMemo(() => {
-    if (!tpSlEnabled || !refPrice) return null;
-    const pct = clamp(parseNum(slPct), 0, 9999);
-    return side === "open" ? refPrice * (1 - pct / 100) : refPrice * (1 + pct / 100);
-  }, [tpSlEnabled, refPrice, slPct, side]);
+  useEffect(() => {
+    if (!amountPct) return;
+    if (!maxQty) return;
+    const next = (maxQty * amountPct) / 100;
+    if (Number.isFinite(next)) {
+      setAmount(String(next));
+      setLastEdited("amount");
+    }
+  }, [amountPct, maxQty]);
 
   return (
     <aside className="h-full w-full bg-[#0f1320] text-slate-200 border-l border-slate-800/60 flex flex-col">
@@ -270,7 +279,7 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] text-slate-500">Amount</label>
+                      <label className="block text-[11px] text-slate-500">{labels.amount}</label>
                       <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                         <input
                           value={amount}
@@ -290,9 +299,37 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
                         />
                         <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
                       </div>
+
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>{amountPct}%</span>
+                          <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={amountPct}
+                          onChange={(e) => setAmountPct(Number(e.target.value))}
+                          className="mt-2 w-full accent-emerald-500"
+                        />
+                        <div className="mt-2 flex justify-between gap-1">
+                          {[0, 25, 50, 75, 100].map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setAmountPct(p)}
+                              className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            >
+                              {p}%
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-[11px] text-slate-500">Total</label>
+                      <label className="block text-[11px] text-slate-500">{labels.total}</label>
                       <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                         <input
                           value={total}
@@ -336,6 +373,34 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
                       inputMode="decimal"
                     />
                     <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+                  </div>
+
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>{amountPct}%</span>
+                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={amountPct}
+                      onChange={(e) => setAmountPct(Number(e.target.value))}
+                      className="mt-2 w-full accent-emerald-500"
+                    />
+                    <div className="mt-2 flex justify-between gap-1">
+                      {[0, 25, 50, 75, 100].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setAmountPct(p)}
+                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                        >
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
@@ -386,94 +451,141 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
                     />
                     <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
                   </div>
+
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>{amountPct}%</span>
+                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={amountPct}
+                      onChange={(e) => setAmountPct(Number(e.target.value))}
+                      className="mt-2 w-full accent-emerald-500"
+                    />
+                    <div className="mt-2 flex justify-between gap-1">
+                      {[0, 25, 50, 75, 100].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setAmountPct(p)}
+                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                        >
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : null}
 
               <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
                 <div className="flex items-center justify-between">
                   <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.tpSl}</div>
-                  <button
-                    type="button"
-                    onClick={() => setTpSlEnabled((v) => !v)}
-                    className={`text-[11px] px-2 py-1 rounded ${tpSlEnabled ? "bg-blue-600/20 text-blue-200" : "bg-slate-800 text-slate-300"}`}
-                  >
-                    {tpSlEnabled ? labels.enabled : labels.off}
+                  <button type="button" className="text-[11px] text-slate-400 hover:text-slate-200">
+                    {labels.advanced}
                   </button>
                 </div>
 
-                {tpSlEnabled ? (
-                  <>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.takeProfitPct}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={tpPct}
-                            onChange={(e) => setTpPct(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setTpPct((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
-                        </div>
-                        <div className="mt-2 flex gap-1">
-                          {[25, 50, 100].map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setTpPct(String(p))}
-                              className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                            >
-                              {p}%
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-2 text-[11px] text-slate-500">
-                          {labels.tpPrice}: {tpPrice ? formatNumber(tpPrice, tpPrice < 1 ? 6 : 2) : "—"}
-                        </div>
-                      </div>
+                <div className="mt-3 flex items-center gap-4 text-xs">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={tpSlLongEnabled}
+                      onChange={(e) => setTpSlLongEnabled(e.target.checked)}
+                      className="h-4 w-4 accent-emerald-500"
+                    />
+                    <span className="text-slate-200">{labels.longTpSl}</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={tpSlShortEnabled}
+                      onChange={(e) => setTpSlShortEnabled(e.target.checked)}
+                      className="h-4 w-4 accent-emerald-500"
+                    />
+                    <span className="text-slate-200">{labels.shortTpSl}</span>
+                  </label>
+                </div>
 
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.stopLossPct}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={slPct}
-                            onChange={(e) => setSlPct(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setSlPct((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
-                        </div>
-                        <div className="mt-2 flex gap-1">
-                          {[5, 10, 20].map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setSlPct(String(p))}
-                              className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                            >
-                              {p}%
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-2 text-[11px] text-slate-500">
-                          {labels.slPrice}: {slPrice ? formatNumber(slPrice, slPrice < 1 ? 6 : 2) : "—"}
-                        </div>
-                      </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={tpTrigger}
+                        onChange={(e) => setTpTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(tpTrigger) || lastPrice);
+                          setTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
                     </div>
+                  </div>
 
-                    <div className="mt-2 text-[10px] text-slate-500">
-                      {labels.tpSlHint}
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={tpRatio}
+                        onChange={(e) => setTpRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
                     </div>
-                  </>
-                ) : null}
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={slTrigger}
+                        onChange={(e) => setSlTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(slTrigger) || lastPrice);
+                          setSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={slRatio}
+                        onChange={(e) => setSlRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -503,7 +615,7 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 
           <TabsContent value="bots" className="mt-3">
             <div className="p-3 rounded bg-slate-900/40 border border-slate-800 text-sm text-slate-300">
-              Bots panel placeholder.
+              {labels.botsPlaceholder}
             </div>
           </TabsContent>
         </Tabs>

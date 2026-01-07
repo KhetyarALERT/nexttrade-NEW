@@ -3,6 +3,12 @@ const BINANCE_FAPI_WS = "wss://fstream.binance.com";
 
 const INTERVALS = /** @type {const} */ (["1m", "5m", "15m", "1h", "4h", "1d"]);
 
+function normalizeSymbol(sym) {
+  return String(sym || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 function intervalToSeconds(interval) {
   switch (interval) {
     case "1m":
@@ -129,19 +135,19 @@ class BinanceFuturesStore {
   }
 
   getTicker(symbol) {
-    return this.tickers.get(symbol) || null;
+    return this.tickers.get(normalizeSymbol(symbol)) || null;
   }
 
   getPremiumIndex(symbol) {
-    return this.premiumIndex.get(symbol) || null;
+    return this.premiumIndex.get(normalizeSymbol(symbol)) || null;
   }
 
   getCandles(symbol, interval) {
-    return this.candles.get(this._candleKey(symbol, interval)) || [];
+    return this.candles.get(this._candleKey(normalizeSymbol(symbol), interval)) || [];
   }
 
   setActiveChart(symbol, interval) {
-    if (symbol) this.activeChart.symbol = symbol;
+    if (symbol) this.activeChart.symbol = normalizeSymbol(symbol);
     if (interval) this.activeChart.interval = interval;
   }
 
@@ -245,6 +251,7 @@ class BinanceFuturesStore {
   }
 
   async fetchPremiumIndex(symbol) {
+    symbol = normalizeSymbol(symbol);
     const url = new URL(`${BINANCE_FAPI_REST}/fapi/v1/premiumIndex`);
     url.searchParams.set("symbol", symbol);
     const res = await fetch(url.toString());
@@ -260,6 +267,7 @@ class BinanceFuturesStore {
   }
 
   startPremiumPolling(symbol, intervalMs = 5000) {
+    symbol = normalizeSymbol(symbol);
     if (!symbol) return;
     if (this.premiumSymbol === symbol && this.premiumPollTimer) return;
 
@@ -289,6 +297,7 @@ class BinanceFuturesStore {
   }
 
   async fetchCandles(symbol, interval, limit = 500) {
+    symbol = normalizeSymbol(symbol);
     if (!INTERVALS.includes(interval)) throw new Error("Unsupported interval");
 
     const url = new URL(`${BINANCE_FAPI_REST}/fapi/v1/klines`);
@@ -317,7 +326,7 @@ class BinanceFuturesStore {
    */
   connectChartStreams(opts = {}) {
     const { symbol, interval, seeded = true } = opts;
-    const sym = symbol || this.activeChart.symbol;
+    const sym = normalizeSymbol(symbol || this.activeChart.symbol);
     const intv = interval || this.activeChart.interval;
     this.setActiveChart(sym, intv);
 

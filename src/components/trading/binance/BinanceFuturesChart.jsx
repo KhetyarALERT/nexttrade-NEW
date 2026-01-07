@@ -21,12 +21,17 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  const normalizedSymbol = useMemo(
+    () => String(symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+    [symbol],
+  );
+
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const key = useMemo(() => `${symbol}_${timeframe}`, [symbol, timeframe]);
+  const key = useMemo(() => `${normalizedSymbol}_${timeframe}`, [normalizedSymbol, timeframe]);
 
   const containerRef = useRef(null);
   const chartRef = useRef(null);
@@ -151,12 +156,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     let cancelled = false;
 
     const run = async () => {
-      if (!symbol || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+      if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current) return;
       setLoading(true);
 
       try {
         // 1) REST seed
-        const candles = await binanceFuturesStore.fetchCandles(symbol, timeframe, 500);
+        const candles = await binanceFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
         if (cancelled) return;
 
         const chartCandles = candles.map((c) => ({
@@ -183,6 +188,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         const last = candles[candles.length - 1];
         if (last?.close) {
           setLastPrice(last.close);
+          setLastTickAt(Date.now());
           onPriceUpdate?.(last.close);
         }
 
@@ -205,11 +211,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
           if (c.close) {
             setLastPrice(Number(c.close));
+            setLastTickAt(Date.now());
             onPriceUpdate?.(Number(c.close));
           }
         });
 
-        unsubPrice = binanceFuturesStore.subscribe(`price:${symbol}`, (p) => {
+        unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
           setLastTickAt(Date.now());
@@ -249,7 +256,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         });
 
         // 3) WS after seeding
-        binanceFuturesStore.connectChartStreams({ symbol, interval: timeframe, seeded: true });
+        binanceFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -269,7 +276,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         binanceFuturesStore.closeChartWs();
       } catch {}
     };
-  }, [symbol, timeframe, key, onPriceUpdate]);
+  }, [normalizedSymbol, timeframe, key, onPriceUpdate, symbol]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
@@ -306,8 +313,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 relative">
-        <div className="absolute top-2 left-3 text-xs text-slate-400">{symbol}</div>
+        <div ref={containerRef} className="flex-1 min-h-0 relative">
+        <div className="absolute top-2 left-3 text-xs text-slate-400">{normalizedSymbol || symbol}</div>
       </div>
     </div>
   );
