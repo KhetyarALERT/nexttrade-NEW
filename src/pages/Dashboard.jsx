@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { DASHBOARD_VOUCHERS } from "@/pages/Rewards";
 
 const translations = {
   en: {
@@ -143,10 +144,7 @@ export default function Dashboard({ language = "en" }) {
     totalCommission: 1450.20
   });
   
-  const [vouchers, _setVouchers] = useState([
-    { id: 1, title: "$50 Trading Bonus", condition: "Min. deposit $500", expiry: "2026-02-15", status: "Active" },
-    { id: 2, title: "Zero Fee Trade", condition: "Valid for 5 trades", expiry: "2026-01-30", status: "New" }
-  ]);
+  const vouchers = DASHBOARD_VOUCHERS;
 
   const loadDashboardData = useCallback(async () => {
     logActivity('LOAD_DASHBOARD', { status: 'started' });

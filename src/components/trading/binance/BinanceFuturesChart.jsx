@@ -22,13 +22,6 @@ function formatQty(qty) {
   return s.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
 }
 
-function formatPnl(pnl) {
-  const n = Number(pnl);
-  if (!Number.isFinite(n)) return "—";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}$${n.toFixed(2)}`;
-}
-
 function compactPrice(p) {
   const n = Number(p);
   if (!Number.isFinite(n)) return "—";
@@ -417,20 +410,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayBadge("liq");
       return;
     }
-
-    const mark = Number(lastPrice);
     const entry = Number(t.avg_entry_price ?? t.entry_price);
-    const qty = Number(t.quantity) || 0;
     const side = String(t.side || "LONG").toUpperCase();
     const isShort = side === "SHORT";
 
-    const hasQty = Number.isFinite(qty) && qty > 0;
-    const pnl =
-      hasQty && Number.isFinite(mark) && Number.isFinite(entry)
-        ? (isShort ? (entry - mark) * qty : (mark - entry) * qty)
-        : Number.NaN;
-
-    const entryTitle = `ENTRY ${formatPnl(pnl)}`;
+    const entryTitle = "ENTRY";
 
     if (Number.isFinite(entry) && entry > 0) {
       upsertOverlayLine("entry", {
@@ -454,7 +438,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     const tp = Number(t.take_profit ?? t.takeProfit ?? t.tp);
     if (Number.isFinite(tp) && tp > 0) {
-      const tpPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - tp) * qty : (tp - entry) * qty) : Number.NaN;
       upsertOverlayLine("tp", {
         price: tp,
         color: "#22c55e",
@@ -467,7 +450,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       upsertOverlayBadge("tp", {
         price: tp,
         tone: "tp",
-        label: `TP ${formatPnl(tpPnl)}`,
+        label: "TP",
       });
     } else {
       removeOverlayLine("tp");
@@ -476,7 +459,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     const sl = Number(t.stop_loss ?? t.stopLoss ?? t.sl);
     if (Number.isFinite(sl) && sl > 0) {
-      const slPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - sl) * qty : (sl - entry) * qty) : Number.NaN;
       upsertOverlayLine("sl", {
         price: sl,
         color: "#ef4444",
@@ -489,7 +471,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       upsertOverlayBadge("sl", {
         price: sl,
         tone: "sl",
-        label: `SL ${formatPnl(slPnl)}`,
+        label: "SL",
       });
     } else {
       removeOverlayLine("sl");
@@ -516,7 +498,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayLine("liq");
       removeOverlayBadge("liq");
     }
-  }, [positionTrade, lastPrice, now]);
+  }, [positionTrade]);
 
   // Pending order overlays (limit/stop)
   useEffect(() => {
@@ -562,7 +544,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         label: `${typeLabel} ${sideLabel}${Number.isFinite(qty) && qty > 0 ? ` ${formatQty(qty)}` : ""}`,
       });
     }
-  }, [pendingOrders, now, lastPrice]);
+  }, [pendingOrders]);
 
   // Position the HTML badges on the right side of the chart
   const overlayBadgeItems = useMemo(() => {
@@ -584,29 +566,15 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       .filter(Boolean)
       .sort((a, b) => a.y - b.y);
 
-    // Avoid overlap: enforce minimum vertical spacing between badges.
-    const minGap = isNarrow ? 22 : 26;
-    let lastTop = -Infinity;
-    const clamped = items.map((it) => {
+    // Keep badges anchored to their exact price coordinates.
+    // Clamp only to keep them inside the chart bounds.
+    const badgeH = isNarrow ? 22 : 26;
+    return items.map((it) => {
       const baseTop = it.y - (isNarrow ? 10 : 12);
-      const badgeH = isNarrow ? 22 : 26;
-      const boundedTop = height ? Math.max(6, Math.min(height - badgeH, baseTop)) : Math.max(6, baseTop);
-      const top = Math.max(boundedTop, lastTop + minGap);
-      lastTop = top;
+      const top = height ? Math.max(6, Math.min(height - badgeH, baseTop)) : Math.max(6, baseTop);
       return { ...it, top };
     });
-
-    // If we pushed some beyond the bottom, shift up as a group.
-    if (height) {
-      const badgeH = isNarrow ? 22 : 26;
-      const overflow = clamped.length ? clamped[clamped.length - 1].top - (height - badgeH) : 0;
-      if (overflow > 0) {
-        return clamped.map((it) => ({ ...it, top: Math.max(6, it.top - overflow) }));
-      }
-    }
-
-    return clamped;
-  }, [overlayBadges, now, lastPrice, isNarrow]);
+  }, [overlayBadges, now, isNarrow]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
