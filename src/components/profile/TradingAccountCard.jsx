@@ -41,6 +41,11 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
   const t = translations[language];
   const [refreshing, setRefreshing] = useState(false);
 
+  const isDemo = Boolean(account?.is_demo) || String(account?.account_type || "").toLowerCase() === "demo";
+  const displayBalance = Number(isDemo ? (account?.demo_balance ?? account?.balance) : account?.balance) || 0;
+  const displayEquity = Number(account?.equity);
+  const equityValue = Number.isFinite(displayEquity) && displayEquity > 0 ? displayEquity : displayBalance;
+
   const formatCurrency = (val) => {
     if (val === null || val === undefined) return "$0.00";
     return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -80,7 +85,7 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
         {/* Main Balance */}
         <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50">
           <p className="text-xs text-slate-500 mb-1">{t.equity}</p>
-          <p className="text-2xl sm:text-3xl font-bold text-slate-900">{formatCurrency(account.equity)}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900">{formatCurrency(equityValue)}</p>
           <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${
             account.unrealized_pnl >= 0 ? 'text-emerald-600' : 'text-red-500'
           }`}>
@@ -93,7 +98,7 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
         <div className="grid grid-cols-2 gap-px bg-slate-100">
           <div className="p-3 bg-white">
             <p className="text-[10px] text-slate-500 uppercase">{t.balance}</p>
-            <p className="text-sm font-bold text-slate-900">{formatCurrency(account.balance)}</p>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency(displayBalance)}</p>
           </div>
           <div className="p-3 bg-white">
             <p className="text-[10px] text-slate-500 uppercase">{t.margin}</p>

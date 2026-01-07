@@ -141,6 +141,13 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
   const removePendingLine = (id) => {
     if (!id) return;
+    if (disposedRef.current) {
+      removeOverlayBadge(`pending:${id}`);
+      try {
+        pendingLinesRef.current.delete(id);
+      } catch {}
+      return;
+    }
     try {
       const line = pendingLinesRef.current.get(id);
       if (line && candleSeriesRef.current?.removePriceLine) {
@@ -155,6 +162,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
   const upsertPendingLine = (id, opts) => {
     if (!id || !candleSeriesRef.current) return;
+    if (disposedRef.current) return;
     try {
       const existing = pendingLinesRef.current.get(id);
       if (existing && typeof existing.applyOptions === "function") {
@@ -422,7 +430,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         ? (isShort ? (entry - mark) * qty : (mark - entry) * qty)
         : Number.NaN;
 
-    const entryTitle = `${isShort ? "Short" : "Long"} ${formatQty(qty)} PnL ${formatPnl(pnl)}`;
+    const entryTitle = `ENTRY ${formatPnl(pnl)}`;
 
     if (Number.isFinite(entry) && entry > 0) {
       upsertOverlayLine("entry", {
@@ -685,20 +693,27 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                             ? "border-r-emerald-500/20"
                             : "border-r-slate-500/20";
 
+            const axisW = Math.max(48, Number(rightScaleWidth) || 56);
+
             return (
               <div
                 key={b.key}
-                className={`absolute px-1.5 py-0.5 rounded-md border backdrop-blur-sm shadow-sm ${cls}`}
+                className={`absolute rounded-md border backdrop-blur-sm shadow-sm ${cls}`}
                 style={{
                   top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12),
-                  right: Math.max(8, (rightScaleWidth || 56) + 8),
+                  right: 0,
+                  width: axisW,
                 }}
               >
                 <div className={`absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[7px] ${tailCls}`} />
-                <div className="text-[9px] leading-none font-semibold">
-                  {b.label}
+                <div className="px-1.5 py-0.5 text-right">
+                  <div className="text-[9px] leading-none font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
+                    {b.label}
+                  </div>
+                  <div className="mt-0.5 text-[8px] leading-none opacity-90 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
+                    {compactPrice(b.price)}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-[8px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
               </div>
             );
           })}

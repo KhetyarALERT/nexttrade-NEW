@@ -12,6 +12,10 @@ const translations = {
     entry: "Entry",
     current: "Current",
     pnl: "P&L",
+    openedAt: "Opened",
+    closedAt: "Closed",
+    updatedAt: "Updated",
+    liq: "Liq",
     status: "Status",
     action: "Action",
     close: "Close",
@@ -28,6 +32,10 @@ const translations = {
     entry: "الدخول",
     current: "الحالي",
     pnl: "الربح/الخسارة",
+    openedAt: "فتح",
+    closedAt: "إغلاق",
+    updatedAt: "تحديث",
+    liq: "تصفية",
     status: "الحالة",
     action: "إجراء",
     close: "إغلاق",
@@ -41,6 +49,13 @@ const translations = {
 
 export default function TradesTable({ trades = [], language = "en", onCloseTrade, currentPrices = {} }) {
   const t = translations[language];
+
+  const fmtTime = (iso) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleString();
+  };
 
   const formatPrice = (price) => {
     if (!price) return "-";
@@ -79,6 +94,10 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
           <TableRow className="bg-slate-50">
             <TableHead className="font-semibold">{t.symbol}</TableHead>
             <TableHead className="font-semibold">{t.side}</TableHead>
+            <TableHead className="hidden lg:table-cell font-semibold">{t.openedAt}</TableHead>
+            <TableHead className="hidden xl:table-cell font-semibold">{t.closedAt}</TableHead>
+            <TableHead className="hidden xl:table-cell font-semibold">{t.updatedAt}</TableHead>
+            <TableHead className="hidden lg:table-cell font-semibold">{t.liq}</TableHead>
             <TableHead className="hidden sm:table-cell font-semibold">{t.size}</TableHead>
             <TableHead className="hidden md:table-cell font-semibold">{t.entry}</TableHead>
             <TableHead className="hidden md:table-cell font-semibold">{t.current}</TableHead>
@@ -101,6 +120,15 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
                     <span className="text-slate-400">{t.entry}:</span> ${formatPrice(trade.entry_price)}
                     <span className="mx-2 text-slate-300">•</span>
                     <span className="text-slate-400">{t.current}:</span> ${formatPrice(currentPrice)}
+                    <div className="mt-1">
+                      <span className="text-slate-400">{t.openedAt}:</span> {fmtTime(trade.opened_at ?? trade.created_at)}
+                      {trade.closed_at ? (
+                        <>
+                          <span className="mx-2 text-slate-300">•</span>
+                          <span className="text-slate-400">{t.closedAt}:</span> {fmtTime(trade.closed_at)}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -112,6 +140,14 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
                     )}
                   </Badge>
                 </TableCell>
+
+                <TableCell className="hidden lg:table-cell text-slate-700">{fmtTime(trade.opened_at ?? trade.created_at)}</TableCell>
+                <TableCell className="hidden xl:table-cell text-slate-700">{fmtTime(trade.closed_at)}</TableCell>
+                <TableCell className="hidden xl:table-cell text-slate-700">{fmtTime(trade.updated_at ?? trade.updated_date ?? trade.updatedAt)}</TableCell>
+                <TableCell className="hidden lg:table-cell font-mono text-slate-700">
+                  {trade.liquidation_price ? `$${formatPrice(trade.liquidation_price)}` : "-"}
+                </TableCell>
+
                 <TableCell className="hidden sm:table-cell">{formatSize(trade.quantity)}</TableCell>
                 <TableCell className="hidden md:table-cell font-mono">${formatPrice(trade.entry_price)}</TableCell>
                 <TableCell className="hidden md:table-cell font-mono">${formatPrice(currentPrice)}</TableCell>

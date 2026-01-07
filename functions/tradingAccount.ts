@@ -79,6 +79,20 @@ Deno.serve(async (req) => {
     if (action === 'getOrCreate') {
       const { accountType = 'demo' } = params;
       let accounts = await base44.entities.TradingAccount.filter({ user_id: user.id, account_type: accountType });
+
+      // Backward-compat: older rows may not have `account_type` set; fall back to `is_demo`.
+      if (!accounts?.length) {
+        const isDemo = accountType === 'demo';
+        accounts = await base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: isDemo });
+      }
+
+      if (accounts?.length > 1) {
+        accounts = [...accounts].sort((a, b) => {
+          const ta = (a.updated_at || a.created_at || '').toString();
+          const tb = (b.updated_at || b.created_at || '').toString();
+          return tb.localeCompare(ta);
+        });
+      }
       
       if (!accounts?.length) {
         const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
@@ -104,12 +118,13 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, data: newAccount, wallet, isNew: true });
       }
       
+      const selected = accounts[0];
       let wallet = null;
       if (accountType !== 'demo') {
-        const wallets = await base44.entities.Wallet.filter({ trading_account_id: accounts[0].id, is_primary: true });
+        const wallets = await base44.entities.Wallet.filter({ trading_account_id: selected.id, is_primary: true });
         wallet = wallets?.[0] || null;
       }
-      return Response.json({ success: true, data: accounts[0], wallet, isNew: false });
+      return Response.json({ success: true, data: selected, wallet, isNew: false });
     }
 
     if (action === 'openTrade') {

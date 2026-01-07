@@ -117,9 +117,9 @@ export default function Dashboard({ language = "en" }) {
   const [refreshing, setRefreshing] = useState(false);
   
   const [balanceData, setBalanceData] = useState({
-    total: 10000,
-    available: 7500,
-    inPositions: 2500
+    total: 0,
+    available: 0,
+    inPositions: 0
   });
   
   const [pnlData, _setPnlData] = useState({
@@ -174,9 +174,9 @@ export default function Dashboard({ language = "en" }) {
         const usdtBalance = balanceResult.data.data.find(b => b.asset === 'USDT');
         if (usdtBalance) {
           setBalanceData({
-            total: parseFloat(usdtBalance.balance) || 10000,
-            available: parseFloat(usdtBalance.availableBalance) || 7500,
-            inPositions: parseFloat(usdtBalance.balance) - parseFloat(usdtBalance.availableBalance) || 2500
+            total: parseFloat(usdtBalance.balance) || 0,
+            available: parseFloat(usdtBalance.availableBalance) || 0,
+            inPositions: (parseFloat(usdtBalance.balance) || 0) - (parseFloat(usdtBalance.availableBalance) || 0)
           });
           logActivity('LOAD_BALANCE', { balance: usdtBalance.balance });
         }
