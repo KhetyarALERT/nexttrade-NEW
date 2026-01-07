@@ -48,6 +48,13 @@ const config = defaultWagmiConfig({
   enableWalletConnect: true, // Enable WalletConnect v2
   enableInjected: true,      // Enable injected wallets (MetaMask on desktop)
   enableCoinbase: true,      // Enable Coinbase Wallet
+  // DISABLE social/email auth - crypto wallets only
+  auth: {
+    email: false,
+    socials: [],             // Empty array = no social logins
+    showWallets: true,
+    walletFeatures: true,
+  },
 });
 
 // Create Web3Modal instance
@@ -63,8 +70,11 @@ createWeb3Modal({
     '--w3m-border-radius-master': '12px',
   },
   
-  // Mobile configuration - CRITICAL for PWA
-  enableOnramp: false, // Disable buy crypto (optional)
+  // DISABLE ALL SOCIAL LOGINS - Only show crypto wallets
+  enableOnramp: false,        // Disable buy crypto
+  
+  // CRITICAL: Disable social/email options - wallets only mode
+  allWallets: 'SHOW',         // Show all wallets option
   
   // Featured wallet IDs (these show first in the list)
   featuredWalletIds: [
@@ -76,9 +86,9 @@ createWeb3Modal({
   ],
   
   // Enable analytics (optional)
-  enableAnalytics: true,
+  enableAnalytics: false,
   
-  // All wallets shown in the modal
+  // All wallets shown in the modal - expanded list for better detection
   includeWalletIds: [
     'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
     '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
@@ -88,6 +98,13 @@ createWeb3Modal({
     'e7c4d26541a7fd84dbdfa9922d3ad21e936e13a7a0e44385d44f006139e44d3b', // Argent
     '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // BitKeep
     '971e689d0a5be527bac79629b4ee9b925e82208e5168b733496a09c0faed0709', // OKX Wallet
+    '8a0ee50d1f22f6651afcae7eb4253e52a3310b90af5daef78a8c4929a9bb99d4', // Binance Web3 Wallet
+    '0b415a746fb9ee99cce155c2ceca0c6f6061b1dbca2d722b3ba16381d0562150', // SafePal
+    '20459438007b75f4f4acb98bf29aa3b800550309646d375da5fd4aac6c2a2c66', // TokenPocket
+    'ef333840daf915aafdc4a004525502d6d49d77bd9c65e0642dbaefb3c2893bef', // imToken
+    'c286eebc742a537cd1d6818363e9dc53b21759a1e8e5d9b263f0c8e4a7e63e1f', // Crypto.com DeFi Wallet
+    '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger Live
+    'a797aa35c0fadbfc1a53e7f675162ed5226968b44a19ee3d24385c64d1d3c393', // Phantom (Ethereum)
   ],
 });
 
