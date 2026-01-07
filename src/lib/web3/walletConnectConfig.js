@@ -3,16 +3,11 @@ import { defaultWagmiConfig } from '@web3modal/wagmi/react/config';
 import { mainnet, polygon, arbitrum, optimism, base, bsc } from 'wagmi/chains';
 
 // ==========================================
-// WalletConnect v2 - Minimal Working Config
+// WalletConnect v2 Configuration
 // ==========================================
 
-// Project ID from WalletConnect Cloud (REQUIRED)
-const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
-
-// Debug logging
-if (typeof window !== 'undefined') {
-  console.log('🔗 WalletConnect:', projectId ? '✅ Project ID loaded' : '❌ NO PROJECT ID!');
-}
+// Your WalletConnect Cloud Project ID
+const projectId = 'a846c729635359bb2f3d8eca53cb74fe';
 
 // App metadata
 const metadata = {
@@ -26,19 +21,25 @@ const metadata = {
 /** @type {readonly [import('wagmi/chains').Chain, ...import('wagmi/chains').Chain[]]} */
 const chains = [mainnet, polygon, arbitrum, optimism, base, bsc];
 
-// Create wagmi config - MINIMAL
+// Create wagmi config
 const config = defaultWagmiConfig({
   chains,
   projectId,
   metadata,
 });
 
-// Create Web3Modal - MINIMAL (let it use defaults)
-createWeb3Modal({
-  wagmiConfig: config,
-  projectId,
-});
+// Initialize Web3Modal - this MUST run before any React rendering
+let web3Modal = null;
+if (typeof window !== 'undefined') {
+  web3Modal = createWeb3Modal({
+    wagmiConfig: config,
+    projectId,
+    enableAnalytics: false,
+    themeMode: 'light',
+  });
+  console.log('✅ Web3Modal initialized with project:', projectId);
+}
 
 // Export
-export { config, projectId, metadata, chains };
+export { config, projectId, metadata, chains, web3Modal };
 

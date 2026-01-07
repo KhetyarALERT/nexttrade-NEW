@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
   },
 });
@@ -18,28 +19,20 @@ const WalletConnectContext = createContext(null);
 
 /**
  * WalletConnect Provider - Wraps the app with WagmiProvider
- * This handles all wallet connections via WalletConnect v2
- * 
- * Works on:
- * - Desktop with injected wallets (MetaMask, etc.)
- * - Mobile browsers with WalletConnect
- * - iOS PWA (Add to Home Screen)
- * - Android PWA
  */
 export function WalletConnectProvider({ children }) {
-  useEffect(() => {
-    console.log('✅ WalletConnect Provider initialized');
-    console.log('📱 Platform:', {
-      userAgent: navigator.userAgent,
-      isPWA: window.matchMedia('(display-mode: standalone)').matches,
-      hasInjected: typeof window.ethereum !== 'undefined'
-    });
+  const [isReady, setIsReady] = useState(false);
 
-    // Cleanup on unmount
-    return () => {
-      console.log('🔄 WalletConnect Provider cleanup');
-    };
+  useEffect(() => {
+    // Mark as ready after mount
+    setIsReady(true);
+    console.log('✅ WalletConnect Provider ready');
   }, []);
+
+  // Don't render children until ready (prevents hydration issues)
+  if (!isReady) {
+    return null;
+  }
 
   return (
     <WagmiProvider config={config}>
@@ -63,3 +56,4 @@ export function useWalletConnect() {
   }
   return context;
 }
+
