@@ -176,14 +176,16 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
   }, [symbol]);
 
   // keep total/amount in sync (UI helper)
+  // - Limit: price input is the reference price
+  // - Market: mark/last price is the reference price
+  // - Trigger: trigger price is the reference price (fallback to mark)
   useEffect(() => {
     const pRaw = parseNum(price);
     const p = Number.isFinite(pRaw) && pRaw > 0 ? pRaw : Number(lastPrice) || NaN;
     const a = parseNum(amount);
     const t = parseNum(total);
 
-    if (orderType !== "limit") return;
-
+    // If user edits total => recompute amount.
     if (lastEdited === "total") {
       if (Number.isFinite(p) && p > 0 && Number.isFinite(t)) {
         const nextA = t / p;
@@ -192,7 +194,8 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
       return;
     }
 
-    if (Number.isFinite(p) && Number.isFinite(a)) {
+    // If user edits amount => recompute total.
+    if (Number.isFinite(p) && p > 0 && Number.isFinite(a)) {
       const nextT = p * a;
       if (Number.isFinite(nextT)) setTotal(String(nextT));
     }
@@ -428,11 +431,25 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
               </div>
 
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                <span>{labels.estCost}</span>
-                <span className="font-mono">
-                  {refPrice && parseNum(amount) ? formatNumber(refPrice * parseNum(amount), 2) : "—"} USDT
-                </span>
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.total}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={total}
+                  onChange={(e) => {
+                    setTotal(e.target.value);
+                    setLastEdited("total");
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForPrice(parseNum(total));
+                    setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                    setLastEdited("total");
+                  }}
+                  placeholder="0"
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
               </div>
 
               <div className="mt-2">
@@ -489,17 +506,42 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
               <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                 <input
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setLastEdited("amount");
+                  }}
                   onWheel={(e) => {
                     e.preventDefault();
                     const step = stepForAmount(parseNum(amount));
                     setAmount((v) => wheelAdjust(v, e.deltaY, step));
+                    setLastEdited("amount");
                   }}
                   placeholder={labels.enter}
                   className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
                   inputMode="decimal"
                 />
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+              </div>
+
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.total}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={total}
+                  onChange={(e) => {
+                    setTotal(e.target.value);
+                    setLastEdited("total");
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForPrice(parseNum(total));
+                    setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                    setLastEdited("total");
+                  }}
+                  placeholder="0"
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
               </div>
 
               <div className="mt-2">
