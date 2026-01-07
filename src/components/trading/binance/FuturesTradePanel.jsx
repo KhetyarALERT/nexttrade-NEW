@@ -49,6 +49,16 @@ function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function getReferencePrice(orderType, priceValue, lastPrice) {
+  if (orderType === "market") {
+    return Number.isFinite(Number(lastPrice)) && Number(lastPrice) > 0 ? Number(lastPrice) : NaN;
+  }
+  // "price" is used as Limit price or Trigger price depending on mode.
+  const pRaw = parseNum(priceValue);
+  if (Number.isFinite(pRaw) && pRaw > 0) return pRaw;
+  return Number.isFinite(Number(lastPrice)) && Number(lastPrice) > 0 ? Number(lastPrice) : NaN;
+}
+
 export default function FuturesTradePanel({ symbol, language = "en", liveAccount = null, demoAccount = null }) {
   const [activeTab, setActiveTab] = useState("trade");
   const [mode, setMode] = useState("cross");
@@ -180,8 +190,7 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
   // - Market: mark/last price is the reference price
   // - Trigger: trigger price is the reference price (fallback to mark)
   useEffect(() => {
-    const pRaw = parseNum(price);
-    const p = Number.isFinite(pRaw) && pRaw > 0 ? pRaw : Number(lastPrice) || NaN;
+    const p = getReferencePrice(orderType, price, lastPrice);
     const a = parseNum(amount);
     const t = parseNum(total);
 
@@ -418,11 +427,15 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
               <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                 <input
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setLastEdited("amount");
+                  }}
                   onWheel={(e) => {
                     e.preventDefault();
                     const step = stepForAmount(parseNum(amount));
                     setAmount((v) => wheelAdjust(v, e.deltaY, step));
+                    setLastEdited("amount");
                   }}
                   placeholder={labels.enter}
                   className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
