@@ -62,6 +62,8 @@ export default function FuturesActivityTabs({
   const [tpSlBusy, setTpSlBusy] = useState(false);
   const [tpSlError, setTpSlError] = useState("");
 
+  const [cancelBusyId, setCancelBusyId] = useState(null);
+
   const autoTriggeredRef = useRef(new Set());
 
   const parseNum = (v) => {
@@ -90,6 +92,28 @@ export default function FuturesActivityTabs({
     const stepStr = String(step);
     const decimals = stepStr.includes(".") ? stepStr.split(".")[1].length : 0;
     return next.toFixed(Math.min(8, decimals));
+  };
+
+  const digitsForPrice = (p) => {
+    const n = Number(p);
+    if (!Number.isFinite(n)) return 2;
+    return n < 1 ? 6 : 2;
+  };
+
+  const calcPresetPrice = (trade, kind, pct) => {
+    const entry = Number(trade?.avg_entry_price ?? trade?.entry_price);
+    if (!Number.isFinite(entry) || entry <= 0) return "";
+    const side = String(trade?.side || "LONG").toUpperCase();
+    const p = Math.max(0, Number(pct) || 0);
+
+    let next = entry;
+    if (side === "SHORT") {
+      next = kind === "tp" ? entry * (1 - p / 100) : entry * (1 + p / 100);
+    } else {
+      next = kind === "tp" ? entry * (1 + p / 100) : entry * (1 - p / 100);
+    }
+
+    return next.toFixed(digitsForPrice(entry));
   };
 
   useEffect(() => {
@@ -325,10 +349,85 @@ export default function FuturesActivityTabs({
     };
   }, [openPositions, markBySymbol, onRefresh]);
 
-  const openOrders = useMemo(
-    () => (trades || []).filter((t) => String(t?.status || "").toUpperCase() === "PENDING"),
-    [trades],
-  );
+  const openOrders = useMemo(() => {
+    const list = Array.isArray(trades) ? trades : [];
+
+    const pending = list
+      .filter((t) => String(t?.status || "").toUpperCase() === "PENDING")
+      .map((t) => ({
+        kind: "PENDING",
+        id: t?.id,
+        symbol: t?.symbol,
+        type: String(t?.order_type || "PENDING").toUpperCase(),
+        side: String(t?.side || "—").toUpperCase(),
+        price: t?.limit_price ?? t?.stop_price ?? t?.entry_price,
+        qty: t?.quantity,
+        raw: t,
+      }));
+
+    // Treat TP/SL as conditional open orders for visibility.
+    const conditionals = (list
+      .filter((t) => String(t?.status || "").toUpperCase() === "OPEN")
+      .flatMap((t) => {
+        const rows = [];
+        const tp = Number(t?.take_profit);
+        const sl = Number(t?.stop_loss);
+
+        if (Number.isFinite(tp) && tp > 0) {
+          rows.push({
+            kind: "TP",
+            id: `tp:${t?.id}`,
+            tradeId: t?.id,
+            symbol: t?.symbol,
+            type: "TAKE_PROFIT",
+            side: "CLOSE",
+            price: tp,
+            qty: t?.quantity,
+            raw: t,
+          });
+        }
+
+        if (Number.isFinite(sl) && sl > 0) {
+          rows.push({
+            kind: "SL",
+            id: `sl:${t?.id}`,
+            tradeId: t?.id,
+            symbol: t?.symbol,
+            type: "STOP_LOSS",
+            side: "CLOSE",
+            price: sl,
+            qty: t?.quantity,
+            raw: t,
+          });
+        }
+
+        return rows;
+      }))
+      .filter(Boolean);
+
+    return [...pending, ...conditionals];
+  }, [trades]);
+
+  const cancelOpenOrder = async (o) => {
+    const id = o?.id;
+    if (!id) return;
+    setCancelBusyId(id);
+    try {
+      if (o.kind === "PENDING") {
+        if (!o?.raw?.id) return;
+        await base44.functions.invoke("tradingAccount", { action: "cancelOrder", tradeId: o.raw.id });
+      } else if (o.kind === "TP") {
+        if (!o?.raw?.id) return;
+        await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, takeProfit: null });
+      } else if (o.kind === "SL") {
+        if (!o?.raw?.id) return;
+        await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, stopLoss: null });
+      }
+    } finally {
+      await onRefresh?.();
+      setCancelBusyId(null);
+    }
+  };
 
   const orderHistory = useMemo(
     () => (trades || []).filter((t) => ["CANCELLED", "REJECTED", "EXPIRED"].includes(String(t?.status || "").toUpperCase())),
@@ -476,6 +575,7 @@ export default function FuturesActivityTabs({
                               className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700/70 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                onSelectTrade?.(pos);
                                 openTpSlDialog(pos);
                               }}
                               title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
@@ -530,12 +630,13 @@ export default function FuturesActivityTabs({
                 <TableHead className="text-slate-500">{labels.common.side}</TableHead>
                 <TableHead className="text-slate-500 text-right">{labels.common.price}</TableHead>
                 <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
+                <TableHead className="text-slate-500 text-right">{labels.common.action}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {openOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="p-0">
+                  <TableCell colSpan={6} className="p-0">
                     <EmptyState title={labels.empty.noOpenOrdersTitle} subtitle={labels.empty.noOpenOrdersSubtitle} />
                   </TableCell>
                 </TableRow>
@@ -543,10 +644,22 @@ export default function FuturesActivityTabs({
                 openOrders.map((o) => (
                   <TableRow key={o?.id || String(Math.random())}>
                     <TableCell className="text-slate-200">{normalizeSymbol(o?.symbol)}</TableCell>
-                    <TableCell className="text-slate-200">{String(o?.order_type || "—")}</TableCell>
+                    <TableCell className="text-slate-200">{String(o?.type || "—")}</TableCell>
                     <TableCell className="text-slate-200">{String(o?.side || "—")}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{formatPrice(o?.limit_price ?? o?.entry_price)}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{o?.quantity ? formatNum(o.quantity, 6) : "—"}</TableCell>
+                    <TableCell className="text-slate-200 text-right">{formatPrice(o?.price)}</TableCell>
+                    <TableCell className="text-slate-200 text-right">{o?.qty ? formatNum(o.qty, 6) : "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs rounded-full text-slate-200"
+                        onClick={() => cancelOpenOrder(o)}
+                        disabled={!onRefresh || cancelBusyId === o?.id}
+                      >
+                        {cancelBusyId === o?.id ? labels.common.updating : labels.common.cancel}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -729,22 +842,41 @@ export default function FuturesActivityTabs({
                 </label>
 
                 {tpEnabled ? (
-                  <div className="mt-3 grid grid-cols-[1fr,auto] gap-2">
-                    <input
-                      value={tpValue}
-                      onChange={(e) => setTpValue(e.target.value)}
-                      onWheelCapture={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const step = stepForPrice(parseNum(tpValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
-                        setTpValue((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder="—"
-                      className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
-                      inputMode="decimal"
-                    />
-                    <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
-                      USDT
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr,auto] gap-2">
+                      <input
+                        value={tpValue}
+                        onChange={(e) => setTpValue(e.target.value)}
+                        onWheelCapture={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const step = stepForPrice(parseNum(tpValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
+                          setTpValue((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder="—"
+                        className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
+                        inputMode="decimal"
+                      />
+                      <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
+                        USDT
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {[10, 20, 50, 100].map((p) => (
+                        <button
+                          key={`tp_${p}`}
+                          type="button"
+                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                          onClick={() => {
+                            if (!tpSlTrade) return;
+                            setTpEnabled(true);
+                            setTpValue(calcPresetPrice(tpSlTrade, "tp", p));
+                          }}
+                        >
+                          {p}%
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ) : null}
@@ -764,22 +896,41 @@ export default function FuturesActivityTabs({
                 </label>
 
                 {slEnabled ? (
-                  <div className="mt-3 grid grid-cols-[1fr,auto] gap-2">
-                    <input
-                      value={slValue}
-                      onChange={(e) => setSlValue(e.target.value)}
-                      onWheelCapture={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const step = stepForPrice(parseNum(slValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
-                        setSlValue((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder="—"
-                      className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
-                      inputMode="decimal"
-                    />
-                    <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
-                      USDT
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr,auto] gap-2">
+                      <input
+                        value={slValue}
+                        onChange={(e) => setSlValue(e.target.value)}
+                        onWheelCapture={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const step = stepForPrice(parseNum(slValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
+                          setSlValue((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder="—"
+                        className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
+                        inputMode="decimal"
+                      />
+                      <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
+                        USDT
+                      </div>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {[10, 20, 50, 100].map((p) => (
+                        <button
+                          key={`sl_${p}`}
+                          type="button"
+                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                          onClick={() => {
+                            if (!tpSlTrade) return;
+                            setSlEnabled(true);
+                            setSlValue(calcPresetPrice(tpSlTrade, "sl", p));
+                          }}
+                        >
+                          {p}%
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ) : null}

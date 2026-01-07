@@ -36,7 +36,7 @@ function compactPrice(p) {
   return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null }) {
+export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
@@ -70,6 +70,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const priceLineRef = useRef(null);
 
   const overlayLinesRef = useRef({ entry: null, tp: null, sl: null, liq: null });
+  const pendingLinesRef = useRef(new Map());
 
   const labels = useMemo(() => {
     const isAr = language === "ar";
@@ -126,6 +127,38 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         removeOverlayLine(key);
       }
       overlayLinesRef.current[key] = candleSeriesRef.current.createPriceLine(opts);
+    } catch {
+      // ignore
+    }
+  };
+
+  const removePendingLine = (id) => {
+    if (!id) return;
+    try {
+      const line = pendingLinesRef.current.get(id);
+      if (line && candleSeriesRef.current?.removePriceLine) {
+        candleSeriesRef.current.removePriceLine(line);
+      }
+    } catch {}
+    try {
+      pendingLinesRef.current.delete(id);
+    } catch {}
+    removeOverlayBadge(`pending:${id}`);
+  };
+
+  const upsertPendingLine = (id, opts) => {
+    if (!id || !candleSeriesRef.current) return;
+    try {
+      const existing = pendingLinesRef.current.get(id);
+      if (existing && typeof existing.applyOptions === "function") {
+        existing.applyOptions(opts);
+        return;
+      }
+      if (existing) {
+        removePendingLine(id);
+      }
+      const line = candleSeriesRef.current.createPriceLine(opts);
+      pendingLinesRef.current.set(id, line);
     } catch {
       // ignore
     }
@@ -436,6 +469,51 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     }
   }, [positionTrade, lastPrice, now]);
 
+  // Pending order overlays (limit/stop)
+  useEffect(() => {
+    const list = Array.isArray(pendingOrders) ? pendingOrders : [];
+    const ids = new Set(list.map((o) => o?.id).filter(Boolean));
+
+    // remove stale
+    for (const id of Array.from(pendingLinesRef.current.keys())) {
+      if (!ids.has(id)) removePendingLine(id);
+    }
+
+    for (const o of list) {
+      const id = o?.id;
+      if (!id) continue;
+
+      const orderType = String(o?.order_type || "").toUpperCase();
+      const side = String(o?.side || "LONG").toUpperCase();
+      const isShort = side === "SHORT";
+
+      const p = Number(o?.limit_price ?? o?.stop_price ?? o?.entry_price);
+      if (!Number.isFinite(p) || p <= 0) {
+        removePendingLine(id);
+        continue;
+      }
+
+      const qty = Number(o?.quantity);
+      const typeLabel = orderType === "STOP" ? "Stop" : "Limit";
+      const sideLabel = isShort ? "Sell" : "Buy";
+
+      upsertPendingLine(id, {
+        price: p,
+        color: orderType === "STOP" ? "#a855f7" : "#eab308",
+        lineWidth: 1,
+        lineStyle: 3,
+        axisLabelVisible: false,
+        title: "",
+      });
+
+      upsertOverlayBadge(`pending:${id}`, {
+        price: p,
+        tone: orderType === "STOP" ? "pendingStop" : "pendingLimit",
+        label: `${typeLabel} ${sideLabel}${Number.isFinite(qty) && qty > 0 ? ` ${formatQty(qty)}` : ""}`,
+      });
+    }
+  }, [pendingOrders, now, lastPrice]);
+
   // Position the HTML badges on the right side of the chart
   const overlayBadgeItems = useMemo(() => {
     if (!overlayBadges || !candleSeriesRef.current) return [];
@@ -496,12 +574,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             const isTp = tone === "tp";
             const isSl = tone === "sl";
             const isLiq = tone === "liq";
+            const isPendingLimit = tone === "pendingLimit";
+            const isPendingStop = tone === "pendingStop";
             const cls = isTp
               ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-100"
               : isSl
                 ? "bg-rose-500/15 border-rose-500/30 text-rose-100"
                 : isLiq
                   ? "bg-amber-500/15 border-amber-500/30 text-amber-100"
+                  : isPendingLimit
+                    ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-100"
+                    : isPendingStop
+                      ? "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-100"
                   : isShort
                     ? "bg-rose-500/10 border-rose-500/20 text-rose-100"
                     : isLong
@@ -532,4 +616,5 @@ BinanceFuturesChart.propTypes = {
   language: PropTypes.string,
   onPriceUpdate: PropTypes.func,
   positionTrade: PropTypes.object,
+  pendingOrders: PropTypes.array,
 };

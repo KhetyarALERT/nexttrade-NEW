@@ -231,113 +231,72 @@ export default function FuturesTradePanel({
   // - Market: mark/last price is the reference price
   // - Trigger: trigger price is the reference price (fallback to mark)
   useEffect(() => {
-    const p = getReferencePrice(orderType, price, lastPrice);
-    const a = parseNum(amount);
-    const t = parseNum(total);
-    const c = parseNum(cost);
-    const lev = Number(leverage);
-    const safeLev = Number.isFinite(lev) && lev > 0 ? lev : 10;
+    const refPrice = getReferencePrice(orderType, price, lastPrice);
+    if (!Number.isFinite(refPrice) || refPrice <= 0) return;
 
-    const setStrIfChanged = (setter, nextNum) => {
-      if (!Number.isFinite(nextNum)) return;
-      const nextStr = String(nextNum);
+    const lev = Number(leverage);
+    const safeLev = Number.isFinite(lev) && lev > 0 ? Math.min(125, Math.max(1, lev)) : 10;
+
+    const qty = parseNum(amount);
+    const notional = parseNum(total);
+    const margin = parseNum(cost);
+
+    const fmtQty = (n) => String(Number(n.toFixed(6)));
+    const fmtUsdt = (n) => String(Number(n.toFixed(2)));
+
+    const setStrIfChanged = (setter, nextStr) => {
+      if (nextStr === "" || nextStr === null || nextStr === undefined) return;
       setter((prev) => (prev === nextStr ? prev : nextStr));
     };
 
-    // If the user changes leverage:
-    // - By cost: keep cost fixed and recompute total/amount (this is the main futures behavior).
-    // - Other modes: keep size stable and adjust cost only.
-    if (lastEdited === "leverage") {
+    const setNumIfFinite = (setter, n, formatter) => {
+      if (!Number.isFinite(n)) return;
+      setStrIfChanged(setter, formatter(n));
+    };
+
+    // Decide which field is the anchor (authoritative) so we don't oscillate.
+    // - cost mode: default anchor is cost (margin)
+    // - value mode: default anchor is total (notional)
+    // - amount mode: default anchor is amount (qty)
+    const anchor = (() => {
       if (orderMode === "cost") {
-        if (!Number.isFinite(p) || p <= 0) return;
-        if (!Number.isFinite(c) || c <= 0) return;
-        const nextNotional = c * safeLev;
-        const nextQty = nextNotional / p;
-        setStrIfChanged(setTotal, nextNotional);
-        setStrIfChanged(setAmount, nextQty);
-        return;
+        if (lastEdited === "total") return "total";
+        if (lastEdited === "amount") return "amount";
+        return "cost";
       }
+      if (orderMode === "value") {
+        if (lastEdited === "amount") return "amount";
+        return "total";
+      }
+      // amount
+      if (lastEdited === "total") return "total";
+      return "amount";
+    })();
 
-      if (Number.isFinite(t) && t >= 0) {
-        setStrIfChanged(setCost, t / safeLev);
-        return;
-      }
-      if (Number.isFinite(p) && p > 0 && Number.isFinite(a) && a >= 0) {
-        const nextNotional = a * p;
-        setStrIfChanged(setTotal, nextNotional);
-        setStrIfChanged(setCost, nextNotional / safeLev);
-      }
+    if (anchor === "cost") {
+      if (!Number.isFinite(margin)) return;
+      const nextNotional = margin * safeLev;
+      const nextQty = nextNotional / refPrice;
+      setNumIfFinite(setTotal, nextNotional, fmtUsdt);
+      setNumIfFinite(setAmount, nextQty, fmtQty);
       return;
     }
 
-    if (orderMode === "cost") {
-      if (!Number.isFinite(p) || p <= 0) return;
-
-      if (lastEdited === "cost") {
-        if (!Number.isFinite(c)) return;
-        const nextNotional = c * safeLev;
-        const nextQty = nextNotional / p;
-        setStrIfChanged(setTotal, nextNotional);
-        setStrIfChanged(setAmount, nextQty);
-        return;
-      }
-
-      if (lastEdited === "amount") {
-        if (!Number.isFinite(a)) return;
-        const nextNotional = a * p;
-        const nextCost = nextNotional / safeLev;
-        setStrIfChanged(setTotal, nextNotional);
-        setStrIfChanged(setCost, nextCost);
-        return;
-      }
-
-      if (lastEdited === "total") {
-        if (!Number.isFinite(t)) return;
-        const nextQty = t / p;
-        const nextCost = t / safeLev;
-        setStrIfChanged(setAmount, nextQty);
-        setStrIfChanged(setCost, nextCost);
-      }
+    if (anchor === "total") {
+      if (!Number.isFinite(notional)) return;
+      const nextQty = notional / refPrice;
+      const nextCost = notional / safeLev;
+      setNumIfFinite(setAmount, nextQty, fmtQty);
+      setNumIfFinite(setCost, nextCost, fmtUsdt);
       return;
     }
 
-    // For non-cost modes, leverage should NOT change the position size.
-    // Leverage affects the implied margin (cost) only: cost = notional / leverage.
-    if (!Number.isFinite(p) || p <= 0) return;
-
-    if (orderMode === "value") {
-      if (Number.isFinite(t)) {
-        const nextQty = t / p;
-        const nextCost = t / safeLev;
-        setStrIfChanged(setAmount, nextQty);
-        setStrIfChanged(setCost, nextCost);
-      }
-      return;
-    }
-
-    // amount mode
-    if (Number.isFinite(a)) {
-      const nextNotional = a * p;
-      const nextCost = nextNotional / safeLev;
-      setStrIfChanged(setTotal, nextNotional);
-      setStrIfChanged(setCost, nextCost);
-    }
-    // fallthrough: total/amount specific edit rules handled below
-
-    // If user edits total => recompute amount.
-    if (lastEdited === "total") {
-      if (Number.isFinite(p) && p > 0 && Number.isFinite(t)) {
-        const nextA = t / p;
-        if (Number.isFinite(nextA)) setAmount(String(nextA));
-      }
-      return;
-    }
-
-    // If user edits amount => recompute total.
-    if (Number.isFinite(p) && p > 0 && Number.isFinite(a)) {
-      const nextT = p * a;
-      if (Number.isFinite(nextT)) setTotal(String(nextT));
-    }
+    // anchor === "amount"
+    if (!Number.isFinite(qty)) return;
+    const nextNotional = qty * refPrice;
+    const nextCost = nextNotional / safeLev;
+    setNumIfFinite(setTotal, nextNotional, fmtUsdt);
+    setNumIfFinite(setCost, nextCost, fmtUsdt);
   }, [price, amount, total, cost, lastEdited, orderType, lastPrice, orderMode, leverage]);
 
   const refPrice = useMemo(() => {

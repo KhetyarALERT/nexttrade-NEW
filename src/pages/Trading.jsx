@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { ArrowLeft } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
@@ -35,7 +35,10 @@ export default function Trading({ language = "en" }) {
 
   const [trades, setTrades] = useState([]);
 
-  const refreshAccounts = async () => {
+  const accountsInFlightRef = useRef(false);
+  const refreshAccounts = useCallback(async () => {
+    if (accountsInFlightRef.current) return;
+    accountsInFlightRef.current = true;
     try {
       const [demoResult, liveResult] = await Promise.all([
         base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
@@ -46,8 +49,10 @@ export default function Trading({ language = "en" }) {
       if (liveResult?.data?.success) setLiveAccount(liveResult.data.data);
     } catch {
       // ignore
+    } finally {
+      accountsInFlightRef.current = false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
@@ -90,14 +95,19 @@ export default function Trading({ language = "en" }) {
     };
   }, []);
 
-  const refreshTrades = async () => {
+  const tradesInFlightRef = useRef(false);
+  const refreshTrades = useCallback(async () => {
+    if (tradesInFlightRef.current) return;
+    tradesInFlightRef.current = true;
     try {
       const res = await base44.functions.invoke("tradingAccount", { action: "getTrades", limit: 200 });
       if (res?.data?.success) setTrades(res.data.data || []);
     } catch {
-      setTrades([]);
+      // keep last known trades to avoid UI flicker
+    } finally {
+      tradesInFlightRef.current = false;
     }
-  };
+  }, []);
 
   const [selectedTradeId, setSelectedTradeId] = useState(null);
 
@@ -142,6 +152,13 @@ export default function Trading({ language = "en" }) {
     }
     return open[0];
   }, [trades, selectedSymbol, demoAccount?.id, selectedTradeId, lastPrice]);
+
+  const pendingOrdersForSymbol = useMemo(() => {
+    const sym = normalizeBinanceSymbol(selectedSymbol);
+    return (Array.isArray(trades) ? trades : []).filter(
+      (t) => String(t?.status || "").toUpperCase() === "PENDING" && normalizeBinanceSymbol(t?.symbol) === sym,
+    );
+  }, [trades, selectedSymbol]);
 
   useEffect(() => {
     // If the selected trade is no longer open, clear the selection.
@@ -245,6 +262,7 @@ export default function Trading({ language = "en" }) {
               language={language}
               onPriceUpdate={(p) => setLastPrice(p)}
               positionTrade={openTradeForSymbol}
+              pendingOrders={pendingOrdersForSymbol}
             />
           </div>
           <div className="h-[320px] min-h-[240px] max-h-[50vh]">
