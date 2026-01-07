@@ -262,7 +262,7 @@ export default function Home({ language = "en" }) {
                   size="lg"
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
                   asChild>
-                  <Link to={createPageUrl("Trading")}>
+                      <Link to={createPageUrl("Futures")}>
                     {t.hero.cta1}
                     <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>

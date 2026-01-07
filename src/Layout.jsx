@@ -53,7 +53,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   const navigation = [
     { type: "link", name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { type: "link", name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Trading") },
+    { type: "link", name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
     { type: "link", name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
     { type: "link", name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
     {
@@ -70,7 +70,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   const footerQuickLinks = [
     { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { name: { en: "Trading", ar: "التداول" }, url: createPageUrl("Trading") },
+    { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
     { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
     { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
     { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
@@ -618,6 +618,18 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               {language === "en" ?
               "© 2025 NextTrade. All rights reserved." :
               "© 2025 NextTrade. جميع الحقوق محفوظة"}
+            </p>
+            <p className="mt-2 text-xs">
+              <a
+                className="hover:text-white transition-colors"
+                href="https://www.tradingview.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {language === "en"
+                  ? "Charts powered by TradingView Lightweight Charts™"
+                  : "الرسوم البيانية مدعومة من TradingView Lightweight Charts™"}
+              </a>
             </p>
             <p className="mt-2 text-xs">
               {language === "en" ?

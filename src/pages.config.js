@@ -8,6 +8,7 @@ import LearnEarn from './pages/LearnEarn';
 import OnChainDeposit from './pages/OnChainDeposit';
 import Profile from './pages/Profile';
 import Rewards from './pages/Rewards';
+import Futures from './pages/Futures';
 import Trading from './pages/Trading';
 import index from './pages/index';
 import __Layout from './Layout.jsx';
@@ -18,13 +19,15 @@ export const PAGES = {
     "BuyWithCard": BuyWithCard,
     "Contact": Contact,
     "Dashboard": Dashboard,
+    "Futures": Futures,
     "Home": Home,
     "Investing": Investing,
     "LearnEarn": LearnEarn,
     "OnChainDeposit": OnChainDeposit,
     "Profile": Profile,
     "Rewards": Rewards,
-    "Trading": Trading,
+    // Backward compatible route (older links may still point to /Trading)
+    "Trading": Futures,
     "index": index,
 }
 

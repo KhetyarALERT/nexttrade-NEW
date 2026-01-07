@@ -480,7 +480,7 @@ export default function Profile({ language = "en" }) {
                 <div className="flex flex-wrap gap-2 sm:ml-auto w-full sm:w-auto">
                   <Button 
                     size="sm" 
-                    onClick={() => navigate(createPageUrl("Trading"))} 
+                    onClick={() => navigate(createPageUrl("Futures"))} 
                     className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 rounded-xl flex-1 sm:flex-none transition-all duration-300 hover:scale-105"
                   >
                     <TrendingUp className="mr-2 h-4 w-4" /> Trade Now
@@ -780,7 +780,7 @@ export default function Profile({ language = "en" }) {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => navigate(createPageUrl("Trading"))} 
+                        onClick={() => navigate(createPageUrl("Futures"))} 
                         className="rounded-xl border-slate-300 bg-white hover:bg-slate-100 transition-all duration-300 hover:scale-105"
                       >
                         <TrendingUp className="mr-2 h-4 w-4" />

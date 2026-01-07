@@ -145,7 +145,7 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
                       <Sparkline data={coin.sparkline_in_7d?.price} width={100} height={30} />
                     </td>
                     <td className="py-4 px-3 text-right">
-                      <Link to={createPageUrl("Trading")}>
+                      <Link to={createPageUrl("Futures")}>
                         <button className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm w-full">
                           Trade
                         </button>

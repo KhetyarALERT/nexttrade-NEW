@@ -229,7 +229,7 @@ export default function Dashboard({ language = "en" }) {
               {t.refresh}
             </Button>
             <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <Link to={createPageUrl("Trading")}>
+                <Link to={createPageUrl("Futures")}>
                 <Activity className="h-4 w-4 mr-2" />
                 {t.trade}
               </Link>

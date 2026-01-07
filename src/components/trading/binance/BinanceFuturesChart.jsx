@@ -250,14 +250,6 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
 
       <div ref={containerRef} className="flex-1 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{symbol}</div>
-        <a
-          className="absolute bottom-2 right-3 text-[10px] text-slate-500 hover:text-slate-300"
-          href="https://www.tradingview.com/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Charts by TradingView
-        </a>
       </div>
     </div>
   );

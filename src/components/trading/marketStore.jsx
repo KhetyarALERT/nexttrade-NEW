@@ -432,5 +432,5 @@ class MarketStore {
 // Singleton instance
 export const marketStore = new MarketStore();
 
-// Auto-connect on import
-marketStore.connect();
+// NOTE: Do not auto-connect on import.
+// This legacy BingX market store should only be started by pages/components that still use it.

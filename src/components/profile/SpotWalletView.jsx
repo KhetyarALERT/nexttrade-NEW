@@ -244,7 +244,7 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link to={createPageUrl("Trading")}>
+                        <Link to={createPageUrl("Futures")}>
                           <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-xs h-7 px-2 sm:px-3 rounded-xl">
                             <span className="hidden sm:inline">Trade</span>
                             <span className="sm:hidden">Go</span>
