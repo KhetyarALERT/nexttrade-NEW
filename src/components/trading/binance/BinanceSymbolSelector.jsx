@@ -11,12 +11,23 @@ function formatPrice(p) {
   return p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height }) {
+export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
   const [open, setOpen] = useState(false);
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
   const [markPrice, setMarkPrice] = useState(0);
   const [indexPrice, setIndexPrice] = useState(0);
+
+  const labels = useMemo(() => {
+    const isAr = language === "ar";
+    return {
+      contractType: isAr ? "عقد دائم USDT‑M" : "USDT‑M Perpetual",
+      mark: isAr ? "مارك" : "Mark",
+      index: isAr ? "مؤشر" : "Index",
+      selectMarketTitle: isAr ? "اختر السوق" : "Select market",
+      selectMarketDesc: isAr ? "اختر رمزًا دائمًا USDT‑M لعرض الشارت." : "Select a USDT-M perpetual symbol to view its live chart and stats.",
+    };
+  }, [language]);
 
   useEffect(() => {
     const unsubTicker = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
@@ -71,7 +82,7 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
             <span className="text-white font-bold truncate">{selectedSymbol}</span>
             <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           </div>
-          <div className="text-[11px] text-slate-500">USDT‑M Perpetual</div>
+          <div className="text-[11px] text-slate-500">{labels.contractType}</div>
         </div>
 
         <div className="flex items-center gap-6">
@@ -82,11 +93,11 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
 
           <div className="hidden md:flex items-center gap-6 text-right">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Mark</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">{labels.mark}</div>
               <div className="text-[12px] font-mono text-slate-200">{formatPrice(markPrice)}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">Index</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-500">{labels.index}</div>
               <div className="text-[12px] font-mono text-slate-200">{formatPrice(indexPrice)}</div>
             </div>
           </div>
@@ -96,13 +107,14 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-[#0f1320] border-slate-800 text-white p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)]">
           <DialogHeader className="sr-only">
-            <DialogTitle>Select market</DialogTitle>
-            <DialogDescription>Select a USDT-M perpetual symbol to view its live chart and stats.</DialogDescription>
+            <DialogTitle>{labels.selectMarketTitle}</DialogTitle>
+            <DialogDescription>{labels.selectMarketDesc}</DialogDescription>
           </DialogHeader>
           <BinanceTickerPanel
             selectedSymbol={selectedSymbol}
             onSelectSymbol={(s) => onSelectSymbol(s)}
             onAfterSelect={() => setOpen(false)}
+            language={language}
             embedded
           />
         </DialogContent>
@@ -115,4 +127,5 @@ BinanceSymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string.isRequired,
   onSelectSymbol: PropTypes.func.isRequired,
   height: PropTypes.number,
+  language: PropTypes.string,
 };

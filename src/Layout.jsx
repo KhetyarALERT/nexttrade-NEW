@@ -42,7 +42,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
 
   const isRTL = language === "ar";
-  const isTradingPage = false; // always show header/footer per request
+  const futuresPath = String(createPageUrl("Futures")).split("?")[0];
+  const tradingPath = String(createPageUrl("Trading")).split("?")[0];
+  const isTradingPage = location.pathname === futuresPath || location.pathname === tradingPath;
 
   const accountLabel = (() => {
     if (isLoadingAuth) return language === "en" ? "Account" : "الحساب";
@@ -551,7 +553,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </nav>
 
       {/* Main Content */}
-      <main className={isTradingPage ? "" : "pt-20"}>
+      <main className="pt-20">
         {React.cloneElement(children, { language })}
       </main>
 

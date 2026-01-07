@@ -92,6 +92,7 @@ export default function Trading({ language = "en" }) {
             <BinanceSymbolSelector
               selectedSymbol={selectedSymbol}
               onSelectSymbol={(s) => setSelectedSymbol(s)}
+              language={language}
             />
           </div>
         </div>
@@ -114,15 +115,15 @@ export default function Trading({ language = "en" }) {
       <main className="flex-1 flex overflow-hidden">
         <section className="flex-1 min-w-0 flex flex-col bg-[#131722]">
           <div className="flex-1 min-h-0">
-            <BinanceFuturesChart symbol={selectedSymbol} onPriceUpdate={(p) => setLastPrice(p)} />
+            <BinanceFuturesChart symbol={selectedSymbol} language={language} onPriceUpdate={(p) => setLastPrice(p)} />
           </div>
           <div className="h-[320px] min-h-[240px] max-h-[50vh]">
-            <FuturesActivityTabs symbol={selectedSymbol} />
+            <FuturesActivityTabs symbol={selectedSymbol} language={language} />
           </div>
         </section>
 
         <section className="hidden lg:block w-[360px] xl:w-[420px] shrink-0">
-          <FuturesTradePanel symbol={selectedSymbol} />
+          <FuturesTradePanel symbol={selectedSymbol} language={language} />
         </section>
       </main>
     </div>

@@ -14,7 +14,7 @@ function volumeColor(candle) {
   return candle.close >= candle.open ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)";
 }
 
-export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
+export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
@@ -33,8 +33,24 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
+  const autoFollowRef = useRef(true);
+
+  const labels = useMemo(() => {
+    const isAr = language === "ar";
+    return {
+      reset: isAr ? "إعادة ضبط" : "Reset",
+      resetTitle: isAr ? "إعادة عرض الشارت إلى آخر شمعة" : "Reset view to the latest candle",
+      loading: isAr ? "جارٍ التحميل…" : "Loading…",
+      live: isAr ? "مباشر" : "Live",
+      idle: isAr ? "متوقف" : "Idle",
+    };
+  }, [language]);
 
   const resetView = () => {
+    autoFollowRef.current = true;
+    try {
+      chartRef.current?.applyOptions?.({ timeScale: { shiftVisibleRangeOnNewBar: true } });
+    } catch {}
     try {
       chartRef.current?.timeScale?.()?.scrollToRealTime?.();
     } catch {}
@@ -51,7 +67,7 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
       layout: { background: { color: "#131722" }, textColor: "#e5e7eb", attributionLogo: false },
       grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
       rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, shiftVisibleRangeOnNewBar: true },
       localization: { locale: typeof navigator !== "undefined" ? navigator.language : "en" },
       crosshair: { mode: CrosshairMode.Magnet },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
@@ -94,9 +110,29 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
     const ro = new ResizeObserver(resize);
     ro.observe(containerRef.current);
 
+    const disableAutoFollow = () => {
+      if (!chartRef.current) return;
+      if (!autoFollowRef.current) return;
+      autoFollowRef.current = false;
+      try {
+        chartRef.current.applyOptions({ timeScale: { shiftVisibleRangeOnNewBar: false } });
+      } catch {}
+    };
+
+    // Any user interaction should stop auto-follow until Reset is pressed.
+    const host = containerRef.current;
+    host.addEventListener("wheel", disableAutoFollow, { passive: true });
+    host.addEventListener("mousedown", disableAutoFollow);
+    host.addEventListener("touchstart", disableAutoFollow, { passive: true });
+
     return () => {
       try {
         ro.disconnect();
+      } catch {}
+      try {
+        host.removeEventListener("wheel", disableAutoFollow);
+        host.removeEventListener("mousedown", disableAutoFollow);
+        host.removeEventListener("touchstart", disableAutoFollow);
       } catch {}
       try {
         chart.remove();
@@ -255,15 +291,15 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
           type="button"
           onClick={resetView}
           className="ml-2 px-3 py-1 text-xs rounded bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
-          title="Reset view to the latest candle"
+          title={labels.resetTitle}
         >
-          Reset
+          {labels.reset}
         </button>
         <div className="ml-auto flex items-center gap-3">
-          {loading ? <span className="text-xs text-slate-400">Loading…</span> : null}
+          {loading ? <span className="text-xs text-slate-400">{labels.loading}</span> : null}
           {!loading ? (
             <span className={`text-[10px] uppercase tracking-wider ${now - lastTickAt < 3000 ? "text-emerald-400" : "text-slate-500"}`}>
-              {now - lastTickAt < 3000 ? "Live" : "Idle"}
+              {now - lastTickAt < 3000 ? labels.live : labels.idle}
             </span>
           ) : null}
           <span className="text-xs font-mono text-slate-200">{formatPrice(lastPrice)}</span>
@@ -279,5 +315,6 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
 
 BinanceFuturesChart.propTypes = {
   symbol: PropTypes.string.isRequired,
+  language: PropTypes.string,
   onPriceUpdate: PropTypes.func,
 };

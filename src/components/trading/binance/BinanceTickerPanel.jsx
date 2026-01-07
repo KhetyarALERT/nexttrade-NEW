@@ -19,7 +19,7 @@ function formatCompactNumber(n) {
   return n.toFixed(2);
 }
 
-export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onAfterSelect, height = 640, embedded = false }) {
+export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onAfterSelect, height = 640, embedded = false, language = "en" }) {
   const [symbols, setSymbols] = useState(() => binanceFuturesStore.getSymbols());
   const [_tickersVersion, setTickersVersion] = useState(0);
   const [query, setQuery] = useState("");
@@ -79,6 +79,19 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
     return symbols.filter((s) => s.includes(q));
   }, [symbols, query]);
 
+  const labels = useMemo(() => {
+    const isAr = language === "ar";
+    return {
+      search: isAr ? "ابحث عن الرمز…" : "Search symbol…",
+      symbols: isAr ? "رمز" : "symbols",
+      contractType: isAr ? "عقد دائم USDT‑M" : "USDT‑M Perpetual",
+      tradingPair: isAr ? "زوج التداول" : "Trading Pair",
+      lastPrice: isAr ? "آخر سعر" : "Last Price",
+      chg24h: isAr ? "تغير 24س" : "24h chg%",
+      vol: isAr ? "حجم" : "Vol",
+    };
+  }, [language]);
+
   const Row = ({ index, style }) => {
     const symbol = filtered[index];
     const t = binanceFuturesStore.getTicker(symbol);
@@ -100,7 +113,7 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
       >
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-slate-100">{symbol}</span>
-          <span className="text-[10px] text-slate-500">Vol {formatCompactNumber(vol)}</span>
+          <span className="text-[10px] text-slate-500">{labels.vol} {formatCompactNumber(vol)}</span>
         </div>
         <div className="text-right">
           <div className="text-sm font-mono text-slate-100">{formatPrice(last)}</div>
@@ -124,23 +137,25 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
-            placeholder="Search symbol…"
+            placeholder={labels.search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-9 h-9 bg-slate-900/40 border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500/50"
           />
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-          <span>{filtered.length} symbols</span>
-          <span className="hidden sm:inline">USDT‑M Perpetual</span>
+          <span>
+            {filtered.length} {labels.symbols}
+          </span>
+          <span className="hidden sm:inline">{labels.contractType}</span>
         </div>
       </div>
 
       <div className="px-3 py-2 text-[11px] text-slate-500 border-y border-slate-800/50 flex items-center justify-between">
-        <span>Trading Pair</span>
+        <span>{labels.tradingPair}</span>
         <div className="flex items-center gap-10">
-          <span>Last Price</span>
-          <span>24h chg%</span>
+          <span>{labels.lastPrice}</span>
+          <span>{labels.chg24h}</span>
         </div>
       </div>
 
@@ -165,4 +180,5 @@ BinanceTickerPanel.propTypes = {
   onAfterSelect: PropTypes.func,
   height: PropTypes.number,
   embedded: PropTypes.bool,
+  language: PropTypes.string,
 };
