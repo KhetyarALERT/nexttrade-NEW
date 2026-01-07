@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Menu, X, Phone, Mail } from "lucide-react";
+import { Globe, Menu, X, Phone, Mail, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -23,9 +23,16 @@ import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, User, Users, W
 export default function Layout({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
   const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
+
+  const STORAGE_KEYS = {
+    language: "app_language",
+    theme: "app_theme",
+  };
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [language, setLanguage] = useState("en");
+  const [theme, setTheme] = useState("dark");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
   const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0 });
@@ -39,9 +46,46 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedLang = localStorage.getItem(STORAGE_KEYS.language);
+      if (storedLang === "en" || storedLang === "ar") setLanguage(storedLang);
+
+      const storedTheme = localStorage.getItem(STORAGE_KEYS.theme);
+      if (storedTheme === "light" || storedTheme === "dark") setTheme(storedTheme);
+      else setTheme("dark");
+    } catch {
+      // ignore storage access issues
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const isDark = theme === "dark";
+    document.documentElement.classList.toggle("dark", isDark);
+    try {
+      localStorage.setItem(STORAGE_KEYS.theme, isDark ? "dark" : "light");
+    } catch {
+      // ignore storage access issues
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const isRtl = language === "ar";
+    document.documentElement.dir = isRtl ? "rtl" : "ltr";
+    try {
+      localStorage.setItem(STORAGE_KEYS.language, language);
+    } catch {
+      // ignore storage access issues
+    }
+  }, [language]);
+
 
 
   const isRTL = language === "ar";
+  const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   const futuresPath = String(createPageUrl("Futures")).split("?")[0];
   const tradingPath = String(createPageUrl("Trading")).split("?")[0];
   const isTradingPage = location.pathname === futuresPath || location.pathname === tradingPath;
@@ -145,7 +189,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
   return (
     <NotificationProvider>
-    <div className={`min-h-screen overflow-x-hidden bg-[#FAFAF9] text-slate-900 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
           --primary-600: #2563eb;
@@ -158,9 +202,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         }
         
         .glass-effect {
-          background: rgba(255, 255, 255, 0.75);
+          background: hsl(var(--background) / 0.75);
           backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.45);
+          border: 1px solid hsl(var(--border) / 0.6);
         }
 
         .nav-link {
@@ -223,7 +267,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="nav-link text-sm font-medium transition-colors text-slate-700 hover:text-blue-600 inline-flex items-center gap-1"
+                          className="nav-link text-sm font-medium transition-colors text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                         >
                           {item.name[language]}
                           <ChevronDown className="w-4 h-4 opacity-80" />
@@ -258,7 +302,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     className={`nav-link text-sm font-medium transition-colors ${
                       isActive
                         ? 'text-blue-600 active'
-                        : 'text-slate-700 hover:text-blue-600'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {item.name[language]}
@@ -270,6 +314,17 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             {/* Actions */}
             <div className="hidden md:flex items-center gap-3">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={toggleTheme}
+                aria-label={language === "ar" ? "تبديل المظهر" : "Toggle theme"}
+              >
+                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -299,19 +354,19 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <div className="p-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="text-xs text-slate-500">{language === "ar" ? "إجمالي الأصول" : "Total Assets"}</div>
-                          <div className="text-2xl font-semibold text-slate-900">
+                          <div className="text-xs text-muted-foreground">{language === "ar" ? "إجمالي الأصول" : "Total Assets"}</div>
+                          <div className="text-2xl font-semibold text-foreground">
                             {accountTotals.totalUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            <span className="text-xs font-medium text-slate-500 ml-1">USDT</span>
+                            <span className="text-xs font-medium text-muted-foreground ml-1">USDT</span>
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-muted-foreground">
                             ≈ ${accountTotals.totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={loadAccountTotals}
-                          className="text-xs text-slate-500 hover:text-slate-900"
+                          className="text-xs text-muted-foreground hover:text-foreground"
                           disabled={loadingAccountTotals}
                         >
                           {loadingAccountTotals ? (language === "ar" ? "..." : "…") : (language === "ar" ? "تحديث" : "Refresh")}
@@ -333,19 +388,19 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     </div>
 
                     <div className="px-2 py-1.5 space-y-1">
-                      <div className="text-sm font-semibold text-slate-900 truncate">{accountMenuLabel}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{accountMenuLabel}</div>
                       {accountEmail ? (
-                        <div className="text-xs font-normal text-slate-500 truncate">{accountEmail}</div>
+                        <div className="text-xs font-normal text-muted-foreground truncate">{accountEmail}</div>
                       ) : null}
                       <div className="mt-2">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                           {language === "ar" ? "مستخدم" : "Regular user"}
                         </span>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
 
-                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "الحسابات" : "Accounts"}</div>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحسابات" : "Accounts"}</div>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>
                         <div className="flex w-full items-center justify-between gap-3">
@@ -353,7 +408,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                             <Wallet className="h-4 w-4" />
                             <span>{language === "ar" ? "حساب التمويل" : "Fund Account"}</span>
                           </div>
-                          <span className="text-xs font-medium text-slate-500">{formatUsdt(accountBalances.fundingUsdt)} USDT</span>
+                          <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountBalances.fundingUsdt)} USDT</span>
                         </div>
                       </Link>
                     </DropdownMenuItem>
@@ -364,7 +419,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                             <CreditCard className="h-4 w-4" />
                             <span>{language === "ar" ? "حساب سبوت" : "Spot Account"}</span>
                           </div>
-                          <span className="text-xs font-medium text-slate-500">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {accountBalances.spotUsdt === null ? "—" : `${formatUsdt(accountBalances.spotUsdt)} USDT`}
                           </span>
                         </div>
@@ -377,7 +432,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                             <CreditCard className="h-4 w-4" />
                             <span>{language === "ar" ? "حساب العقود" : "Futures Account"}</span>
                           </div>
-                          <span className="text-xs font-medium text-slate-500">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {accountBalances.futuresUsdt === null ? "—" : `${formatUsdt(accountBalances.futuresUsdt)} USDT`}
                           </span>
                         </div>
@@ -390,14 +445,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                             <Wallet className="h-4 w-4" />
                             <span>{language === "ar" ? "حساب الثروة" : "Wealth Account"}</span>
                           </div>
-                          <span className="text-xs font-medium text-slate-500">{formatUsdt(accountBalances.wealthUsdt)} USDT</span>
+                          <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountBalances.wealthUsdt)} USDT</span>
                         </div>
                       </Link>
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
 
-                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "الحساب" : "Account"}</div>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحساب" : "Account"}</div>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=personal"}>
                         <User className="h-4 w-4" />
@@ -418,7 +473,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs text-slate-500">{language === "ar" ? "المكافآت" : "Rewards"}</div>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "المكافآت" : "Rewards"}</div>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Rewards")}>
                         <Gift className="h-4 w-4" />
@@ -459,6 +514,17 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-2">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={toggleTheme}
+                aria-label={language === "ar" ? "تبديل المظهر" : "Toggle theme"}
+              >
+                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -489,26 +555,26 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-effect border-t border-gray-200">
+          <div className="md:hidden glass-effect border-t border-border">
             <div className="px-4 py-6 space-y-4">
               {navigation.map((item) => {
                 if (item.type === "dropdown") {
                   return (
                     <div key={item.name.en} className="space-y-2">
-                      <div className="text-slate-700 font-medium">{item.name[language]}</div>
+                      <div className="text-foreground font-medium">{item.name[language]}</div>
                       <div className="pl-3 space-y-2">
                         {item.items.map((sub) => (
                           sub.url ? (
                             <Link
                               key={sub.name.en}
                               to={sub.url}
-                              className="block text-slate-600 hover:text-blue-600 text-sm"
+                              className="block text-muted-foreground hover:text-foreground text-sm"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               {sub.name[language]}
                             </Link>
                           ) : (
-                            <div key={sub.name.en} className="block text-slate-400 text-sm">
+                            <div key={sub.name.en} className="block text-muted-foreground/70 text-sm">
                               {sub.name[language]}
                             </div>
                           )
@@ -521,7 +587,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                   <Link
                     key={item.url}
                     to={item.url}
-                    className="block text-slate-700 hover:text-blue-600 font-medium"
+                    className="block text-foreground hover:text-blue-600 font-medium"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.name[language]}

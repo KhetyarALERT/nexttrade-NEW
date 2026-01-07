@@ -111,6 +111,8 @@ export default function Trading({ language = "en" }) {
 
   const [selectedTradeId, setSelectedTradeId] = useState(null);
 
+  const [mobileView, setMobileView] = useState("chart"); // 'chart' | 'trade'
+
   const closeTrade = async (tradeId, tradeSymbol) => {
     if (!tradeId) return;
     const sym = normalizeBinanceSymbol(tradeSymbol);
@@ -218,8 +220,8 @@ export default function Trading({ language = "en" }) {
   }, [language]);
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex flex-col bg-[#0d0d1a] text-slate-200 overflow-hidden">
-      <header className="h-14 bg-[#1a1a2e] border-b border-slate-700/50 px-4 flex items-center justify-between shrink-0 z-20">
+    <div className="h-[calc(100vh-5rem)] flex flex-col bg-background text-foreground overflow-hidden">
+      <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={() => window.history.back()}
@@ -254,8 +256,39 @@ export default function Trading({ language = "en" }) {
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
-        <section className="flex-1 min-w-0 flex flex-col bg-[#131722]">
+      {/* Mobile view toggle */}
+      <div className="lg:hidden border-b border-border bg-background px-4 py-2 flex gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => setMobileView("chart")}
+          className={`flex-1 h-9 rounded-lg text-sm font-semibold transition-colors border ${
+            mobileView === "chart"
+              ? "bg-foreground text-background border-foreground"
+              : "bg-transparent text-foreground border-border"
+          }`}
+        >
+          {language === "ar" ? "الرسم" : "Chart"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView("trade")}
+          className={`flex-1 h-9 rounded-lg text-sm font-semibold transition-colors border ${
+            mobileView === "trade"
+              ? "bg-foreground text-background border-foreground"
+              : "bg-transparent text-foreground border-border"
+          }`}
+        >
+          {language === "ar" ? "تداول" : "Trade"}
+        </button>
+      </div>
+
+      <main className="flex-1 flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto lg:overflow-hidden">
+        {/* Chart column */}
+        <section
+          className={`flex-1 min-w-0 flex flex-col bg-background ${
+            mobileView === "trade" ? "hidden lg:flex" : "flex"
+          }`}
+        >
           <div className="flex-1 min-h-0">
             <BinanceFuturesChart
               symbol={selectedSymbol}
@@ -278,7 +311,22 @@ export default function Trading({ language = "en" }) {
           </div>
         </section>
 
-        <section className="hidden lg:block w-[360px] xl:w-[420px] shrink-0">
+        {/* Trade panel */}
+        <section
+          className={`w-full lg:w-[360px] xl:w-[420px] lg:shrink-0 border-t border-border lg:border-t-0 lg:border-l lg:border-border ${
+            mobileView === "chart" ? "hidden lg:block" : "block"
+          }`}
+        >
+          <div className="lg:hidden px-4 py-3 border-b border-border flex items-center justify-between bg-card">
+            <div className="text-sm font-semibold text-foreground">{language === "ar" ? "لوحة التداول" : "Trading Panel"}</div>
+            <button
+              type="button"
+              onClick={() => setMobileView("chart")}
+              className="text-xs font-semibold text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted"
+            >
+              {language === "ar" ? "الرسم" : "Chart"}
+            </button>
+          </div>
           <FuturesTradePanel
             symbol={selectedSymbol}
             language={language}

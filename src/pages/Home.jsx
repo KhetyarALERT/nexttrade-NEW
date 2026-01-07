@@ -200,10 +200,10 @@ export default function Home({ language = "en" }) {
   const t = content[language];
 
   return (
-    <div className="overflow-hidden bg-white">
+    <div className="overflow-hidden bg-background text-foreground">
       {/* Hero Section - Enhanced with AI Chat */}
-      <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/40 via-transparent to-cyan-50/40" />
+      <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/40 via-transparent to-cyan-50/40 dark:from-blue-500/10 dark:to-cyan-500/10" />
 
         {/* Content Layer */}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 z-20">
@@ -212,7 +212,9 @@ export default function Home({ language = "en" }) {
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}>
+              transition={{ duration: 0.8 }}
+              className="order-2 lg:order-1"
+            >
 
               {/* Credibility Badges */}
               <motion.div 
@@ -237,7 +239,7 @@ export default function Home({ language = "en" }) {
 
               {/* Animated Hero Title */}
               <motion.h1
-                className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 leading-tight"
+                className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-slate-100 mb-6 leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}>
@@ -245,7 +247,7 @@ export default function Home({ language = "en" }) {
               </motion.h1>
 
               <motion.p
-                className="text-xl md:text-2xl text-slate-600 mb-8 max-w-xl"
+                className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-8 max-w-xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.8 }}>
@@ -284,8 +286,8 @@ export default function Home({ language = "en" }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 1.4 + idx * 0.1 }}>
-                    <div className="text-2xl font-bold text-slate-900">{stat.value}</div>
-                    <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">{stat.label}</div>
                   </motion.div>
                 )}
               </div>
@@ -296,8 +298,8 @@ export default function Home({ language = "en" }) {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.5 }}
-              className="relative">
-              <div className="relative bg-white/70 backdrop-blur-xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+              className="relative order-1 lg:order-2">
+              <div className="relative bg-white/70 dark:bg-slate-950/40 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
                 <AITradingChat language={language} />
               </div>
             </motion.div>
