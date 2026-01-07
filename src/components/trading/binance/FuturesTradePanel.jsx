@@ -61,10 +61,16 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 
   const [tpSlLongEnabled, setTpSlLongEnabled] = useState(true);
   const [tpSlShortEnabled, setTpSlShortEnabled] = useState(false);
-  const [tpTrigger, setTpTrigger] = useState("");
-  const [tpRatio, setTpRatio] = useState("");
-  const [slTrigger, setSlTrigger] = useState("");
-  const [slRatio, setSlRatio] = useState("");
+
+  const [longTpTrigger, setLongTpTrigger] = useState("");
+  const [longTpRatio, setLongTpRatio] = useState("");
+  const [longSlTrigger, setLongSlTrigger] = useState("");
+  const [longSlRatio, setLongSlRatio] = useState("");
+
+  const [shortTpTrigger, setShortTpTrigger] = useState("");
+  const [shortTpRatio, setShortTpRatio] = useState("");
+  const [shortSlTrigger, setShortSlTrigger] = useState("");
+  const [shortSlRatio, setShortSlRatio] = useState("");
 
   const baseAsset = useMemo(() => {
     if (!symbol) return "—";
@@ -130,7 +136,8 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 
   // keep total/amount in sync (UI helper)
   useEffect(() => {
-    const p = parseNum(price);
+    const pRaw = parseNum(price);
+    const p = Number.isFinite(pRaw) && pRaw > 0 ? pRaw : Number(lastPrice) || NaN;
     const a = parseNum(amount);
     const t = parseNum(total);
 
@@ -148,7 +155,7 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
       const nextT = p * a;
       if (Number.isFinite(nextT)) setTotal(String(nextT));
     }
-  }, [price, amount, total, lastEdited, orderType]);
+  }, [price, amount, total, lastEdited, orderType, lastPrice]);
 
   const refPrice = useMemo(() => {
     const p = parseNum(price);
@@ -511,81 +518,167 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
                   </label>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                      <input
-                        value={tpTrigger}
-                        onChange={(e) => setTpTrigger(e.target.value)}
-                        onWheel={(e) => {
-                          e.preventDefault();
-                          const step = stepForPrice(parseNum(tpTrigger) || lastPrice);
-                          setTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                        }}
-                        placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                        inputMode="decimal"
-                      />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                    </div>
-                  </div>
+                {tpSlLongEnabled ? (
+                  <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
+                    <div className="text-[11px] text-slate-400 mb-2">{labels.longTpSl}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={longTpTrigger}
+                            onChange={(e) => setLongTpTrigger(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              const step = stepForPrice(parseNum(longTpTrigger) || lastPrice);
+                              setLongTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                      <input
-                        value={tpRatio}
-                        onChange={(e) => setTpRatio(e.target.value)}
-                        onWheel={(e) => {
-                          e.preventDefault();
-                          setTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                        }}
-                        placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                        inputMode="decimal"
-                      />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
-                    </div>
-                  </div>
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={longTpRatio}
+                            onChange={(e) => setLongTpRatio(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              setLongTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                      <input
-                        value={slTrigger}
-                        onChange={(e) => setSlTrigger(e.target.value)}
-                        onWheel={(e) => {
-                          e.preventDefault();
-                          const step = stepForPrice(parseNum(slTrigger) || lastPrice);
-                          setSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                        }}
-                        placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                        inputMode="decimal"
-                      />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                    </div>
-                  </div>
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={longSlTrigger}
+                            onChange={(e) => setLongSlTrigger(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              const step = stepForPrice(parseNum(longSlTrigger) || lastPrice);
+                              setLongSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                      <input
-                        value={slRatio}
-                        onChange={(e) => setSlRatio(e.target.value)}
-                        onWheel={(e) => {
-                          e.preventDefault();
-                          setSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                        }}
-                        placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                        inputMode="decimal"
-                      />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={longSlRatio}
+                            onChange={(e) => setLongSlRatio(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              setLongSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
+
+                {tpSlShortEnabled ? (
+                  <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
+                    <div className="text-[11px] text-slate-400 mb-2">{labels.shortTpSl}</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={shortTpTrigger}
+                            onChange={(e) => setShortTpTrigger(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              const step = stepForPrice(parseNum(shortTpTrigger) || lastPrice);
+                              setShortTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={shortTpRatio}
+                            onChange={(e) => setShortTpRatio(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              setShortTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={shortSlTrigger}
+                            onChange={(e) => setShortSlTrigger(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              const step = stepForPrice(parseNum(shortSlTrigger) || lastPrice);
+                              setShortSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
+                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                          <input
+                            value={shortSlRatio}
+                            onChange={(e) => setShortSlRatio(e.target.value)}
+                            onWheel={(e) => {
+                              e.preventDefault();
+                              setShortSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                            }}
+                            placeholder={labels.enter}
+                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                            inputMode="decimal"
+                          />
+                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2">

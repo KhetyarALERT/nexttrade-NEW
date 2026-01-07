@@ -21,6 +21,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  const onPriceUpdateRef = useRef(onPriceUpdate);
+  useEffect(() => {
+    onPriceUpdateRef.current = onPriceUpdate;
+  }, [onPriceUpdate]);
+
   const normalizedSymbol = useMemo(
     () => String(symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
     [symbol],
@@ -38,7 +43,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
-  const autoFollowRef = useRef(true);
 
   const labels = useMemo(() => {
     const isAr = language === "ar";
@@ -52,10 +56,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   }, [language]);
 
   const resetView = () => {
-    autoFollowRef.current = true;
-    try {
-      chartRef.current?.applyOptions?.({ timeScale: { shiftVisibleRangeOnNewBar: true } });
-    } catch {}
+    // One-time jump to the latest candle; does NOT enable auto-follow.
     try {
       chartRef.current?.timeScale?.()?.scrollToRealTime?.();
     } catch {}
@@ -72,7 +73,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       layout: { background: { color: "#131722" }, textColor: "#e5e7eb", attributionLogo: false },
       grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
       rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, shiftVisibleRangeOnNewBar: true },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, shiftVisibleRangeOnNewBar: false },
       localization: { locale: typeof navigator !== "undefined" ? navigator.language : "en" },
       crosshair: { mode: CrosshairMode.Magnet },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
@@ -115,29 +116,9 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const ro = new ResizeObserver(resize);
     ro.observe(containerRef.current);
 
-    const disableAutoFollow = () => {
-      if (!chartRef.current) return;
-      if (!autoFollowRef.current) return;
-      autoFollowRef.current = false;
-      try {
-        chartRef.current.applyOptions({ timeScale: { shiftVisibleRangeOnNewBar: false } });
-      } catch {}
-    };
-
-    // Any user interaction should stop auto-follow until Reset is pressed.
-    const host = containerRef.current;
-    host.addEventListener("wheel", disableAutoFollow, { passive: true });
-    host.addEventListener("mousedown", disableAutoFollow);
-    host.addEventListener("touchstart", disableAutoFollow, { passive: true });
-
     return () => {
       try {
         ro.disconnect();
-      } catch {}
-      try {
-        host.removeEventListener("wheel", disableAutoFollow);
-        host.removeEventListener("mousedown", disableAutoFollow);
-        host.removeEventListener("touchstart", disableAutoFollow);
       } catch {}
       try {
         chart.remove();
@@ -181,15 +162,14 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         candleSeriesRef.current.setData(chartCandles);
         volumeSeriesRef.current.setData(volumes);
 
-        // Default to the latest candles after symbol/timeframe switches.
-        // This doesn't lock the view; it only recenters once.
+        // Jump to latest once after seeding (no auto-follow).
         resetView();
 
         const last = candles[candles.length - 1];
         if (last?.close) {
           setLastPrice(last.close);
           setLastTickAt(Date.now());
-          onPriceUpdate?.(last.close);
+          onPriceUpdateRef.current?.(last.close);
         }
 
         // 2) Subscribe for incremental updates
@@ -212,7 +192,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           if (c.close) {
             setLastPrice(Number(c.close));
             setLastTickAt(Date.now());
-            onPriceUpdate?.(Number(c.close));
+            onPriceUpdateRef.current?.(Number(c.close));
           }
         });
 
@@ -220,7 +200,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
           setLastTickAt(Date.now());
-          onPriceUpdate?.(Number(p));
+          onPriceUpdateRef.current?.(Number(p));
 
           // Update price line
           try {
@@ -276,7 +256,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         binanceFuturesStore.closeChartWs();
       } catch {}
     };
-  }, [normalizedSymbol, timeframe, key, onPriceUpdate, symbol]);
+  }, [normalizedSymbol, timeframe, key]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
