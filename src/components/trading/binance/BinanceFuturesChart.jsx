@@ -18,6 +18,13 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
+  const [lastTickAt, setLastTickAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const key = useMemo(() => `${symbol}_${timeframe}`, [symbol, timeframe]);
 
@@ -32,7 +39,7 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
     if (!containerRef.current || chartRef.current) return;
 
     const chart = createChart(containerRef.current, {
-      layout: { background: { color: "#131722" }, textColor: "#e5e7eb" },
+      layout: { background: { color: "#131722" }, textColor: "#e5e7eb", attributionLogo: false },
       grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
@@ -155,6 +162,7 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
         unsubPrice = binanceFuturesStore.subscribe(`price:${symbol}`, (p) => {
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
+          setLastTickAt(Date.now());
           onPriceUpdate?.(Number(p));
 
           // Update price line
@@ -231,12 +239,25 @@ export default function BinanceFuturesChart({ symbol, onPriceUpdate }) {
         ))}
         <div className="ml-auto flex items-center gap-3">
           {loading ? <span className="text-xs text-slate-400">Loading…</span> : null}
+          {!loading ? (
+            <span className={`text-[10px] uppercase tracking-wider ${now - lastTickAt < 3000 ? "text-emerald-400" : "text-slate-500"}`}>
+              {now - lastTickAt < 3000 ? "Live" : "Idle"}
+            </span>
+          ) : null}
           <span className="text-xs font-mono text-slate-200">{formatPrice(lastPrice)}</span>
         </div>
       </div>
 
       <div ref={containerRef} className="flex-1 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{symbol}</div>
+        <a
+          className="absolute bottom-2 right-3 text-[10px] text-slate-500 hover:text-slate-300"
+          href="https://www.tradingview.com/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Charts by TradingView
+        </a>
       </div>
     </div>
   );

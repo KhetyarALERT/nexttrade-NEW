@@ -1,0 +1,4 @@
+# Do not lint dependencies
+node_modules/
+# Optional: build artifacts
+dist/
