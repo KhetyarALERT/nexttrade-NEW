@@ -6,26 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Lock } from "lucide-react";
 import StakingPanel from "@/components/profile/StakingPanel";
-
-const translations = {
-  en: {
-    title: "Investing",
-    subtitle: "Earn yield with smart staking strategies",
-    staking: "Staking",
-    refresh: "Refresh",
-    note: "Staking products may vary by wallet and availability.",
-  },
-  ar: {
-    title: "الاستثمار",
-    subtitle: "اكسب عوائد عبر استراتيجيات استثمار ذكية",
-    staking: "الاستثمار",
-    refresh: "تحديث",
-    note: "قد تختلف منتجات الاستثمار حسب المحفظة والتوفر.",
-  },
-};
+import { POSITION_VOUCHERS } from "@/lib/rewards-config";
+import { tInvesting } from "@/lib/i18n/investing";
 
 export default function Investing({ language = "en" }) {
-  const t = translations[language] || translations.en;
+  const t = tInvesting(language);
 
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,29 +59,56 @@ export default function Investing({ language = "en" }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <StakingPanel wallets={wallets} language={language} onRefresh={loadWallets} />
+
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="border-b border-slate-100">
+                <CardTitle className="text-lg">{t.stakingVouchersTitle}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-xs text-slate-500 mb-4">{t.stakingVouchersSubtitle}</p>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="text-xs text-slate-500">
+                        <th className="text-left py-2 pr-4">{language === "ar" ? `${t.amount} (USDT)` : `${t.amount} (USDT)`}</th>
+                        {POSITION_VOUCHERS.stakeTiers.durations.map((d) => (
+                          <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
+                            {language === "ar" ? `${d} ${t.days}` : `${d}d`}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {POSITION_VOUCHERS.stakeTiers.amounts.map((amt) => (
+                        <tr key={amt}>
+                          <td className="py-2 pr-4 font-semibold text-slate-900">{amt.toLocaleString()}</td>
+                          {POSITION_VOUCHERS.stakeTiers.durations.map((d) => {
+                            const pct = POSITION_VOUCHERS.stakeTiers.percentByDuration[d];
+                            return (
+                              <td key={d} className="py-2 pl-4 text-right font-mono text-slate-700">
+                                {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="border-b border-slate-100">
-              <CardTitle className="text-lg">{language === "ar" ? "كيف يعمل" : "How it works"}</CardTitle>
+              <CardTitle className="text-lg">{t.howItWorksTitle}</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-3 text-sm text-slate-600">
-              <p>
-                {language === "ar"
-                  ? "اختر محفظة USDT، حدّد المبلغ، ثم اختر مدة القفل لتحصل على عائد سنوي (APY)."
-                  : "Choose your USDT wallet, enter an amount, then pick a lock period to earn APY."}
-              </p>
-              <p>
-                {language === "ar"
-                  ? "بعد انتهاء مدة القفل يمكنك سحب المبلغ مع الأرباح."
-                  : "After the lock period ends, you can withdraw principal plus rewards."}
-              </p>
-              <p className="text-xs text-slate-500">
-                {language === "ar"
-                  ? "ملاحظة: الإلغاء المبكر قد يخصم جزءًا من الأرباح وفقًا لشروط المنتج."
-                  : "Note: Early unstaking may reduce earned rewards per product terms."}
-              </p>
+              <p>{t.howItWorksP1}</p>
+              <p>{t.howItWorksP2}</p>
+              <p className="text-xs text-slate-500">{t.howItWorksNote}</p>
             </CardContent>
           </Card>
         </div>

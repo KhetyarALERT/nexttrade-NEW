@@ -26,20 +26,14 @@ import {
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
-const STAKING_ADDRESS = "TMXcLXQoEipgYhMMfksxgR6hu1DamSP8zd";
-
+// Keep frontend lock periods aligned with backend (functions/wallet.ts)
 const stakingPlans = [
-  { days: 30, months: 1, baseApr: 8, label: "1M" },
-  { days: 90, months: 3, baseApr: 12, label: "3M" },
-  { days: 180, months: 6, baseApr: 16, label: "6M" },
-  { days: 365, months: 12, baseApr: 22, label: "12M" },
-];
-
-const stakingLevels = [
-  { min: 100, bonusApr: 0, key: "starter" },
-  { min: 1000, bonusApr: 1.25, key: "pro" },
-  { min: 5000, bonusApr: 2.75, key: "elite" },
-  { min: 20000, bonusApr: 4.5, key: "vip" },
+  { days: 30, apy: 29, label: "30D" },
+  { days: 45, apy: 73, label: "45D" },
+  { days: 60, apy: 150, label: "60D" },
+  { days: 90, apy: 220, label: "90D" },
+  { days: 120, apy: 350, label: "120D" },
+  { days: 365, apy: 999, label: "365D" },
 ];
 
 export default function StakingPanel({ wallets = [], language = "en", onRefresh }) {
@@ -71,26 +65,14 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     selectWallet: "اختر المحفظة",
     chooseWallet: "اختر محفظة",
     noWallets: "لا توجد محافظ USDT",
-    stakingAddressLabel: "عنوان الاستثمار",
     stakeSuccess: "تم الاستثمار بنجاح",
     unstakeSuccess: "تم إلغاء الاستثمار",
     stakingFailed: "فشل الاستثمار",
     unstakeFailed: "فشل الإلغاء",
     estEarnings: "الأرباح التقديرية",
-    level: "المستوى",
-    levelUp: "ارفع مستواك بإيداع أكثر",
-    nextLevelAt: (x) => `المستوى التالي عند ${x.toLocaleString()} USDT`,
     profit: "الربح المتوقع",
     totalAtMaturity: "الإجمالي عند الاستحقاق",
     daily: "ربح/يوم",
-    rateIncludesBonus: "العائد يشمل مكافأة المستوى",
-    compounding: "احتساب شهري مركب",
-    levels: {
-      starter: "مبتدئ",
-      pro: "محترف",
-      elite: "نخبة",
-      vip: "VIP",
-    },
     available: "المتاح",
   } : {
     title: "USDT Staking",
@@ -112,26 +94,14 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     selectWallet: "Select Wallet",
     chooseWallet: "Choose wallet",
     noWallets: "No USDT wallets available",
-    stakingAddressLabel: "Staking address",
     stakeSuccess: "Staked successfully",
     unstakeSuccess: "Unstaked successfully",
     stakingFailed: "Staking failed",
     unstakeFailed: "Unstake failed",
     estEarnings: "Est. earnings",
-    level: "Level",
-    levelUp: "Level up by staking more",
-    nextLevelAt: (x) => `Next level at ${x.toLocaleString()} USDT`,
     profit: "Estimated profit",
     totalAtMaturity: "Total at maturity",
     daily: "Per day",
-    rateIncludesBonus: "Rate includes level bonus",
-    compounding: "Monthly compounding",
-    levels: {
-      starter: "Starter",
-      pro: "Pro",
-      elite: "Elite",
-      vip: "VIP",
-    },
     available: "available",
   };
 
@@ -204,30 +174,18 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
   const totalEarned = positions.reduce((sum, p) => sum + (p.earned_rewards || 0), 0);
 
   const amountNumber = Math.max(0, parseFloat(stakeAmount) || 0);
-  const currentLevel = (() => {
-    const eligible = stakingLevels.filter((lvl) => amountNumber >= lvl.min);
-    return eligible.length ? eligible[eligible.length - 1] : stakingLevels[0];
-  })();
-
-  const nextLevel = (() => {
-    const idx = stakingLevels.findIndex((lvl) => lvl.key === currentLevel.key);
-    return idx >= 0 ? stakingLevels[idx + 1] : null;
-  })();
-
-  const effectiveApr = selectedPlan ? (selectedPlan.baseApr + currentLevel.bonusApr) : 0;
+  const effectiveApy = selectedPlan ? selectedPlan.apy : 0;
   const estimate = (() => {
     if (!selectedPlan || amountNumber <= 0) return null;
-    const months = selectedPlan.months;
-    const apr = effectiveApr;
-    const total = amountNumber * Math.pow(1 + (apr / 100) / 12, months);
-    const profit = total - amountNumber;
+    // Simple estimate based on APY pro-rated by lock period.
+    const profit = amountNumber * (effectiveApy / 100) * (selectedPlan.days / 365);
+    const total = amountNumber + profit;
     const perDay = profit / selectedPlan.days;
     return {
       profit,
       total,
       perDay,
-      months,
-      apr,
+      apy: effectiveApy,
     };
   })();
 
@@ -294,16 +252,18 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
           <div id="stake-description" className="text-slate-600 text-sm space-y-2 pb-4 border-b border-slate-200">
             <p>
               {language === "en"
-                ? "Lock your USDT to earn rewards. Funds are returned with rewards at the end of the lock period."
-                : "قم بقفل USDT لكسب عوائد الاستثمار. سيتم إرجاع الأموال مع الأرباح عند انتهاء مدة القفل."}
+                ? "Stake from your USDT wallet balance to earn rewards. Funds are returned with rewards at the end of the lock period."
+                : "استثمر من رصيد محفظة USDT لكسب عوائد. سيتم إرجاع الأموال مع الأرباح عند انتهاء مدة القفل."}
             </p>
             <p className="text-xs">
               {language === "en"
                 ? "Early unstaking incurs a 50% penalty on earned rewards."
                 : "الإلغاء المبكر يخصم 50% من الأرباح المكتسبة."}
             </p>
-            <p className="text-xs text-indigo-600">
-              {t.stakingAddressLabel}: {STAKING_ADDRESS}
+            <p className="text-xs text-slate-500">
+              {language === "en"
+                ? "This is an internal transfer/lock from your main wallet balance. Wallet deposit addresses (NOWPayments) will be integrated later."
+                : "هذا قفل/تحويل داخلي من رصيد محفظتك الرئيسية. سيتم ربط عناوين الإيداع (NOWPayments) لاحقًا."}
             </p>
           </div>
 
@@ -356,39 +316,17 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                       >
                         <p className="font-bold text-slate-900 text-xs">{plan.label}</p>
                         <p className="text-[10px] text-slate-500">{plan.days}D</p>
-                        <p className="text-[10px] text-emerald-700">{(plan.baseApr + (lockPeriod === String(plan.days) ? currentLevel.bonusApr : 0)).toFixed(2)}%</p>
+                        <p className="text-[10px] text-emerald-700">{plan.apy}%</p>
                       </button>
                     ))}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <div>
-                      <div className="text-[11px] text-slate-500">{t.level}</div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        {t.levels[currentLevel.key]}
-                        {currentLevel.bonusApr > 0 ? (
-                          <span className="ml-2 text-xs font-medium text-emerald-700">+{currentLevel.bonusApr.toFixed(2)}%</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[11px] text-slate-500">{t.rateIncludesBonus}</div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        {selectedPlan ? `${effectiveApr.toFixed(2)}%` : "—"}
-                      </div>
-                      {nextLevel ? (
-                        <div className="text-[11px] text-slate-500">{t.nextLevelAt(nextLevel.min)}</div>
-                      ) : (
-                        <div className="text-[11px] text-slate-500">{t.levelUp}</div>
-                      )}
-                    </div>
                   </div>
                 </div>
 
                 {estimate ? (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-xs text-emerald-900 font-medium">{t.compounding}</div>
-                      <div className="text-xs text-emerald-700 font-semibold">{estimate.apr.toFixed(2)}%</div>
+                      <div className="text-xs text-emerald-900 font-medium">{t.estEarnings}</div>
+                      <div className="text-xs text-emerald-700 font-semibold">{estimate.apy}% APY</div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-lg bg-white/60 border border-emerald-200 p-2">

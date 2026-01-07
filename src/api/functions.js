@@ -49,3 +49,16 @@ export const fetchReferralStats = async (payload) => {
 export const fetchSubscriptionPlans = async (payload) => {
   return invokeFunction('getSubscriptionPlans', payload);
 };
+
+// Rewards / vouchers
+export const fetchRewardsState = async () => {
+  return invokeFunction('rewards', { action: 'getRewardsState' });
+};
+
+export const fetchVoucherClaims = async () => {
+  return invokeFunction('rewards', { action: 'getVoucherClaims' });
+};
+
+export const claimVoucher = async (voucherId, { source = 'manual', meta = {} } = {}) => {
+  return invokeFunction('rewards', { action: 'claimVoucher', voucherId, source, meta });
+};

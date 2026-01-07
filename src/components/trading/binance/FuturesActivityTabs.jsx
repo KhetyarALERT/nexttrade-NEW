@@ -501,6 +501,16 @@ export default function FuturesActivityTabs({
                     const margin = Number(pos?.margin);
                     const side = String(pos?.side || "LONG").toUpperCase();
 
+                    const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
+                    const breakevenRaw = Number(
+                      pos?.breakeven_price ??
+                        pos?.break_even_price ??
+                        pos?.breakeven ??
+                        pos?.breakevenPrice ??
+                        pos?.breakEvenPrice,
+                    );
+                    const breakeven = Number.isFinite(breakevenRaw) && breakevenRaw > 0 ? breakevenRaw : entry;
+
                     const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
                       ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
                       : NaN;
@@ -549,24 +559,34 @@ export default function FuturesActivityTabs({
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-200">
-                          {Number.isFinite(qty) && Number.isFinite(positionValue)
-                            ? `${formatNum(qty, 6)} / ${formatNum(positionValue, 2)}`
-                            : "—"}
+                          {Number.isFinite(qty) && Number.isFinite(positionValue) ? (
+                            <div className="leading-tight">
+                              <div className="font-mono text-slate-200">{formatNum(qty, 6)} {baseAsset}</div>
+                              <div className="font-mono text-[11px] text-slate-400">{formatNum(positionValue, 2)} USDT</div>
+                            </div>
+                          ) : "—"}
                         </TableCell>
                         <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                          {Number.isFinite(pnl) ? `${formatNum(pnl, 2)} (${Number.isFinite(pnlPct) ? pnlPct.toFixed(2) : "—"}%)` : "—"}
+                          {Number.isFinite(pnl) ? (
+                            <div className="leading-tight">
+                              <div className="font-mono">{formatNum(pnl, 2)} USDT</div>
+                              <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `${pnlPct.toFixed(2)}%` : "—"}</div>
+                            </div>
+                          ) : "—"}
                         </TableCell>
                         <TableCell className="text-slate-400">
-                          {pos?.realized_pnl !== undefined && pos?.realized_pnl !== null ? formatNum(pos.realized_pnl, 2) : "—"}
+                          {pos?.realized_pnl !== undefined && pos?.realized_pnl !== null ? (
+                            <span className="font-mono">{formatNum(pos.realized_pnl, 2)} USDT</span>
+                          ) : "—"}
                         </TableCell>
-                        <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
+                        <TableCell className="text-slate-200">{formatPrice(breakeven)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(mark)}</TableCell>
                         <TableCell className="text-amber-300">{formatPrice(pos?.liquidation_price)}</TableCell>
                         <TableCell className={riskTone}>
                           {Number.isFinite(liqDistPct) ? `${liqDistPct.toFixed(2)}%` : "—"}
                         </TableCell>
-                        <TableCell className="text-slate-200">{Number.isFinite(margin) ? formatNum(margin, 2) : "—"}</TableCell>
+                        <TableCell className="text-slate-200">{Number.isFinite(margin) ? <span className="font-mono">{formatNum(margin, 2)} USDT</span> : "—"}</TableCell>
                         <TableCell className="text-slate-200">
                           <div className="flex items-center gap-2 text-[11px]">
                             <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] ${pos?.take_profit ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
@@ -608,7 +628,8 @@ export default function FuturesActivityTabs({
                             <Button
                               type="button"
                               size="sm"
-                              className="h-7 px-2 text-xs rounded-full bg-rose-600 hover:bg-rose-500"
+                              variant="destructive"
+                              className="h-7 px-2 text-xs rounded-full"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onCloseTrade?.(pos);
@@ -763,7 +784,7 @@ export default function FuturesActivityTabs({
                     <TableCell className="text-slate-200">{normalizeSymbol(t?.symbol)}</TableCell>
                     <TableCell className="text-slate-200">{String(t?.close_reason || "closed")}</TableCell>
                     <TableCell className={`text-right ${Number(t?.pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                      {t?.pnl !== undefined && t?.pnl !== null ? formatNum(t.pnl, 2) : "—"}
+                      {t?.pnl !== undefined && t?.pnl !== null ? <span className="font-mono">{formatNum(t.pnl, 2)} USDT</span> : "—"}
                     </TableCell>
                   </TableRow>
                 ))

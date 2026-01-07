@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { DASHBOARD_VOUCHERS } from "@/pages/Rewards";
+import { DASHBOARD_VOUCHERS, pickLang } from "@/lib/rewards-config";
 
 const translations = {
   en: {
@@ -457,12 +457,14 @@ export default function Dashboard({ language = "en" }) {
                     <Gift className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-bold text-slate-900">{voucher.title}</p>
-                    <p className="text-xs text-slate-500">{voucher.condition}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Clock className="h-3 w-3 text-slate-400" />
-                      <span className="text-xs text-slate-400">Expires: {voucher.expiry}</span>
-                    </div>
+                    <p className="font-bold text-slate-900">{pickLang(language, voucher.title)}</p>
+                    <p className="text-xs text-slate-500">{pickLang(language, voucher.condition)}</p>
+                    {voucher.expiry ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="h-3 w-3 text-slate-400" />
+                        <span className="text-xs text-slate-400">{language === "ar" ? "ينتهي:" : "Expires:"} {voucher.expiry}</span>
+                      </div>
+                    ) : null}
                   </div>
                   <Badge className={voucher.status === 'New' ? 'bg-green-500' : 'bg-blue-500'}>
                     {voucher.status}
