@@ -7,7 +7,7 @@ export const Query = base44.entities.Query;
 export const VoucherClaim = base44.entities.VoucherClaim;
 export const WalletTransaction = base44.entities.WalletTransaction;
 export const StakingPosition = base44.entities.StakingPosition;
-
+export const Web3Wallet = base44.entities.Web3Wallet;
 
 
 // auth sdk:

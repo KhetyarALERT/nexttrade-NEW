@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Menu, X, Phone, Mail, Moon, Sun } from "lucide-react";
+import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Grid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -18,7 +18,9 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import NotificationSettings from "@/components/notifications/NotificationSettings";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, User, Users, Wallet } from "lucide-react";
+import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
+import { WalletProvider } from "@/lib/web3/WalletContext";
+import { WalletButton } from "@/components/wallet/WalletButton";
 
 export default function Layout({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
@@ -104,11 +106,11 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     { type: "link", name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
     {
       type: "dropdown",
-      name: { en: "Buy Crypto", ar: "شراء العملات" },
+      name: { en: "Assets", ar: "المحفظة" },
       items: [
         { name: { en: "Buy with Card", ar: "شراء بالبطاقة" }, url: createPageUrl("BuyWithCard") },
         { name: { en: "On-chain Deposit", ar: "إيداع على السلسلة" }, url: createPageUrl("OnChainDeposit") },
-        { name: { en: "Assets", ar: "الأصول" }, url: `${createPageUrl("Profile")}?tab=assets&assetTab=main` },
+        { name: { en: "My Assets", ar: "الأصول" }, url: `${createPageUrl("Profile")}?tab=assets&assetTab=main` },
         { name: { en: "P2P (Coming soon)", ar: "P2P (قريباً)" }, url: null },
       ],
     },
@@ -188,6 +190,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
 
   return (
+    <WalletProvider>
     <NotificationProvider>
     <div className={`min-h-screen overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
@@ -314,6 +317,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             {/* Actions */}
             <div className="hidden md:flex items-center gap-3">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+
+              <WalletButton language={language} />
 
               <Button
                 type="button"
@@ -511,9 +516,11 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               )}
             </div>
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Button - Hidden since we have bottom nav */}
             <div className="md:hidden flex items-center gap-2">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
+
+              <WalletButton language={language} />
 
               <Button
                 type="button"
@@ -525,36 +532,12 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               >
                 {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Globe className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLanguage("en")}>
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLanguage("ar")}>
-                    العربية
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </Button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
+        {/* Mobile Menu - Hidden, using bottom nav instead */}
+        {false && mobileMenuOpen && (
           <div className="md:hidden glass-effect border-t border-border">
             <div className="px-4 py-6 space-y-4">
               {navigation.map((item) => {
@@ -620,7 +603,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </nav>
 
       {/* Main Content */}
-      <main className="pt-20">
+      <main className="pt-20 md:pb-0 pb-20">
         {React.cloneElement(children, { language })}
       </main>
 
@@ -710,12 +693,79 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </footer>
       )}
       
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-border safe-area-bottom">
+        <div className="flex items-center justify-around h-16 px-2">
+          <Link
+            to={createPageUrl("Dashboard")}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+              location.pathname === createPageUrl("Dashboard")
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'الرئيسية' : 'Home'}</span>
+          </Link>
+          
+          <Link
+            to={createPageUrl("Futures")}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+              location.pathname === createPageUrl("Futures")
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <TrendingUp className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'عقود' : 'Trade'}</span>
+          </Link>
+          
+          <Link
+            to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+              location.pathname.includes("Profile") && location.search.includes("assets")
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <WalletIcon className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'المحفظة' : 'Assets'}</span>
+          </Link>
+          
+          <Link
+            to={createPageUrl("Investing")}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+              location.pathname === createPageUrl("Investing")
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Grid className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'استثمار' : 'Invest'}</span>
+          </Link>
+          
+          <Link
+            to={isAuthenticated ? createPageUrl("Profile") : '#'}
+            onClick={isAuthenticated ? undefined : (e) => { e.preventDefault(); navigateToLogin(); }}
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+              location.pathname.includes("Profile") && !location.search.includes("assets")
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <User className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'الحساب' : 'Account'}</span>
+          </Link>
+        </div>
+      </nav>
+      
       <NotificationSettings 
         open={notificationSettingsOpen} 
         onOpenChange={setNotificationSettingsOpen} 
       />
     </div>
-    </NotificationProvider>);
+    </NotificationProvider>
+    </WalletProvider>);
 
 }
 
