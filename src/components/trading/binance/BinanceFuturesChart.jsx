@@ -43,6 +43,9 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  const [rightScaleWidth, setRightScaleWidth] = useState(56);
+  const [isNarrow, setIsNarrow] = useState(false);
+
   const [overlayBadges, setOverlayBadges] = useState({});
 
   const onPriceUpdateRef = useRef(onPriceUpdate);
@@ -68,6 +71,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
+
+  const disposedRef = useRef(false);
 
   const overlayLinesRef = useRef({ entry: null, tp: null, sl: null, liq: null });
   const pendingLinesRef = useRef(new Map());
@@ -112,10 +117,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   };
 
   const upsertOverlayBadge = (key, badge) => {
+    if (disposedRef.current) return;
     setOverlayBadges((prev) => ({ ...prev, [key]: badge }));
   };
 
   const upsertOverlayLine = (key, opts) => {
+    if (disposedRef.current) return;
     if (!candleSeriesRef.current) return;
     try {
       const existing = overlayLinesRef.current?.[key];
@@ -168,6 +175,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   useEffect(() => {
     if (!containerRef.current || chartRef.current) return;
 
+    disposedRef.current = false;
+
     const chart = createChart(containerRef.current, {
       layout: { background: { color: "#131722" }, textColor: "#e5e7eb", attributionLogo: false },
       grid: { vertLines: { color: "#1f2937" }, horzLines: { color: "#1f2937" } },
@@ -205,10 +214,16 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     const resize = () => {
       if (!containerRef.current || !chartRef.current) return;
+      if (disposedRef.current) return;
       chartRef.current.applyOptions({
         width: containerRef.current.clientWidth,
         height: containerRef.current.clientHeight,
       });
+      setIsNarrow(containerRef.current.clientWidth < 520);
+      try {
+        const w = chartRef.current.priceScale?.("right")?.width?.();
+        if (Number.isFinite(w) && w > 0) setRightScaleWidth(w);
+      } catch {}
     };
 
     resize();
@@ -222,6 +237,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
       // Important: null refs first so any late-running effects/interval ticks
       // won't call into disposed lightweight-charts objects.
+      disposedRef.current = true;
       chartRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
@@ -280,6 +296,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
         // 2) Subscribe for incremental updates
         unsubCandle = binanceFuturesStore.subscribe(`candle:${key}`, (c) => {
+          if (cancelled || disposedRef.current) return;
           if (!c || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
           candleSeriesRef.current.update({
@@ -303,6 +320,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         });
 
         unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
+          if (cancelled || disposedRef.current) return;
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
           setLastTickAt(Date.now());
@@ -376,6 +394,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
   // Backend trade overlay (Bots/demo trades)
   useEffect(() => {
+    if (disposedRef.current) return;
     const t = positionTrade;
     if (!t || !candleSeriesRef.current) {
       removeOverlayLine("entry");
@@ -493,6 +512,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
   // Pending order overlays (limit/stop)
   useEffect(() => {
+    if (disposedRef.current) return;
     const list = Array.isArray(pendingOrders) ? pendingOrders : [];
     const ids = new Set(list.map((o) => o?.id).filter(Boolean));
 
@@ -557,13 +577,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       .sort((a, b) => a.y - b.y);
 
     // Avoid overlap: enforce minimum vertical spacing between badges.
-    const minGap = 28;
+    const minGap = isNarrow ? 22 : 26;
     let lastTop = -Infinity;
     const clamped = items.map((it) => {
-      const baseTop = it.y - 12;
-      const boundedTop = height
-        ? Math.max(6, Math.min(height - 28, baseTop))
-        : Math.max(6, baseTop);
+      const baseTop = it.y - (isNarrow ? 10 : 12);
+      const badgeH = isNarrow ? 22 : 26;
+      const boundedTop = height ? Math.max(6, Math.min(height - badgeH, baseTop)) : Math.max(6, baseTop);
       const top = Math.max(boundedTop, lastTop + minGap);
       lastTop = top;
       return { ...it, top };
@@ -571,14 +590,15 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     // If we pushed some beyond the bottom, shift up as a group.
     if (height) {
-      const overflow = clamped.length ? clamped[clamped.length - 1].top - (height - 28) : 0;
+      const badgeH = isNarrow ? 22 : 26;
+      const overflow = clamped.length ? clamped[clamped.length - 1].top - (height - badgeH) : 0;
       if (overflow > 0) {
         return clamped.map((it) => ({ ...it, top: Math.max(6, it.top - overflow) }));
       }
     }
 
     return clamped;
-  }, [overlayBadges, now, lastPrice]);
+  }, [overlayBadges, now, lastPrice, isNarrow]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
@@ -668,14 +688,17 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             return (
               <div
                 key={b.key}
-                className={`absolute right-2 px-2 py-0.5 rounded-lg border backdrop-blur-sm shadow-sm ${cls}`}
-                style={{ top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12) }}
+                className={`absolute px-1.5 py-0.5 rounded-md border backdrop-blur-sm shadow-sm ${cls}`}
+                style={{
+                  top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12),
+                  right: Math.max(8, (rightScaleWidth || 56) + 8),
+                }}
               >
-                <div className={`absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[6px] border-y-transparent border-r-[8px] ${tailCls}`} />
-                <div className="text-[10px] leading-none font-semibold">
+                <div className={`absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[7px] ${tailCls}`} />
+                <div className="text-[9px] leading-none font-semibold">
                   {b.label}
                 </div>
-                <div className="mt-0.5 text-[9px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
+                <div className="mt-0.5 text-[8px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
               </div>
             );
           })}
