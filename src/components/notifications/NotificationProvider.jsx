@@ -39,11 +39,36 @@ export function NotificationProvider({ children }) {
   const [timezone, setTimezone] = useState("UTC");
   const [loading, setLoading] = useState(true);
 
+  const normalizeTimeZone = useCallback((tz) => {
+    if (!tz) return null;
+    const raw = String(tz).trim();
+    if (!raw) return null;
+
+    // Common label-to-IANA fallbacks (in case a label was stored by mistake).
+    const lower = raw.toLowerCase();
+    const map = {
+      dubai: "Asia/Dubai",
+      uae: "Asia/Dubai",
+      "united arab emirates": "Asia/Dubai",
+      "gmt+4": "Asia/Dubai",
+      "utc+4": "Asia/Dubai",
+    };
+    const candidate = map[lower] || raw;
+
+    try {
+      // Validate timeZone string.
+      Intl.DateTimeFormat(undefined, { timeZone: candidate }).format(new Date());
+      return candidate;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Auto-detect timezone
   useEffect(() => {
     const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setTimezone(detectedTimezone);
-  }, []);
+    setTimezone(normalizeTimeZone(detectedTimezone) || "UTC");
+  }, [normalizeTimeZone]);
 
   // Load preferences and notifications
   const loadData = useCallback(async () => {
@@ -56,7 +81,8 @@ export function NotificationProvider({ children }) {
       if (prefsResult?.length) {
         setPreferences(prefsResult[0]);
         if (prefsResult[0].timezone) {
-          setTimezone(prefsResult[0].timezone);
+          const normalized = normalizeTimeZone(prefsResult[0].timezone);
+          setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
         }
       } else {
         // Create default preferences with auto-detected timezone
@@ -75,7 +101,7 @@ export function NotificationProvider({ children }) {
           price_alerts: []
         });
         setPreferences(newPrefs);
-        setTimezone(detectedTz);
+        setTimezone(normalizeTimeZone(detectedTz) || "UTC");
       }
 
       // Load notifications
@@ -91,7 +117,7 @@ export function NotificationProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [normalizeTimeZone]);
 
   useEffect(() => {
     loadData();
@@ -185,21 +211,27 @@ export function NotificationProvider({ children }) {
       await base44.entities.UserPreferences.update(preferences.id, updates);
       setPreferences(prev => ({ ...prev, ...updates }));
       if (updates.timezone) {
-        setTimezone(updates.timezone);
+        const normalized = normalizeTimeZone(updates.timezone);
+        setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
       }
     } catch (err) {
       console.error("Failed to update preferences:", err);
     }
-  }, [preferences]);
+  }, [preferences, normalizeTimeZone]);
 
   // Format date in user's timezone
   const formatDate = useCallback((date, options = {}) => {
     const d = new Date(date);
-    return d.toLocaleString(undefined, {
-      timeZone: timezone,
-      ...options
-    });
-  }, [timezone]);
+    const safeTz = normalizeTimeZone(timezone) || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    try {
+      return d.toLocaleString(undefined, {
+        timeZone: safeTz,
+        ...options
+      });
+    } catch {
+      return d.toLocaleString(undefined, { ...options });
+    }
+  }, [timezone, normalizeTimeZone]);
 
   const value = {
     notifications,

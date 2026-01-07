@@ -1151,15 +1151,52 @@ export default function Profile({ language = "en" }) {
                           {language === "en" ? "Size" : "الحجم"}
                         </TableHead>
                         <TableHead className="font-semibold text-slate-900">P&L</TableHead>
-                        <TableHead className="text-right font-semibold text-slate-900">
-                          {language === "en" ? "Date" : "التاريخ"}
+                        <TableHead className="hidden sm:table-cell font-semibold text-slate-900">
+                          {language === "en" ? "Opened" : "فتح"}
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell font-semibold text-slate-900">
+                          {language === "en" ? "Closed" : "إغلاق"}
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {trades.slice(0, 10).map((trade, i) => (
-                        <TableRow key={i} className="hover:bg-slate-50 transition-colors duration-200">
-                          <TableCell className="font-semibold text-slate-900">{trade.symbol}</TableCell>
+                      {(() => {
+                        const fmtTime = (iso) => {
+                          if (!iso) return "—";
+                          const d = new Date(iso);
+                          if (Number.isNaN(d.getTime())) return "—";
+                          return d.toLocaleString(language === "ar" ? "ar-AE" : undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+                        };
+
+                        const calcPnl = (trade) => {
+                          if (typeof trade?.pnl === "number") return trade.pnl;
+                          if (trade?.status === "OPEN" && typeof trade?.unrealized_pnl === "number") return trade.unrealized_pnl;
+                          return 0;
+                        };
+
+                        return trades
+                          .slice(0, 20)
+                          .map((trade, i) => {
+                            const pnlVal = calcPnl(trade);
+                            const opened = trade.opened_at || trade.created_at || trade.created_date;
+                            const closed = trade.closed_at || trade.updated_at;
+
+                            return (
+                              <TableRow key={trade.id || i} className="hover:bg-slate-50 transition-colors duration-200">
+                                <TableCell className="font-semibold text-slate-900">
+                                  {trade.symbol}
+                                  <div className="mt-1 text-[10px] text-slate-500 sm:hidden">
+                                    <span className="text-slate-400">{language === "en" ? "Opened" : "فتح"}:</span> {fmtTime(opened)}
+                                    <span className="mx-2 text-slate-300">•</span>
+                                    <span className="text-slate-400">{language === "en" ? "Closed" : "إغلاق"}:</span> {fmtTime(closed)}
+                                  </div>
+                                </TableCell>
                           <TableCell>
                             <Badge 
                               variant="outline" 
@@ -1177,17 +1214,19 @@ export default function Profile({ language = "en" }) {
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">{formatSize(trade.quantity)}</TableCell>
-                          <TableCell className={`font-bold ${trade.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {trade.pnl >= 0 ? '+' : ''}{trade.pnl?.toFixed(2)}
+                          <TableCell className={`font-bold ${pnlVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {pnlVal >= 0 ? '+' : ''}{Number(pnlVal).toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right text-xs text-slate-500">
-                            {new Date(trade.opened_at || trade.created_date).toLocaleDateString(
-                              language === 'ar' ? 'ar-EG' : 'en-US',
-                              { year: 'numeric', month: 'short', day: 'numeric' }
-                            )}
+                          <TableCell className="hidden sm:table-cell text-xs text-slate-600">
+                            {fmtTime(opened)}
                           </TableCell>
-                        </TableRow>
-                      ))}
+                          <TableCell className="hidden md:table-cell text-xs text-slate-600">
+                            {fmtTime(closed)}
+                          </TableCell>
+                              </TableRow>
+                            );
+                          });
+                      })()}
                     </TableBody>
                   </Table>
                 </div>

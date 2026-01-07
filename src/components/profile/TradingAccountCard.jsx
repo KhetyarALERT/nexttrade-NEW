@@ -43,8 +43,12 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
 
   const isDemo = Boolean(account?.is_demo) || String(account?.account_type || "").toLowerCase() === "demo";
   const displayBalance = Number(isDemo ? (account?.demo_balance ?? account?.balance) : account?.balance) || 0;
-  const displayEquity = Number(account?.equity);
-  const equityValue = Number.isFinite(displayEquity) && displayEquity > 0 ? displayEquity : displayBalance;
+  const marginUsed = Number(account?.margin_used) || 0;
+  const unrealized = Number(account?.unrealized_pnl) || 0;
+  // Equity should reflect what the user actually has right now.
+  // Our backend updates `balance` (available) + `margin_used` (in positions) and tracks `unrealized_pnl`.
+  // Older rows may have a stale `equity` (e.g. still 10,000) so we compute it.
+  const equityValue = displayBalance + marginUsed + unrealized;
 
   const formatCurrency = (val) => {
     if (val === null || val === undefined) return "$0.00";
