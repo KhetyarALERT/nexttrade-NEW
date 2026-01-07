@@ -334,55 +334,55 @@ export default function OrderPanel({
         {/* Quick SL / TP presets */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick SL</Label>
+            <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Quick SL</Label>
             <div className="flex gap-1">
               {[0.5,1,1.5,2].map(p => (
                 <Button key={p} size="sm" className="h-7 px-2 text-[10px] bg-rose-600/80 hover:bg-rose-600 text-white" onClick={() => applySL(p)}>{p}%</Button>
               ))}
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => {
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => {
                 const v = parseFloat(prompt('Enter SL %')); if (!isNaN(v) && v>0) applySL(v);
               }}>Custom</Button>
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick TP</Label>
+            <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Quick TP</Label>
             <div className="flex gap-1">
               {[1,2,4].map(p => (
                 <Button key={p} size="sm" className="h-7 px-2 text-[10px] bg-emerald-600/80 hover:bg-emerald-600 text-white" onClick={() => applyTP(p)}>{p}%</Button>
               ))}
-              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px] border-slate-700" onClick={() => {
+              <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => {
                 const v = parseFloat(prompt('Enter TP %')); if (!isNaN(v) && v>0) applyTP(v);
               }}>Custom</Button>
             </div>
           </div>
           {(takeProfit || stopLoss) && (
-            <div className="text-[10px] text-slate-400">
+            <div className="text-[10px] text-muted-foreground">
               {stopLoss && <span>SL: {Number(stopLoss).toFixed(pricePrecision)} </span>}
               {takeProfit && <span className="ml-2">TP: {Number(takeProfit).toFixed(pricePrecision)}</span>}
             </div>
           )}
         </div>
 
-        <div className="pt-4 border-t border-slate-800/50 space-y-3">
+        <div className="pt-4 border-t border-border/50 space-y-3">
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">Position Value</span>
-            <span className="text-slate-300 font-bold font-mono">${notionalPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-muted-foreground font-medium">Position Value</span>
+            <span className="text-foreground/80 font-bold font-mono">${notionalPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">Margin Required</span>
-            <span className="text-white font-bold font-mono">${marginRequired.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-muted-foreground font-medium">Margin Required</span>
+            <span className="text-foreground font-bold font-mono">${marginRequired.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">Est. Fee</span>
-            <span className="text-slate-300 font-bold font-mono">${estFeePreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-muted-foreground font-medium">Est. Fee</span>
+            <span className="text-foreground/80 font-bold font-mono">${estFeePreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">Total Required</span>
-            <span className="text-white font-bold font-mono">${totalRequiredPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-muted-foreground font-medium">Total Required</span>
+            <span className="text-foreground font-bold font-mono">${totalRequiredPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-500 font-medium">Max Size</span>
-            <span className="text-slate-300 font-bold font-mono">{(balance * leverage[0] / (effectivePrice || 1)).toFixed(4)} {baseAsset}</span>
+            <span className="text-muted-foreground font-medium">Max Size</span>
+            <span className="text-foreground/80 font-bold font-mono">{(balance * leverage[0] / (effectivePrice || 1)).toFixed(4)} {baseAsset}</span>
           </div>
         </div>
 
@@ -402,9 +402,9 @@ export default function OrderPanel({
           )}
         </Button>
 
-        <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 flex gap-3">
-          <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-slate-400 leading-relaxed">
+        <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex gap-3">
+          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
             Trading futures involves significant risk. Ensure you have adequate margin to avoid liquidation.
           </p>
         </div>

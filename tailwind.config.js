@@ -7,7 +7,10 @@ module.exports = {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			xl: 'calc(var(--radius) + 4px)',
+  			'2xl': 'calc(var(--radius) + 8px)',
+  			'3xl': 'calc(var(--radius) + 16px)'
   		},
   		colors: {
   			background: 'hsl(var(--background))',
@@ -40,6 +43,14 @@ module.exports = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))'
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -61,6 +72,11 @@ module.exports = {
   				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
+  		boxShadow: {
+  			'glow': '0 0 20px -5px hsl(var(--primary) / 0.4)',
+  			'glow-lg': '0 0 40px -10px hsl(var(--primary) / 0.5)',
+  			'inner-glow': 'inset 0 0 20px -5px hsl(var(--primary) / 0.2)',
+  		},
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -77,11 +93,26 @@ module.exports = {
   				to: {
   					height: '0'
   				}
+  			},
+  			'shimmer': {
+  				'100%': {
+  					transform: 'translateX(100%)',
+  				},
+  			},
+  			'pulse-glow': {
+  				'0%, 100%': {
+  					boxShadow: '0 0 20px -5px hsl(var(--primary) / 0.4)'
+  				},
+  				'50%': {
+  					boxShadow: '0 0 30px -5px hsl(var(--primary) / 0.6)'
+  				}
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'shimmer': 'shimmer 2s infinite',
+  			'pulse-glow': 'pulse-glow 2s ease-in-out infinite'
   		}
   	}
   },

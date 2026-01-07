@@ -19,13 +19,13 @@ function ProgressInner({ className, value, ...props }, ref) {
     <ProgressPrimitive.Root
       ref={ref}
       className={cn(
-        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        "relative h-2.5 w-full overflow-hidden rounded-full bg-primary/15",
         className
       )}
       {...props}
     >
       <ProgressPrimitive.Indicator
-        className="h-full w-full flex-1 bg-primary transition-all"
+        className="h-full w-full flex-1 bg-gradient-to-r from-primary to-blue-400 transition-all duration-300"
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>

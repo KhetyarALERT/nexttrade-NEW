@@ -12,7 +12,7 @@ function CardInner({ className, ...props }, ref) {
   return (
     <div
       ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+      className={cn("rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm text-card-foreground shadow-lg transition-all duration-200 hover:shadow-xl hover:border-border/70", className)}
       {...props}
     />
   )
@@ -26,7 +26,7 @@ function CardHeaderInner({ className, ...props }, ref) {
   return (
     <div
       ref={ref}
-      className={cn("flex flex-col space-y-1.5 p-6", className)}
+      className={cn("flex flex-col space-y-1.5 p-5", className)}
       {...props}
     />
   )
@@ -40,7 +40,7 @@ function CardTitleInner({ className, ...props }, ref) {
   return (
     <div
       ref={ref}
-      className={cn("font-semibold leading-none tracking-tight", className)}
+      className={cn("text-lg font-semibold leading-none tracking-tight", className)}
       {...props}
     />
   )
@@ -65,7 +65,7 @@ CardDescription.displayName = "CardDescription"
 
 /** @type {import("react").ForwardRefRenderFunction<DivRef, DivProps>} */
 function CardContentInner({ className, ...props }, ref) {
-  return <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+  return <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
 }
 
 const CardContent = React.forwardRef(CardContentInner)
@@ -76,7 +76,7 @@ function CardFooterInner({ className, ...props }, ref) {
   return (
     <div
       ref={ref}
-      className={cn("flex items-center p-6 pt-0", className)}
+      className={cn("flex items-center p-5 pt-0", className)}
       {...props}
     />
   )
