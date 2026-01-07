@@ -23,6 +23,8 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
   const [symbols, setSymbols] = useState(() => binanceFuturesStore.getSymbols());
   const [_tickersVersion, setTickersVersion] = useState(0);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState("symbol");
+  const [sortDir, setSortDir] = useState("asc");
   const listContainerRef = useRef(null);
   const [listHeight, setListHeight] = useState(() => (typeof height === "number" ? height : 640));
 
@@ -79,6 +81,48 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
     return symbols.filter((s) => s.includes(q));
   }, [symbols, query]);
 
+  const sorted = useMemo(() => {
+    const arr = Array.isArray(filtered) ? [...filtered] : [];
+
+    const dir = sortDir === "desc" ? -1 : 1;
+    const getTicker = (sym) => /** @type {any} */ (binanceFuturesStore.getTicker(sym) || {});
+
+    arr.sort((a, b) => {
+      if (sortKey === "symbol") {
+        return dir * String(a).localeCompare(String(b));
+      }
+      if (sortKey === "last") {
+        const av = Number(getTicker(a)?.lastPrice || 0);
+        const bv = Number(getTicker(b)?.lastPrice || 0);
+        return dir * (av - bv);
+      }
+      if (sortKey === "chg") {
+        const av = Number(getTicker(a)?.priceChangePercent ?? 0);
+        const bv = Number(getTicker(b)?.priceChangePercent ?? 0);
+        return dir * (av - bv);
+      }
+      return 0;
+    });
+
+    return arr;
+  }, [filtered, sortKey, sortDir, _tickersVersion]);
+
+  const toggleSort = (nextKey) => {
+    setSortKey((curKey) => {
+      if (curKey !== nextKey) {
+        setSortDir("desc");
+        return nextKey;
+      }
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+      return curKey;
+    });
+  };
+
+  const sortIndicator = (key) => {
+    if (sortKey !== key) return "";
+    return sortDir === "desc" ? "↓" : "↑";
+  };
+
   const labels = useMemo(() => {
     const isAr = language === "ar";
     return {
@@ -93,7 +137,7 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
   }, [language]);
 
   const Row = ({ index, style }) => {
-    const symbol = filtered[index];
+    const symbol = sorted[index];
     const t = binanceFuturesStore.getTicker(symbol);
     const last = t?.lastPrice || 0;
     const chg = t?.priceChangePercent ?? 0;
@@ -145,17 +189,35 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
           <span>
-            {filtered.length} {labels.symbols}
+            {sorted.length} {labels.symbols}
           </span>
           <span className="hidden sm:inline">{labels.contractType}</span>
         </div>
       </div>
 
       <div className="px-3 py-2 text-[11px] text-slate-500 border-y border-slate-800/50 flex items-center justify-between">
-        <span>{labels.tradingPair}</span>
+        <button
+          type="button"
+          onClick={() => toggleSort("symbol")}
+          className="hover:text-slate-200 transition-colors"
+        >
+          {labels.tradingPair} <span className="opacity-70">{sortIndicator("symbol")}</span>
+        </button>
         <div className="flex items-center gap-10">
-          <span>{labels.lastPrice}</span>
-          <span>{labels.chg24h}</span>
+          <button
+            type="button"
+            onClick={() => toggleSort("last")}
+            className="hover:text-slate-200 transition-colors"
+          >
+            {labels.lastPrice} <span className="opacity-70">{sortIndicator("last")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleSort("chg")}
+            className="hover:text-slate-200 transition-colors"
+          >
+            {labels.chg24h} <span className="opacity-70">{sortIndicator("chg")}</span>
+          </button>
         </div>
       </div>
 
@@ -163,7 +225,7 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         <List
           height={listHeight}
           width="100%"
-          itemCount={filtered.length}
+          itemCount={sorted.length}
           itemSize={60}
           overscanCount={10}
         >

@@ -2,6 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
+import { Settings } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -36,6 +47,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
+  // Safe UI-only settings (do not affect data pipeline)
+  const [chartType, setChartType] = useState("candles");
+  const [showGrid, setShowGrid] = useState(true);
+  const [showVolume, setShowVolume] = useState(true);
+
   const [rightScaleWidth, setRightScaleWidth] = useState(56);
   const [isNarrow, setIsNarrow] = useState(false);
 
@@ -62,6 +78,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const badgeLayerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
+  const lineSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
@@ -199,6 +216,16 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
     });
 
+    const lineSeries = chart.addLineSeries({
+      color: "#60a5fa",
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+    });
+    // Default view is candlesticks
+    lineSeries.applyOptions({ visible: false });
+
     const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "",
@@ -211,6 +238,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
+    lineSeriesRef.current = lineSeries;
     volumeSeriesRef.current = volumeSeries;
 
     const resize = () => {
@@ -241,6 +269,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       disposedRef.current = true;
       chartRef.current = null;
       candleSeriesRef.current = null;
+      lineSeriesRef.current = null;
       volumeSeriesRef.current = null;
       priceLineRef.current = null;
       try {
@@ -253,6 +282,34 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     };
   }, []);
 
+  // Apply UI-only settings
+  useEffect(() => {
+    if (disposedRef.current) return;
+    const chart = chartRef.current;
+    const candleSeries = candleSeriesRef.current;
+    const lineSeries = lineSeriesRef.current;
+    const volumeSeries = volumeSeriesRef.current;
+    if (!chart || !candleSeries || !lineSeries || !volumeSeries) return;
+
+    try {
+      chart.applyOptions({
+        grid: {
+          vertLines: { color: "#1f2937", visible: Boolean(showGrid) },
+          horzLines: { color: "#1f2937", visible: Boolean(showGrid) },
+        },
+      });
+    } catch {}
+
+    try {
+      candleSeries.applyOptions({ visible: chartType === "candles" });
+      lineSeries.applyOptions({ visible: chartType === "line" });
+    } catch {}
+
+    try {
+      volumeSeries.applyOptions({ visible: Boolean(showVolume) });
+    } catch {}
+  }, [chartType, showGrid, showVolume]);
+
   // Seed + WS lifecycle
   useEffect(() => {
     let unsubCandle;
@@ -260,7 +317,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     let cancelled = false;
 
     const run = async () => {
-      if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+      if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current || !lineSeriesRef.current) return;
       setLoading(true);
 
       try {
@@ -284,6 +341,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
         candleSeriesRef.current.setData(chartCandles);
         volumeSeriesRef.current.setData(volumes);
+        lineSeriesRef.current.setData(chartCandles.map((c) => ({ time: c.time, value: c.close })));
 
         // Jump to latest once after seeding (no auto-follow).
         resetView();
@@ -306,6 +364,10 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             high: Number(c.high),
             low: Number(c.low),
             close: Number(c.close),
+          });
+          lineSeriesRef.current?.update?.({
+            time: c.time,
+            value: Number(c.close),
           });
           volumeSeriesRef.current.update({
             time: c.time,
@@ -414,23 +476,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const side = String(t.side || "LONG").toUpperCase();
     const isShort = side === "SHORT";
 
-    const entryTitle = "ENTRY";
-
     if (Number.isFinite(entry) && entry > 0) {
       upsertOverlayLine("entry", {
         price: entry,
         color: isShort ? "#ef4444" : "#22c55e",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: false,
+        axisLabelVisible: true,
         title: "",
       });
 
-      upsertOverlayBadge("entry", {
-        price: entry,
-        tone: isShort ? "short" : "long",
-        label: entryTitle,
-      });
+      // Remove any legacy in-chart label (we rely on native axis label)
+      removeOverlayBadge("entry");
     } else {
       removeOverlayLine("entry");
       removeOverlayBadge("entry");
@@ -443,15 +500,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#22c55e",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: false,
+        axisLabelVisible: true,
         title: "",
       });
 
-      upsertOverlayBadge("tp", {
-        price: tp,
-        tone: "tp",
-        label: "TP",
-      });
+      removeOverlayBadge("tp");
     } else {
       removeOverlayLine("tp");
       removeOverlayBadge("tp");
@@ -464,15 +517,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#ef4444",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: false,
+        axisLabelVisible: true,
         title: "",
       });
 
-      upsertOverlayBadge("sl", {
-        price: sl,
-        tone: "sl",
-        label: "SL",
-      });
+      removeOverlayBadge("sl");
     } else {
       removeOverlayLine("sl");
       removeOverlayBadge("sl");
@@ -485,15 +534,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#f59e0b",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: false,
+        axisLabelVisible: true,
         title: "",
       });
 
-      upsertOverlayBadge("liq", {
-        price: liq,
-        tone: "liq",
-        label: "Liq",
-      });
+      removeOverlayBadge("liq");
     } else {
       removeOverlayLine("liq");
       removeOverlayBadge("liq");
@@ -601,6 +646,42 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           {labels.reset}
         </button>
         <div className="ml-auto flex items-center gap-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="px-2 py-1 text-xs rounded bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+                title={language === "ar" ? "الإعدادات" : "Settings"}
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-[#0f1320] border-slate-800 text-slate-200">
+              <DropdownMenuLabel>{language === "ar" ? "إعدادات الشارت" : "Chart Settings"}</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-800" />
+
+              <DropdownMenuLabel className="text-xs text-slate-400">
+                {language === "ar" ? "نوع الشارت" : "Chart Type"}
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={chartType} onValueChange={setChartType}>
+                <DropdownMenuRadioItem value="candles">
+                  {language === "ar" ? "شموع" : "Candles"}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="line">
+                  {language === "ar" ? "خط" : "Line"}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+
+              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={setShowGrid}>
+                {language === "ar" ? "إظهار الشبكة" : "Show Grid"}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={showVolume} onCheckedChange={setShowVolume}>
+                {language === "ar" ? "إظهار الحجم" : "Show Volume"}
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {loading ? <span className="text-xs text-slate-400">{labels.loading}</span> : null}
           {!loading ? (
             <span className={`text-[10px] uppercase tracking-wider ${now - lastTickAt < 3000 ? "text-emerald-400" : "text-slate-500"}`}>

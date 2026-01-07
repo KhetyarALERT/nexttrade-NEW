@@ -124,58 +124,108 @@ function DropdownMenuItemInner({ className, inset, ...props }, ref) {
 const DropdownMenuItem = React.forwardRef(DropdownMenuItemInner)
 DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName
 
-const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checked, ...props }, ref) => (
-  <DropdownMenuPrimitive.CheckboxItem
-    ref={ref}
-    className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    )}
-    checked={checked}
-    {...props}>
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </DropdownMenuPrimitive.ItemIndicator>
-    </span>
-    {children}
-  </DropdownMenuPrimitive.CheckboxItem>
-))
+/**
+ * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>} DropdownMenuCheckboxItemRef
+ * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>} DropdownMenuCheckboxItemProps
+ */
+
+/**
+ * @type {import("react").ForwardRefRenderFunction<DropdownMenuCheckboxItemRef, DropdownMenuCheckboxItemProps>}
+ */
+function DropdownMenuCheckboxItemInner({ className, children, checked, ...props }, ref) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      ref={ref}
+      className={cn(
+        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className
+      )}
+      checked={checked}
+      {...props}>
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="h-4 w-4" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  )
+}
+
+const DropdownMenuCheckboxItem = React.forwardRef(DropdownMenuCheckboxItemInner)
 DropdownMenuCheckboxItem.displayName =
   DropdownMenuPrimitive.CheckboxItem.displayName
 
-const DropdownMenuRadioItem = React.forwardRef(({ className, children, ...props }, ref) => (
-  <DropdownMenuPrimitive.RadioItem
-    ref={ref}
-    className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    )}
-    {...props}>
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <DropdownMenuPrimitive.ItemIndicator>
-        <Circle className="h-2 w-2 fill-current" />
-      </DropdownMenuPrimitive.ItemIndicator>
-    </span>
-    {children}
-  </DropdownMenuPrimitive.RadioItem>
-))
+/**
+ * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.RadioItem>} DropdownMenuRadioItemRef
+ * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>} DropdownMenuRadioItemProps
+ */
+
+/**
+ * @type {import("react").ForwardRefRenderFunction<DropdownMenuRadioItemRef, DropdownMenuRadioItemProps>}
+ */
+function DropdownMenuRadioItemInner({ className, children, ...props }, ref) {
+  return (
+    <DropdownMenuPrimitive.RadioItem
+      ref={ref}
+      className={cn(
+        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className
+      )}
+      {...props}>
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Circle className="h-2 w-2 fill-current" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
+  )
+}
+
+const DropdownMenuRadioItem = React.forwardRef(DropdownMenuRadioItemInner)
 DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName
 
-const DropdownMenuLabel = React.forwardRef(({ className, inset, ...props }, ref) => (
-  <DropdownMenuPrimitive.Label
-    ref={ref}
-    className={cn("px-2 py-1.5 text-sm font-semibold", inset && "pl-8", className)}
-    {...props} />
-))
+/**
+ * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.Label>} DropdownMenuLabelRef
+ * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & { inset?: boolean }} DropdownMenuLabelProps
+ */
+
+/**
+ * @type {import("react").ForwardRefRenderFunction<DropdownMenuLabelRef, DropdownMenuLabelProps>}
+ */
+function DropdownMenuLabelInner({ className, inset, ...props }, ref) {
+  return (
+    <DropdownMenuPrimitive.Label
+      ref={ref}
+      className={cn("px-2 py-1.5 text-sm font-semibold", inset && "pl-8", className)}
+      {...props}
+    />
+  )
+}
+
+const DropdownMenuLabel = React.forwardRef(DropdownMenuLabelInner)
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName
 
-const DropdownMenuSeparator = React.forwardRef(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Separator
-    ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-muted", className)}
-    {...props} />
-))
+/**
+ * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.Separator>} DropdownMenuSeparatorRef
+ * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>} DropdownMenuSeparatorProps
+ */
+
+/**
+ * @type {import("react").ForwardRefRenderFunction<DropdownMenuSeparatorRef, DropdownMenuSeparatorProps>}
+ */
+function DropdownMenuSeparatorInner({ className, ...props }, ref) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      ref={ref}
+      className={cn("-mx-1 my-1 h-px bg-muted", className)}
+      {...props}
+    />
+  )
+}
+
+const DropdownMenuSeparator = React.forwardRef(DropdownMenuSeparatorInner)
 DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName
 
 const DropdownMenuShortcut = ({

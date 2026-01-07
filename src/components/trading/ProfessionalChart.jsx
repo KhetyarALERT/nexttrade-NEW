@@ -107,7 +107,7 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
     };
   }, [symbol, timeframe, onPriceUpdate]);
 
-  // Draw entry/TP/SL price badges for current symbol (stable; updated only when positions/symbol changes)
+  // Draw entry/TP/SL price lines for current symbol (native price-scale labels; stable on scroll/zoom)
   useEffect(() => {
     const s = toInternalFormat(symbol);
     const series = seriesRef.current;
@@ -124,27 +124,27 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       const entry = Number(pos.entry_price || 0);
       if (!Number.isFinite(entry) || entry <= 0) return;
       const sideLong = pos.side === 'LONG';
-      const digits = entry < 1 ? 6 : 2;
 
       const entryLine = series.createPriceLine({
         price: entry,
         color: sideLong ? '#3b82f6' : '#ef4444',
         lineWidth: 2,
         lineStyle: 0,
-        title: `ENTRY ${entry.toFixed(digits)}`,
+        axisLabelVisible: true,
+        title: "",
       });
       priceLinesRef.current.push(entryLine);
 
       if (pos.take_profit) {
         const tp = Number(pos.take_profit);
         if (Number.isFinite(tp) && tp > 0) {
-          const tpDigits = tp < 1 ? 6 : 2;
           const tpLine = series.createPriceLine({
             price: tp,
             color: '#22c55e',
             lineWidth: 1,
             lineStyle: 2,
-            title: `TP ${tp.toFixed(tpDigits)}`,
+            axisLabelVisible: true,
+            title: "",
           });
           priceLinesRef.current.push(tpLine);
         }
@@ -153,13 +153,13 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
       if (pos.stop_loss) {
         const sl = Number(pos.stop_loss);
         if (Number.isFinite(sl) && sl > 0) {
-          const slDigits = sl < 1 ? 6 : 2;
           const slLine = series.createPriceLine({
             price: sl,
             color: '#ef4444',
             lineWidth: 1,
             lineStyle: 2,
-            title: `SL ${sl.toFixed(slDigits)}`,
+            axisLabelVisible: true,
+            title: "",
           });
           priceLinesRef.current.push(slLine);
         }
