@@ -6,6 +6,7 @@ import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSel
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { base44 } from "@/api/base44Client";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -29,6 +30,9 @@ export default function Trading({ language = "en" }) {
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
 
+  const [liveAccount, setLiveAccount] = useState(null);
+  const [demoAccount, setDemoAccount] = useState(null);
+
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
   }, [selectedSymbol]);
@@ -46,6 +50,34 @@ export default function Trading({ language = "en" }) {
       try {
         binanceFuturesStore.closeChartWs?.();
       } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAccounts = async () => {
+      try {
+        const [demoResult, liveResult] = await Promise.all([
+          base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
+          base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
+        ]);
+
+        if (cancelled) return;
+        if (demoResult?.data?.success) setDemoAccount(demoResult.data.data);
+        if (liveResult?.data?.success) setLiveAccount(liveResult.data.data);
+      } catch (err) {
+        // Not logged in or backend unavailable.
+        if (!cancelled) {
+          setDemoAccount(null);
+          setLiveAccount(null);
+        }
+      }
+    };
+
+    loadAccounts();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -126,7 +158,7 @@ export default function Trading({ language = "en" }) {
         </section>
 
         <section className="hidden lg:block w-[360px] xl:w-[420px] shrink-0">
-          <FuturesTradePanel symbol={selectedSymbol} language={language} />
+          <FuturesTradePanel symbol={selectedSymbol} language={language} liveAccount={liveAccount} demoAccount={demoAccount} />
         </section>
       </main>
     </div>

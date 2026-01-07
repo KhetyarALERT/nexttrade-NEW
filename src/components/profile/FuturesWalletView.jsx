@@ -40,8 +40,8 @@ export default function FuturesWalletView({
     noAssets: 'No assets found'
   };
 
-  // Use demo account for testing - will sync with trades
-  const account = demoAccount || tradingAccount;
+  // Prefer live account when available (Assets page expectation).
+  const account = tradingAccount || demoAccount;
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallAssets, setHideSmallAssets] = useState(false);
   const [loading, setLoading] = useState(false);

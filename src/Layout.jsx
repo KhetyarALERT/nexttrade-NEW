@@ -64,6 +64,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       items: [
         { name: { en: "Buy with Card", ar: "شراء بالبطاقة" }, url: createPageUrl("BuyWithCard") },
         { name: { en: "On-chain Deposit", ar: "إيداع على السلسلة" }, url: createPageUrl("OnChainDeposit") },
+        { name: { en: "Assets", ar: "الأصول" }, url: `${createPageUrl("Profile")}?tab=assets&assetTab=main` },
         { name: { en: "P2P (Coming soon)", ar: "P2P (قريباً)" }, url: null },
       ],
     },

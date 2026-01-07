@@ -49,7 +49,7 @@ function uid() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function FuturesTradePanel({ symbol, language = "en" }) {
+export default function FuturesTradePanel({ symbol, language = "en", liveAccount = null, demoAccount = null }) {
   const [activeTab, setActiveTab] = useState("trade");
   const [mode, setMode] = useState("cross");
   const [orderType, setOrderType] = useState("limit");
@@ -143,6 +143,25 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
     };
   }, [language]);
 
+  const getAccountSnapshot = (demoMode) => {
+    const account = demoMode ? (demoAccount || liveAccount) : (liveAccount || demoAccount);
+    if (!account) {
+      return { balance: 0, equity: 0, marginUsed: 0, availableMargin: 0, hasAccount: false };
+    }
+
+    const balance = Number(account.demo_balance ?? account.balance ?? 0);
+    const equity = Number(account.equity ?? balance ?? 0);
+    const marginUsed = Number(account.margin_used ?? 0);
+    const availableMargin = Number.isFinite(equity) && Number.isFinite(marginUsed) ? Math.max(0, equity - marginUsed) : 0;
+    return {
+      balance: Number.isFinite(balance) ? balance : 0,
+      equity: Number.isFinite(equity) ? equity : 0,
+      marginUsed: Number.isFinite(marginUsed) ? marginUsed : 0,
+      availableMargin,
+      hasAccount: true,
+    };
+  };
+
   useEffect(() => {
     const unsubPrice = binanceFuturesStore.subscribe(`price:${symbol}`, (p) => {
       if (p) setLastPrice(Number(p));
@@ -180,11 +199,15 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
   }, [price, amount, total, lastEdited, orderType, lastPrice]);
 
   const refPrice = useMemo(() => {
+    if (orderType === "market") {
+      return Number.isFinite(lastPrice) && lastPrice > 0 ? lastPrice : 0;
+    }
+
     const p = parseNum(price);
     if (Number.isFinite(p) && p > 0) return p;
     if (Number.isFinite(lastPrice) && lastPrice > 0) return lastPrice;
     return 0;
-  }, [price, lastPrice]);
+  }, [price, lastPrice, orderType]);
 
   const doDemoOpen = (demoSide) => {
     const qty = parseNum(amount);
@@ -211,6 +234,7 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 
   const renderOrderForm = (opts = {}) => {
     const demoMode = Boolean(opts.demoMode);
+    const accountSnap = getAccountSnapshot(demoMode);
 
     return (
       <>
@@ -280,7 +304,7 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
         <div className="mt-4">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
             <span>{labels.avail}</span>
-            <span className="font-mono">{formatNumber(0)} USDT</span>
+            <span className="font-mono">{accountSnap.hasAccount ? formatNumber(accountSnap.availableMargin, 2) : "—"} USDT</span>
           </div>
 
           {orderType === "limit" ? (
@@ -993,11 +1017,21 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
             <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-[11px] text-slate-500">{labels.balance}</div>
-                <div className="font-mono text-white">{formatNumber(0)} USDT</div>
+                <div className="font-mono text-white">
+                  {(() => {
+                    const snap = getAccountSnapshot(activeTab === "bots");
+                    return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
+                  })()}
+                </div>
               </div>
               <div>
                 <div className="text-[11px] text-slate-500">{labels.margin}</div>
-                <div className="font-mono text-white">{formatNumber(0)} USDT</div>
+                <div className="font-mono text-white">
+                  {(() => {
+                    const snap = getAccountSnapshot(activeTab === "bots");
+                    return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
+                  })()}
+                </div>
               </div>
             </div>
           </div>
@@ -1011,4 +1045,6 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
 FuturesTradePanel.propTypes = {
   symbol: PropTypes.string.isRequired,
   language: PropTypes.string,
+  liveAccount: PropTypes.object,
+  demoAccount: PropTypes.object,
 };
