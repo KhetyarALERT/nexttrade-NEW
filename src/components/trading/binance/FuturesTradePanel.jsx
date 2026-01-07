@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
-import { demoTradeStore } from "@/components/trading/binance/demoTradeStore";
+import { base44 } from "@/api/base44Client";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -59,7 +59,14 @@ function getReferencePrice(orderType, priceValue, lastPrice) {
   return Number.isFinite(Number(lastPrice)) && Number(lastPrice) > 0 ? Number(lastPrice) : NaN;
 }
 
-export default function FuturesTradePanel({ symbol, language = "en", liveAccount = null, demoAccount = null }) {
+export default function FuturesTradePanel({
+  symbol,
+  language = "en",
+  liveAccount = null,
+  demoAccount = null,
+  onTradesChanged,
+  onAccountsChanged,
+}) {
   const [activeTab, setActiveTab] = useState("trade");
   const [mode, setMode] = useState("cross");
   const [orderType, setOrderType] = useState("limit");
@@ -88,6 +95,9 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
   const [shortSlRatio, setShortSlRatio] = useState("");
 
   const [tpSlAdvancedOpen, setTpSlAdvancedOpen] = useState(false);
+
+  const [botsBusy, setBotsBusy] = useState(false);
+  const [botsError, setBotsError] = useState("");
 
   const [longTpTargets, setLongTpTargets] = useState(() => [{ id: uid(), closePct: "25", price: "" }]);
   const [longSlTargets, setLongSlTargets] = useState(() => [{ id: uid(), closePct: "100", price: "" }]);
@@ -221,27 +231,111 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
     return 0;
   }, [price, lastPrice, orderType]);
 
-  const doDemoOpen = (demoSide) => {
-    const qty = parseNum(amount);
-    const entry = refPrice || lastPrice;
-    if (!entry) return;
+  const doDemoOpen = async (demoSide) => {
+    setBotsError("");
+    setBotsBusy(true);
 
-    const sideKey = demoSide === "short" ? "short" : "long";
-    const tpPrice = sideKey === "long" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
-    const slPrice = sideKey === "long" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
+    try {
+      const tradingAccountId = demoAccount?.id || liveAccount?.id;
+      if (!tradingAccountId) {
+        setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
+        return;
+      }
 
-    demoTradeStore.openPosition({
-      symbol,
-      side: sideKey,
-      qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
-      entryPrice: entry,
-      tpPrice: Number.isFinite(tpPrice) && tpPrice > 0 ? tpPrice : undefined,
-      slPrice: Number.isFinite(slPrice) && slPrice > 0 ? slPrice : undefined,
-    });
+      const qty = parseNum(amount);
+      const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1;
+      const entryPrice = refPrice || lastPrice;
+      if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+        setBotsError(language === "ar" ? "سعر غير صالح" : "Invalid price");
+        return;
+      }
+
+      const sideKey = demoSide === "short" ? "SHORT" : "LONG";
+      const leverage = Number(demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
+
+      const tpRaw = sideKey === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
+      const slRaw = sideKey === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
+
+      const takeProfit = Number.isFinite(tpRaw) && tpRaw > 0 ? tpRaw : null;
+      const stopLoss = Number.isFinite(slRaw) && slRaw > 0 ? slRaw : null;
+
+      const res = await base44.functions.invoke("tradingAccount", {
+        action: "openTrade",
+        tradingAccountId,
+        symbol,
+        side: sideKey,
+        quantity,
+        leverage: Number.isFinite(leverage) && leverage > 0 ? leverage : 10,
+        entryPrice,
+        orderType: "MARKET",
+        takeProfit,
+        stopLoss,
+      });
+
+      if (!res?.data?.success) {
+        setBotsError(res?.data?.error || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+        return;
+      }
+
+      await onTradesChanged?.();
+      await onAccountsChanged?.();
+    } catch {
+      setBotsError(language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade");
+    } finally {
+      setBotsBusy(false);
+    }
   };
 
-  const doDemoClose = () => {
-    demoTradeStore.closePosition(symbol);
+  const doDemoClose = async () => {
+    setBotsError("");
+    setBotsBusy(true);
+
+    try {
+      const tradingAccountId = demoAccount?.id || liveAccount?.id;
+      if (!tradingAccountId) {
+        setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
+        return;
+      }
+
+      const exitPrice = refPrice || lastPrice;
+      if (!Number.isFinite(exitPrice) || exitPrice <= 0) {
+        setBotsError(language === "ar" ? "سعر غير صالح" : "Invalid price");
+        return;
+      }
+
+      const listRes = await base44.functions.invoke("tradingAccount", {
+        action: "getTrades",
+        tradingAccountId,
+        status: "OPEN",
+        limit: 50,
+      });
+
+      const list = listRes?.data?.data || [];
+      const open = list.find((t) => String(t?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase() && t?.status === "OPEN");
+      if (!open?.id) {
+        setBotsError(language === "ar" ? "لا يوجد مركز مفتوح" : "No open position to close");
+        return;
+      }
+
+      const closeRes = await base44.functions.invoke("tradingAccount", {
+        action: "closeTrade",
+        tradeId: open.id,
+        exitPrice,
+        reason: "bots_demo",
+      });
+
+      if (!closeRes?.data?.success) {
+        setBotsError(closeRes?.data?.error || (language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade"));
+        return;
+      }
+
+      await onTradesChanged?.();
+      await onAccountsChanged?.();
+    } catch {
+      setBotsError(language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade");
+    } finally {
+      setBotsBusy(false);
+    }
   };
 
   const renderOrderForm = (opts = {}) => {
@@ -1014,21 +1108,21 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
           <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
-              disabled={!demoMode}
+              disabled={!demoMode || botsBusy}
               onClick={() => doDemoOpen("long")}
               className={`py-3 rounded font-semibold ${demoMode ? "bg-emerald-600 text-white hover:bg-emerald-500" : "bg-emerald-600/40 text-white/70 cursor-not-allowed"}`}
               title={demoMode ? undefined : labels.disabledTitle}
             >
-              {demoMode ? labels.demoOpenLong : labels.openLong}
+              {demoMode ? (botsBusy ? "..." : labels.demoOpenLong) : labels.openLong}
             </button>
             <button
               type="button"
-              disabled={!demoMode}
+              disabled={!demoMode || botsBusy}
               onClick={() => doDemoOpen("short")}
               className={`py-3 rounded font-semibold ${demoMode ? "bg-rose-600 text-white hover:bg-rose-500" : "bg-rose-600/40 text-white/70 cursor-not-allowed"}`}
               title={demoMode ? undefined : labels.disabledTitle}
             >
-              {demoMode ? labels.demoOpenShort : labels.openShort}
+              {demoMode ? (botsBusy ? "..." : labels.demoOpenShort) : labels.openShort}
             </button>
           </div>
 
@@ -1036,10 +1130,17 @@ export default function FuturesTradePanel({ symbol, language = "en", liveAccount
             <button
               type="button"
               onClick={doDemoClose}
-              className="mt-2 w-full py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-sm"
+              disabled={botsBusy}
+              className={`mt-2 w-full py-2 rounded text-sm ${botsBusy ? "bg-slate-800/60 text-slate-400 cursor-not-allowed" : "bg-slate-800 text-slate-200 hover:bg-slate-700"}`}
             >
-              {labels.demoClose}
+              {botsBusy ? "..." : labels.demoClose}
             </button>
+          ) : null}
+
+          {demoMode && botsError ? (
+            <div className="mt-2 text-[11px] text-rose-300">
+              {botsError}
+            </div>
           ) : null}
 
           <p className="mt-3 text-[11px] text-slate-500">{labels.note}</p>
@@ -1102,4 +1203,6 @@ FuturesTradePanel.propTypes = {
   language: PropTypes.string,
   liveAccount: PropTypes.object,
   demoAccount: PropTypes.object,
+  onTradesChanged: PropTypes.func,
+  onAccountsChanged: PropTypes.func,
 };

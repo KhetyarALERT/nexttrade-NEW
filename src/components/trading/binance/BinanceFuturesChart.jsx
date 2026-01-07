@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
-import { demoTradeStore } from "@/components/trading/binance/demoTradeStore";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -15,7 +14,7 @@ function volumeColor(candle) {
   return candle.close >= candle.open ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)";
 }
 
-export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate }) {
+export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
@@ -45,8 +44,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
-  const [demoPosition, setDemoPosition] = useState(null);
-  const demoLinesRef = useRef({ entry: null, tp: null, sl: null });
+  const overlayLinesRef = useRef({ entry: null, tp: null, sl: null });
 
   const labels = useMemo(() => {
     const isAr = language === "ar";
@@ -69,27 +67,27 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     } catch {}
   };
 
-  const removeDemoLine = (key) => {
+  const removeOverlayLine = (key) => {
     try {
-      if (demoLinesRef.current?.[key] && candleSeriesRef.current?.removePriceLine) {
-        candleSeriesRef.current.removePriceLine(demoLinesRef.current[key]);
+      if (overlayLinesRef.current?.[key] && candleSeriesRef.current?.removePriceLine) {
+        candleSeriesRef.current.removePriceLine(overlayLinesRef.current[key]);
       }
     } catch {}
-    if (demoLinesRef.current) demoLinesRef.current[key] = null;
+    if (overlayLinesRef.current) overlayLinesRef.current[key] = null;
   };
 
-  const upsertDemoLine = (key, opts) => {
+  const upsertOverlayLine = (key, opts) => {
     if (!candleSeriesRef.current) return;
     try {
-      const existing = demoLinesRef.current?.[key];
+      const existing = overlayLinesRef.current?.[key];
       if (existing && typeof existing.applyOptions === "function") {
         existing.applyOptions(opts);
         return;
       }
       if (existing) {
-        removeDemoLine(key);
+        removeOverlayLine(key);
       }
-      demoLinesRef.current[key] = candleSeriesRef.current.createPriceLine(opts);
+      overlayLinesRef.current[key] = candleSeriesRef.current.createPriceLine(opts);
     } catch {
       // ignore
     }
@@ -288,66 +286,46 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     };
   }, [normalizedSymbol, timeframe, key]);
 
-  // Demo position overlay (Bots tab)
+  // Backend trade overlay (Bots/demo trades)
   useEffect(() => {
-    // Clear any previous symbol's lines
-    removeDemoLine("entry");
-    removeDemoLine("tp");
-    removeDemoLine("sl");
-    setDemoPosition(null);
-
-    const sym = normalizedSymbol;
-    if (!sym) return;
-
-    const apply = (pos) => setDemoPosition(pos || null);
-
-    apply(demoTradeStore.getPosition(sym));
-    const unsub = demoTradeStore.subscribe(`position:${sym}`, apply);
-    return () => {
-      try {
-        unsub?.();
-      } catch {}
-      removeDemoLine("entry");
-      removeDemoLine("tp");
-      removeDemoLine("sl");
-      setDemoPosition(null);
-    };
-  }, [normalizedSymbol]);
-
-  // Update demo lines on price/position change
-  useEffect(() => {
-    const pos = demoPosition;
-    if (!pos || !candleSeriesRef.current) {
-      removeDemoLine("entry");
-      removeDemoLine("tp");
-      removeDemoLine("sl");
+    const t = positionTrade;
+    if (!t || !candleSeriesRef.current) {
+      removeOverlayLine("entry");
+      removeOverlayLine("tp");
+      removeOverlayLine("sl");
       return;
     }
 
     const mark = Number(lastPrice);
-    const entry = Number(pos.entryPrice);
-    const qty = Number(pos.qty) || 0;
+    const entry = Number(t.avg_entry_price ?? t.entry_price);
+    const qty = Number(t.quantity) || 0;
+    const side = String(t.side || "LONG").toUpperCase();
+    const isShort = side === "SHORT";
 
     const pnl =
-      qty && mark && entry
-        ? (pos.side === "short" ? (entry - mark) * qty : (mark - entry) * qty)
+      qty && Number.isFinite(mark) && Number.isFinite(entry)
+        ? (isShort ? (entry - mark) * qty : (mark - entry) * qty)
         : 0;
 
-    const pnlStr = qty && mark && entry ? `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}` : "0.00";
-    const entryTitle = `${pos.side === "short" ? "Short" : "Long"} ${qty || ""} ${pnlStr}`.trim();
+    const pnlStr = qty && Number.isFinite(mark) && Number.isFinite(entry) ? `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}` : "0.00";
+    const entryTitle = `${isShort ? "Short" : "Long"} ${qty || ""} ${pnlStr}`.trim();
 
-    upsertDemoLine("entry", {
-      price: entry,
-      color: pos.side === "short" ? "#ef4444" : "#22c55e",
-      lineWidth: 1,
-      lineStyle: 2,
-      axisLabelVisible: true,
-      title: entryTitle,
-    });
+    if (Number.isFinite(entry) && entry > 0) {
+      upsertOverlayLine("entry", {
+        price: entry,
+        color: isShort ? "#ef4444" : "#22c55e",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: entryTitle,
+      });
+    } else {
+      removeOverlayLine("entry");
+    }
 
-    const tp = Number(pos.tpPrice);
-    if (tp && Number.isFinite(tp)) {
-      upsertDemoLine("tp", {
+    const tp = Number(t.take_profit);
+    if (Number.isFinite(tp) && tp > 0) {
+      upsertOverlayLine("tp", {
         price: tp,
         color: "#ef4444",
         lineWidth: 1,
@@ -356,12 +334,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         title: "Take Profit",
       });
     } else {
-      removeDemoLine("tp");
+      removeOverlayLine("tp");
     }
 
-    const sl = Number(pos.slPrice);
-    if (sl && Number.isFinite(sl)) {
-      upsertDemoLine("sl", {
+    const sl = Number(t.stop_loss);
+    if (Number.isFinite(sl) && sl > 0) {
+      upsertOverlayLine("sl", {
         price: sl,
         color: "#ef4444",
         lineWidth: 1,
@@ -370,9 +348,9 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         title: "Stop Loss",
       });
     } else {
-      removeDemoLine("sl");
+      removeOverlayLine("sl");
     }
-  }, [demoPosition, lastPrice, now]);
+  }, [positionTrade, lastPrice, now]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
@@ -420,4 +398,5 @@ BinanceFuturesChart.propTypes = {
   symbol: PropTypes.string.isRequired,
   language: PropTypes.string,
   onPriceUpdate: PropTypes.func,
+  positionTrade: PropTypes.object,
 };

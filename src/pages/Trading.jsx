@@ -33,6 +33,22 @@ export default function Trading({ language = "en" }) {
   const [liveAccount, setLiveAccount] = useState(null);
   const [demoAccount, setDemoAccount] = useState(null);
 
+  const [trades, setTrades] = useState([]);
+
+  const refreshAccounts = async () => {
+    try {
+      const [demoResult, liveResult] = await Promise.all([
+        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
+        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
+      ]);
+
+      if (demoResult?.data?.success) setDemoAccount(demoResult.data.data);
+      if (liveResult?.data?.success) setLiveAccount(liveResult.data.data);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
   }, [selectedSymbol]);
@@ -58,14 +74,7 @@ export default function Trading({ language = "en" }) {
 
     const loadAccounts = async () => {
       try {
-        const [demoResult, liveResult] = await Promise.all([
-          base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
-          base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
-        ]);
-
-        if (cancelled) return;
-        if (demoResult?.data?.success) setDemoAccount(demoResult.data.data);
-        if (liveResult?.data?.success) setLiveAccount(liveResult.data.data);
+        await refreshAccounts();
       } catch (err) {
         // Not logged in or backend unavailable.
         if (!cancelled) {
@@ -80,6 +89,52 @@ export default function Trading({ language = "en" }) {
       cancelled = true;
     };
   }, []);
+
+  const refreshTrades = async () => {
+    try {
+      const res = await base44.functions.invoke("tradingAccount", { action: "getTrades", limit: 200 });
+      if (res?.data?.success) setTrades(res.data.data || []);
+    } catch {
+      setTrades([]);
+    }
+  };
+
+  const openTradeForSymbol = useMemo(() => {
+    const sym = normalizeBinanceSymbol(selectedSymbol);
+    if (!sym) return null;
+    const demoId = demoAccount?.id;
+
+    const list = Array.isArray(trades) ? trades : [];
+    const open = list.filter((t) => t?.status === "OPEN" && normalizeBinanceSymbol(t?.symbol) === sym);
+    if (!open.length) return null;
+
+    if (demoId) {
+      const demoOpen = open.find((t) => t?.trading_account_id === demoId);
+      if (demoOpen) return demoOpen;
+    }
+    return open[0];
+  }, [trades, selectedSymbol, demoAccount?.id]);
+
+  useEffect(() => {
+    // Keep the activity panel up-to-date.
+    let timer;
+    let cancelled = false;
+
+    const run = async () => {
+      if (cancelled) return;
+      await refreshTrades();
+    };
+
+    run();
+    timer = setInterval(run, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Chart overlays are driven directly by `openTradeForSymbol`.
 
 
   useEffect(() => {
@@ -150,15 +205,27 @@ export default function Trading({ language = "en" }) {
       <main className="flex-1 flex overflow-hidden">
         <section className="flex-1 min-w-0 flex flex-col bg-[#131722]">
           <div className="flex-1 min-h-0">
-            <BinanceFuturesChart symbol={selectedSymbol} language={language} onPriceUpdate={(p) => setLastPrice(p)} />
+            <BinanceFuturesChart
+              symbol={selectedSymbol}
+              language={language}
+              onPriceUpdate={(p) => setLastPrice(p)}
+              positionTrade={openTradeForSymbol}
+            />
           </div>
           <div className="h-[320px] min-h-[240px] max-h-[50vh]">
-            <FuturesActivityTabs symbol={selectedSymbol} language={language} />
+            <FuturesActivityTabs symbol={selectedSymbol} language={language} trades={trades} onRefresh={refreshTrades} />
           </div>
         </section>
 
         <section className="hidden lg:block w-[360px] xl:w-[420px] shrink-0">
-          <FuturesTradePanel symbol={selectedSymbol} language={language} liveAccount={liveAccount} demoAccount={demoAccount} />
+          <FuturesTradePanel
+            symbol={selectedSymbol}
+            language={language}
+            liveAccount={liveAccount}
+            demoAccount={demoAccount}
+            onTradesChanged={refreshTrades}
+            onAccountsChanged={refreshAccounts}
+          />
         </section>
       </main>
     </div>
