@@ -42,7 +42,10 @@ function wheelAdjust(currentValue, deltaY, step) {
   const base = Number.isFinite(curr) ? curr : 0;
   const dir = deltaY > 0 ? -1 : 1;
   const next = Math.max(0, base + dir * step);
-  return String(next);
+  if (!Number.isFinite(step) || step <= 0) return String(next);
+  const stepStr = String(step);
+  const decimals = stepStr.includes(".") ? stepStr.split(".")[1].length : 0;
+  return next.toFixed(Math.min(8, decimals));
 }
 
 function uid() {
@@ -64,6 +67,7 @@ export default function FuturesTradePanel({
   language = "en",
   liveAccount = null,
   demoAccount = null,
+  positionTrade = null,
   onTradesChanged,
   onAccountsChanged,
 }) {
@@ -72,11 +76,19 @@ export default function FuturesTradePanel({
   const [orderType, setOrderType] = useState("limit");
   const [side, setSide] = useState("open");
 
+  // Order sizing mode
+  // - amount: quantity in base asset
+  // - value: notional in USDT
+  // - cost: margin in USDT (notional = cost * leverage)
+  const [orderMode, setOrderMode] = useState("amount");
+  const [leverage, setLeverage] = useState(10);
+
   const [lastPrice, setLastPrice] = useState(0);
 
   const [price, setPrice] = useState("");
   const [amount, setAmount] = useState("");
   const [total, setTotal] = useState("");
+  const [cost, setCost] = useState("");
   const [lastEdited, setLastEdited] = useState("amount");
 
   const [amountPct, setAmountPct] = useState(0);
@@ -97,6 +109,13 @@ export default function FuturesTradePanel({
   const [tpSlAdvancedOpen, setTpSlAdvancedOpen] = useState(false);
 
   const [tpSlLastEdited, setTpSlLastEdited] = useState("");
+
+  const [posTpEditing, setPosTpEditing] = useState(false);
+  const [posSlEditing, setPosSlEditing] = useState(false);
+  const [posTpDraft, setPosTpDraft] = useState("");
+  const [posSlDraft, setPosSlDraft] = useState("");
+  const [posUpdateBusy, setPosUpdateBusy] = useState(false);
+  const [posUpdateError, setPosUpdateError] = useState("");
 
   const [botsBusy, setBotsBusy] = useState(false);
   const [botsError, setBotsError] = useState("");
@@ -134,6 +153,20 @@ export default function FuturesTradePanel({
       marketHint: isAr ? "أوامر السوق تُنفذ بأفضل سعر متاح." : "Market orders execute at the best available price.",
       triggerHint: isAr ? "أمر التفعيل يضع أمرًا عند الوصول لسعر التفعيل." : "Trigger order places an order once a trigger price is reached.",
       triggerPrice: isAr ? "سعر التفعيل" : "Trigger price",
+      orderMode: isAr ? "وضع الطلب" : "Order mode",
+      byAmount: isAr ? "حسب الكمية" : "By amount",
+      byValue: isAr ? "حسب القيمة" : "By value",
+      byCost: isAr ? "حسب التكلفة" : "By cost",
+      value: isAr ? "القيمة" : "Value",
+      cost: isAr ? "التكلفة" : "Cost",
+      leverage: isAr ? "الرافعة" : "Leverage",
+      positionTpSl: isAr ? "هدف/وقف للمركز" : "Position TP/SL",
+      edit: isAr ? "تعديل" : "Edit",
+      update: isAr ? "تحديث" : "Update",
+      cancel: isAr ? "إلغاء" : "Cancel",
+      tp: isAr ? "هدف" : "TP",
+      sl: isAr ? "وقف" : "SL",
+      updateFailed: isAr ? "فشل تحديث TP/SL" : "Failed to update TP/SL",
       tpSl: isAr ? "هدف/وقف" : "TP/SL",
       longTpSl: isAr ? "هدف/وقف شراء" : "Long TP/SL",
       shortTpSl: isAr ? "هدف/وقف بيع" : "Short TP/SL",
@@ -165,16 +198,26 @@ export default function FuturesTradePanel({
     };
   }, [language]);
 
+  useEffect(() => {
+    // Keep leverage in sync with account defaults when available.
+    const def = Number((activeTab === "bots" ? demoAccount : liveAccount)?.default_leverage ?? (demoAccount?.default_leverage ?? liveAccount?.default_leverage) ?? 10);
+    if (Number.isFinite(def) && def > 0 && def <= 125) setLeverage(def);
+  }, [activeTab, demoAccount, liveAccount]);
+
   const getAccountSnapshot = (demoMode) => {
     const account = demoMode ? (demoAccount || liveAccount) : (liveAccount || demoAccount);
     if (!account) {
       return { balance: 0, equity: 0, marginUsed: 0, availableMargin: 0, hasAccount: false };
     }
 
+    // NOTE:
+    // Our backend debits `balance`/`demo_balance` by (margin + fees) on open.
+    // `margin_used` is tracked separately, but should NOT be subtracted again
+    // when computing available funds.
     const balance = Number(account.demo_balance ?? account.balance ?? 0);
-    const equity = Number(account.equity ?? balance ?? 0);
     const marginUsed = Number(account.margin_used ?? 0);
-    const availableMargin = Number.isFinite(equity) && Number.isFinite(marginUsed) ? Math.max(0, equity - marginUsed) : 0;
+    const equity = Number(account.equity ?? (Number.isFinite(balance) ? balance : 0));
+    const availableMargin = Number.isFinite(balance) ? Math.max(0, balance) : 0;
     return {
       balance: Number.isFinite(balance) ? balance : 0,
       equity: Number.isFinite(equity) ? equity : 0,
@@ -205,6 +248,46 @@ export default function FuturesTradePanel({
     const p = getReferencePrice(orderType, price, lastPrice);
     const a = parseNum(amount);
     const t = parseNum(total);
+    const c = parseNum(cost);
+    const lev = Number(leverage);
+    const safeLev = Number.isFinite(lev) && lev > 0 ? lev : 10;
+
+    const setStrIfChanged = (setter, nextNum) => {
+      if (!Number.isFinite(nextNum)) return;
+      const nextStr = String(nextNum);
+      setter((prev) => (prev === nextStr ? prev : nextStr));
+    };
+
+    if (orderMode === "cost") {
+      if (!Number.isFinite(p) || p <= 0) return;
+
+      if (lastEdited === "cost") {
+        if (!Number.isFinite(c)) return;
+        const nextNotional = c * safeLev;
+        const nextQty = nextNotional / p;
+        setStrIfChanged(setTotal, nextNotional);
+        setStrIfChanged(setAmount, nextQty);
+        return;
+      }
+
+      if (lastEdited === "amount") {
+        if (!Number.isFinite(a)) return;
+        const nextNotional = a * p;
+        const nextCost = nextNotional / safeLev;
+        setStrIfChanged(setTotal, nextNotional);
+        setStrIfChanged(setCost, nextCost);
+        return;
+      }
+
+      if (lastEdited === "total") {
+        if (!Number.isFinite(t)) return;
+        const nextQty = t / p;
+        const nextCost = t / safeLev;
+        setStrIfChanged(setAmount, nextQty);
+        setStrIfChanged(setCost, nextCost);
+      }
+      return;
+    }
 
     // If user edits total => recompute amount.
     if (lastEdited === "total") {
@@ -220,7 +303,7 @@ export default function FuturesTradePanel({
       const nextT = p * a;
       if (Number.isFinite(nextT)) setTotal(String(nextT));
     }
-  }, [price, amount, total, lastEdited, orderType, lastPrice]);
+  }, [price, amount, total, cost, lastEdited, orderType, lastPrice, orderMode, leverage]);
 
   const refPrice = useMemo(() => {
     if (orderType === "market") {
@@ -343,7 +426,8 @@ export default function FuturesTradePanel({
       }
 
       const sideKey = demoSide === "short" ? "SHORT" : "LONG";
-      const leverage = Number(demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
+      const lev = Number(leverage);
+      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(125, Math.max(1, lev)) : Number(demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
 
       const tpRaw = sideKey === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
       const slRaw = sideKey === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
@@ -357,9 +441,11 @@ export default function FuturesTradePanel({
         symbol,
         side: sideKey,
         quantity,
-        leverage: Number.isFinite(leverage) && leverage > 0 ? leverage : 10,
+        leverage: levSafe,
         entryPrice,
-        orderType: "MARKET",
+        orderType: orderType === "market" ? "MARKET" : orderType === "trigger" ? "STOP" : "LIMIT",
+        limitPrice: orderType === "limit" ? entryPrice : null,
+        stopPrice: orderType === "trigger" ? entryPrice : null,
         takeProfit,
         stopLoss,
       });
@@ -430,9 +516,98 @@ export default function FuturesTradePanel({
     }
   };
 
+  const canEditPositionTpSl = Boolean(positionTrade?.id && positionTrade?.status === "OPEN");
+
+  useEffect(() => {
+    if (!canEditPositionTpSl) {
+      setPosTpEditing(false);
+      setPosSlEditing(false);
+      setPosTpDraft("");
+      setPosSlDraft("");
+      setPosUpdateError("");
+      return;
+    }
+
+    const tp = positionTrade?.take_profit;
+    const sl = positionTrade?.stop_loss;
+    setPosTpDraft(tp === null || tp === undefined ? "" : String(tp));
+    setPosSlDraft(sl === null || sl === undefined ? "" : String(sl));
+  }, [canEditPositionTpSl, positionTrade?.id, positionTrade?.take_profit, positionTrade?.stop_loss]);
+
+  const updatePositionTpSl = async () => {
+    if (!positionTrade?.id) return;
+    setPosUpdateError("");
+    setPosUpdateBusy(true);
+
+    try {
+      const tp = parseNum(posTpDraft);
+      const sl = parseNum(posSlDraft);
+      const payload = {
+        action: "updateTrade",
+        tradeId: positionTrade.id,
+        takeProfit: Number.isFinite(tp) && tp > 0 ? tp : null,
+        stopLoss: Number.isFinite(sl) && sl > 0 ? sl : null,
+      };
+
+      const res = await base44.functions.invoke("tradingAccount", payload);
+      if (!res?.data?.success) {
+        setPosUpdateError(res?.data?.error || labels.updateFailed);
+        return;
+      }
+
+      setPosTpEditing(false);
+      setPosSlEditing(false);
+      await onTradesChanged?.();
+    } catch {
+      setPosUpdateError(labels.updateFailed);
+    } finally {
+      setPosUpdateBusy(false);
+    }
+  };
+
   const renderOrderForm = (opts = {}) => {
     const demoMode = Boolean(opts.demoMode);
     const accountSnap = getAccountSnapshot(demoMode);
+
+    const applyAmountPct = (pct) => {
+      const p = Math.min(100, Math.max(0, Number(pct)));
+      setAmountPct(p);
+
+      const ref = getReferencePrice(orderType, price, lastPrice);
+      const lev = Number(leverage);
+      const levSafe = Number.isFinite(lev) && lev > 0 ? lev : 10;
+      const avail = Number(accountSnap.availableMargin);
+      if (!Number.isFinite(ref) || ref <= 0 || !Number.isFinite(avail) || avail <= 0) return;
+
+      const maxNotional = avail * levSafe;
+
+      if (orderMode === "cost") {
+        const nextCost = (avail * p) / 100;
+        const nextNotional = nextCost * levSafe;
+        const nextQty = nextNotional / ref;
+        setCost(String(nextCost));
+        setTotal(String(nextNotional));
+        setAmount(String(nextQty));
+        setLastEdited("cost");
+        return;
+      }
+
+      if (orderMode === "value") {
+        const nextNotional = (maxNotional * p) / 100;
+        const nextQty = nextNotional / ref;
+        setTotal(String(nextNotional));
+        setAmount(String(nextQty));
+        setLastEdited("total");
+        return;
+      }
+
+      // amount
+      const maxQty = maxNotional / ref;
+      const nextQty = (maxQty * p) / 100;
+      setAmount(String(nextQty));
+      setTotal(String(nextQty * ref));
+      setLastEdited("amount");
+    };
 
     return (
       <>
@@ -499,6 +674,62 @@ export default function FuturesTradePanel({
           </div>
         </div>
 
+        <div className="mt-3 rounded bg-slate-900/30 border border-slate-800 p-3">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>{labels.orderMode}</span>
+            <span className="text-slate-400">{labels.leverage}: {Math.min(125, Math.max(1, Number(leverage) || 10))}×</span>
+          </div>
+
+          <div className="mt-2 flex gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setOrderMode("amount");
+                setLastEdited("amount");
+              }}
+              className={`flex-1 py-2 rounded ${orderMode === "amount" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            >
+              {labels.byAmount}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOrderMode("value");
+                setLastEdited("total");
+              }}
+              className={`flex-1 py-2 rounded ${orderMode === "value" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            >
+              {labels.byValue}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOrderMode("cost");
+                setLastEdited("cost");
+              }}
+              className={`flex-1 py-2 rounded ${orderMode === "cost" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            >
+              {labels.byCost}
+            </button>
+          </div>
+
+          <div className="mt-2">
+            <label className="block text-[11px] text-slate-500">{labels.leverage}</label>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="range"
+                min={1}
+                max={125}
+                step={1}
+                value={Math.min(125, Math.max(1, Number(leverage) || 10))}
+                onChange={(e) => setLeverage(Number(e.target.value))}
+                className="w-full accent-emerald-500"
+              />
+              <div className="w-16 text-right font-mono text-sm text-white">{Math.min(125, Math.max(1, Number(leverage) || 10))}×</div>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-4">
           <div className="flex items-center justify-between text-[11px] text-slate-500">
             <span>{labels.avail}</span>
@@ -515,8 +746,9 @@ export default function FuturesTradePanel({
                     setPrice(e.target.value);
                     setLastEdited("price");
                   }}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const step = stepForPrice(parseNum(price) || lastPrice);
                     setPrice((v) => wheelAdjust(v, e.deltaY, step));
                     setLastEdited("price");
@@ -538,8 +770,9 @@ export default function FuturesTradePanel({
                         setAmount(e.target.value);
                         setLastEdited("amount");
                       }}
-                      onWheel={(e) => {
+                      onWheelCapture={(e) => {
                         e.preventDefault();
+                        e.stopPropagation();
                         const step = stepForAmount(parseNum(amount));
                         setAmount((v) => wheelAdjust(v, e.deltaY, step));
                         setLastEdited("amount");
@@ -562,7 +795,7 @@ export default function FuturesTradePanel({
                       max={100}
                       step={1}
                       value={amountPct}
-                      onChange={(e) => setAmountPct(Number(e.target.value))}
+                      onChange={(e) => applyAmountPct(Number(e.target.value))}
                       className="mt-2 w-full accent-emerald-500"
                     />
                     <div className="mt-2 flex justify-between gap-1">
@@ -570,7 +803,7 @@ export default function FuturesTradePanel({
                         <button
                           key={p}
                           type="button"
-                          onClick={() => setAmountPct(p)}
+                          onClick={() => applyAmountPct(p)}
                           className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
                         >
                           {p}%
@@ -580,19 +813,31 @@ export default function FuturesTradePanel({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-500">{labels.total}</label>
+                  <label className="block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
                   <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                     <input
-                      value={total}
+                      value={orderMode === "cost" ? cost : total}
                       onChange={(e) => {
-                        setTotal(e.target.value);
-                        setLastEdited("total");
+                        if (orderMode === "cost") {
+                          setCost(e.target.value);
+                          setLastEdited("cost");
+                        } else {
+                          setTotal(e.target.value);
+                          setLastEdited("total");
+                        }
                       }}
-                      onWheel={(e) => {
+                      onWheelCapture={(e) => {
                         e.preventDefault();
-                        const step = stepForPrice(parseNum(total));
-                        setTotal((v) => wheelAdjust(v, e.deltaY, step));
-                        setLastEdited("total");
+                        e.stopPropagation();
+                        const current = orderMode === "cost" ? parseNum(cost) : parseNum(total);
+                        const step = stepForPrice(current);
+                        if (orderMode === "cost") {
+                          setCost((v) => wheelAdjust(v, e.deltaY, step));
+                          setLastEdited("cost");
+                        } else {
+                          setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                          setLastEdited("total");
+                        }
                       }}
                       placeholder="0"
                       className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -600,6 +845,12 @@ export default function FuturesTradePanel({
                     />
                     <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
                   </div>
+                  {orderMode === "cost" ? (
+                    <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                      <span>{labels.total}</span>
+                      <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </>
@@ -617,8 +868,9 @@ export default function FuturesTradePanel({
                     setAmount(e.target.value);
                     setLastEdited("amount");
                   }}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const step = stepForAmount(parseNum(amount));
                     setAmount((v) => wheelAdjust(v, e.deltaY, step));
                     setLastEdited("amount");
@@ -630,19 +882,31 @@ export default function FuturesTradePanel({
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
               </div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.total}</label>
+              <label className="mt-3 block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
               <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                 <input
-                  value={total}
+                  value={orderMode === "cost" ? cost : total}
                   onChange={(e) => {
-                    setTotal(e.target.value);
-                    setLastEdited("total");
+                    if (orderMode === "cost") {
+                      setCost(e.target.value);
+                      setLastEdited("cost");
+                    } else {
+                      setTotal(e.target.value);
+                      setLastEdited("total");
+                    }
                   }}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
-                    const step = stepForPrice(parseNum(total));
-                    setTotal((v) => wheelAdjust(v, e.deltaY, step));
-                    setLastEdited("total");
+                    e.stopPropagation();
+                    const current = orderMode === "cost" ? parseNum(cost) : parseNum(total);
+                    const step = stepForPrice(current);
+                    if (orderMode === "cost") {
+                      setCost((v) => wheelAdjust(v, e.deltaY, step));
+                      setLastEdited("cost");
+                    } else {
+                      setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                      setLastEdited("total");
+                    }
                   }}
                   placeholder="0"
                   className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -650,6 +914,13 @@ export default function FuturesTradePanel({
                 />
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
               </div>
+
+              {orderMode === "cost" ? (
+                <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>{labels.total}</span>
+                  <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                </div>
+              ) : null}
 
               <div className="mt-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
@@ -662,7 +933,7 @@ export default function FuturesTradePanel({
                   max={100}
                   step={1}
                   value={amountPct}
-                  onChange={(e) => setAmountPct(Number(e.target.value))}
+                  onChange={(e) => applyAmountPct(Number(e.target.value))}
                   className="mt-2 w-full accent-emerald-500"
                 />
                 <div className="mt-2 flex justify-between gap-1">
@@ -670,7 +941,7 @@ export default function FuturesTradePanel({
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setAmountPct(p)}
+                      onClick={() => applyAmountPct(p)}
                       className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
                     >
                       {p}%
@@ -689,8 +960,9 @@ export default function FuturesTradePanel({
                 <input
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const step = stepForPrice(parseNum(price) || lastPrice);
                     setPrice((v) => wheelAdjust(v, e.deltaY, step));
                   }}
@@ -709,8 +981,9 @@ export default function FuturesTradePanel({
                     setAmount(e.target.value);
                     setLastEdited("amount");
                   }}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const step = stepForAmount(parseNum(amount));
                     setAmount((v) => wheelAdjust(v, e.deltaY, step));
                     setLastEdited("amount");
@@ -722,19 +995,31 @@ export default function FuturesTradePanel({
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
               </div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.total}</label>
+              <label className="mt-3 block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
               <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
                 <input
-                  value={total}
+                  value={orderMode === "cost" ? cost : total}
                   onChange={(e) => {
-                    setTotal(e.target.value);
-                    setLastEdited("total");
+                    if (orderMode === "cost") {
+                      setCost(e.target.value);
+                      setLastEdited("cost");
+                    } else {
+                      setTotal(e.target.value);
+                      setLastEdited("total");
+                    }
                   }}
-                  onWheel={(e) => {
+                  onWheelCapture={(e) => {
                     e.preventDefault();
-                    const step = stepForPrice(parseNum(total));
-                    setTotal((v) => wheelAdjust(v, e.deltaY, step));
-                    setLastEdited("total");
+                    e.stopPropagation();
+                    const current = orderMode === "cost" ? parseNum(cost) : parseNum(total);
+                    const step = stepForPrice(current);
+                    if (orderMode === "cost") {
+                      setCost((v) => wheelAdjust(v, e.deltaY, step));
+                      setLastEdited("cost");
+                    } else {
+                      setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                      setLastEdited("total");
+                    }
                   }}
                   placeholder="0"
                   className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
@@ -742,6 +1027,13 @@ export default function FuturesTradePanel({
                 />
                 <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
               </div>
+
+              {orderMode === "cost" ? (
+                <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                  <span>{labels.total}</span>
+                  <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                </div>
+              ) : null}
 
               <div className="mt-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-500">
@@ -754,7 +1046,7 @@ export default function FuturesTradePanel({
                   max={100}
                   step={1}
                   value={amountPct}
-                  onChange={(e) => setAmountPct(Number(e.target.value))}
+                  onChange={(e) => applyAmountPct(Number(e.target.value))}
                   className="mt-2 w-full accent-emerald-500"
                 />
                 <div className="mt-2 flex justify-between gap-1">
@@ -762,7 +1054,7 @@ export default function FuturesTradePanel({
                     <button
                       key={p}
                       type="button"
-                      onClick={() => setAmountPct(p)}
+                      onClick={() => applyAmountPct(p)}
                       className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
                     >
                       {p}%
@@ -771,6 +1063,89 @@ export default function FuturesTradePanel({
                 </div>
               </div>
             </>
+          ) : null}
+
+          {canEditPositionTpSl ? (
+            <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.positionTpSl}</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPosTpEditing(false);
+                    setPosSlEditing(false);
+                    setPosTpDraft(positionTrade?.take_profit == null ? "" : String(positionTrade.take_profit));
+                    setPosSlDraft(positionTrade?.stop_loss == null ? "" : String(positionTrade.stop_loss));
+                    setPosUpdateError("");
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-slate-200"
+                >
+                  {labels.cancel}
+                </button>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-[11px] text-slate-500">{labels.tp}</div>
+                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <input
+                      value={posTpDraft}
+                      disabled={!posTpEditing}
+                      onClick={() => setPosTpEditing(true)}
+                      onChange={(e) => setPosTpDraft(e.target.value)}
+                      onWheelCapture={(e) => {
+                        if (!posTpEditing) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const step = stepForPrice(parseNum(posTpDraft) || lastPrice);
+                        setPosTpDraft((v) => wheelAdjust(v, e.deltaY, step));
+                      }}
+                      placeholder={posTpEditing ? labels.enter : (positionTrade?.take_profit ? String(positionTrade.take_profit) : "—")}
+                      className={`w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600 ${posTpEditing ? "" : "cursor-pointer"}`}
+                      inputMode="decimal"
+                      readOnly={!posTpEditing}
+                    />
+                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                  </div>
+                  {!posTpEditing ? <div className="mt-1 text-[10px] text-slate-600">{labels.edit}</div> : null}
+                </div>
+
+                <div>
+                  <div className="text-[11px] text-slate-500">{labels.sl}</div>
+                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <input
+                      value={posSlDraft}
+                      disabled={!posSlEditing}
+                      onClick={() => setPosSlEditing(true)}
+                      onChange={(e) => setPosSlDraft(e.target.value)}
+                      onWheelCapture={(e) => {
+                        if (!posSlEditing) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const step = stepForPrice(parseNum(posSlDraft) || lastPrice);
+                        setPosSlDraft((v) => wheelAdjust(v, e.deltaY, step));
+                      }}
+                      placeholder={posSlEditing ? labels.enter : (positionTrade?.stop_loss ? String(positionTrade.stop_loss) : "—")}
+                      className={`w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600 ${posSlEditing ? "" : "cursor-pointer"}`}
+                      inputMode="decimal"
+                      readOnly={!posSlEditing}
+                    />
+                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                  </div>
+                  {!posSlEditing ? <div className="mt-1 text-[10px] text-slate-600">{labels.edit}</div> : null}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={updatePositionTpSl}
+                disabled={posUpdateBusy}
+                className={`mt-3 w-full py-2 rounded text-sm ${posUpdateBusy ? "bg-slate-800/60 text-slate-400 cursor-not-allowed" : "bg-slate-800 text-slate-200 hover:bg-slate-700"}`}
+              >
+                {posUpdateBusy ? "..." : labels.update}
+              </button>
+              {posUpdateError ? <div className="mt-2 text-[11px] text-rose-300">{posUpdateError}</div> : null}
+            </div>
           ) : null}
 
           <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
@@ -819,8 +1194,9 @@ export default function FuturesTradePanel({
                           setLongTpTrigger(e.target.value);
                           setTpSlLastEdited("longTpTrigger");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           const step = stepForPrice(parseNum(longTpTrigger) || lastPrice);
                           setLongTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
                           setTpSlLastEdited("longTpTrigger");
@@ -842,8 +1218,9 @@ export default function FuturesTradePanel({
                           setLongTpRatio(e.target.value);
                           setTpSlLastEdited("longTpRatio");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setLongTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
                           setTpSlLastEdited("longTpRatio");
                         }}
@@ -864,8 +1241,9 @@ export default function FuturesTradePanel({
                           setLongSlTrigger(e.target.value);
                           setTpSlLastEdited("longSlTrigger");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           const step = stepForPrice(parseNum(longSlTrigger) || lastPrice);
                           setLongSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
                           setTpSlLastEdited("longSlTrigger");
@@ -887,8 +1265,9 @@ export default function FuturesTradePanel({
                           setLongSlRatio(e.target.value);
                           setTpSlLastEdited("longSlRatio");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setLongSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
                           setTpSlLastEdited("longSlRatio");
                         }}
@@ -1030,8 +1409,9 @@ export default function FuturesTradePanel({
                           setShortTpTrigger(e.target.value);
                           setTpSlLastEdited("shortTpTrigger");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           const step = stepForPrice(parseNum(shortTpTrigger) || lastPrice);
                           setShortTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
                           setTpSlLastEdited("shortTpTrigger");
@@ -1053,8 +1433,9 @@ export default function FuturesTradePanel({
                           setShortTpRatio(e.target.value);
                           setTpSlLastEdited("shortTpRatio");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setShortTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
                           setTpSlLastEdited("shortTpRatio");
                         }}
@@ -1075,8 +1456,9 @@ export default function FuturesTradePanel({
                           setShortSlTrigger(e.target.value);
                           setTpSlLastEdited("shortSlTrigger");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           const step = stepForPrice(parseNum(shortSlTrigger) || lastPrice);
                           setShortSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
                           setTpSlLastEdited("shortSlTrigger");
@@ -1098,8 +1480,9 @@ export default function FuturesTradePanel({
                           setShortSlRatio(e.target.value);
                           setTpSlLastEdited("shortSlRatio");
                         }}
-                        onWheel={(e) => {
+                        onWheelCapture={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setShortSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
                           setTpSlLastEdited("shortSlRatio");
                         }}
@@ -1327,6 +1710,7 @@ FuturesTradePanel.propTypes = {
   language: PropTypes.string,
   liveAccount: PropTypes.object,
   demoAccount: PropTypes.object,
+  positionTrade: PropTypes.object,
   onTradesChanged: PropTypes.func,
   onAccountsChanged: PropTypes.func,
 };

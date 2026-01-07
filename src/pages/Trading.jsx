@@ -266,6 +266,7 @@ export default function Trading({ language = "en" }) {
             language={language}
             liveAccount={liveAccount}
             demoAccount={demoAccount}
+            positionTrade={openTradeForSymbol}
             onTradesChanged={refreshTrades}
             onAccountsChanged={refreshAccounts}
           />

@@ -14,6 +14,21 @@ function volumeColor(candle) {
   return candle.close >= candle.open ? "rgba(16, 185, 129, 0.35)" : "rgba(239, 68, 68, 0.35)";
 }
 
+function formatQty(qty) {
+  const n = Number(qty);
+  if (!Number.isFinite(n)) return "—";
+  // Keep it compact; trim trailing zeros.
+  const s = n.toFixed(n >= 1 ? 4 : 6);
+  return s.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
+}
+
+function formatPnl(pnl) {
+  const n = Number(pnl);
+  if (!Number.isFinite(n)) return "—";
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}`;
+}
+
 export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
@@ -303,13 +318,13 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     const side = String(t.side || "LONG").toUpperCase();
     const isShort = side === "SHORT";
 
+    const hasQty = Number.isFinite(qty) && qty > 0;
     const pnl =
-      qty && Number.isFinite(mark) && Number.isFinite(entry)
+      hasQty && Number.isFinite(mark) && Number.isFinite(entry)
         ? (isShort ? (entry - mark) * qty : (mark - entry) * qty)
-        : 0;
+        : Number.NaN;
 
-    const pnlStr = qty && Number.isFinite(mark) && Number.isFinite(entry) ? `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}` : "0.00";
-    const entryTitle = `${isShort ? "Short" : "Long"} ${qty || ""} ${pnlStr}`.trim();
+    const entryTitle = `${isShort ? "Short" : "Long"} ${formatQty(qty)} PnL ${formatPnl(pnl)}`;
 
     if (Number.isFinite(entry) && entry > 0) {
       upsertOverlayLine("entry", {
@@ -326,13 +341,14 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     const tp = Number(t.take_profit);
     if (Number.isFinite(tp) && tp > 0) {
+      const tpPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - tp) * qty : (tp - entry) * qty) : Number.NaN;
       upsertOverlayLine("tp", {
         price: tp,
-        color: "#ef4444",
+        color: "#22c55e",
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
-        title: "Take Profit",
+        title: `TP ${formatPnl(tpPnl)}`,
       });
     } else {
       removeOverlayLine("tp");
@@ -340,13 +356,14 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     const sl = Number(t.stop_loss);
     if (Number.isFinite(sl) && sl > 0) {
+      const slPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - sl) * qty : (sl - entry) * qty) : Number.NaN;
       upsertOverlayLine("sl", {
         price: sl,
         color: "#ef4444",
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
-        title: "Stop Loss",
+        title: `SL ${formatPnl(slPnl)}`,
       });
     } else {
       removeOverlayLine("sl");
