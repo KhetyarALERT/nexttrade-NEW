@@ -35,6 +35,9 @@ export default function OrderPanel({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Backend uses percentage values (e.g. 0.05 = 0.05%). Keep UI estimate aligned.
+  const ESTIMATED_TAKER_FEE_RATE = 0.0005; // 0.05%
+
   const baseAsset = symbol.split('-')[0];
 
   // Reset fields on symbol change
@@ -108,21 +111,33 @@ export default function OrderPanel({
       if (!stopLimitPrice) { toast.error("Please enter stop limit price"); return; }
     }
 
-    // Calculate quantity
-    let quantity;
-    const effectivePrice = (orderType === 'market' || orderType === 'trailing') 
-      ? currentPrice 
+    // Effective price used for sizing and validation
+    const effectivePrice = (orderType === 'market' || orderType === 'trailing')
+      ? currentPrice
       : parseFloat(price || stopPrice);
-    
+
+    // Calculate quantity.
+    // - USDT mode: treat amount as *margin/cost* (collateral). Notional = cost * leverage.
+    // - Crypto mode: treat amount as quantity.
+    let quantity;
+    let notional;
+    let marginRequired;
     if (amountType === 'usdt') {
-      quantity = amountValue / effectivePrice;
+      marginRequired = amountValue;
+      notional = marginRequired * leverage[0];
+      quantity = notional / effectivePrice;
     } else {
       quantity = amountValue;
+      notional = quantity * effectivePrice;
+      marginRequired = notional / leverage[0];
     }
 
-    const margin = (quantity * effectivePrice) / leverage[0];
-    if (margin > balance) {
-      toast.error(`Insufficient balance. Need $${margin.toFixed(2)} margin, have $${balance.toFixed(2)}`);
+    const estFee = notional * ESTIMATED_TAKER_FEE_RATE;
+    const totalRequired = marginRequired + estFee;
+    if (totalRequired > balance) {
+      toast.error(
+        `Insufficient balance. Need $${totalRequired.toFixed(2)} (margin $${marginRequired.toFixed(2)} + fee $${estFee.toFixed(2)}), have $${balance.toFixed(2)}`
+      );
       return;
     }
 
@@ -155,7 +170,7 @@ export default function OrderPanel({
         const trade = result.data.data;
         toast.success(
           `${orderSide === 'buy' ? 'Long' : 'Short'} ${symbol} order placed`,
-          { description: `Type: ${orderType.toUpperCase()} | Margin: $${trade.margin?.toFixed(2) || margin.toFixed(2)}` }
+          { description: `Type: ${orderType.toUpperCase()} | Margin: $${trade.margin?.toFixed(2) || marginRequired.toFixed(2)} | Notional: $${notional.toFixed(2)}` }
         );
         setAmount("");
         if (onOrderSuccess) onOrderSuccess();
@@ -177,16 +192,20 @@ export default function OrderPanel({
     
   const amountValue = parseFloat(amount) || 0;
   
-  let _cryptoAmount, usdtAmount;
+  let quantityPreview = 0;
+  let notionalPreview = 0;
+  let marginRequired = 0;
   if (amountType === 'usdt') {
-    usdtAmount = amountValue;
-    _cryptoAmount = effectivePrice > 0 ? amountValue / effectivePrice : 0;
+    marginRequired = amountValue;
+    notionalPreview = marginRequired * leverage[0];
+    quantityPreview = effectivePrice > 0 ? notionalPreview / effectivePrice : 0;
   } else {
-    _cryptoAmount = amountValue;
-    usdtAmount = amountValue * effectivePrice;
+    quantityPreview = amountValue;
+    notionalPreview = quantityPreview * effectivePrice;
+    marginRequired = leverage[0] > 0 ? notionalPreview / leverage[0] : 0;
   }
-
-  const marginRequired = usdtAmount / leverage[0];
+  const estFeePreview = notionalPreview * ESTIMATED_TAKER_FEE_RATE;
+  const totalRequiredPreview = marginRequired + estFeePreview;
 
   return (
     <div className="flex flex-col h-full bg-[#1a1a2e] text-slate-300">
@@ -258,7 +277,9 @@ export default function OrderPanel({
 
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Amount</Label>
+              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                {amountType === 'usdt' ? 'Cost (Margin)' : 'Size'}
+              </Label>
               <div className="flex bg-slate-800/50 rounded-lg p-0.5">
                 <button 
                   onClick={() => setAmountType('usdt')}
@@ -344,8 +365,20 @@ export default function OrderPanel({
 
         <div className="pt-4 border-t border-slate-800/50 space-y-3">
           <div className="flex justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Position Value</span>
+            <span className="text-slate-300 font-bold font-mono">${notionalPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
             <span className="text-slate-500 font-medium">Margin Required</span>
             <span className="text-white font-bold font-mono">${marginRequired.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Est. Fee</span>
+            <span className="text-slate-300 font-bold font-mono">${estFeePreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-slate-500 font-medium">Total Required</span>
+            <span className="text-white font-bold font-mono">${totalRequiredPreview.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div className="flex justify-between text-[11px]">
             <span className="text-slate-500 font-medium">Max Size</span>

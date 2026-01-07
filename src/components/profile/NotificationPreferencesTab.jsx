@@ -105,15 +105,27 @@ export default function NotificationPreferencesTab({ language = "en" }) {
   useEffect(() => {
     const fetchPrices = async () => {
       try {
-        const response = await fetch('https://open-api.bingx.com/openApi/swap/v2/quote/ticker');
+        // Use Binance futures public endpoint (CORS-friendly) for UI-only price display.
+        // Symbols in this UI are in BingX format (e.g., BTC-USDT). Convert to Binance format (BTCUSDT).
+        const response = await fetch('https://fapi.binance.com/fapi/v1/ticker/price');
+        if (!response.ok) throw new Error(`Binance ticker failed: ${response.status}`);
         const data = await response.json();
-        if (data.code === 0 && data.data) {
-          const prices = {};
-          data.data.forEach(ticker => {
-            prices[ticker.symbol] = parseFloat(ticker.lastPrice);
-          });
-          setMarketPrices(prices);
-        }
+
+        const binanceMap = new Map();
+        (Array.isArray(data) ? data : []).forEach((t) => {
+          const sym = String(t?.symbol || '').toUpperCase();
+          const price = Number(t?.price);
+          if (sym && Number.isFinite(price)) binanceMap.set(sym, price);
+        });
+
+        const prices = {};
+        ALL_SYMBOLS.forEach((bingxSymbol) => {
+          const binanceSymbol = String(bingxSymbol || '').replace(/-/g, '').toUpperCase();
+          const p = binanceMap.get(binanceSymbol);
+          if (Number.isFinite(p)) prices[bingxSymbol] = p;
+        });
+
+        if (Object.keys(prices).length) setMarketPrices(prices);
       } catch {
         // Use fallback
         setMarketPrices({

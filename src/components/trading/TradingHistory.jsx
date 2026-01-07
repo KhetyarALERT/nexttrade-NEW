@@ -135,10 +135,21 @@ export default function TradingHistory({
                     {openPositions.map((t) => {
                       const mark = prices[t.symbol] || t.entry_price || 0;
                       const value = mark * t.quantity;
-                      const margin = (t.entry_price * t.quantity) / (t.leverage || 1);
+                      const storedMargin = Number(t.margin);
+                      const leverageNum = Number(t.leverage || 1) || 1;
+                      // Prefer backend-computed margin (includes its own rounding rules).
+                      const margin = Number.isFinite(storedMargin) && storedMargin > 0
+                        ? storedMargin
+                        : (t.entry_price * t.quantity) / leverageNum;
                       const pnl = (t.side === 'LONG' ? (mark - t.entry_price) : (t.entry_price - mark)) * t.quantity;
                       const roe = margin ? (pnl / margin) * 100 : 0;
-                      const breakeven = t.entry_price; // approximation without fees
+                      // Breakeven adjusted for fees if available: fees always reduce PnL.
+                      const feeOpen = Number(t.fee_open ?? 0) || 0;
+                      const qty = Number(t.quantity || 0) || 0;
+                      const feePerUnit = qty > 0 ? (feeOpen / qty) : 0;
+                      const breakeven = t.side === 'LONG'
+                        ? (Number(t.entry_price || 0) + feePerUnit)
+                        : (Number(t.entry_price || 0) - feePerUnit);
                       const riskPct = (t.liquidation_price && mark) ? (Math.abs(mark - t.liquidation_price) / mark) * 100 : null;
                       return (
                         <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group text-[13px]">

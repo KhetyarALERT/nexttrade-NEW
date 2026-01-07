@@ -14,6 +14,8 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
   const chartRef = useRef(null);
   const seriesRef = useRef(null);
   const priceLinesRef = useRef([]);
+  const markLineRef = useRef(null);
+  const lastMarkUpdateRef = useRef(0);
 
   useEffect(() => {
     if (!containerRef.current || chartRef.current) return;
@@ -105,82 +107,117 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
     };
   }, [symbol, timeframe, onPriceUpdate]);
 
-  // Draw entry/TP/SL price badges for current symbol
+  // Draw entry/TP/SL price badges for current symbol (stable; updated only when positions/symbol changes)
   useEffect(() => {
     const s = toInternalFormat(symbol);
     const series = seriesRef.current;
     if (!series || !s) return;
 
-    const tickerUnsub = marketStore.subscribe(`ticker:${s}`, (t) => {
-      const mark = (t?.mark ?? t?.price) || 0;
-      if (!mark) return;
+    // Clear existing entry/tp/sl lines (but keep mark line separate)
+    if (priceLinesRef.current.length) {
+      try { priceLinesRef.current.forEach(l => series.removePriceLine(l)); } catch {}
+      priceLinesRef.current = [];
+    }
 
-      // Clear existing price lines
-      if (priceLinesRef.current.length) {
-        try { priceLinesRef.current.forEach(l => series.removePriceLine(l)); } catch {}
-        priceLinesRef.current = [];
-      }
+    const symPositions = (positions || []).filter(p => toInternalFormat(p.symbol) === s && p.status === 'OPEN');
+    symPositions.forEach(pos => {
+      const entry = Number(pos.entry_price || 0);
+      if (!Number.isFinite(entry) || entry <= 0) return;
+      const sideLong = pos.side === 'LONG';
+      const digits = entry < 1 ? 6 : 2;
 
-      const symPositions = (positions || []).filter(p => toInternalFormat(p.symbol) === s && p.status === 'OPEN');
-      symPositions.forEach(pos => {
-        const qty = Number(pos.quantity || 0);
-        const entry = Number(pos.entry_price || 0);
-        const sideLong = pos.side === 'LONG';
-        const pnl = (sideLong ? (mark - entry) : (entry - mark)) * qty;
-        const margin = entry * qty / (Number(pos.leverage || 1) || 1);
-        const roe = margin ? (pnl / margin) * 100 : 0;
+      const entryLine = series.createPriceLine({
+        price: entry,
+        color: sideLong ? '#3b82f6' : '#ef4444',
+        lineWidth: 2,
+        lineStyle: 0,
+        title: `ENTRY ${entry.toFixed(digits)}`,
+      });
+      priceLinesRef.current.push(entryLine);
 
-        const entryLine = series.createPriceLine({
-          price: entry,
-          color: sideLong ? '#3b82f6' : '#ef4444',
-          lineWidth: 2,
-          lineStyle: 0,
-          title: `${sideLong ? 'LONG' : 'SHORT'} @ ${entry.toFixed(entry < 1 ? 6 : 2)} | PnL ${pnl>=0?'+':''}${pnl.toFixed(2)} (${roe.toFixed(2)}%)`,
-        });
-        priceLinesRef.current.push(entryLine);
-
-        if (pos.take_profit) {
-          const tp = Number(pos.take_profit);
-          const tpPnl = (sideLong ? (tp - entry) : (entry - tp)) * qty;
+      if (pos.take_profit) {
+        const tp = Number(pos.take_profit);
+        if (Number.isFinite(tp) && tp > 0) {
+          const tpDigits = tp < 1 ? 6 : 2;
           const tpLine = series.createPriceLine({
             price: tp,
             color: '#22c55e',
             lineWidth: 1,
             lineStyle: 2,
-            title: `TP ${tp.toFixed(tp<1?6:2)} | ${tpPnl>=0?'+':''}${tpPnl.toFixed(2)}`,
+            title: `TP ${tp.toFixed(tpDigits)}`,
           });
           priceLinesRef.current.push(tpLine);
         }
-        if (pos.stop_loss) {
-          const sl = Number(pos.stop_loss);
-          const slPnl = (sideLong ? (sl - entry) : (entry - sl)) * qty;
+      }
+
+      if (pos.stop_loss) {
+        const sl = Number(pos.stop_loss);
+        if (Number.isFinite(sl) && sl > 0) {
+          const slDigits = sl < 1 ? 6 : 2;
           const slLine = series.createPriceLine({
             price: sl,
             color: '#ef4444',
             lineWidth: 1,
             lineStyle: 2,
-            title: `SL ${sl.toFixed(sl<1?6:2)} | ${slPnl>=0?'+':''}${slPnl.toFixed(2)}`,
+            title: `SL ${sl.toFixed(slDigits)}`,
           });
           priceLinesRef.current.push(slLine);
         }
-      });
-
-      // Current mark price line
-      const markLine = series.createPriceLine({
-        price: mark,
-        color: '#0099FA',
-        lineWidth: 1,
-        lineStyle: 1,
-        title: `Mark ${mark.toFixed(mark<1?6:2)}`,
-      });
-      priceLinesRef.current.push(markLine);
+      }
     });
 
-    return () => { try { tickerUnsub?.(); } catch {}
+    return () => {
       try { priceLinesRef.current.forEach(l => series.removePriceLine(l)); } catch {}
       priceLinesRef.current = [];
     };
   }, [positions, symbol]);
+
+  // Mark price line: update with throttling (avoid recreating all lines each tick).
+  useEffect(() => {
+    const s = toInternalFormat(symbol);
+    const series = seriesRef.current;
+    if (!series || !s) return;
+
+    const updateMarkLine = (mark) => {
+      if (!Number.isFinite(mark) || mark <= 0) return;
+      const now = Date.now();
+      if (now - lastMarkUpdateRef.current < 250) return;
+      lastMarkUpdateRef.current = now;
+
+      try {
+        if (markLineRef.current) series.removePriceLine(markLineRef.current);
+      } catch {}
+
+      const digits = mark < 1 ? 6 : 2;
+      markLineRef.current = series.createPriceLine({
+        price: mark,
+        color: '#0099FA',
+        lineWidth: 1,
+        lineStyle: 1,
+        title: `MARK ${mark.toFixed(digits)}`,
+      });
+    };
+
+    // Seed from existing store values (immediate)
+    try {
+      const existing = marketStore.tickers?.[s];
+      const seed = (existing?.mark ?? existing?.price) || marketStore.getPrice?.(s) || 0;
+      if (seed) updateMarkLine(Number(seed));
+    } catch {}
+
+    const unsub = marketStore.subscribe(`ticker:${s}`, (t) => {
+      const mark = Number((t?.mark ?? t?.price) || 0);
+      if (mark) updateMarkLine(mark);
+    });
+
+    return () => {
+      try { unsub?.(); } catch {}
+      try {
+        if (markLineRef.current) series.removePriceLine(markLineRef.current);
+      } catch {}
+      markLineRef.current = null;
+    };
+  }, [symbol]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
