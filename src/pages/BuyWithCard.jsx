@@ -26,27 +26,27 @@ export default function BuyWithCard({ language = "en" }) {
       };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-          <Badge variant="outline" className="border-slate-200 text-slate-700">
+          <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+          <Badge variant="outline" className="border-border text-muted-foreground">
             <CreditCard className="h-3.5 w-3.5 mr-1" />
             {language === "ar" ? "قريباً" : "Coming soon"}
           </Badge>
         </div>
-        <p className="text-slate-600 mb-8">{t.subtitle}</p>
+        <p className="text-muted-foreground mb-8">{t.subtitle}</p>
 
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="border-b border-slate-100">
+        <Card className="border-border shadow-sm">
+          <CardHeader className="border-b border-border">
             <CardTitle className="text-lg flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-blue-600" />
               {language === "ar" ? "معلومات" : "Info"}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <p className="text-sm text-slate-600">{t.note}</p>
-            <p className="text-xs text-slate-500">{t.safety}</p>
+            <p className="text-sm text-muted-foreground">{t.note}</p>
+            <p className="text-xs text-muted-foreground">{t.safety}</p>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button asChild className="bg-blue-600 hover:bg-blue-700">
                 <a href={createPageUrl("OnChainDeposit")}>{t.action}</a>

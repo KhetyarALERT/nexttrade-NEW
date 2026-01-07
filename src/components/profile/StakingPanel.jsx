@@ -270,11 +270,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   return (
     <>
-      <div className="rounded-2xl border border-slate-800/50 bg-[#0f1320] p-4">
+      <div className="rounded-2xl border border-border bg-card p-4 text-foreground">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Lock className="w-4 h-4 text-slate-300" />
-            <h3 className="text-slate-100 font-medium">{t.title}</h3>
+            <Lock className="w-4 h-4 text-muted-foreground" />
+            <h3 className="text-foreground font-medium">{t.title}</h3>
           </div>
           <Button 
             onClick={() => setStakeOpen(true)} 
@@ -286,22 +286,22 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="p-3 bg-slate-900/40 border border-slate-800/50 rounded-xl">
-            <p className="text-[10px] text-slate-500">Staked</p>
-            <p className="text-sm font-bold text-slate-100">{fmtMoney(totalStaked)} USDT</p>
+          <div className="p-3 bg-muted border border-border rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Staked</p>
+            <p className="text-sm font-bold text-foreground">{fmtMoney(totalStaked)} USDT</p>
           </div>
-          <div className="p-3 bg-slate-900/40 border border-slate-800/50 rounded-xl">
-            <p className="text-[10px] text-slate-500">Earned</p>
+          <div className="p-3 bg-muted border border-border rounded-xl">
+            <p className="text-[10px] text-muted-foreground">Earned</p>
             <p className={`text-sm font-bold ${totalEarned >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtMoney(totalEarned)} USDT</p>
           </div>
         </div>
         
         {loading ? (
           <div className="flex justify-center py-4">
-            <RefreshCw className="w-4 h-4 animate-spin text-slate-500" />
+            <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
         ) : positions.filter(p => p.status === 'active').length === 0 ? (
-          <div className="text-center py-4 text-slate-500 text-xs">
+          <div className="text-center py-4 text-muted-foreground text-xs">
             {t.noStakes}
           </div>
         ) : (
@@ -309,9 +309,9 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                     {positions.filter(p => p.status === 'active').slice(0, 3).map((pos) => {
               const progress = calculateProgress(pos.start_date, pos.unlock_date);
               return (
-                <div key={pos.id} className="p-3 bg-slate-900/40 border border-slate-800/50 rounded-xl">
+                <div key={pos.id} className="p-3 bg-muted border border-border rounded-xl">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-slate-100 text-sm">{Number(pos.amount).toFixed(0)} USDT</span>
+                    <span className="text-foreground text-sm">{Number(pos.amount).toFixed(0)} USDT</span>
                             <span className="text-emerald-300 text-xs">{pos.apy}% APY</span>
                   </div>
                   <Progress value={progress} className="h-1" />
@@ -325,34 +325,34 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
       {/* Stake Dialog */}
       <Dialog open={stakeOpen} onOpenChange={setStakeOpen}>
         <DialogContent
-          className="sm:max-w-lg bg-[#0f1320] border-slate-800 text-slate-100 max-h-[90vh] overflow-y-auto"
+          className="sm:max-w-lg bg-background border-border text-foreground max-h-[90vh] overflow-y-auto"
           aria-describedby="stake-description"
           dir={language === "ar" ? "rtl" : "ltr"}
         >
           <DialogHeader>
-            <DialogTitle className="text-slate-100">
+            <DialogTitle className="text-foreground">
               USDT · {selectedPlan?.label || `${lockPeriod}D`}
             </DialogTitle>
           </DialogHeader>
-          <div id="stake-description" className="text-slate-400 text-sm space-y-2 pb-4 border-b border-slate-800">
-            <p className="text-[13px] text-slate-300">{t.internalNote}</p>
-            <p className="text-xs text-slate-500">{t.minAmount} • {t.minPeriod} • {t.earlyPenalty}</p>
+          <div id="stake-description" className="text-muted-foreground text-sm space-y-2 pb-4 border-b border-border">
+            <p className="text-[13px] text-foreground/90">{t.internalNote}</p>
+            <p className="text-xs text-muted-foreground">{t.minAmount} • {t.minPeriod} • {t.earlyPenalty}</p>
           </div>
 
           <div className="space-y-4">
             {usdtWallets.length === 0 ? (
-              <div className="text-center py-4 text-slate-500">{t.noWallets}</div>
+              <div className="text-center py-4 text-muted-foreground">{t.noWallets}</div>
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label className="text-slate-300">{t.selectWallet}</Label>
+                  <Label className="text-foreground">{t.selectWallet}</Label>
                   <Select value={selectedWallet || ""} onValueChange={setSelectedWallet}>
-                    <SelectTrigger className="bg-slate-900/40 border-slate-800 text-slate-100">
+                    <SelectTrigger className="bg-muted border-border text-foreground">
                       <SelectValue placeholder={t.chooseWallet} />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#0f1320] border-slate-800">
+                    <SelectContent className="bg-popover border-border">
                       {usdtWallets.map(w => (
-                        <SelectItem key={w.id} value={w.id} className="text-slate-100">
+                        <SelectItem key={w.id} value={w.id}>
                           {w.currency} ({w.network}) - {fmtMoney(w.balance - (w.locked_balance || 0))} {t.available}
                         </SelectItem>
                       ))}
@@ -362,9 +362,9 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label className="text-slate-300">{t.amount}</Label>
-                    <div className="text-xs text-slate-500">
-                      {language === "ar" ? "المتاح" : "Available"}: <span className="font-mono text-slate-300">{fmtMoney(available)} USDT</span>
+                    <Label className="text-foreground">{t.amount}</Label>
+                    <div className="text-xs text-muted-foreground">
+                      {language === "ar" ? "المتاح" : "Available"}: <span className="font-mono text-foreground">{fmtMoney(available)} USDT</span>
                     </div>
                   </div>
 
@@ -375,9 +375,9 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                       onChange={(e) => setStakeAmount(e.target.value)}
                       placeholder={String(MIN_STAKE_USDT)}
                       min={String(MIN_STAKE_USDT)}
-                      className="bg-slate-900/40 border-slate-800 text-slate-100 pr-16 font-mono"
+                      className="bg-muted border-border text-foreground pr-16 font-mono"
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-semibold">USDT</div>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">USDT</div>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
@@ -386,18 +386,18 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                         key={p}
                         type="button"
                         onClick={() => setPercentAmount(p)}
-                        className="h-9 rounded-lg border border-slate-800 bg-slate-900/30 text-slate-200 text-xs hover:bg-slate-800/40 transition-colors"
+                        className="h-9 rounded-lg border border-border bg-muted text-foreground text-xs hover:bg-muted/80 transition-colors"
                       >
                         {p}%
                       </button>
                     ))}
                   </div>
 
-                  <p className="text-xs text-slate-500">{t.minAmount}</p>
+                  <p className="text-xs text-muted-foreground">{t.minAmount}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">{t.period}</Label>
+                  <Label className="text-foreground">{t.period}</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {stakingPlans.map(plan => (
                       <button
@@ -406,11 +406,11 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                         className={`p-2 rounded-lg border text-center transition-all ${
                           lockPeriod === String(plan.days)
                             ? 'border-blue-500/60 bg-blue-600/10'
-                            : 'border-slate-800 hover:border-slate-700 bg-slate-900/30'
+                            : 'border-border hover:bg-muted/80 bg-muted'
                         }`}
                       >
-                        <p className="font-bold text-slate-100 text-xs">{plan.label}</p>
-                        <p className="text-[10px] text-slate-500">{plan.days}D</p>
+                        <p className="font-bold text-foreground text-xs">{plan.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{plan.days}D</p>
                         <p className="text-[10px] text-emerald-300">{plan.apy}%</p>
                       </button>
                     ))}

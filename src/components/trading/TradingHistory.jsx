@@ -80,15 +80,15 @@ export default function TradingHistory({
   const pendingOrders = trades.filter((t) => t.status === "PENDING");
 
   return (
-    <div className="h-full flex flex-col bg-[#131722] text-slate-300">
-      <div className="flex items-center justify-between px-4 h-10 border-b border-slate-800/50 shrink-0">
+    <div className="h-full flex flex-col bg-background text-foreground">
+      <div className="flex items-center justify-between px-4 h-10 border-b border-border shrink-0 bg-card">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
           <TabsList className="bg-transparent h-full p-0 gap-6">
             <TabsTrigger value="positions" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
-              Positions <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px]">{openPositions.length}</span>
+              Positions <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] text-muted-foreground">{openPositions.length}</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
-              Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px]">{pendingOrders.length}</span>
+              Open Orders <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] text-muted-foreground">{pendingOrders.length}</span>
             </TabsTrigger>
             <TabsTrigger value="history" className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent data-[state=active]:text-white text-xs font-semibold px-0 transition-all">
               Trade History
@@ -101,7 +101,7 @@ export default function TradingHistory({
             size="sm"
             variant="ghost"
             onClick={() => { load(); onRefresh?.(); }}
-            className="h-7 px-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all"
+            className="h-7 px-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-all"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
             <span className="text-[11px]">Refresh</span>
@@ -115,8 +115,8 @@ export default function TradingHistory({
             {openPositions.length > 0 ? (
               <div className="p-0">
                 <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-[#131722] z-10">
-                    <tr className="text-[13px] uppercase tracking-wider text-slate-300 border-b border-slate-800/50">
+                  <thead className="sticky top-0 bg-card z-10">
+                    <tr className="text-[13px] uppercase tracking-wider text-muted-foreground border-b border-border">
                       <th className="px-4 py-2 font-semibold">Symbol</th>
                       <th className="px-4 py-2 font-semibold">Position Value</th>
                       <th className="px-4 py-2 font-semibold">Entry</th>
@@ -131,7 +131,7 @@ export default function TradingHistory({
                       <th className="px-4 py-2 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/30">
+                  <tbody className="divide-y divide-border">
                     {openPositions.map((t) => {
                       const mark = prices[t.symbol] || t.entry_price || 0;
                       const value = mark * t.quantity;
@@ -152,11 +152,11 @@ export default function TradingHistory({
                         : (Number(t.entry_price || 0) - feePerUnit);
                       const riskPct = (t.liquidation_price && mark) ? (Math.abs(mark - t.liquidation_price) / mark) * 100 : null;
                       return (
-                        <tr key={t.id} className="hover:bg-slate-800/20 transition-colors group text-[13px]">
+                        <tr key={t.id} className="hover:bg-muted/50 transition-colors group text-[13px]">
                           <td className="px-4 py-3">
                             <div className="flex flex-col">
-                              <span className="text-[15px] font-bold text-white">{toDisplayFormat(t.symbol)}</span>
-                              <span className="text-[11px] text-slate-500">{t.leverage}x Isolated • {t.side === 'LONG' ? 'Long' : 'Short'} • Size {formatSize(t.quantity)}</span>
+                              <span className="text-[15px] font-bold text-foreground">{toDisplayFormat(t.symbol)}</span>
+                              <span className="text-[11px] text-muted-foreground">{t.leverage}x Isolated • {t.side === 'LONG' ? 'Long' : 'Short'} • Size {formatSize(t.quantity)}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 font-mono">{formatPrice(value)}</td>
@@ -176,13 +176,13 @@ export default function TradingHistory({
                                 {t.take_profit && <span className="text-emerald-400 font-mono">TP {formatPrice(t.take_profit)}</span>}
                                 {t.stop_loss && <span className="ml-2 text-rose-400 font-mono">SL {formatPrice(t.stop_loss)}</span>}
                               </div>
-                            ) : <span className="text-slate-500 text-[12px]">--</span>}
+                            ) : <span className="text-muted-foreground text-[12px]">--</span>}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add TP/SL</Button>
-                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700">Reverse</Button>
-                              <Button size="sm" variant="outline" className="h-8 text-[12px] border-slate-700 hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
+                              <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={() => { setSelectedPos(t); setTpslOpen(true); }}>Add TP/SL</Button>
+                              <Button size="sm" variant="outline" className="h-8 text-[12px]">Reverse</Button>
+                              <Button size="sm" variant="outline" className="h-8 text-[12px] hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all">Close</Button>
                             </div>
                           </td>
                         </tr>
@@ -200,8 +200,8 @@ export default function TradingHistory({
             {pendingOrders.length > 0 ? (
               <div className="p-0">
                 <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-[#131722] z-10">
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                  <thead className="sticky top-0 bg-card z-10">
+                    <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
                       <th className="px-4 py-2 font-semibold">Symbol</th>
                       <th className="px-4 py-2 font-semibold">Type</th>
                       <th className="px-4 py-2 font-semibold">Side</th>
@@ -210,16 +210,16 @@ export default function TradingHistory({
                       <th className="px-4 py-2 font-semibold text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/30">
+                  <tbody className="divide-y divide-border">
                     {pendingOrders.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-4 py-3 text-sm font-bold text-white">{toDisplayFormat(t.symbol)}</td>
-                        <td className="px-4 py-3 text-xs text-slate-400">{t.order_type}</td>
+                      <tr key={t.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-bold text-foreground">{toDisplayFormat(t.symbol)}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{t.order_type}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs font-bold ${t.side === "LONG" ? "text-emerald-400" : "text-rose-400"}`}>{t.side}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatPrice(t.limit_price || t.stop_price)}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-slate-300">{formatSize(t.quantity)}</td>
+                        <td className="px-4 py-3 text-sm font-mono">{formatPrice(t.limit_price || t.stop_price)}</td>
+                        <td className="px-4 py-3 text-sm font-mono">{formatSize(t.quantity)}</td>
                         <td className="px-4 py-3 text-right">
                           <Button size="sm" variant="ghost" className="h-7 text-[10px] text-rose-400 hover:bg-rose-500/10">Cancel</Button>
                         </td>
@@ -237,16 +237,16 @@ export default function TradingHistory({
             {trades.length > 0 ? (
               <div className="p-0">
                 <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-[#131722] z-10">
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800/50">
+                  <thead className="sticky top-0 bg-card z-10">
+                    <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
                       {columns.map(col => (
                         <th key={col.key} className="px-4 py-2 font-semibold whitespace-nowrap">{col.label}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/30">
+                  <tbody className="divide-y divide-border">
                     {trades.map(trade => (
-                      <tr key={trade.id} className="hover:bg-slate-800/20 transition-colors">
+                      <tr key={trade.id} className="hover:bg-muted/50 transition-colors">
                         {columns.map(col => (
                           <td key={col.key} className="px-4 py-2.5 whitespace-nowrap text-xs">
                             {col.render ? col.render(trade) : col.format ? col.format(trade[col.key]) : (trade[col.key] ?? '-')}
@@ -269,7 +269,7 @@ export default function TradingHistory({
 
   function EmptyState({ icon, message }) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 opacity-50">
+      <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3 opacity-50">
         {icon}
         <span className="text-xs font-medium">{message}</span>
       </div>

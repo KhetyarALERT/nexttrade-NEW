@@ -682,8 +682,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   }, [positionTrade, lastPrice, markPrice, isNarrow, viewTick]);
 
   return (
-    <div className="w-full h-full bg-[#131722] text-white flex flex-col">
-      <div className="flex items-center gap-1 p-2 bg-[#1a1a2e] border-b border-slate-800/50">
+    <div className="w-full h-full bg-background text-foreground flex flex-col">
+      <div className="flex items-center gap-1 p-2 bg-card border-b border-border">
         {INTERVALS.map((tf) => (
           <button
             key={tf}
@@ -691,7 +691,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             className={`px-3 py-1 text-xs rounded transition-colors ${
               timeframe === tf
                 ? "bg-yellow-500 text-black font-bold"
-                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
             {tf.toUpperCase()}
@@ -700,7 +700,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         <button
           type="button"
           onClick={resetView}
-          className="ml-2 px-3 py-1 text-xs rounded bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+          className="ml-2 px-3 py-1 text-xs rounded bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
           title={labels.resetTitle}
         >
           {labels.reset}
@@ -710,17 +710,17 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="px-2 py-1 text-xs rounded bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+                className="px-2 py-1 text-xs rounded bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
                 title={language === "ar" ? "الإعدادات" : "Settings"}
               >
                 <Settings className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#0f1320] border-slate-800 text-slate-200">
+            <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
               <DropdownMenuLabel>{language === "ar" ? "إعدادات الشارت" : "Chart Settings"}</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuSeparator className="bg-border" />
 
-              <DropdownMenuLabel className="text-xs text-slate-400">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
                 {language === "ar" ? "نوع الشارت" : "Chart Type"}
               </DropdownMenuLabel>
               <DropdownMenuRadioGroup value={chartType} onValueChange={setChartType}>
@@ -732,7 +732,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
 
-              <DropdownMenuSeparator className="bg-slate-800" />
+              <DropdownMenuSeparator className="bg-border" />
               <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={setShowGrid}>
                 {language === "ar" ? "إظهار الشبكة" : "Show Grid"}
               </DropdownMenuCheckboxItem>
@@ -742,18 +742,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {loading ? <span className="text-xs text-slate-400">{labels.loading}</span> : null}
+          {loading ? <span className="text-xs text-muted-foreground">{labels.loading}</span> : null}
           {!loading ? (
-            <span className={`text-[10px] uppercase tracking-wider ${now - lastTickAt < 3000 ? "text-emerald-400" : "text-slate-500"}`}>
+            <span className={`text-[10px] uppercase tracking-wider ${now - lastTickAt < 3000 ? "text-emerald-400" : "text-muted-foreground"}`}>
               {now - lastTickAt < 3000 ? labels.live : labels.idle}
             </span>
           ) : null}
-          <span className="text-xs font-mono text-slate-200">{formatPrice(lastPrice)}</span>
+          <span className="text-xs font-mono text-foreground">{formatPrice(lastPrice)}</span>
         </div>
       </div>
 
         <div ref={containerRef} className="flex-1 min-h-0 relative">
-        <div className="absolute top-2 left-3 text-xs text-slate-400">{normalizedSymbol || symbol}</div>
+        <div className="absolute top-2 left-3 text-xs text-muted-foreground">{normalizedSymbol || symbol}</div>
 
         <div className="absolute inset-0 pointer-events-none z-20">
           {leftLabelItems.map((b) => {

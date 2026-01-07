@@ -30,29 +30,29 @@ export default function OnChainDeposit({ language = "en" }) {
       };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-          <Badge variant="outline" className="border-slate-200 text-slate-700">
+          <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+          <Badge variant="outline" className="border-border text-muted-foreground">
             <Wallet className="h-3.5 w-3.5 mr-1" />
             {language === "ar" ? "الإيداع" : "Deposit"}
           </Badge>
         </div>
-        <p className="text-slate-600 mb-8">{t.subtitle}</p>
+        <p className="text-muted-foreground mb-8">{t.subtitle}</p>
 
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="border-b border-slate-100">
+        <Card className="border-border shadow-sm">
+          <CardHeader className="border-b border-border">
             <CardTitle className="text-lg">{language === "ar" ? "الخطوات" : "Steps"}</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <ol className="space-y-2 text-sm text-slate-700 list-decimal pl-5">
+            <ol className="space-y-2 text-sm text-muted-foreground list-decimal pl-5">
               <li>{t.step1}</li>
               <li>{t.step2}</li>
               <li>{t.step3}</li>
             </ol>
 
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
               <ShieldAlert className="h-4 w-4 mt-0.5" />
               <span>{t.warning}</span>
             </div>

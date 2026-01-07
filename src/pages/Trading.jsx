@@ -225,12 +225,12 @@ export default function Trading({ language = "en" }) {
         <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={() => window.history.back()}
-            className="p-2 hover:bg-slate-700/30 rounded-full transition-colors"
+            className="p-2 hover:bg-muted rounded-full transition-colors"
             aria-label="Back"
           >
-            <ArrowLeft className="h-5 w-5 text-slate-400" />
+            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
           </button>
-          <div className="h-6 w-[1px] bg-slate-700/50" />
+          <div className="h-6 w-[1px] bg-border" />
 
           <div className="min-w-0 flex items-center">
             <BinanceSymbolSelector
@@ -243,11 +243,11 @@ export default function Trading({ language = "en" }) {
 
         <div className="hidden lg:flex items-center gap-6">
           <div className="flex flex-col items-end">
-            <span className="text-slate-500 text-[10px] uppercase tracking-wider font-semibold">{t.last}</span>
-            <span className="text-white font-bold text-sm font-mono">{formatPrice(lastPrice)}</span>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">{t.last}</span>
+            <span className="text-foreground font-bold text-sm font-mono">{formatPrice(lastPrice)}</span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-slate-500 text-[10px] uppercase tracking-wider font-semibold">{t.change}</span>
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">{t.change}</span>
             <span className={`font-bold text-sm ${changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {changePct >= 0 ? "+" : ""}
               {Number(changePct).toFixed(2)}%

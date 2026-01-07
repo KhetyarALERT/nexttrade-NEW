@@ -77,12 +77,12 @@ export default function LearnEarn({ language = "en" }) {
           },
         },
         earn: {
-          title: "Earn & Staking",
+          title: "Staking & Earning",
           desc: "Understand staking, lockups, and rewards in plain language.",
           lessons: [
             "Staking vs holding: what's the difference?",
-            "Lockup periods and what ‘APR’ actually means",
-            "Risks: smart contract risk and platform risk",
+            "Lockup periods and what 'APR' actually means",
+            "Risks: smart contract risk & platform risk",
           ],
           quiz: {
             q: "APR usually means:",
@@ -251,19 +251,19 @@ export default function LearnEarn({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-              <Badge variant="outline" className="border-slate-200 text-slate-700">
+              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+              <Badge variant="outline" className="border-border text-muted-foreground">
                 <GraduationCap className="h-3.5 w-3.5 mr-1" />
                 {t.points}: {state.points || 0}
               </Badge>
             </div>
-            <p className="text-slate-600 mt-2">{t.subtitle}</p>
-            <p className="text-xs text-slate-500 mt-2">{t.disclaimer}</p>
+            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-2">{t.disclaimer}</p>
           </div>
         </div>
 
@@ -281,18 +281,18 @@ export default function LearnEarn({ language = "en" }) {
               BookOpen;
 
             return (
-              <Card key={key} className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-100">
+              <Card key={key} className="border-border shadow-sm">
+                <CardHeader className="border-b border-border">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Icon className="h-5 w-5 text-blue-600" />
                     {course.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
-                  <p className="text-sm text-slate-600">{course.desc}</p>
+                  <p className="text-sm text-muted-foreground">{course.desc}</p>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{t.yourProgress}</span>
                       <span>{Math.round(progress * 100)}%</span>
                     </div>
@@ -300,15 +300,15 @@ export default function LearnEarn({ language = "en" }) {
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <div className="text-slate-700 font-medium">
+                    <div className="text-muted-foreground font-medium">
                       {language === "ar" ? "الدروس" : "Lessons"}
                     </div>
                     <ul className="space-y-1">
                       {course.lessons.map((lesson, idx) => {
                         const doneLesson = idx < (courseState.lessonIndex || 0);
                         return (
-                          <li key={lesson} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-                            <span className={doneLesson ? "text-slate-500 line-through" : "text-slate-900"}>{lesson}</span>
+                          <li key={lesson} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+                            <span className={doneLesson ? "text-muted-foreground line-through" : "text-foreground"}>{lesson}</span>
                             {doneLesson ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
                           </li>
                         );
@@ -333,7 +333,7 @@ export default function LearnEarn({ language = "en" }) {
                     </Button>
                   </div>
 
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     {language === "ar" ? "الاختبار" : "Quiz"}: {courseState.quizPassed ? t.passed : t.notYet}
                     {done ? ` • ${t.courseComplete}` : ""}
                   </div>

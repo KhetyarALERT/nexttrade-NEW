@@ -92,12 +92,12 @@ const logActivity = (action, details) => {
 };
 
 const StatCard = ({ title, value, change = undefined, icon: Icon, color }) => (
-  <Card className="border-slate-200 shadow-sm">
+  <Card className="border-border shadow-sm">
     <CardContent className="p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
           {change !== undefined && (
             <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
@@ -241,13 +241,13 @@ export default function Dashboard({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-            <p className="text-slate-600 mt-1">{t.subtitle}</p>
+            <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+            <p className="text-muted-foreground mt-1">{t.subtitle}</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
@@ -292,32 +292,32 @@ export default function Dashboard({ language = "en" }) {
         </div>
 
         {/* PnL Statistics */}
-        <Card className="mb-8 border-slate-200 shadow-sm">
-          <CardHeader className="border-b border-slate-100">
+        <Card className="mb-8 border-border shadow-sm">
+          <CardHeader className="border-b border-border">
             <CardTitle className="text-lg">{t.pnl}</CardTitle>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
-                <p className="text-xs text-slate-500 uppercase mb-1">{t.dailyPnl}</p>
+                <p className="text-xs text-muted-foreground uppercase mb-1">{t.dailyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.daily >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {pnlData.daily >= 0 ? '+' : ''}${formatMoney(pnlData.daily)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase mb-1">{t.weeklyPnl}</p>
+                <p className="text-xs text-muted-foreground uppercase mb-1">{t.weeklyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.weekly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {pnlData.weekly >= 0 ? '+' : ''}${formatMoney(pnlData.weekly)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase mb-1">{t.monthlyPnl}</p>
+                <p className="text-xs text-muted-foreground uppercase mb-1">{t.monthlyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.monthly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {pnlData.monthly >= 0 ? '+' : ''}${formatMoney(pnlData.monthly)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase mb-1">{t.totalPnl}</p>
+                <p className="text-xs text-muted-foreground uppercase mb-1">{t.totalPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {pnlData.total >= 0 ? '+' : ''}${formatMoney(pnlData.total)}
                 </p>
@@ -329,8 +329,8 @@ export default function Dashboard({ language = "en" }) {
         {/* Positions & Orders */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           {/* Open Positions */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{t.positions}</CardTitle>
                 <Badge variant="outline">{positions.length} Active</Badge>
@@ -338,7 +338,7 @@ export default function Dashboard({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-0">
               {positions.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
+                <div className="p-8 text-center text-muted-foreground">
                   <Activity className="h-12 w-12 mx-auto mb-3 opacity-20" />
                   <p>{t.noPositions}</p>
                 </div>
@@ -374,8 +374,8 @@ export default function Dashboard({ language = "en" }) {
           </Card>
 
           {/* Recent Orders */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{t.orders}</CardTitle>
                 <Button variant="ghost" size="sm" className="text-blue-600">
@@ -385,7 +385,7 @@ export default function Dashboard({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-0">
               {orders.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
+                <div className="p-8 text-center text-muted-foreground">
                   <Clock className="h-12 w-12 mx-auto mb-3 opacity-20" />
                   <p>{t.noOrders}</p>
                 </div>
@@ -402,7 +402,7 @@ export default function Dashboard({ language = "en" }) {
                   <TableBody>
                     {orders.map((order, i) => (
                       <TableRow key={i}>
-                        <TableCell className="text-xs text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</TableCell>
                         <TableCell className="font-bold">{order.symbol}</TableCell>
                         <TableCell>{order.side}</TableCell>
                         <TableCell>
@@ -420,8 +420,8 @@ export default function Dashboard({ language = "en" }) {
         {/* Referrals & Vouchers */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Referral Program */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-600" />
                 {t.referrals}
@@ -430,23 +430,23 @@ export default function Dashboard({ language = "en" }) {
             <CardContent className="p-6">
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-slate-900">0</p>
-                  <p className="text-xs text-slate-500">{language === 'ar' ? 'الإجمالي' : 'Total'}</p>
+                  <p className="text-2xl font-bold text-foreground">0</p>
+                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'الإجمالي' : 'Total'}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">0</p>
-                  <p className="text-xs text-slate-500">{language === 'ar' ? 'نشط' : 'Active'}</p>
+                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'نشط' : 'Active'}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-600">$0.00</p>
-                  <p className="text-xs text-slate-500">{language === 'ar' ? 'العمولة' : 'Commission'}</p>
+                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'العمولة' : 'Commission'}</p>
                 </div>
               </div>
               
-              <div className="bg-slate-50 rounded-lg p-4">
-                <p className="text-xs text-slate-500 mb-2">{language === 'ar' ? 'كود الإحالة' : 'Your Referral Code'}</p>
+              <div className="bg-muted/30 rounded-lg p-4">
+                <p className="text-xs text-muted-foreground mb-2">{language === 'ar' ? 'كود الإحالة' : 'Your Referral Code'}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-white border border-slate-200 rounded px-3 py-2 font-mono font-bold">
+                  <code className="flex-1 bg-background border border-border rounded px-3 py-2 font-mono font-bold">
                     {referralCode || '—'}
                   </code>
                   <Button variant="outline" size="icon" onClick={copyReferralCode} disabled={!referralCode}>
@@ -454,15 +454,15 @@ export default function Dashboard({ language = "en" }) {
                   </Button>
                 </div>
                 {referralLink ? (
-                  <p className="text-[11px] text-slate-500 mt-2 break-all">{referralLink}</p>
+                  <p className="text-[11px] text-muted-foreground mt-2 break-all">{referralLink}</p>
                 ) : null}
               </div>
             </CardContent>
           </Card>
 
           {/* Vouchers */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Gift className="h-5 w-5 text-purple-600" />
                 {t.vouchers}
@@ -470,17 +470,17 @@ export default function Dashboard({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-4">
               {vouchers.map(voucher => (
-                <div key={voucher.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg mb-3 last:mb-0">
+                <div key={voucher.id} className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg mb-3 last:mb-0">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                     <Gift className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-bold text-slate-900">{pickLang(language, voucher.title)}</p>
-                    <p className="text-xs text-slate-500">{pickLang(language, voucher.condition)}</p>
+                    <p className="font-bold text-foreground">{pickLang(language, voucher.title)}</p>
+                    <p className="text-xs text-muted-foreground">{pickLang(language, voucher.condition)}</p>
                     {voucher.expiry ? (
                       <div className="flex items-center gap-2 mt-1">
-                        <Clock className="h-3 w-3 text-slate-400" />
-                        <span className="text-xs text-slate-400">{language === "ar" ? "ينتهي:" : "Expires:"} {voucher.expiry}</span>
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{language === "ar" ? "ينتهي:" : "Expires:"} {voucher.expiry}</span>
                       </div>
                     ) : null}
                   </div>

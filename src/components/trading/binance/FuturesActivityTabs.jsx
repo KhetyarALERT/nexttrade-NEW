@@ -440,17 +440,17 @@ export default function FuturesActivityTabs({
   );
 
   return (
-    <div className="bg-[#0f1320] border-t border-slate-800/60">
+    <div className="bg-background border-t border-border">
       <Tabs value={tab} onValueChange={setTab}>
-        <div className="p-2 border-b border-slate-800/60 flex items-center gap-2">
+        <div className="p-2 border-b border-border flex items-center gap-2 bg-card">
           <div className="flex-1 overflow-x-auto">
-            <TabsList className="bg-slate-900/40 h-9">
-              <TabsTrigger value="positions" className="data-[state=active]:bg-slate-800">{labels.tabs.positions}</TabsTrigger>
-              <TabsTrigger value="openOrders" className="data-[state=active]:bg-slate-800">{labels.tabs.openOrders}</TabsTrigger>
-              <TabsTrigger value="orderHistory" className="data-[state=active]:bg-slate-800">{labels.tabs.orderHistory}</TabsTrigger>
-              <TabsTrigger value="tradeHistory" className="data-[state=active]:bg-slate-800">{labels.tabs.tradeHistory}</TabsTrigger>
-              <TabsTrigger value="positionHistory" className="data-[state=active]:bg-slate-800">{labels.tabs.positionHistory}</TabsTrigger>
-              <TabsTrigger value="transactions" className="data-[state=active]:bg-slate-800">{labels.tabs.transactions}</TabsTrigger>
+            <TabsList className="bg-muted h-9">
+              <TabsTrigger value="positions" className="data-[state=active]:bg-background">{labels.tabs.positions}</TabsTrigger>
+              <TabsTrigger value="openOrders" className="data-[state=active]:bg-background">{labels.tabs.openOrders}</TabsTrigger>
+              <TabsTrigger value="orderHistory" className="data-[state=active]:bg-background">{labels.tabs.orderHistory}</TabsTrigger>
+              <TabsTrigger value="tradeHistory" className="data-[state=active]:bg-background">{labels.tabs.tradeHistory}</TabsTrigger>
+              <TabsTrigger value="positionHistory" className="data-[state=active]:bg-background">{labels.tabs.positionHistory}</TabsTrigger>
+              <TabsTrigger value="transactions" className="data-[state=active]:bg-background">{labels.tabs.transactions}</TabsTrigger>
             </TabsList>
           </div>
 
@@ -458,7 +458,7 @@ export default function FuturesActivityTabs({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-9 text-slate-200"
+            className="h-9 text-muted-foreground hover:text-foreground"
             onClick={() => onRefresh?.()}
             disabled={!onRefresh}
           >
@@ -822,40 +822,40 @@ export default function FuturesActivityTabs({
           setTpSlBusy(false);
         }
       }}>
-        <DialogContent className="max-w-[560px] bg-[#0f1320] border border-slate-800 text-slate-200">
+        <DialogContent className="max-w-[560px] bg-background border border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-slate-200">{labels.common.tpSl}</DialogTitle>
+            <DialogTitle className="text-foreground">{labels.common.tpSl}</DialogTitle>
           </DialogHeader>
 
           {tpSlTrade ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
+              <div className="rounded-xl border border-border bg-muted p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-semibold text-slate-100 truncate">
+                    <div className="font-semibold text-foreground truncate">
                       {normalizeSymbol(tpSlTrade?.symbol)} {String(tpSlTrade?.side || "LONG").toUpperCase()} {tpSlTrade?.leverage ? `${tpSlTrade.leverage}X` : ""}
                     </div>
-                    <div className="text-[11px] text-slate-500">{String(tpSlTrade?.order_type || "").toUpperCase()}</div>
+                    <div className="text-[11px] text-muted-foreground">{String(tpSlTrade?.order_type || "").toUpperCase()}</div>
                   </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.common.entry}</div>
-                    <div className="font-mono text-slate-100">{formatPrice(tpSlTrade?.avg_entry_price ?? tpSlTrade?.entry_price)}</div>
+                    <div className="text-[11px] text-muted-foreground">{labels.common.entry}</div>
+                    <div className="font-mono text-foreground">{formatPrice(tpSlTrade?.avg_entry_price ?? tpSlTrade?.entry_price)}</div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.common.last}</div>
-                    <div className="font-mono text-slate-100">{formatPrice(markBySymbol[normalizeSymbol(tpSlTrade?.symbol)])}</div>
+                    <div className="text-[11px] text-muted-foreground">{labels.common.last}</div>
+                    <div className="font-mono text-foreground">{formatPrice(markBySymbol[normalizeSymbol(tpSlTrade?.symbol)])}</div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.common.liq}</div>
+                    <div className="text-[11px] text-muted-foreground">{labels.common.liq}</div>
                     <div className="font-mono text-amber-300">{formatPrice(tpSlTrade?.liquidation_price)}</div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
+              <div className="rounded-xl border border-border bg-card p-4">
                 <label className="flex items-center gap-3">
                   <input
                     type="checkbox"

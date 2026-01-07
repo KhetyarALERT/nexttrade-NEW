@@ -87,25 +87,25 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
 
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <div className="text-white font-mono font-semibold">{formatPrice(lastPrice)}</div>
+            <div className="text-foreground font-mono font-semibold">{formatPrice(lastPrice)}</div>
             <div className={`text-[11px] font-medium ${changeClass}`}>{changePct >= 0 ? "+" : ""}{Number(changePct).toFixed(2)}%</div>
           </div>
 
           <div className="hidden md:flex items-center gap-6 text-right">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">{labels.mark}</div>
-              <div className="text-[12px] font-mono text-slate-200">{formatPrice(markPrice)}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{labels.mark}</div>
+              <div className="text-[12px] font-mono text-foreground">{formatPrice(markPrice)}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-500">{labels.index}</div>
-              <div className="text-[12px] font-mono text-slate-200">{formatPrice(indexPrice)}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{labels.index}</div>
+              <div className="text-[12px] font-mono text-foreground">{formatPrice(indexPrice)}</div>
             </div>
           </div>
         </div>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-[#0f1320] border-slate-800 text-white p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)]">
+        <DialogContent className="bg-background border-border text-foreground p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)]">
           <DialogHeader className="sr-only">
             <DialogTitle>{labels.selectMarketTitle}</DialogTitle>
             <DialogDescription>{labels.selectMarketDesc}</DialogDescription>

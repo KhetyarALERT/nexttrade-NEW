@@ -83,41 +83,41 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
   const containerHeight = compact ? "max-h-[40vh]" : "h-[calc(100vh-380px)] min-h-[300px]";
 
   return (
-    <Card className="bg-[#1E222D] border-[#2B2B43]">
+    <Card className="bg-card border-border">
       {!compact && (
-        <CardHeader className="py-2 px-3 border-b border-[#2B2B43]">
-          <CardTitle className="text-xs font-bold text-white">Markets</CardTitle>
+        <CardHeader className="py-2 px-3 border-b border-border">
+          <CardTitle className="text-xs font-bold text-foreground">Markets</CardTitle>
         </CardHeader>
       )}
       <CardContent className="p-0">
-        <div className="p-2 border-b border-[#2B2B43]">
+        <div className="p-2 border-b border-border">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-500" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search..."
-              className="pl-7 h-7 text-xs bg-[#131722] border-[#2B2B43] text-white placeholder:text-gray-500"
+              className="pl-7 h-7 text-xs"
             />
           </div>
         </div>
 
-        <div className="flex border-b border-[#2B2B43]">
+        <div className="flex border-b border-border">
           <button
             onClick={() => setActiveTab("all")}
-            className={`flex-1 py-1.5 text-[10px] font-medium ${activeTab === "all" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
+            className={`flex-1 py-1.5 text-[10px] font-medium ${activeTab === "all" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
           >
             All
           </button>
           <button
             onClick={() => setActiveTab("favorites")}
-            className={`flex-1 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${activeTab === "favorites" ? "text-[#2962FF] border-b-2 border-[#2962FF]" : "text-gray-500"}`}
+            className={`flex-1 py-1.5 text-[10px] font-medium flex items-center justify-center gap-1 ${activeTab === "favorites" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
           >
             <Star className="w-2.5 h-2.5" /> Fav
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-1 px-2 py-1 bg-[#131722] text-[9px] font-medium text-gray-500 uppercase">
+        <div className="grid grid-cols-3 gap-1 px-2 py-1 bg-muted text-[9px] font-medium text-muted-foreground uppercase">
           <span>Pair</span>
           <span className="text-right">Price</span>
           <span className="text-right">24h</span>
@@ -126,10 +126,10 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
         <ScrollArea className={containerHeight}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 text-[#2962FF] animate-spin" />
+              <Loader2 className="h-6 w-6 text-primary animate-spin" />
             </div>
           ) : filteredPairs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">No pairs found</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">No pairs found</div>
           ) : (
             filteredPairs.map(pair => {
               const isPositive = pair.change >= 0;
@@ -140,21 +140,21 @@ export default function SymbolSelector({ selectedSymbol, onSymbolChange, compact
                 <div
                   key={pair.symbol}
                   onClick={() => onSymbolChange(pair.symbol)}
-                  className={`grid grid-cols-3 gap-1 px-2 py-1.5 cursor-pointer transition-colors ${isSelected ? "bg-[#2962FF]/20" : "hover:bg-[#1E222D]"}`}
+                  className={`grid grid-cols-3 gap-1 px-2 py-1.5 cursor-pointer transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-muted"}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleFavorite(pair.symbol); }}
-                      className="text-gray-600 hover:text-yellow-500"
+                      className="text-muted-foreground hover:text-yellow-500"
                     >
                       <Star className={`h-2.5 w-2.5 ${isFavorite ? "fill-yellow-500 text-yellow-500" : ""}`} />
                     </button>
                     <div>
-                      <div className="text-[10px] font-bold text-white">{pair.baseAsset}</div>
+                      <div className="text-[10px] font-bold text-foreground">{pair.baseAsset}</div>
                     </div>
                   </div>
-                  <div className="text-right text-[10px] font-mono text-white">${formatPrice(pair.price)}</div>
-                  <div className={`text-right text-[10px] font-bold flex items-center justify-end ${isPositive ? "text-[#26A69A]" : "text-[#EF5350]"}`}>
+                  <div className="text-right text-[10px] font-mono text-foreground">${formatPrice(pair.price)}</div>
+                  <div className={`text-right text-[10px] font-bold flex items-center justify-end ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                     {isPositive ? "+" : ""}{pair.change?.toFixed(1) || '0.0'}%
                   </div>
                 </div>

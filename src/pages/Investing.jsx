@@ -49,19 +49,19 @@ export default function Investing({ language = "en" }) {
   }, [loadWallets]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-              <Badge variant="outline" className="border-slate-200 text-slate-700">
+              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+              <Badge variant="outline" className="border-border text-muted-foreground">
                 <Lock className="h-3.5 w-3.5 mr-1" />
                 {t.staking}
               </Badge>
             </div>
-            <p className="text-slate-600 mt-2">{t.subtitle}</p>
-            <p className="text-xs text-slate-500 mt-2">{t.note}</p>
+            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
+            <p className="text-xs text-muted-foreground mt-2">{t.note}</p>
           </div>
 
           <Button variant="outline" onClick={loadWallets} disabled={loading}>
@@ -74,25 +74,25 @@ export default function Investing({ language = "en" }) {
           <div className="lg:col-span-2 space-y-6">
             <StakingPanel wallets={wallets} language={language} onRefresh={loadWallets} />
 
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader className="border-b border-slate-100">
+            <Card className="border-border shadow-sm">
+              <CardHeader className="border-b border-border">
                 <CardTitle className="text-lg">{t.stakingVouchersTitle}</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                <p className="text-xs text-slate-500 mb-4">{t.stakingVouchersSubtitle}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
 
                 {/* Enhanced UX: USDT-only row like screenshot; details expand */}
-                <Card className="bg-slate-950 border-slate-800 text-slate-100 shadow-sm">
+                <Card className="bg-card border-border text-foreground shadow-sm">
                   <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="usdt" className="border-slate-800">
+                      <AccordionItem value="usdt" className="border-border">
                         <AccordionTrigger className="hover:no-underline px-4 py-4">
                           <div className="flex w-full items-center gap-4">
                             <div className="flex items-center gap-3 min-w-[160px]">
-                              <CryptoIcon currency="USDT" size="sm" className="ring-1 ring-slate-800" />
+                              <CryptoIcon currency="USDT" size="sm" className="ring-1 ring-border" />
                               <div className="leading-tight">
-                                <div className="text-sm font-semibold text-slate-100">USDT</div>
-                                <div className="text-[11px] text-slate-500">Tether</div>
+                                <div className="text-sm font-semibold text-foreground">USDT</div>
+                                <div className="text-[11px] text-muted-foreground">Tether</div>
                               </div>
                             </div>
 
@@ -100,7 +100,7 @@ export default function Investing({ language = "en" }) {
                               {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
                             </div>
 
-                            <div className="text-sm text-slate-300 whitespace-nowrap">
+                            <div className="text-sm text-muted-foreground whitespace-nowrap">
                               {language === "ar"
                                 ? `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}`
                                 : `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
@@ -121,14 +121,14 @@ export default function Investing({ language = "en" }) {
                                   ))}
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-800">
+                              <tbody className="divide-y divide-border">
                                 {stakeTiers?.amounts?.map((amt) => (
                                   <tr key={amt}>
-                                    <td className="py-2 pr-4 font-semibold text-slate-100">{Number(amt).toLocaleString()}</td>
+                                    <td className="py-2 pr-4 font-semibold text-foreground">{Number(amt).toLocaleString()}</td>
                                     {stakeTiers?.durations?.map((d) => {
                                       const pct = stakeTiers?.percentByDuration?.[d];
                                       return (
-                                        <td key={d} className="py-2 pl-4 text-right font-mono text-slate-200">
+                                        <td key={d} className="py-2 pl-4 text-right font-mono text-muted-foreground">
                                           {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
                                         </td>
                                       );
@@ -146,14 +146,14 @@ export default function Investing({ language = "en" }) {
               </CardContent>
             </Card>
           </div>
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg">{t.howItWorksTitle}</CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-3 text-sm text-slate-600">
+            <CardContent className="p-6 space-y-3 text-sm text-muted-foreground">
               <p>{t.howItWorksP1}</p>
               <p>{t.howItWorksP2}</p>
-              <p className="text-xs text-slate-500">{t.howItWorksNote}</p>
+              <p className="text-xs text-muted-foreground">{t.howItWorksNote}</p>
             </CardContent>
           </Card>
         </div>

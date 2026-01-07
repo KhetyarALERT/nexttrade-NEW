@@ -208,27 +208,27 @@ export default function OrderPanel({
   const totalRequiredPreview = marginRequired + estFeePreview;
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a2e] text-slate-300">
-      <div className="p-4 border-b border-slate-800/50">
+    <div className="flex flex-col h-full bg-background text-foreground">
+      <div className="p-4 border-b border-border bg-card">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">Place Order</h2>
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-slate-800/50 px-2 py-1 rounded-full">
+          <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">Place Order</h2>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">
             <Wallet className="h-3 w-3" />
             <span>${balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
 
         <Tabs value={orderSide} onValueChange={setOrderSide} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-900/50 p-1 h-11 rounded-xl">
+          <TabsList className="grid w-full grid-cols-2 bg-muted p-1 h-11 rounded-xl">
             <TabsTrigger 
               value="buy" 
-              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-slate-400 text-xs font-bold rounded-lg transition-all"
+              className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white text-muted-foreground text-xs font-bold rounded-lg transition-all"
             >
               BUY / LONG
             </TabsTrigger>
             <TabsTrigger 
               value="sell" 
-              className="data-[state=active]:bg-rose-500 data-[state=active]:text-white text-slate-400 text-xs font-bold rounded-lg transition-all"
+              className="data-[state=active]:bg-rose-500 data-[state=active]:text-white text-muted-foreground text-xs font-bold rounded-lg transition-all"
             >
               SELL / SHORT
             </TabsTrigger>
@@ -239,12 +239,12 @@ export default function OrderPanel({
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Order Type</Label>
+            <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Order Type</Label>
             <Select value={orderType} onValueChange={setOrderType}>
-              <SelectTrigger className="w-[120px] h-8 bg-slate-800/50 border-slate-700 text-xs rounded-lg">
+              <SelectTrigger className="w-[120px] h-8 bg-muted border-border text-xs rounded-lg">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#1a1a2e] border-slate-700 text-slate-300">
+              <SelectContent className="bg-popover border-border text-foreground">
                 <SelectItem value="market">Market</SelectItem>
                 <SelectItem value="limit">Limit</SelectItem>
                 <SelectItem value="stop">Stop</SelectItem>
@@ -257,7 +257,7 @@ export default function OrderPanel({
           {orderType !== 'market' && (
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                   {orderType === 'limit' ? 'Limit Price' : 'Trigger Price'}
                 </Label>
                 <span className="text-[10px] text-blue-400 cursor-pointer hover:underline" onClick={() => setPrice(currentPrice.toString())}>Last: {currentPrice.toFixed(2)}</span>
@@ -267,29 +267,29 @@ export default function OrderPanel({
                   type="number"
                   value={orderType === 'limit' ? price : stopPrice}
                   onChange={(e) => orderType === 'limit' ? setPrice(e.target.value) : setStopPrice(e.target.value)}
-                  className="h-10 bg-slate-900/50 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500/50 pr-12"
+                  className="h-10 text-sm rounded-xl pr-12"
                   placeholder="0.00"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600">USDT</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground">USDT</span>
               </div>
             </div>
           )}
 
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+              <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
                 {amountType === 'usdt' ? 'Cost (Margin)' : 'Size'}
               </Label>
-              <div className="flex bg-slate-800/50 rounded-lg p-0.5">
+              <div className="flex bg-muted rounded-lg p-0.5">
                 <button 
                   onClick={() => setAmountType('usdt')}
-                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'usdt' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'usdt' ? 'bg-blue-600 text-white' : 'text-muted-foreground'}`}
                 >
                   USDT
                 </button>
                 <button 
                   onClick={() => setAmountType('crypto')}
-                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'crypto' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}
+                  className={`px-2 py-0.5 text-[9px] font-bold rounded-md transition-all ${amountType === 'crypto' ? 'bg-blue-600 text-white' : 'text-muted-foreground'}`}
                 >
                   {baseAsset}
                 </button>
@@ -300,16 +300,16 @@ export default function OrderPanel({
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="h-10 bg-slate-900/50 border-slate-700 text-white text-sm rounded-xl focus:ring-blue-500/50 pr-12"
+                className="h-10 text-sm rounded-xl pr-12"
                 placeholder="0.00"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-600 uppercase">{amountType === 'usdt' ? 'USDT' : baseAsset}</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase">{amountType === 'usdt' ? 'USDT' : baseAsset}</span>
             </div>
           </div>
 
           <div className="space-y-3 pt-2">
             <div className="flex justify-between items-center">
-              <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Leverage</Label>
+              <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Leverage</Label>
               <span className="text-xs font-bold text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">{leverage[0]}x</span>
             </div>
             <Slider
@@ -320,7 +320,7 @@ export default function OrderPanel({
               step={1}
               className="py-2"
             />
-            <div className="flex justify-between text-[9px] text-slate-600 font-bold">
+            <div className="flex justify-between text-[9px] text-muted-foreground font-bold">
               <span>1x</span>
               <span>25x</span>
               <span>50x</span>

@@ -220,20 +220,20 @@ export default function ProfessionalChart({ symbol, onPriceUpdate, positions = [
   }, [symbol]);
 
   return (
-    <div className="w-full h-full bg-[#131722] text-white flex flex-col">
-      <div className="flex gap-1 p-2 bg-[#1a1a2e] border-b border-slate-800/50">
+    <div className="w-full h-full bg-background text-foreground flex flex-col">
+      <div className="flex gap-1 p-2 bg-card border-b border-border">
         {TF_OPTIONS.map((tf) => (
           <button
             key={tf}
             onClick={() => setTimeframe(tf)}
-            className={`px-3 py-1 text-xs rounded ${timeframe === tf ? "bg-yellow-500 text-black font-bold" : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            className={`px-3 py-1 text-xs rounded ${timeframe === tf ? "bg-yellow-500 text-black font-bold" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {tf.toUpperCase()}
           </button>
         ))}
       </div>
       <div ref={containerRef} className="flex-1 relative">
-        <div className="absolute top-2 left-3 text-xs text-slate-400">{toDisplayFormat(symbol)}</div>
+        <div className="absolute top-2 left-3 text-xs text-muted-foreground">{toDisplayFormat(symbol)}</div>
         <div className="absolute top-2 right-3 text-xs font-mono">
           {lastPrice ? `$${lastPrice.toLocaleString(undefined, { minimumFractionDigits: lastPrice < 1 ? 6 : 2, maximumFractionDigits: lastPrice < 1 ? 6 : 2 })}` : "--"}
         </div>

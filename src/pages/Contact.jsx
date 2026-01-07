@@ -245,7 +245,7 @@ export default function Contact({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -272,10 +272,10 @@ export default function Contact({ language = "en" }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Card className="border-0 shadow-2xl">
+              <Card className="border-border bg-card shadow-2xl">
                 <CardContent className="p-8">
-                  <h2 className="text-3xl font-bold mb-2 text-gray-900">{t.form.title}</h2>
-                  <p className="text-gray-600 mb-8">{t.form.subtitle}</p>
+                  <h2 className="text-3xl font-bold mb-2 text-foreground">{t.form.title}</h2>
+                  <p className="text-muted-foreground mb-8">{t.form.subtitle}</p>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div>

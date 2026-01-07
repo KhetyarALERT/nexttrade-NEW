@@ -1535,12 +1535,12 @@ export default function FuturesTradePanel({
   };
 
   return (
-    <aside className="h-full w-full bg-[#0f1320] text-slate-200 border-l border-slate-800/60 flex flex-col overflow-hidden">
+    <aside className="h-full w-full bg-background text-foreground border-l border-border flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="p-3 border-b border-slate-800/60 shrink-0">
-          <TabsList className="bg-slate-900/40">
-            <TabsTrigger value="trade" className="data-[state=active]:bg-slate-800">{labels.trade}</TabsTrigger>
-            <TabsTrigger value="bots" className="data-[state=active]:bg-slate-800">{labels.bots}</TabsTrigger>
+        <div className="p-3 border-b border-border shrink-0 bg-card">
+          <TabsList className="bg-muted">
+            <TabsTrigger value="trade" className="data-[state=active]:bg-background">{labels.trade}</TabsTrigger>
+            <TabsTrigger value="bots" className="data-[state=active]:bg-background">{labels.bots}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -1553,14 +1553,14 @@ export default function FuturesTradePanel({
             {renderOrderForm({ demoMode: true })}
           </TabsContent>
 
-          <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
-            <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.account}</div>
+          <div className="mt-4 rounded bg-muted border border-border p-3">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{labels.account}</div>
             <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                   <span>{labels.balance}</span>
                   <span
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300"
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-background text-[10px] text-muted-foreground border border-border"
                     title={language === "ar" ? "الرصيد المتاح في الحساب بعد الخصومات" : "Account balance after debits/credits"}
                   >
                     !

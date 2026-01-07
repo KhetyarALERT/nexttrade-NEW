@@ -151,16 +151,16 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
           onSelectSymbol?.(symbol);
           onAfterSelect?.();
         }}
-        className={`px-3 py-2 cursor-pointer border-b border-slate-800/40 flex items-center justify-between hover:bg-slate-800/40 ${
+          className={`px-3 py-2 cursor-pointer border-b border-border flex items-center justify-between hover:bg-muted/60 ${
           isSelected ? "bg-blue-600/10" : ""
         }`}
       >
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-100">{symbol}</span>
-          <span className="text-[10px] text-slate-500">{labels.vol} {formatCompactNumber(vol)}</span>
+          <span className="text-sm font-semibold text-foreground">{symbol}</span>
+          <span className="text-[10px] text-muted-foreground">{labels.vol} {formatCompactNumber(vol)}</span>
         </div>
         <div className="text-right">
-          <div className="text-sm font-mono text-slate-100">{formatPrice(last)}</div>
+          <div className="text-sm font-mono text-foreground">{formatPrice(last)}</div>
           <div className={`text-[11px] font-medium ${chg >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
             {chg >= 0 ? "+" : ""}
             {Number(chg).toFixed(2)}%
@@ -176,18 +176,18 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
   };
 
   return (
-    <div className={embedded ? "h-full flex flex-col" : "h-full flex flex-col bg-[#0f1320] border-r border-slate-800/50"}>
-      <div className={embedded ? "p-3" : "p-3 border-b border-slate-800/50"}>
+    <div className={embedded ? "h-full flex flex-col" : "h-full flex flex-col bg-background border-r border-border"}>
+      <div className={embedded ? "p-3" : "p-3 border-b border-border bg-card"}>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={labels.search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9 h-9 bg-slate-900/40 border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500/50"
+            className="pl-9 h-9 text-sm rounded-lg"
           />
         </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
           <span>
             {sorted.length} {labels.symbols}
           </span>
@@ -195,11 +195,11 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         </div>
       </div>
 
-      <div className="px-3 py-2 text-[11px] text-slate-500 border-y border-slate-800/50 flex items-center justify-between">
+      <div className="px-3 py-2 text-[11px] text-muted-foreground border-y border-border flex items-center justify-between bg-card">
         <button
           type="button"
           onClick={() => toggleSort("symbol")}
-          className="hover:text-slate-200 transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           {labels.tradingPair} <span className="opacity-70">{sortIndicator("symbol")}</span>
         </button>
@@ -207,14 +207,14 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
           <button
             type="button"
             onClick={() => toggleSort("last")}
-            className="hover:text-slate-200 transition-colors"
+            className="hover:text-foreground transition-colors"
           >
             {labels.lastPrice} <span className="opacity-70">{sortIndicator("last")}</span>
           </button>
           <button
             type="button"
             onClick={() => toggleSort("chg")}
-            className="hover:text-slate-200 transition-colors"
+            className="hover:text-foreground transition-colors"
           >
             {labels.chg24h} <span className="opacity-70">{sortIndicator("chg")}</span>
           </button>

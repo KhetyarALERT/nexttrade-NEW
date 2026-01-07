@@ -223,15 +223,15 @@ export default function Home({ language = "en" }) {
                 transition={{ delay: 0.1 }}
                 className="flex flex-wrap gap-3 mb-8"
               >
-                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 backdrop-blur-md flex items-center gap-2">
                   <Shield className="w-3.5 h-3.5 text-blue-600" />
                   {language === "en" ? "Verified Security" : "أمان موثق"}
                 </Badge>
-                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 backdrop-blur-md flex items-center gap-2">
                   <Zap className="w-3.5 h-3.5 text-emerald-600" />
                   {language === "en" ? "Instant Liquidity" : "سيولة فورية"}
                 </Badge>
-                <Badge className="bg-white/80 text-slate-700 border-slate-200 px-3 py-1 backdrop-blur-md flex items-center gap-2">
+                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 backdrop-blur-md flex items-center gap-2">
                   <Bot className="w-3.5 h-3.5 text-indigo-600" />
                   {language === "en" ? "AI Powered" : "مدعوم بالذكاء الاصطناعي"}
                 </Badge>
@@ -239,7 +239,7 @@ export default function Home({ language = "en" }) {
 
               {/* Animated Hero Title */}
               <motion.h1
-                className="text-5xl md:text-7xl font-bold text-slate-900 dark:text-slate-100 mb-6 leading-tight"
+                className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}>
@@ -247,7 +247,7 @@ export default function Home({ language = "en" }) {
               </motion.h1>
 
               <motion.p
-                className="text-xl md:text-2xl text-slate-600 dark:text-slate-300 mb-8 max-w-xl"
+                className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.8 }}>
@@ -272,7 +272,7 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-slate-300 text-slate-900 hover:bg-white rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
+                  className="border-border text-foreground hover:bg-muted rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
                   asChild>
                   <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
@@ -286,8 +286,8 @@ export default function Home({ language = "en" }) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 1.4 + idx * 0.1 }}>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">{stat.label}</div>
+                    <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                    <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
                   </motion.div>
                 )}
               </div>
@@ -299,7 +299,7 @@ export default function Home({ language = "en" }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.5 }}
               className="relative order-1 lg:order-2">
-              <div className="relative bg-white/70 dark:bg-slate-950/40 backdrop-blur-xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+              <div className="relative bg-background/70 backdrop-blur-xl rounded-3xl border border-border shadow-2xl overflow-hidden">
                 <AITradingChat language={language} />
               </div>
             </motion.div>
@@ -308,7 +308,7 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Instant Withdrawal & Asset Control Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-background relative overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
@@ -319,24 +319,24 @@ export default function Home({ language = "en" }) {
               <Badge className="mb-4 bg-blue-50 text-blue-600 border-blue-100 px-4 py-1.5 text-sm font-bold">
                 {language === "en" ? "Unmatched Liquidity" : "سيولة لا مثيل لها"}
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900 leading-tight">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground leading-tight">
                 {t.withdrawal.title}
               </h2>
-              <p className="text-xl text-slate-600 mb-10 leading-relaxed">
+              <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
                 {t.withdrawal.subtitle}
               </p>
               
               <div className="space-y-8">
                 {t.withdrawal.features.map((feature, idx) => (
                   <div key={idx} className="flex gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      {idx === 0 ? <Lock className="w-6 h-6 text-blue-600" /> : 
-                       idx === 1 ? <Zap className="w-6 h-6 text-blue-600" /> : 
-                       <DollarSign className="w-6 h-6 text-blue-600" />}
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      {idx === 0 ? <Lock className="w-6 h-6 text-primary" /> : 
+                       idx === 1 ? <Zap className="w-6 h-6 text-primary" /> : 
+                       <DollarSign className="w-6 h-6 text-primary" />}
                     </div>
                     <div>
-                      <h4 className="text-xl font-bold text-slate-900 mb-2">{feature.title}</h4>
-                      <p className="text-slate-600">{feature.desc}</p>
+                      <h4 className="text-xl font-bold text-foreground mb-2">{feature.title}</h4>
+                      <p className="text-muted-foreground">{feature.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -410,14 +410,14 @@ export default function Home({ language = "en" }) {
               <motion.div 
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity }}
-                className="absolute -bottom-6 -right-6 bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4"
+                className="absolute -bottom-6 -right-6 bg-card p-6 rounded-3xl shadow-2xl border border-border flex items-center gap-4"
               >
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <div className="text-slate-900 font-bold">Withdrawal Success</div>
-                  <div className="text-slate-500 text-sm font-medium">5,000 USDT Sent</div>
+                  <div className="text-foreground font-bold">Withdrawal Success</div>
+                  <div className="text-muted-foreground text-sm font-medium">5,000 USDT Sent</div>
                 </div>
               </motion.div>
             </motion.div>
@@ -426,13 +426,13 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Live Crypto Markets Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50 overflow-hidden">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30 overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
               {language === "en" ? "Real-Time Market Pulse" : "نبض السوق المباشر"}
             </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {language === "en" ? "Institutional-grade data streaming directly from global exchanges." : "بيانات بمستوى مؤسسي تتدفق مباشرة من البورصات العالمية."}
             </p>
           </div>
@@ -449,16 +449,16 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Exclusive Offers Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white relative overflow-hidden">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-background relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-blue-100 text-blue-600 hover:bg-blue-100 border-0 px-4 py-1">
               {language === "en" ? "Limited Time Offer" : "عرض لفترة محدودة"}
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
               {t.exclusiveOffers.title}
             </h2>
-            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {t.exclusiveOffers.subtitle}
             </p>
           </div>
@@ -474,17 +474,17 @@ export default function Home({ language = "en" }) {
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}>
 
-                  <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 group bg-white overflow-hidden rounded-3xl">
+                  <Card className="h-full border-0 shadow-xl hover:shadow-2xl transition-all duration-500 group bg-card overflow-hidden rounded-3xl">
                     <div className={`h-2 bg-gradient-to-r ${offer.color}`} />
                     <CardContent className="p-8">
                       <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${offer.color} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
                         <Icon className="w-7 h-7 text-white" />
                       </div>
-                      <Badge variant="secondary" className="mb-4 bg-slate-100 text-slate-600">
+                      <Badge variant="secondary" className="mb-4 bg-muted text-muted-foreground">
                         {offer.badge}
                       </Badge>
-                      <h3 className="text-xl font-bold mb-3 text-slate-900">{offer.title}</h3>
-                      <p className="text-slate-600 leading-relaxed">{offer.desc}</p>
+                      <h3 className="text-xl font-bold mb-3 text-foreground">{offer.title}</h3>
+                      <p className="text-muted-foreground leading-relaxed">{offer.desc}</p>
                     </CardContent>
                   </Card>
                 </motion.div>);
@@ -499,9 +499,9 @@ export default function Home({ language = "en" }) {
             viewport={{ once: true }}
             className="mt-20">
 
-            <div className="grid lg:grid-cols-2 gap-12 items-center bg-slate-50 rounded-[3rem] p-8 md:p-16 shadow-2xl border border-slate-100">
+            <div className="grid lg:grid-cols-2 gap-12 items-center bg-muted/30 rounded-[3rem] p-8 md:p-16 shadow-2xl border border-border">
               <div>
-                <h3 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
+                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-6">
                   {language === "en" ? "Why wait? Start your journey today" : "لماذا الانتظار؟ ابدأ رحلتك اليوم"}
                 </h3>
                 <div className="space-y-6">
@@ -511,10 +511,10 @@ export default function Home({ language = "en" }) {
                     { t: "Personal AI trading coach", a: "مدرب تداول شخصي بالذكاء الاصطناعي" }
                   ].map((item, i) =>
                     <div key={i} className="flex items-center gap-4">
-                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
                         <CheckCircle className="w-4 h-4 text-green-600" />
                       </div>
-                      <span className="text-lg text-slate-700 font-medium">
+                      <span className="text-lg text-foreground font-medium">
                         {language === "en" ? item.t : item.a}
                       </span>
                     </div>
@@ -534,11 +534,11 @@ export default function Home({ language = "en" }) {
 
               <div className="relative">
                 <div className="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full" />
-                <Card className="relative border-0 shadow-2xl bg-white overflow-hidden rounded-[2rem]">
+                <Card className="relative border-0 shadow-2xl bg-card overflow-hidden rounded-[2rem]">
                   <CardContent className="p-8">
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between pb-4 border-b border-blue-100">
-                        <div className="font-bold text-blue-900">
+                      <div className="flex items-center justify-between pb-4 border-b border-border">
+                        <div className="font-bold text-foreground">
                           {language === "en" ? "Registration Benefits" : "مميزات التسجيل"}
                         </div>
                         <Badge className="bg-green-500">ACTIVE</Badge>
@@ -549,28 +549,28 @@ export default function Home({ language = "en" }) {
                           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
                             <Bell className="w-3 h-3 text-white" />
                           </div>
-                          <span className="text-gray-700 font-medium">{language === "en" ? "Live Trading Signals" : "إشارات تداول حية"}</span>
+                          <span className="text-foreground font-medium">{language === "en" ? "Live Trading Signals" : "إشارات تداول حية"}</span>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
                             <LineChart className="w-3 h-3 text-white" />
                           </div>
-                          <span className="text-gray-700 font-medium">{language === "en" ? "Market Analysis Tools" : "أدوات تحليل السوق"}</span>
+                          <span className="text-foreground font-medium">{language === "en" ? "Market Analysis Tools" : "أدوات تحليل السوق"}</span>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center flex-shrink-0">
                             <Users className="w-3 h-3 text-white" />
                           </div>
-                          <span className="text-gray-700 font-medium">{language === "en" ? "Dedicated Account Manager" : "مدير حساب متخصص"}</span>
+                          <span className="text-foreground font-medium">{language === "en" ? "Dedicated Account Manager" : "مدير حساب متخصص"}</span>
                         </div>
 
-                        <div className="h-px bg-blue-300 my-2" />
+                        <div className="h-px bg-border my-2" />
 
-                        <div className="flex items-center justify-center gap-2 bg-green-100 rounded-lg p-2 border border-green-300">
+                        <div className="flex items-center justify-center gap-2 bg-emerald-500/10 rounded-lg p-2 border border-emerald-500/20">
                           <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-green-800 font-bold text-sm">
+                          <span className="text-emerald-600 font-bold text-sm">
                             {language === "en" ? "All FREE on Registration" : "كلها مجانية عند التسجيل"}
                           </span>
                         </div>
@@ -585,7 +585,7 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-background">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {t.features.map((feature, idx) => {
@@ -598,15 +598,15 @@ export default function Home({ language = "en" }) {
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}>
 
-                  <Card className="h-full hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 bg-white shadow-lg rounded-3xl">
+                  <Card className="h-full hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 bg-card shadow-lg rounded-3xl">
                     <CardContent className="p-6">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-4 shadow-lg">
                         <Icon className="w-7 h-7 text-white" />
                       </div>
-                      <h3 className="text-xl font-bold mb-2 text-gray-900">
+                      <h3 className="text-xl font-bold mb-2 text-foreground">
                         {feature.title}
                       </h3>
-                      <p className="text-gray-600">{feature.desc}</p>
+                      <p className="text-muted-foreground">{feature.desc}</p>
                     </CardContent>
                   </Card>
                 </motion.div>);
@@ -617,17 +617,17 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Why Choose Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-slate-50">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
                 {t.whyChoose.title}
               </h2>
-              <p className="text-xl text-slate-600 mb-10">
+              <p className="text-xl text-muted-foreground mb-10">
                 {t.whyChoose.subtitle}
               </p>
               <div className="grid sm:grid-cols-2 gap-6">
@@ -636,7 +636,7 @@ export default function Home({ language = "en" }) {
                     <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
                       <CheckCircle className="w-4 h-4 text-blue-600" />
                     </div>
-                    <span className="text-slate-700 font-medium">{reason}</span>
+                    <span className="text-foreground font-medium">{reason}</span>
                   </div>
                 )}
               </div>
@@ -651,7 +651,7 @@ export default function Home({ language = "en" }) {
               <img
                 src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6918477c99a4af56630b48a6/960fe71f0_c32b0808-8445-4776-a5ac-79a60d1d694a.png"
                 alt="AI Trading Platform"
-                className="relative rounded-[2.5rem] shadow-2xl border border-slate-100" />
+                className="relative rounded-[2.5rem] shadow-2xl border border-border" />
             </motion.div>
           </div>
         </div>
@@ -689,7 +689,7 @@ export default function Home({ language = "en" }) {
                     {idx + 1}
                   </div>
                   <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
-                  <p className="text-gray-400 text-lg leading-relaxed">{step.desc}</p>
+                  <p className="text-white/70 text-lg leading-relaxed">{step.desc}</p>
                 </div>
               </motion.div>
             )}

@@ -137,7 +137,7 @@ export default function About({ language = "en" }) {
   const t = content[language];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
@@ -165,14 +165,14 @@ export default function About({ language = "en" }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl font-bold mb-6 text-gray-900">{t.story.title}</h2>
-            <p className="text-lg text-gray-700 leading-relaxed">{t.story.text}</p>
+            <h2 className="text-4xl font-bold mb-6 text-foreground">{t.story.title}</h2>
+            <p className="text-lg text-muted-foreground leading-relaxed">{t.story.text}</p>
           </motion.div>
         </div>
       </section>
 
       {/* Mission & Vision */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-blue-50">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8">
             <motion.div
@@ -180,13 +180,13 @@ export default function About({ language = "en" }) {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full border-0 shadow-xl">
+              <Card className="h-full border-border bg-card shadow-xl">
                 <CardContent className="p-8">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-6">
                     <Target className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-3xl font-bold mb-4 text-gray-900">{t.mission.title}</h3>
-                  <p className="text-lg text-gray-700">{t.mission.text}</p>
+                  <h3 className="text-3xl font-bold mb-4 text-foreground">{t.mission.title}</h3>
+                  <p className="text-lg text-muted-foreground">{t.mission.text}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -196,13 +196,13 @@ export default function About({ language = "en" }) {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <Card className="h-full border-0 shadow-xl">
+              <Card className="h-full border-border bg-card shadow-xl">
                 <CardContent className="p-8">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-600 to-blue-600 flex items-center justify-center mb-6">
                     <Globe className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-3xl font-bold mb-4 text-gray-900">{t.vision.title}</h3>
-                  <p className="text-lg text-gray-700">{t.vision.text}</p>
+                  <h3 className="text-3xl font-bold mb-4 text-foreground">{t.vision.title}</h3>
+                  <p className="text-lg text-muted-foreground">{t.vision.text}</p>
                 </CardContent>
               </Card>
             </motion.div>

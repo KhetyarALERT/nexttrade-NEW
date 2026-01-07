@@ -183,25 +183,25 @@ export default function Rewards({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
-              <Badge variant="outline" className="border-slate-200 text-slate-700">
+              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
+              <Badge variant="outline" className="border-border text-muted-foreground">
                 <Gift className="h-3.5 w-3.5 mr-1" />
                 {t.title}
               </Badge>
             </div>
-            <p className="text-slate-600 mt-2">{t.subtitle}</p>
+            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Daily */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg flex items-center gap-2">
                 <CalendarCheck2 className="h-5 w-5 text-blue-600" />
                 {t.daily}
@@ -209,8 +209,8 @@ export default function Rewards({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-600">{t.streak}</div>
-                <div className="text-lg font-bold text-slate-900">{streak}</div>
+                <div className="text-sm text-muted-foreground">{t.streak}</div>
+                <div className="text-lg font-bold text-foreground">{streak}</div>
               </div>
               <Button
                 className="w-full bg-blue-600 hover:bg-blue-700"
@@ -226,7 +226,7 @@ export default function Rewards({ language = "en" }) {
                   t.checkIn
                 )}
               </Button>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {language === "ar"
                   ? "سجّل مرة واحدة يوميًا للحفاظ على سلسلة الأيام."
                   : "Check in once per day to maintain your streak."}
@@ -235,8 +235,8 @@ export default function Rewards({ language = "en" }) {
           </Card>
 
           {/* Tasks */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg">{t.tasks}</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-3">
@@ -245,12 +245,12 @@ export default function Rewards({ language = "en" }) {
                   key={task.id}
                   type="button"
                   onClick={() => toggleTask(task.id)}
-                  className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted transition-colors"
                 >
-                  <span className={`text-sm ${task.done ? "text-slate-500 line-through" : "text-slate-900"}`}>
+                  <span className={`text-sm ${task.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                     {task.title}
                   </span>
-                  <span className={`text-xs font-medium ${task.done ? "text-emerald-700" : "text-slate-500"}`}>
+                  <span className={`text-xs font-medium ${task.done ? "text-emerald-600" : "text-muted-foreground"}`}>
                     {task.done ? (language === "ar" ? "تم" : "Done") : (language === "ar" ? "ابدأ" : "Start")}
                   </span>
                 </button>
@@ -261,15 +261,15 @@ export default function Rewards({ language = "en" }) {
 
         {/* Position vouchers */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="border-b border-slate-100">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Gift className="h-5 w-5 text-purple-600" />
                 {t.vouchersTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-3">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {t.vouchersSubtitle}
               </p>
 
@@ -278,16 +278,16 @@ export default function Rewards({ language = "en" }) {
                 const eligible = v.id === "signup" ? true : Boolean(eligibility?.[v.id]);
                 const disabled = claimed || !eligible;
                 return (
-                  <div key={v.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
+                  <div key={v.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-lg border border-border">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                       <Gift className="h-6 w-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-slate-900">{pickLang(language, v.title)}</p>
-                      <p className="text-xs text-slate-500">{pickLang(language, v.condition)}</p>
-                      <p className="text-xs text-slate-500 mt-1">{pickLang(language, v.reward)}</p>
+                      <p className="font-bold text-foreground">{pickLang(language, v.title)}</p>
+                      <p className="text-xs text-muted-foreground">{pickLang(language, v.condition)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{pickLang(language, v.reward)}</p>
                       {v.expiry ? (
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {language === "ar" ? "ينتهي:" : "Expires:"} {v.expiry}
                         </p>
                       ) : null}

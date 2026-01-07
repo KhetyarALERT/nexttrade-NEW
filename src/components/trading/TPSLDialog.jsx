@@ -122,34 +122,34 @@ export default function TPSLDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-[#1E222D] border-[#2B2B43] text-white sm:max-w-md p-0 gap-0">
-        <DialogHeader className="p-4 border-b border-[#2B2B43]">
+      <DialogContent className="sm:max-w-md p-0 gap-0 bg-background text-foreground border-border">
+        <DialogHeader className="p-4 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-medium">
             Position TP/SL
-            <Info className="w-4 h-4 text-slate-400" />
+            <Info className="w-4 h-4 text-muted-foreground" />
           </DialogTitle>
         </DialogHeader>
 
         {/* Position Info */}
-        <div className="p-4 bg-[#131722] border-b border-[#2B2B43]">
+        <div className="p-4 bg-card border-b border-border">
           <div className="flex items-center gap-2 mb-3">
-            <span className="font-bold text-white">{position.symbol}</span>
+            <span className="font-bold text-foreground">{position.symbol}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded ${position.side === 'LONG' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
               {position.side} {position.leverage}x
             </span>
-            <span className="text-xs text-slate-400">Position Voucher</span>
+            <span className="text-xs text-muted-foreground">Position Voucher</span>
           </div>
           <div className="grid grid-cols-3 gap-4 text-xs">
             <div>
-              <p className="text-slate-500 mb-1">Entry Price</p>
-              <p className="text-white font-mono font-medium">{position.entry_price?.toFixed(4)}</p>
+              <p className="text-muted-foreground mb-1">Entry Price</p>
+              <p className="text-foreground font-mono font-medium">{position.entry_price?.toFixed(4)}</p>
             </div>
             <div>
-              <p className="text-slate-500 mb-1">Last Price</p>
-              <p className="text-white font-mono font-medium">{currentPrice?.toFixed(4)}</p>
+              <p className="text-muted-foreground mb-1">Last Price</p>
+              <p className="text-foreground font-mono font-medium">{currentPrice?.toFixed(4)}</p>
             </div>
             <div>
-              <p className="text-slate-500 mb-1">Est. Liq. Price</p>
+              <p className="text-muted-foreground mb-1">Est. Liq. Price</p>
               <p className="text-amber-400 font-mono font-medium">{position.liquidation_price?.toFixed(4) || '--'}</p>
             </div>
           </div>
@@ -164,11 +164,11 @@ export default function TPSLDialog({
                   id="tp-enabled" 
                   checked={tpEnabled} 
                   onCheckedChange={setTpEnabled}
-                  className="border-slate-600 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                  className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                 />
                 <Label htmlFor="tp-enabled" className="text-sm font-medium cursor-pointer">Take Profit</Label>
               </div>
-              <span className="text-xs text-slate-400">Last ▼</span>
+              <span className="text-xs text-muted-foreground">Last ▼</span>
             </div>
             
             {tpEnabled && (
@@ -180,42 +180,42 @@ export default function TPSLDialog({
                       value={tpPrice}
                       onChange={(e) => setTpPrice(e.target.value)}
                       placeholder="TP Trigger"
-                      className="h-10 bg-[#131722] border-[#2B2B43] text-white pr-14"
+                      className="h-10 pr-14"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">USDT</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">USDT</span>
                   </div>
                   <div className="relative flex items-center">
-                    <Link2 className="absolute left-[-12px] w-4 h-4 text-slate-500" />
+                    <Link2 className="absolute left-[-12px] w-4 h-4 text-muted-foreground" />
                     <Input
                       type="number"
                       value={tpPercent}
                       onChange={(e) => handleTpPercentChange(e.target.value)}
                       placeholder="TP Ratio"
-                      className="h-10 bg-[#131722] border-[#2B2B43] text-white pr-8"
+                      className="h-10 pr-8"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  When the <span className="text-slate-300">Last Price</span> reaches {tpPrice || '--'}, it will trigger <span className="text-emerald-400">TP Market Order</span> and the estimated PnL will be <span className={tpPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>{tpPnL >= 0 ? '+' : ''}{tpPnL.toFixed(2)} USDT</span>
+                <p className="text-[11px] text-muted-foreground">
+                  When the <span className="text-foreground">Last Price</span> reaches {tpPrice || '--'}, it will trigger <span className="text-emerald-400">TP Market Order</span> and the estimated PnL will be <span className={tpPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>{tpPnL >= 0 ? '+' : ''}{tpPnL.toFixed(2)} USDT</span>
                 </p>
               </>
             )}
           </div>
 
           {/* Stop Loss Section */}
-          <div className="space-y-3 pt-2 border-t border-[#2B2B43]">
+          <div className="space-y-3 pt-2 border-t border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox 
                   id="sl-enabled" 
                   checked={slEnabled} 
                   onCheckedChange={setSlEnabled}
-                  className="border-slate-600 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+                  className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
                 />
                 <Label htmlFor="sl-enabled" className="text-sm font-medium cursor-pointer">Stop Loss</Label>
               </div>
-              <span className="text-xs text-slate-400">Last ▼</span>
+              <span className="text-xs text-muted-foreground">Last ▼</span>
             </div>
             
             {slEnabled && (
@@ -227,24 +227,24 @@ export default function TPSLDialog({
                       value={slPrice}
                       onChange={(e) => setSlPrice(e.target.value)}
                       placeholder="SL Trigger"
-                      className="h-10 bg-[#131722] border-[#2B2B43] text-white pr-14"
+                      className="h-10 pr-14"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">USDT</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">USDT</span>
                   </div>
                   <div className="relative flex items-center">
-                    <Link2 className="absolute left-[-12px] w-4 h-4 text-slate-500" />
+                    <Link2 className="absolute left-[-12px] w-4 h-4 text-muted-foreground" />
                     <Input
                       type="number"
                       value={slPercent}
                       onChange={(e) => handleSlPercentChange(e.target.value)}
                       placeholder="SL Ratio"
-                      className="h-10 bg-[#131722] border-[#2B2B43] text-white pr-8"
+                      className="h-10 pr-8"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                   </div>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  When the <span className="text-slate-300">Last Price</span> reaches {slPrice || '--'}, it will trigger <span className="text-red-400">SL Market Order</span> and the estimated PnL will be <span className={slPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>{slPnL >= 0 ? '+' : ''}{slPnL.toFixed(2)} USDT</span>
+                <p className="text-[11px] text-muted-foreground">
+                  When the <span className="text-foreground">Last Price</span> reaches {slPrice || '--'}, it will trigger <span className="text-red-400">SL Market Order</span> and the estimated PnL will be <span className={slPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}>{slPnL >= 0 ? '+' : ''}{slPnL.toFixed(2)} USDT</span>
                 </p>
               </>
             )}
@@ -252,18 +252,18 @@ export default function TPSLDialog({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#2B2B43] flex gap-3">
+        <div className="p-4 border-t border-border flex gap-3">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
-            className="flex-1 h-10 bg-[#2B2B43] border-[#2B2B43] text-white hover:bg-[#383856]"
+            className="flex-1 h-10"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 h-10 bg-[#2962FF] hover:bg-[#2962FF]/90 text-white"
+            className="flex-1 h-10"
           >
             {saving ? "Saving..." : "Confirm"}
           </Button>
