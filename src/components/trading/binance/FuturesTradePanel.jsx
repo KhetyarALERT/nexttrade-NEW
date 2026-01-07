@@ -67,7 +67,6 @@ export default function FuturesTradePanel({
   language = "en",
   liveAccount = null,
   demoAccount = null,
-  positionTrade = null,
   onTradesChanged,
   onAccountsChanged,
 }) {
@@ -80,7 +79,7 @@ export default function FuturesTradePanel({
   // - amount: quantity in base asset
   // - value: notional in USDT
   // - cost: margin in USDT (notional = cost * leverage)
-  const [orderMode, setOrderMode] = useState("amount");
+  const [orderMode, setOrderMode] = useState("cost");
   const [leverage, setLeverage] = useState(10);
 
   const [lastPrice, setLastPrice] = useState(0);
@@ -110,12 +109,6 @@ export default function FuturesTradePanel({
 
   const [tpSlLastEdited, setTpSlLastEdited] = useState("");
 
-  const [posTpEditing, setPosTpEditing] = useState(false);
-  const [posSlEditing, setPosSlEditing] = useState(false);
-  const [posTpDraft, setPosTpDraft] = useState("");
-  const [posSlDraft, setPosSlDraft] = useState("");
-  const [posUpdateBusy, setPosUpdateBusy] = useState(false);
-  const [posUpdateError, setPosUpdateError] = useState("");
 
   const [botsBusy, setBotsBusy] = useState(false);
   const [botsError, setBotsError] = useState("");
@@ -258,6 +251,20 @@ export default function FuturesTradePanel({
       setter((prev) => (prev === nextStr ? prev : nextStr));
     };
 
+    // If the user changes leverage, keep size (amount/total) the same and adjust cost only.
+    if (lastEdited === "leverage") {
+      if (Number.isFinite(t) && t >= 0) {
+        setStrIfChanged(setCost, t / safeLev);
+        return;
+      }
+      if (Number.isFinite(p) && p > 0 && Number.isFinite(a) && a >= 0) {
+        const nextNotional = a * p;
+        setStrIfChanged(setTotal, nextNotional);
+        setStrIfChanged(setCost, nextNotional / safeLev);
+      }
+      return;
+    }
+
     if (orderMode === "cost") {
       if (!Number.isFinite(p) || p <= 0) return;
 
@@ -288,6 +295,29 @@ export default function FuturesTradePanel({
       }
       return;
     }
+
+    // For non-cost modes, leverage should NOT change the position size.
+    // Leverage affects the implied margin (cost) only: cost = notional / leverage.
+    if (!Number.isFinite(p) || p <= 0) return;
+
+    if (orderMode === "value") {
+      if (Number.isFinite(t)) {
+        const nextQty = t / p;
+        const nextCost = t / safeLev;
+        setStrIfChanged(setAmount, nextQty);
+        setStrIfChanged(setCost, nextCost);
+      }
+      return;
+    }
+
+    // amount mode
+    if (Number.isFinite(a)) {
+      const nextNotional = a * p;
+      const nextCost = nextNotional / safeLev;
+      setStrIfChanged(setTotal, nextNotional);
+      setStrIfChanged(setCost, nextCost);
+    }
+    // fallthrough: total/amount specific edit rules handled below
 
     // If user edits total => recompute amount.
     if (lastEdited === "total") {
@@ -516,54 +546,6 @@ export default function FuturesTradePanel({
     }
   };
 
-  const canEditPositionTpSl = Boolean(positionTrade?.id && positionTrade?.status === "OPEN");
-
-  useEffect(() => {
-    if (!canEditPositionTpSl) {
-      setPosTpEditing(false);
-      setPosSlEditing(false);
-      setPosTpDraft("");
-      setPosSlDraft("");
-      setPosUpdateError("");
-      return;
-    }
-
-    const tp = positionTrade?.take_profit;
-    const sl = positionTrade?.stop_loss;
-    setPosTpDraft(tp === null || tp === undefined ? "" : String(tp));
-    setPosSlDraft(sl === null || sl === undefined ? "" : String(sl));
-  }, [canEditPositionTpSl, positionTrade?.id, positionTrade?.take_profit, positionTrade?.stop_loss]);
-
-  const updatePositionTpSl = async () => {
-    if (!positionTrade?.id) return;
-    setPosUpdateError("");
-    setPosUpdateBusy(true);
-
-    try {
-      const tp = parseNum(posTpDraft);
-      const sl = parseNum(posSlDraft);
-      const payload = {
-        action: "updateTrade",
-        tradeId: positionTrade.id,
-        takeProfit: Number.isFinite(tp) && tp > 0 ? tp : null,
-        stopLoss: Number.isFinite(sl) && sl > 0 ? sl : null,
-      };
-
-      const res = await base44.functions.invoke("tradingAccount", payload);
-      if (!res?.data?.success) {
-        setPosUpdateError(res?.data?.error || labels.updateFailed);
-        return;
-      }
-
-      setPosTpEditing(false);
-      setPosSlEditing(false);
-      await onTradesChanged?.();
-    } catch {
-      setPosUpdateError(labels.updateFailed);
-    } finally {
-      setPosUpdateBusy(false);
-    }
-  };
 
   const renderOrderForm = (opts = {}) => {
     const demoMode = Boolean(opts.demoMode);
@@ -722,7 +704,10 @@ export default function FuturesTradePanel({
                 max={125}
                 step={1}
                 value={Math.min(125, Math.max(1, Number(leverage) || 10))}
-                onChange={(e) => setLeverage(Number(e.target.value))}
+                onChange={(e) => {
+                  setLeverage(Number(e.target.value));
+                  setLastEdited("leverage");
+                }}
                 className="w-full accent-emerald-500"
               />
               <div className="w-16 text-right font-mono text-sm text-white">{Math.min(125, Math.max(1, Number(leverage) || 10))}×</div>
@@ -1065,88 +1050,6 @@ export default function FuturesTradePanel({
             </>
           ) : null}
 
-          {canEditPositionTpSl ? (
-            <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.positionTpSl}</div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPosTpEditing(false);
-                    setPosSlEditing(false);
-                    setPosTpDraft(positionTrade?.take_profit == null ? "" : String(positionTrade.take_profit));
-                    setPosSlDraft(positionTrade?.stop_loss == null ? "" : String(positionTrade.stop_loss));
-                    setPosUpdateError("");
-                  }}
-                  className="text-[11px] text-slate-400 hover:text-slate-200"
-                >
-                  {labels.cancel}
-                </button>
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <div className="text-[11px] text-slate-500">{labels.tp}</div>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={posTpDraft}
-                      disabled={!posTpEditing}
-                      onClick={() => setPosTpEditing(true)}
-                      onChange={(e) => setPosTpDraft(e.target.value)}
-                      onWheelCapture={(e) => {
-                        if (!posTpEditing) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const step = stepForPrice(parseNum(posTpDraft) || lastPrice);
-                        setPosTpDraft((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder={posTpEditing ? labels.enter : (positionTrade?.take_profit ? String(positionTrade.take_profit) : "—")}
-                      className={`w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600 ${posTpEditing ? "" : "cursor-pointer"}`}
-                      inputMode="decimal"
-                      readOnly={!posTpEditing}
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                  </div>
-                  {!posTpEditing ? <div className="mt-1 text-[10px] text-slate-600">{labels.edit}</div> : null}
-                </div>
-
-                <div>
-                  <div className="text-[11px] text-slate-500">{labels.sl}</div>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={posSlDraft}
-                      disabled={!posSlEditing}
-                      onClick={() => setPosSlEditing(true)}
-                      onChange={(e) => setPosSlDraft(e.target.value)}
-                      onWheelCapture={(e) => {
-                        if (!posSlEditing) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const step = stepForPrice(parseNum(posSlDraft) || lastPrice);
-                        setPosSlDraft((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder={posSlEditing ? labels.enter : (positionTrade?.stop_loss ? String(positionTrade.stop_loss) : "—")}
-                      className={`w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600 ${posSlEditing ? "" : "cursor-pointer"}`}
-                      inputMode="decimal"
-                      readOnly={!posSlEditing}
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                  </div>
-                  {!posSlEditing ? <div className="mt-1 text-[10px] text-slate-600">{labels.edit}</div> : null}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={updatePositionTpSl}
-                disabled={posUpdateBusy}
-                className={`mt-3 w-full py-2 rounded text-sm ${posUpdateBusy ? "bg-slate-800/60 text-slate-400 cursor-not-allowed" : "bg-slate-800 text-slate-200 hover:bg-slate-700"}`}
-              >
-                {posUpdateBusy ? "..." : labels.update}
-              </button>
-              {posUpdateError ? <div className="mt-2 text-[11px] text-rose-300">{posUpdateError}</div> : null}
-            </div>
-          ) : null}
 
           <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
             <div className="flex items-center justify-between">
@@ -1679,7 +1582,15 @@ export default function FuturesTradePanel({
             <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.account}</div>
             <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <div className="text-[11px] text-slate-500">{labels.balance}</div>
+                <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                  <span>{labels.balance}</span>
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300"
+                    title={language === "ar" ? "الرصيد المتاح في الحساب بعد الخصومات" : "Account balance after debits/credits"}
+                  >
+                    !
+                  </span>
+                </div>
                 <div className="font-mono text-white">
                   {(() => {
                     const snap = getAccountSnapshot(activeTab === "bots");
@@ -1688,7 +1599,15 @@ export default function FuturesTradePanel({
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-slate-500">{labels.margin}</div>
+                <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                  <span>{labels.margin}</span>
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300"
+                    title={language === "ar" ? "الهامش المستخدم حاليًا للمراكز المفتوحة" : "Margin currently used by open positions"}
+                  >
+                    !
+                  </span>
+                </div>
                 <div className="font-mono text-white">
                   {(() => {
                     const snap = getAccountSnapshot(activeTab === "bots");
@@ -1710,7 +1629,6 @@ FuturesTradePanel.propTypes = {
   language: PropTypes.string,
   liveAccount: PropTypes.object,
   demoAccount: PropTypes.object,
-  positionTrade: PropTypes.object,
   onTradesChanged: PropTypes.func,
   onAccountsChanged: PropTypes.func,
 };

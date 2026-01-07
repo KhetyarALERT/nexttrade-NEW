@@ -3,7 +3,10 @@ import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { base44 } from "@/api/base44Client";
+import { Pencil, Plus } from "lucide-react";
 
 function formatNum(v, digits = 2) {
   const n = Number(v);
@@ -49,6 +52,43 @@ export default function FuturesActivityTabs({
 }) {
   const [tab, setTab] = useState("positions");
   const [markBySymbol, setMarkBySymbol] = useState({});
+
+  const [tpSlOpen, setTpSlOpen] = useState(false);
+  const [tpSlTrade, setTpSlTrade] = useState(null);
+  const [tpEnabled, setTpEnabled] = useState(false);
+  const [slEnabled, setSlEnabled] = useState(false);
+  const [tpValue, setTpValue] = useState("");
+  const [slValue, setSlValue] = useState("");
+  const [tpSlBusy, setTpSlBusy] = useState(false);
+  const [tpSlError, setTpSlError] = useState("");
+
+  const parseNum = (v) => {
+    if (v === "" || v === null || v === undefined) return NaN;
+    const n = Number(String(v).replace(/,/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const stepForPrice = (p) => {
+    const n = Number(p);
+    if (!Number.isFinite(n) || n <= 0) return 0.01;
+    if (n < 0.01) return 0.000001;
+    if (n < 0.1) return 0.00001;
+    if (n < 1) return 0.0001;
+    if (n < 10) return 0.001;
+    if (n < 100) return 0.01;
+    if (n < 1000) return 0.1;
+    return 1;
+  };
+
+  const wheelAdjust = (currentValue, deltaY, step) => {
+    const curr = parseNum(currentValue);
+    const base = Number.isFinite(curr) ? curr : 0;
+    const dir = deltaY > 0 ? -1 : 1;
+    const next = Math.max(0, base + dir * step);
+    const stepStr = String(step);
+    const decimals = stepStr.includes(".") ? stepStr.split(".")[1].length : 0;
+    return next.toFixed(Math.min(8, decimals));
+  };
 
   useEffect(() => {
     const symbols = Array.from(
@@ -146,9 +186,69 @@ export default function FuturesActivityTabs({
         refresh: isAr ? "تحديث" : "Refresh",
         view: isAr ? "عرض" : "View",
         close: isAr ? "إغلاق" : "Close",
+        tpSl: isAr ? "هدف/وقف" : "TP/SL",
+        edit: isAr ? "تعديل" : "Edit",
+        add: isAr ? "إضافة" : "Add",
+        confirm: isAr ? "تأكيد" : "Confirm",
+        cancel: isAr ? "إلغاء" : "Cancel",
+        updating: isAr ? "جارٍ التحديث…" : "Updating…",
+        updateFailed: isAr ? "فشل تحديث TP/SL" : "Failed to update TP/SL",
+        entry: isAr ? "سعر الدخول" : "Entry Price",
+        last: isAr ? "آخر سعر" : "Last Price",
+        liq: isAr ? "سعر التصفية" : "Est. Liq. Price",
+        takeProfit: isAr ? "جني الربح" : "Take Profit",
+        stopLoss: isAr ? "وقف الخسارة" : "Stop Loss",
       },
     };
   }, [language, symbol]);
+
+  const openTpSlDialog = (trade) => {
+    if (!trade?.id) return;
+    setTpSlError("");
+    setTpSlTrade(trade);
+
+    const tp = Number(trade?.take_profit);
+    const sl = Number(trade?.stop_loss);
+    const hasTp = Number.isFinite(tp) && tp > 0;
+    const hasSl = Number.isFinite(sl) && sl > 0;
+
+    setTpEnabled(hasTp);
+    setSlEnabled(hasSl);
+    setTpValue(hasTp ? String(tp) : "");
+    setSlValue(hasSl ? String(sl) : "");
+    setTpSlOpen(true);
+  };
+
+  const submitTpSl = async () => {
+    if (!tpSlTrade?.id) return;
+    setTpSlError("");
+    setTpSlBusy(true);
+    try {
+      const tp = parseNum(tpValue);
+      const sl = parseNum(slValue);
+
+      const payload = {
+        action: "updateTrade",
+        tradeId: tpSlTrade.id,
+        takeProfit: tpEnabled && Number.isFinite(tp) && tp > 0 ? tp : null,
+        stopLoss: slEnabled && Number.isFinite(sl) && sl > 0 ? sl : null,
+      };
+
+      const res = await base44.functions.invoke("tradingAccount", payload);
+      if (!res?.data?.success) {
+        setTpSlError(res?.data?.error || labels.common.updateFailed);
+        return;
+      }
+
+      setTpSlOpen(false);
+      setTpSlTrade(null);
+      await onRefresh?.();
+    } catch {
+      setTpSlError(labels.common.updateFailed);
+    } finally {
+      setTpSlBusy(false);
+    }
+  };
 
   const openPositions = useMemo(
     () => (trades || []).filter((t) => String(t?.status || "").toUpperCase() === "OPEN"),
@@ -262,7 +362,13 @@ export default function FuturesActivityTabs({
                         <TableCell className="text-slate-200 font-medium">
                           <div className="flex items-center gap-2">
                             <span>{sym}</span>
-                            <span className={`text-[11px] px-2 py-0.5 rounded ${side === "LONG" ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}>
+                            <span
+                              className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                                side === "LONG"
+                                  ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/20"
+                                  : "bg-rose-500/15 text-rose-200 border-rose-500/20"
+                              }`}
+                            >
                               {side}
                             </span>
                           </div>
@@ -281,20 +387,47 @@ export default function FuturesActivityTabs({
                         <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
                         <TableCell className="text-slate-200">{formatPrice(mark)}</TableCell>
-                        <TableCell className="text-slate-200">{formatPrice(pos?.liquidation_price)}</TableCell>
+                        <TableCell className="text-amber-300">{formatPrice(pos?.liquidation_price)}</TableCell>
                         <TableCell className={riskTone}>
                           {Number.isFinite(liqDistPct) ? `${liqDistPct.toFixed(2)}%` : "—"}
                         </TableCell>
                         <TableCell className="text-slate-200">{Number.isFinite(margin) ? formatNum(margin, 2) : "—"}</TableCell>
                         <TableCell className="text-slate-200">
                           <div className="flex items-center gap-2 text-[11px]">
-                            <span className="text-emerald-300">TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}</span>
-                            <span className="text-rose-300">SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${pos?.take_profit ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
+                              TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${pos?.stop_loss ? "bg-rose-500/10 border-rose-500/20 text-rose-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
+                              SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
+                            </span>
                           </div>
                         </TableCell>
 
                         <TableCell className="text-slate-200">
                           <div className="flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTpSlDialog(pos);
+                              }}
+                              title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
+                            >
+                              {pos?.take_profit || pos?.stop_loss ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  {labels.common.edit}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1">
+                                  <Plus className="h-3.5 w-3.5" />
+                                  {labels.common.add}
+                                </span>
+                              )}
+                            </Button>
                             <Button
                               type="button"
                               size="sm"
@@ -481,6 +614,142 @@ export default function FuturesActivityTabs({
           </Table>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={tpSlOpen} onOpenChange={(v) => {
+        setTpSlOpen(v);
+        if (!v) {
+          setTpSlTrade(null);
+          setTpSlError("");
+          setTpSlBusy(false);
+        }
+      }}>
+        <DialogContent className="max-w-[560px] bg-[#0f1320] border border-slate-800 text-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-200">{labels.common.tpSl}</DialogTitle>
+          </DialogHeader>
+
+          {tpSlTrade ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-slate-100 truncate">
+                      {normalizeSymbol(tpSlTrade?.symbol)} {String(tpSlTrade?.side || "LONG").toUpperCase()} {tpSlTrade?.leverage ? `${tpSlTrade.leverage}X` : ""}
+                    </div>
+                    <div className="text-[11px] text-slate-500">{String(tpSlTrade?.order_type || "").toUpperCase()}</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.common.entry}</div>
+                    <div className="font-mono text-slate-100">{formatPrice(tpSlTrade?.avg_entry_price ?? tpSlTrade?.entry_price)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.common.last}</div>
+                    <div className="font-mono text-slate-100">{formatPrice(markBySymbol[normalizeSymbol(tpSlTrade?.symbol)])}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.common.liq}</div>
+                    <div className="font-mono text-amber-300">{formatPrice(tpSlTrade?.liquidation_price)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-emerald-500"
+                    checked={tpEnabled}
+                    onChange={(e) => setTpEnabled(e.target.checked)}
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-100">{labels.common.takeProfit}</div>
+                  </div>
+                </label>
+
+                {tpEnabled ? (
+                  <div className="mt-3 grid grid-cols-[1fr,auto] gap-2">
+                    <input
+                      value={tpValue}
+                      onChange={(e) => setTpValue(e.target.value)}
+                      onWheelCapture={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const step = stepForPrice(parseNum(tpValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
+                        setTpValue((v) => wheelAdjust(v, e.deltaY, step));
+                      }}
+                      placeholder="—"
+                      className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
+                      inputMode="decimal"
+                    />
+                    <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
+                      USDT
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-emerald-500"
+                    checked={slEnabled}
+                    onChange={(e) => setSlEnabled(e.target.checked)}
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium text-slate-100">{labels.common.stopLoss}</div>
+                  </div>
+                </label>
+
+                {slEnabled ? (
+                  <div className="mt-3 grid grid-cols-[1fr,auto] gap-2">
+                    <input
+                      value={slValue}
+                      onChange={(e) => setSlValue(e.target.value)}
+                      onWheelCapture={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const step = stepForPrice(parseNum(slValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
+                        setSlValue((v) => wheelAdjust(v, e.deltaY, step));
+                      }}
+                      placeholder="—"
+                      className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
+                      inputMode="decimal"
+                    />
+                    <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
+                      USDT
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {tpSlError ? <div className="text-[11px] text-rose-300">{tpSlError}</div> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setTpSlOpen(false)}
+                  disabled={tpSlBusy}
+                >
+                  {labels.common.cancel}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={submitTpSl}
+                  disabled={tpSlBusy}
+                  className="bg-blue-600 hover:bg-blue-500"
+                >
+                  {tpSlBusy ? labels.common.updating : labels.common.confirm}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

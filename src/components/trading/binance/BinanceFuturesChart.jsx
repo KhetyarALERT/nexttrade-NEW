@@ -29,12 +29,21 @@ function formatPnl(pnl) {
   return `${sign}${n.toFixed(2)}`;
 }
 
+function compactPrice(p) {
+  const n = Number(p);
+  if (!Number.isFinite(n)) return "—";
+  const digits = n < 1 ? 6 : 2;
+  return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
 export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+
+  const [overlayBadges, setOverlayBadges] = useState({});
 
   const onPriceUpdateRef = useRef(onPriceUpdate);
   useEffect(() => {
@@ -54,6 +63,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const key = useMemo(() => `${normalizedSymbol}_${timeframe}`, [normalizedSymbol, timeframe]);
 
   const containerRef = useRef(null);
+  const badgeLayerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
@@ -89,6 +99,19 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       }
     } catch {}
     if (overlayLinesRef.current) overlayLinesRef.current[key] = null;
+  };
+
+  const removeOverlayBadge = (key) => {
+    setOverlayBadges((prev) => {
+      if (!prev?.[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const upsertOverlayBadge = (key, badge) => {
+    setOverlayBadges((prev) => ({ ...prev, [key]: badge }));
   };
 
   const upsertOverlayLine = (key, opts) => {
@@ -309,6 +332,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayLine("tp");
       removeOverlayLine("sl");
       removeOverlayLine("liq");
+      setOverlayBadges({});
       return;
     }
 
@@ -332,11 +356,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: isShort ? "#ef4444" : "#22c55e",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: true,
-        title: entryTitle,
+        axisLabelVisible: false,
+        title: "",
+      });
+
+      upsertOverlayBadge("entry", {
+        price: entry,
+        tone: isShort ? "short" : "long",
+        label: entryTitle,
       });
     } else {
       removeOverlayLine("entry");
+      removeOverlayBadge("entry");
     }
 
     const tp = Number(t.take_profit);
@@ -347,11 +378,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#22c55e",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: true,
-        title: `TP ${formatPnl(tpPnl)}`,
+        axisLabelVisible: false,
+        title: "",
+      });
+
+      upsertOverlayBadge("tp", {
+        price: tp,
+        tone: "tp",
+        label: `TP ${formatPnl(tpPnl)}`,
       });
     } else {
       removeOverlayLine("tp");
+      removeOverlayBadge("tp");
     }
 
     const sl = Number(t.stop_loss);
@@ -362,11 +400,18 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#ef4444",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: true,
-        title: `SL ${formatPnl(slPnl)}`,
+        axisLabelVisible: false,
+        title: "",
+      });
+
+      upsertOverlayBadge("sl", {
+        price: sl,
+        tone: "sl",
+        label: `SL ${formatPnl(slPnl)}`,
       });
     } else {
       removeOverlayLine("sl");
+      removeOverlayBadge("sl");
     }
 
     const liq = Number(t.liquidation_price);
@@ -376,13 +421,34 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         color: "#f59e0b",
         lineWidth: 1,
         lineStyle: 2,
-        axisLabelVisible: true,
-        title: "Liq",
+        axisLabelVisible: false,
+        title: "",
+      });
+
+      upsertOverlayBadge("liq", {
+        price: liq,
+        tone: "liq",
+        label: "Liq",
       });
     } else {
       removeOverlayLine("liq");
+      removeOverlayBadge("liq");
     }
   }, [positionTrade, lastPrice, now]);
+
+  // Position the HTML badges on the right side of the chart
+  const overlayBadgeItems = useMemo(() => {
+    if (!overlayBadges || !candleSeriesRef.current) return [];
+    const series = candleSeriesRef.current;
+    return Object.entries(overlayBadges)
+      .map(([key, b]) => {
+        const y = series.priceToCoordinate?.(Number(b?.price));
+        if (!Number.isFinite(y)) return null;
+        return { key, y, ...b };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.y - b.y);
+  }, [overlayBadges, now, lastPrice]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
@@ -421,6 +487,41 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
         <div ref={containerRef} className="flex-1 min-h-0 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{normalizedSymbol || symbol}</div>
+
+        <div ref={badgeLayerRef} className="absolute inset-0 pointer-events-none">
+          {overlayBadgeItems.map((b) => {
+            const tone = b.tone;
+            const isLong = tone === "long";
+            const isShort = tone === "short";
+            const isTp = tone === "tp";
+            const isSl = tone === "sl";
+            const isLiq = tone === "liq";
+            const cls = isTp
+              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-100"
+              : isSl
+                ? "bg-rose-500/15 border-rose-500/30 text-rose-100"
+                : isLiq
+                  ? "bg-amber-500/15 border-amber-500/30 text-amber-100"
+                  : isShort
+                    ? "bg-rose-500/10 border-rose-500/20 text-rose-100"
+                    : isLong
+                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-100"
+                      : "bg-slate-500/10 border-slate-500/20 text-slate-100";
+
+            return (
+              <div
+                key={b.key}
+                className={`absolute right-2 px-2.5 py-1 rounded-xl border backdrop-blur-sm shadow-sm ${cls}`}
+                style={{ top: Math.max(6, Math.min((containerRef.current?.clientHeight || 0) - 28, b.y - 12)) }}
+              >
+                <div className="text-[11px] leading-none font-semibold">
+                  {b.label}
+                </div>
+                <div className="mt-0.5 text-[10px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
