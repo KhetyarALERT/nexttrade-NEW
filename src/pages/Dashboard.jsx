@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { DASHBOARD_VOUCHERS, pickLang } from "@/lib/rewards-config";
+import { useAuth } from "@/lib/AuthContext";
 
 const translations = {
   en: {
@@ -112,8 +113,21 @@ const StatCard = ({ title, value, change = undefined, icon: Icon, color }) => (
   </Card>
 );
 
+const safeNumber = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const sum = (arr) => arr.reduce((acc, n) => acc + safeNumber(n), 0);
+
+const formatMoney = (v) => {
+  const n = safeNumber(v);
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
+  const { user } = useAuth();
   const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -123,26 +137,13 @@ export default function Dashboard({ language = "en" }) {
     inPositions: 0
   });
   
-  const [pnlData, _setPnlData] = useState({
-    daily: 245.50,
-    dailyPercent: 2.45,
-    weekly: 1250.00,
-    weeklyPercent: 12.5,
-    monthly: 4500.00,
-    monthlyPercent: 45.0,
-    total: 15000.00,
-    totalPercent: 150.0
-  });
+  const [pnlData, setPnlData] = useState({ daily: 0, weekly: 0, monthly: 0, total: 0 });
   
-  const [positions, setPositions] = useState([]);
-  const [orders, _setOrders] = useState([]);
-  const [referralData, _setReferralData] = useState({
-    code: "NEXT-7829",
-    link: "https://nexttrade.app/ref/NEXT-7829",
-    totalReferrals: 12,
-    activeReferrals: 8,
-    totalCommission: 1450.20
-  });
+  const [positions, setPositions] = useState([]); // tradingAccount OPEN
+  const [orders, setOrders] = useState([]); // tradingAccount PENDING
+  const [, setWallets] = useState([]);
+  const [, setStakingPositions] = useState([]);
+  const [, setLiveAccount] = useState(null);
   
   const vouchers = DASHBOARD_VOUCHERS;
 
@@ -151,34 +152,57 @@ export default function Dashboard({ language = "en" }) {
     setLoading(true);
     
     try {
-      // Load positions from BingX
-      const positionsResult = await base44.functions.invoke('bingxRest', {
-        action: 'futures.getPositions',
-        params: {}
+      // Use the same sources as Profile: tradingAccount + wallet + staking.
+      const [liveRes, walletsRes, tradesRes, stakingRes] = await Promise.all([
+        base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
+        base44.functions.invoke('wallet', { action: 'list' }),
+        base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
+        base44.functions.invoke('wallet', { action: 'getStakingPositions' })
+      ]);
+
+      if (liveRes.data?.success) setLiveAccount(liveRes.data.data);
+
+      const nextWallets = walletsRes.data?.success ? (walletsRes.data.data || []) : [];
+      setWallets(nextWallets);
+
+      const usdtWallets = nextWallets.filter((w) => (w.currency || '').toUpperCase() === 'USDT');
+      const spot = sum(usdtWallets.map((w) => w.balance));
+      const locked = sum(usdtWallets.map((w) => w.locked_balance || 0));
+      const staked = sum(usdtWallets.map((w) => w.staked_balance || 0));
+
+      // Backend semantics: staking reduces `balance` and increases `staked_balance`.
+      // So available is balance minus locked only (NOT minus staked).
+      setBalanceData({
+        total: spot + locked + staked,
+        available: Math.max(0, spot - locked),
+        inPositions: locked + staked
       });
-      
-      if (positionsResult.data?.success) {
-        setPositions(positionsResult.data.data || []);
-        logActivity('LOAD_POSITIONS', { count: positionsResult.data.data?.length || 0 });
-      }
-      
-      // Load balance
-      const balanceResult = await base44.functions.invoke('bingxRest', {
-        action: 'futures.getBalance',
-        params: {}
+
+      const allTrades = tradesRes.data?.success ? (tradesRes.data.data || []) : [];
+      const openTrades = allTrades.filter((tr) => tr.status === 'OPEN');
+      const pendingTrades = allTrades.filter((tr) => tr.status === 'PENDING');
+
+      setPositions(openTrades);
+      setOrders(pendingTrades);
+      logActivity('LOAD_TRADES', { open: openTrades.length, pending: pendingTrades.length });
+
+      const nextStakingPositions = stakingRes.data?.success ? (stakingRes.data.data || []) : [];
+      setStakingPositions(nextStakingPositions);
+
+      const closedTrades = allTrades.filter((tr) => tr.status === 'CLOSED');
+      const now = Date.now();
+      const within = (iso, days) => {
+        const t0 = new Date(iso || 0).getTime();
+        if (!Number.isFinite(t0) || t0 <= 0) return false;
+        return now - t0 <= days * 24 * 60 * 60 * 1000;
+      };
+      const tradePnl = (tr) => safeNumber(tr.realized_pnl ?? tr.pnl ?? 0);
+      setPnlData({
+        daily: sum(closedTrades.filter((tr) => within(tr.closed_at, 1)).map(tradePnl)),
+        weekly: sum(closedTrades.filter((tr) => within(tr.closed_at, 7)).map(tradePnl)),
+        monthly: sum(closedTrades.filter((tr) => within(tr.closed_at, 30)).map(tradePnl)),
+        total: sum(closedTrades.map(tradePnl))
       });
-      
-      if (balanceResult.data?.success && balanceResult.data.data) {
-        const usdtBalance = balanceResult.data.data.find(b => b.asset === 'USDT');
-        if (usdtBalance) {
-          setBalanceData({
-            total: parseFloat(usdtBalance.balance) || 0,
-            available: parseFloat(usdtBalance.availableBalance) || 0,
-            inPositions: (parseFloat(usdtBalance.balance) || 0) - (parseFloat(usdtBalance.availableBalance) || 0)
-          });
-          logActivity('LOAD_BALANCE', { balance: usdtBalance.balance });
-        }
-      }
       
       logActivity('LOAD_DASHBOARD', { status: 'completed' });
     } catch (error) {
@@ -206,10 +230,14 @@ export default function Dashboard({ language = "en" }) {
     toast.success('Dashboard refreshed');
   };
 
+  const referralCode = user?.referralCode || user?.referral_code || '';
+  const referralLink = referralCode ? `https://nexttrade.app/ref/${referralCode}` : '';
+
   const copyReferralCode = () => {
-    navigator.clipboard.writeText(referralData.code);
-    logActivity('COPY_REFERRAL', { code: referralData.code });
-    toast.success('Referral code copied!');
+    if (!referralCode) return;
+    navigator.clipboard.writeText(referralCode);
+    logActivity('COPY_REFERRAL', { code: referralCode });
+    toast.success(language === 'ar' ? 'تم نسخ كود الإحالة' : 'Referral code copied!');
   };
 
   return (
@@ -239,26 +267,25 @@ export default function Dashboard({ language = "en" }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard 
             title={t.totalBalance} 
-            value={`$${balanceData.total.toLocaleString()}`}
+            value={`$${formatMoney(balanceData.total)}`}
             icon={Wallet}
             color="bg-gradient-to-br from-blue-600 to-blue-700"
           />
           <StatCard 
             title={t.available} 
-            value={`$${balanceData.available.toLocaleString()}`}
+            value={`$${formatMoney(balanceData.available)}`}
             icon={CheckCircle}
             color="bg-gradient-to-br from-green-500 to-green-600"
           />
           <StatCard 
             title={t.inPositions} 
-            value={`$${balanceData.inPositions.toLocaleString()}`}
+            value={`$${formatMoney(balanceData.inPositions)}`}
             icon={Activity}
             color="bg-gradient-to-br from-purple-500 to-purple-600"
           />
           <StatCard 
             title={t.dailyPnl} 
-            value={`$${pnlData.daily.toLocaleString()}`}
-            change={pnlData.dailyPercent}
+            value={`$${formatMoney(pnlData.daily)}`}
             icon={TrendingUp}
             color="bg-gradient-to-br from-cyan-500 to-cyan-600"
           />
@@ -274,37 +301,25 @@ export default function Dashboard({ language = "en" }) {
               <div>
                 <p className="text-xs text-slate-500 uppercase mb-1">{t.dailyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.daily >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.daily >= 0 ? '+' : ''}${pnlData.daily.toFixed(2)}
-                </p>
-                <p className={`text-sm ${pnlData.dailyPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.dailyPercent >= 0 ? '+' : ''}{pnlData.dailyPercent.toFixed(2)}%
+                  {pnlData.daily >= 0 ? '+' : ''}${formatMoney(pnlData.daily)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 uppercase mb-1">{t.weeklyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.weekly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.weekly >= 0 ? '+' : ''}${pnlData.weekly.toFixed(2)}
-                </p>
-                <p className={`text-sm ${pnlData.weeklyPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.weeklyPercent >= 0 ? '+' : ''}{pnlData.weeklyPercent.toFixed(2)}%
+                  {pnlData.weekly >= 0 ? '+' : ''}${formatMoney(pnlData.weekly)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 uppercase mb-1">{t.monthlyPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.monthly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.monthly >= 0 ? '+' : ''}${pnlData.monthly.toFixed(2)}
-                </p>
-                <p className={`text-sm ${pnlData.monthlyPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.monthlyPercent >= 0 ? '+' : ''}{pnlData.monthlyPercent.toFixed(2)}%
+                  {pnlData.monthly >= 0 ? '+' : ''}${formatMoney(pnlData.monthly)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500 uppercase mb-1">{t.totalPnl}</p>
                 <p className={`text-xl font-bold ${pnlData.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.total >= 0 ? '+' : ''}${pnlData.total.toFixed(2)}
-                </p>
-                <p className={`text-sm ${pnlData.totalPercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.totalPercent >= 0 ? '+' : ''}{pnlData.totalPercent.toFixed(2)}%
+                  {pnlData.total >= 0 ? '+' : ''}${formatMoney(pnlData.total)}
                 </p>
               </div>
             </div>
@@ -346,9 +361,9 @@ export default function Dashboard({ language = "en" }) {
                             {pos.side}
                           </Badge>
                         </TableCell>
-                        <TableCell>{pos.size}</TableCell>
-                        <TableCell className={pos.pnl >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {pos.pnl}
+                        <TableCell>{safeNumber(pos.quantity).toLocaleString()}</TableCell>
+                        <TableCell className={safeNumber(pos.unrealized_pnl) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {safeNumber(pos.unrealized_pnl).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -387,7 +402,7 @@ export default function Dashboard({ language = "en" }) {
                   <TableBody>
                     {orders.map((order, i) => (
                       <TableRow key={i}>
-                        <TableCell className="text-xs text-slate-500">{order.time}</TableCell>
+                        <TableCell className="text-xs text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</TableCell>
                         <TableCell className="font-bold">{order.symbol}</TableCell>
                         <TableCell>{order.side}</TableCell>
                         <TableCell>
@@ -415,29 +430,32 @@ export default function Dashboard({ language = "en" }) {
             <CardContent className="p-6">
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-slate-900">{referralData.totalReferrals}</p>
-                  <p className="text-xs text-slate-500">Total</p>
+                  <p className="text-2xl font-bold text-slate-900">0</p>
+                  <p className="text-xs text-slate-500">{language === 'ar' ? 'الإجمالي' : 'Total'}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">{referralData.activeReferrals}</p>
-                  <p className="text-xs text-slate-500">Active</p>
+                  <p className="text-2xl font-bold text-green-600">0</p>
+                  <p className="text-xs text-slate-500">{language === 'ar' ? 'نشط' : 'Active'}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">${referralData.totalCommission.toFixed(2)}</p>
-                  <p className="text-xs text-slate-500">Commission</p>
+                  <p className="text-2xl font-bold text-blue-600">$0.00</p>
+                  <p className="text-xs text-slate-500">{language === 'ar' ? 'العمولة' : 'Commission'}</p>
                 </div>
               </div>
               
               <div className="bg-slate-50 rounded-lg p-4">
-                <p className="text-xs text-slate-500 mb-2">Your Referral Code</p>
+                <p className="text-xs text-slate-500 mb-2">{language === 'ar' ? 'كود الإحالة' : 'Your Referral Code'}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-white border border-slate-200 rounded px-3 py-2 font-mono font-bold">
-                    {referralData.code}
+                    {referralCode || '—'}
                   </code>
-                  <Button variant="outline" size="icon" onClick={copyReferralCode}>
+                  <Button variant="outline" size="icon" onClick={copyReferralCode} disabled={!referralCode}>
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                {referralLink ? (
+                  <p className="text-[11px] text-slate-500 mt-2 break-all">{referralLink}</p>
+                ) : null}
               </div>
             </CardContent>
           </Card>

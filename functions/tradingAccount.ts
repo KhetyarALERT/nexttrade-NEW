@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         );
         useWallet = wallets?.[0];
         if (!useWallet) return Response.json({ success: false, error: 'No wallet found' }, { status: 400 });
-        availableBalance = useWallet.balance - (useWallet.locked_balance || 0) - (useWallet.staked_balance || 0);
+        availableBalance = useWallet.balance - (useWallet.locked_balance || 0);
       }
       
       if (totalRequired > availableBalance) {

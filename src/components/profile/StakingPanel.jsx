@@ -244,7 +244,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
   const selectedWalletObj = usdtWallets.find((w) => w.id === selectedWallet) || null;
   const available = selectedWalletObj
-    ? Number(selectedWalletObj.balance - (selectedWalletObj.locked_balance || 0) - (selectedWalletObj.staked_balance || 0))
+    ? Number(selectedWalletObj.balance - (selectedWalletObj.locked_balance || 0))
     : 0;
 
   const setPercentAmount = (pct) => {
@@ -353,7 +353,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                     <SelectContent className="bg-[#0f1320] border-slate-800">
                       {usdtWallets.map(w => (
                         <SelectItem key={w.id} value={w.id} className="text-slate-100">
-                          {w.currency} ({w.network}) - {fmtMoney(w.balance - (w.locked_balance || 0) - (w.staked_balance || 0))} {t.available}
+                          {w.currency} ({w.network}) - {fmtMoney(w.balance - (w.locked_balance || 0))} {t.available}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
       
       // Calculate total with fee
       const totalDeduction = withdrawAmount + currencyConfig.withdrawFee;
-      const availableBalance = wallet.balance - (wallet.locked_balance || 0) - (wallet.staked_balance || 0);
+      const availableBalance = wallet.balance - (wallet.locked_balance || 0);
       
       if (totalDeduction > availableBalance) {
         return Response.json({ 
@@ -561,7 +561,7 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Currency mismatch. Use conversion for different currencies.' }, { status: 400 });
       }
       
-      const availableBalance = fromWallet.balance - (fromWallet.locked_balance || 0) - (fromWallet.staked_balance || 0);
+      const availableBalance = fromWallet.balance - (fromWallet.locked_balance || 0);
       if (transferAmount > availableBalance) {
         return Response.json({ 
           success: false, 
@@ -677,7 +677,7 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'Only USDT staking is supported' }, { status: 400 });
       }
       
-      const availableBalance = wallet.balance - (wallet.locked_balance || 0) - (wallet.staked_balance || 0);
+      const availableBalance = wallet.balance - (wallet.locked_balance || 0);
       if (stakeAmount > availableBalance) {
         return Response.json({ 
           success: false, 

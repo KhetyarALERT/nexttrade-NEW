@@ -8,9 +8,21 @@ import { RefreshCw, Lock } from "lucide-react";
 import StakingPanel from "@/components/profile/StakingPanel";
 import { POSITION_VOUCHERS } from "@/lib/rewards-config";
 import { tInvesting } from "@/lib/i18n/investing";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import CryptoIcon from "@/components/ui/CryptoIcon";
 
 export default function Investing({ language = "en" }) {
   const t = tInvesting(language);
+
+  const stakeTiers = POSITION_VOUCHERS?.stakeTiers;
+  const tierDurations = Array.isArray(stakeTiers?.durations) ? stakeTiers.durations : [];
+  const durationMin = tierDurations.length ? Math.min(...tierDurations) : null;
+  const durationMax = tierDurations.length ? Math.max(...tierDurations) : null;
+  const pctValues = tierDurations
+    .map((d) => Number(stakeTiers?.percentByDuration?.[d]))
+    .filter((v) => Number.isFinite(v));
+  const pctMin = pctValues.length ? Math.min(...pctValues) : null;
+  const pctMax = pctValues.length ? Math.max(...pctValues) : null;
 
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,35 +81,68 @@ export default function Investing({ language = "en" }) {
               <CardContent className="p-6">
                 <p className="text-xs text-slate-500 mb-4">{t.stakingVouchersSubtitle}</p>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="text-xs text-slate-500">
-                        <th className="text-left py-2 pr-4">{language === "ar" ? `${t.amount} (USDT)` : `${t.amount} (USDT)`}</th>
-                        {POSITION_VOUCHERS.stakeTiers.durations.map((d) => (
-                          <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
-                            {language === "ar" ? `${d} ${t.days}` : `${d}d`}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {POSITION_VOUCHERS.stakeTiers.amounts.map((amt) => (
-                        <tr key={amt}>
-                          <td className="py-2 pr-4 font-semibold text-slate-900">{amt.toLocaleString()}</td>
-                          {POSITION_VOUCHERS.stakeTiers.durations.map((d) => {
-                            const pct = POSITION_VOUCHERS.stakeTiers.percentByDuration[d];
-                            return (
-                              <td key={d} className="py-2 pl-4 text-right font-mono text-slate-700">
-                                {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {/* Enhanced UX: USDT-only row like screenshot; details expand */}
+                <Card className="bg-slate-950 border-slate-800 text-slate-100 shadow-sm">
+                  <CardContent className="p-0">
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="usdt" className="border-slate-800">
+                        <AccordionTrigger className="hover:no-underline px-4 py-4">
+                          <div className="flex w-full items-center gap-4">
+                            <div className="flex items-center gap-3 min-w-[160px]">
+                              <CryptoIcon currency="USDT" size="sm" className="ring-1 ring-slate-800" />
+                              <div className="leading-tight">
+                                <div className="text-sm font-semibold text-slate-100">USDT</div>
+                                <div className="text-[11px] text-slate-500">Tether</div>
+                              </div>
+                            </div>
+
+                            <div className="flex-1 text-sm font-semibold text-emerald-300">
+                              {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
+                            </div>
+
+                            <div className="text-sm text-slate-300 whitespace-nowrap">
+                              {language === "ar"
+                                ? `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}`
+                                : `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
+                            </div>
+                          </div>
+                        </AccordionTrigger>
+
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="text-xs text-slate-400">
+                                  <th className="text-left py-2 pr-4">{`${t.amount} (USDT)`}</th>
+                                  {stakeTiers?.durations?.map((d) => (
+                                    <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
+                                      {language === "ar" ? `${d} ${t.days}` : `${d}d`}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-800">
+                                {stakeTiers?.amounts?.map((amt) => (
+                                  <tr key={amt}>
+                                    <td className="py-2 pr-4 font-semibold text-slate-100">{Number(amt).toLocaleString()}</td>
+                                    {stakeTiers?.durations?.map((d) => {
+                                      const pct = stakeTiers?.percentByDuration?.[d];
+                                      return (
+                                        <td key={d} className="py-2 pl-4 text-right font-mono text-slate-200">
+                                          {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </div>

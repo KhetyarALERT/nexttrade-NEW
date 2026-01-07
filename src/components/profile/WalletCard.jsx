@@ -138,7 +138,7 @@ export default function WalletCard({ wallet, language = "en", onRefresh, compact
 
   if (!wallet) return null;
 
-  const availableBalance = wallet.balance - (wallet.locked_balance || 0) - (wallet.staked_balance || 0);
+  const availableBalance = wallet.balance - (wallet.locked_balance || 0);
   const icon = currencyIcons[wallet.currency] || "💰";
 
   if (compact) {
