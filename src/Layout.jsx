@@ -19,8 +19,42 @@ import NotificationSettings from "@/components/notifications/NotificationSetting
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
-import { WalletProvider } from "@/lib/web3/WalletContext";
-import { WalletButton } from "@/components/wallet/WalletButton";
+import { WalletProvider, useWallet } from "@/lib/web3/WalletContext";
+import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
+
+// Component to display Web3 wallet info in dropdown
+function Web3WalletDropdownItem({ language }) {
+  const { account, balance, networkName, isConnected, formatAddress, formatBalance } = useWallet();
+  
+  if (!isConnected) return null;
+  
+  return (
+    <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
+      <div className="flex items-center gap-2 w-full">
+        <WalletIcon className="h-4 w-4 text-primary" />
+        <span className="font-medium">{language === "ar" ? "محفظة Web3" : "Web3 Wallet"}</span>
+      </div>
+      <div className="flex flex-col gap-0.5 w-full pl-6 text-xs">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-muted-foreground">{language === "ar" ? "العنوان" : "Address"}:</span>
+          <span className="font-mono">{formatAddress(account)}</span>
+        </div>
+        <div className="flex items-center justify-between w-full">
+          <span className="text-muted-foreground">{language === "ar" ? "الشبكة" : "Network"}:</span>
+          <span>{networkName || "—"}</span>
+        </div>
+        <div className="flex items-center justify-between w-full">
+          <span className="text-muted-foreground">{language === "ar" ? "الرصيد" : "Balance"}:</span>
+          <span className="font-semibold text-primary">{formatBalance(balance)} {networkName === 'Ethereum' ? 'ETH' : networkName === 'Solana' ? 'SOL' : networkName === 'Tron' ? 'TRX' : ''}</span>
+        </div>
+      </div>
+    </DropdownMenuItem>
+  );
+}
+
+Web3WalletDropdownItem.propTypes = {
+  language: PropTypes.string.isRequired
+};
 
 export default function Layout({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
@@ -318,7 +352,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             <div className="hidden md:flex items-center gap-3">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
 
-              <WalletButton language={language} />
+              <Web3ModalButton language={language} />
 
               <Button
                 type="button"
@@ -458,6 +492,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <DropdownMenuSeparator />
 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحساب" : "Account"}</div>
+                    <Web3WalletDropdownItem language={language} />
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=personal"}>
                         <User className="h-4 w-4" />
@@ -520,7 +555,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             <div className="md:hidden flex items-center gap-2">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
 
-              <WalletButton language={language} />
+              <Web3ModalButton language={language} />
 
               <Button
                 type="button"
@@ -532,6 +567,23 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               >
                 {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
+
+              {/* Language Switcher for Mobile */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Globe className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setLanguage("en")}>
+                    English
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage("ar")}>
+                    العربية
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>

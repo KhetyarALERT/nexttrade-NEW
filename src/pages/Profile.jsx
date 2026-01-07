@@ -565,8 +565,8 @@ export default function Profile({ language = "en" }) {
           onValueChange={(tab) => setSearchParams({ tab })}
           className="space-y-6"
         >
-          <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg rounded-2xl border border-border shadow-lg p-2">
-            <TabsList className="w-full justify-start gap-1 bg-transparent p-0 flex flex-wrap overflow-x-hidden">
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg rounded-2xl border-2 border-border shadow-xl p-3">
+            <TabsList className="w-full justify-start gap-2 bg-transparent p-0 flex flex-wrap">
               {[
                 { value: "personal", label: t.personalInfo, icon: User },
                 { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Activity },
@@ -579,10 +579,19 @@ export default function Profile({ language = "en" }) {
                 <TabsTrigger 
                   key={tab.value}
                   value={tab.value} 
-                  className="group relative rounded-xl px-4 py-2.5 font-medium text-sm whitespace-normal sm:whitespace-nowrap transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/30 hover:bg-muted"
+                  className="group relative rounded-xl px-3 sm:px-4 py-3 font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-300 border-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/40 data-[state=inactive]:bg-muted/50 hover:bg-muted hover:border-muted-foreground/20"
                 >
-                  <tab.icon className="mr-2 h-4 w-4 inline-block" />
-                  {tab.label}
+                  <tab.icon className="mr-1.5 sm:mr-2 h-4 w-4 inline-block" />
+                  <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                  <span className="xs:hidden sm:hidden">
+                    {tab.value === "personal" ? (language === "en" ? "Info" : "معلومات") :
+                     tab.value === "accounts" ? (language === "en" ? "Acc" : "حساب") :
+                     tab.value === "assets" ? (language === "en" ? "Assets" : "أصول") :
+                     tab.value === "notifications" ? (language === "en" ? "Notif" : "إشعار") :
+                     tab.value === "security" ? (language === "en" ? "Sec" : "أمان") :
+                     tab.value === "referrals" ? (language === "en" ? "Ref" : "إحالة") :
+                     tab.value === "trades" ? (language === "en" ? "Trade" : "تداول") : tab.label}
+                  </span>
                 </TabsTrigger>
               ))}
             </TabsList>
