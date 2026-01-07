@@ -26,7 +26,7 @@ function formatPnl(pnl) {
   const n = Number(pnl);
   if (!Number.isFinite(n)) return "—";
   const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}`;
+  return `${sign}$${n.toFixed(2)}`;
 }
 
 function compactPrice(p) {
@@ -403,7 +403,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayBadge("entry");
     }
 
-    const tp = Number(t.take_profit);
+    const tp = Number(t.take_profit ?? t.takeProfit ?? t.tp);
     if (Number.isFinite(tp) && tp > 0) {
       const tpPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - tp) * qty : (tp - entry) * qty) : Number.NaN;
       upsertOverlayLine("tp", {
@@ -425,7 +425,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayBadge("tp");
     }
 
-    const sl = Number(t.stop_loss);
+    const sl = Number(t.stop_loss ?? t.stopLoss ?? t.sl);
     if (Number.isFinite(sl) && sl > 0) {
       const slPnl = hasQty && Number.isFinite(entry) ? (isShort ? (entry - sl) * qty : (sl - entry) * qty) : Number.NaN;
       upsertOverlayLine("sl", {
@@ -518,7 +518,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const overlayBadgeItems = useMemo(() => {
     if (!overlayBadges || !candleSeriesRef.current) return [];
     const series = candleSeriesRef.current;
-    return Object.entries(overlayBadges)
+    const height = containerRef.current?.clientHeight || 0;
+    const items = Object.entries(overlayBadges)
       .map(([key, b]) => {
         const y = series.priceToCoordinate?.(Number(b?.price));
         if (!Number.isFinite(y)) return null;
@@ -526,6 +527,29 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       })
       .filter(Boolean)
       .sort((a, b) => a.y - b.y);
+
+    // Avoid overlap: enforce minimum vertical spacing between badges.
+    const minGap = 28;
+    let lastTop = -Infinity;
+    const clamped = items.map((it) => {
+      const baseTop = it.y - 12;
+      const boundedTop = height
+        ? Math.max(6, Math.min(height - 28, baseTop))
+        : Math.max(6, baseTop);
+      const top = Math.max(boundedTop, lastTop + minGap);
+      lastTop = top;
+      return { ...it, top };
+    });
+
+    // If we pushed some beyond the bottom, shift up as a group.
+    if (height) {
+      const overflow = clamped.length ? clamped[clamped.length - 1].top - (height - 28) : 0;
+      if (overflow > 0) {
+        return clamped.map((it) => ({ ...it, top: Math.max(6, it.top - overflow) }));
+      }
+    }
+
+    return clamped;
   }, [overlayBadges, now, lastPrice]);
 
   return (
@@ -595,13 +619,13 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             return (
               <div
                 key={b.key}
-                className={`absolute right-2 px-2.5 py-1 rounded-xl border backdrop-blur-sm shadow-sm ${cls}`}
-                style={{ top: Math.max(6, Math.min((containerRef.current?.clientHeight || 0) - 28, b.y - 12)) }}
+                className={`absolute right-2 px-2 py-0.5 rounded-lg border backdrop-blur-sm shadow-sm ${cls}`}
+                style={{ top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12) }}
               >
-                <div className="text-[11px] leading-none font-semibold">
+                <div className="text-[10px] leading-none font-semibold">
                   {b.label}
                 </div>
-                <div className="mt-0.5 text-[10px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
+                <div className="mt-0.5 text-[9px] leading-none opacity-90 font-mono">{compactPrice(b.price)}</div>
               </div>
             );
           })}

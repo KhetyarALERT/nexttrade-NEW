@@ -532,7 +532,7 @@ export default function FuturesActivityTabs({
                           <div className="flex items-center gap-2">
                             <span>{sym}</span>
                             <span
-                              className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                              className={`text-[10px] px-2 py-0.5 rounded-full border ${
                                 side === "LONG"
                                   ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/20"
                                   : "bg-rose-500/15 text-rose-200 border-rose-500/20"
@@ -540,6 +540,12 @@ export default function FuturesActivityTabs({
                             >
                               {side}
                             </span>
+                          </div>
+
+                          <div className="mt-1 text-[10px] text-slate-500">
+                            {side === "LONG" ? "Long" : "Short"}
+                            {pos?.mode ? ` · ${String(pos.mode).toUpperCase()}` : ""}
+                            {pos?.leverage ? ` · ${pos.leverage}X` : ""}
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-200">
@@ -563,16 +569,16 @@ export default function FuturesActivityTabs({
                         <TableCell className="text-slate-200">{Number.isFinite(margin) ? formatNum(margin, 2) : "—"}</TableCell>
                         <TableCell className="text-slate-200">
                           <div className="flex items-center gap-2 text-[11px]">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${pos?.take_profit ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] ${pos?.take_profit ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
                               TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${pos?.stop_loss ? "bg-rose-500/10 border-rose-500/20 text-rose-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] ${pos?.stop_loss ? "bg-rose-500/10 border-rose-500/20 text-rose-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
                               SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
                             </span>
 
                             <button
                               type="button"
-                              className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700/70 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60"
+                              className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700/70 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60 text-[10px]"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onSelectTrade?.(pos);
@@ -580,7 +586,7 @@ export default function FuturesActivityTabs({
                               }}
                               title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
                             >
-                              {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                              {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                             </button>
                           </div>
                         </TableCell>
