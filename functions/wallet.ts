@@ -658,8 +658,13 @@ Deno.serve(async (req) => {
       }
       
       const stakeAmount = parseFloat(amount);
-      if (isNaN(stakeAmount) || stakeAmount < 100) {
-        return Response.json({ success: false, error: 'Minimum stake amount is 100 USDT' }, { status: 400 });
+      if (isNaN(stakeAmount) || stakeAmount < 50) {
+        return Response.json({ success: false, error: 'Minimum stake amount is 50 USDT' }, { status: 400 });
+      }
+
+      const lockDays = Number(lockPeriodDays);
+      if (!Number.isFinite(lockDays) || lockDays < 24) {
+        return Response.json({ success: false, error: 'Minimum lock period is 24 days' }, { status: 400 });
       }
       
       const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
@@ -680,11 +685,11 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       
-      const apyRates = { 30: 29, 45: 73, 60: 150, 90: 220, 120: 350, 365: 999 };
-      const apy = apyRates[lockPeriodDays] || 29;
+      const apyRates = { 24: 11, 30: 29, 45: 73, 60: 150, 90: 220, 120: 350, 365: 999 };
+      const apy = apyRates[lockDays] || 29;
       
       const startDate = new Date();
-      const unlockDate = new Date(startDate.getTime() + lockPeriodDays * 24 * 60 * 60 * 1000);
+      const unlockDate = new Date(startDate.getTime() + lockDays * 24 * 60 * 60 * 1000);
       
       const position = await base44.asServiceRole.entities.StakingPosition.create({
         wallet_id: walletId,
@@ -693,7 +698,7 @@ Deno.serve(async (req) => {
         amount: stakeAmount,
         apy,
         earned_rewards: 0,
-        lock_period_days: lockPeriodDays,
+        lock_period_days: lockDays,
         start_date: startDate.toISOString(),
         unlock_date: unlockDate.toISOString(),
         last_reward_date: startDate.toISOString(),
@@ -708,14 +713,14 @@ Deno.serve(async (req) => {
         currency: 'USDT',
         status: 'completed',
         reference_id: position.id,
-        notes: `Staked ${stakeAmount} USDT for ${lockPeriodDays} days at ${apy}% APY`
+        notes: `Staked ${stakeAmount} USDT for ${lockDays} days at ${apy}% APY`
       });
       
       await base44.asServiceRole.entities.Wallet.update(walletId, {
         staked_balance: (wallet.staked_balance || 0) + stakeAmount
       });
       
-      audit('STAKING_CREATED', user.id, { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays });
+      audit('STAKING_CREATED', user.id, { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays: lockDays });
       
       // Create notification for staking
       try {
@@ -723,8 +728,8 @@ Deno.serve(async (req) => {
           user_id: user.id,
           type: 'staking_reward',
           title: 'Staking Position Created',
-          message: `Staked ${stakeAmount} USDT for ${lockPeriodDays} days at ${apy}% APY. Unlock date: ${unlockDate.toLocaleDateString()}`,
-          data: { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays },
+          message: `Staked ${stakeAmount} USDT for ${lockDays} days at ${apy}% APY. Unlock date: ${unlockDate.toLocaleDateString()}`,
+          data: { positionId: position.id, amount: stakeAmount, apy, lockPeriodDays: lockDays },
           priority: 'normal'
         });
       } catch (e) {
