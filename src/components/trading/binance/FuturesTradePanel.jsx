@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { demoTradeStore } from "@/components/trading/binance/demoTradeStore";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -44,6 +45,10 @@ function wheelAdjust(currentValue, deltaY, step) {
   return String(next);
 }
 
+function uid() {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export default function FuturesTradePanel({ symbol, language = "en" }) {
   const [activeTab, setActiveTab] = useState("trade");
   const [mode, setMode] = useState("cross");
@@ -71,6 +76,13 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
   const [shortTpRatio, setShortTpRatio] = useState("");
   const [shortSlTrigger, setShortSlTrigger] = useState("");
   const [shortSlRatio, setShortSlRatio] = useState("");
+
+  const [tpSlAdvancedOpen, setTpSlAdvancedOpen] = useState(false);
+
+  const [longTpTargets, setLongTpTargets] = useState(() => [{ id: uid(), closePct: "25", price: "" }]);
+  const [longSlTargets, setLongSlTargets] = useState(() => [{ id: uid(), closePct: "100", price: "" }]);
+  const [shortTpTargets, setShortTpTargets] = useState(() => [{ id: uid(), closePct: "25", price: "" }]);
+  const [shortSlTargets, setShortSlTargets] = useState(() => [{ id: uid(), closePct: "100", price: "" }]);
 
   const baseAsset = useMemo(() => {
     if (!symbol) return "—";
@@ -118,6 +130,16 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
       margin: isAr ? "الهامش" : "Margin",
       amountSliderHint: isAr ? "شريط النسبة للكمية (سيعمل بالكامل عند ربط الرصيد)." : "Amount % slider (fully works once balance is wired).",
       botsPlaceholder: isAr ? "لوحة البوتات (قريبًا)." : "Bots panel placeholder.",
+      demoTrade: isAr ? "تداول تجريبي" : "Demo trade",
+      demoOpenLong: isAr ? "فتح شراء (تجريبي)" : "Open Long (demo)",
+      demoOpenShort: isAr ? "فتح بيع (تجريبي)" : "Open Short (demo)",
+      demoClose: isAr ? "إغلاق (تجريبي)" : "Close (demo)",
+      partialTp: isAr ? "جني ربح جزئي" : "Partial Take Profit",
+      partialSl: isAr ? "وقف خسارة جزئي" : "Partial Stop Loss",
+      closePct: isAr ? "نسبة الإغلاق" : "Close %",
+      closePrice: isAr ? "سعر الإغلاق" : "Close price",
+      addTarget: isAr ? "إضافة هدف" : "Add target",
+      remove: isAr ? "حذف" : "Remove",
     };
   }, [language]);
 
@@ -164,573 +186,826 @@ export default function FuturesTradePanel({ symbol, language = "en" }) {
     return 0;
   }, [price, lastPrice]);
 
-  const maxQty = useMemo(() => {
-    // Placeholder until balances are wired. Keep slider visible but avoid forcing amount.
-    const availableUsdt = 0;
-    const p = refPrice;
-    if (!availableUsdt || !p) return 0;
-    return availableUsdt / p;
-  }, [refPrice]);
+  const doDemoOpen = (demoSide) => {
+    const qty = parseNum(amount);
+    const entry = refPrice || lastPrice;
+    if (!entry) return;
 
-  useEffect(() => {
-    if (!amountPct) return;
-    if (!maxQty) return;
-    const next = (maxQty * amountPct) / 100;
-    if (Number.isFinite(next)) {
-      setAmount(String(next));
-      setLastEdited("amount");
-    }
-  }, [amountPct, maxQty]);
+    const sideKey = demoSide === "short" ? "short" : "long";
+    const tpPrice = sideKey === "long" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
+    const slPrice = sideKey === "long" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
+
+    demoTradeStore.openPosition({
+      symbol,
+      side: sideKey,
+      qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
+      entryPrice: entry,
+      tpPrice: Number.isFinite(tpPrice) && tpPrice > 0 ? tpPrice : undefined,
+      slPrice: Number.isFinite(slPrice) && slPrice > 0 ? slPrice : undefined,
+    });
+  };
+
+  const doDemoClose = () => {
+    demoTradeStore.closePosition(symbol);
+  };
+
+  const renderOrderForm = (opts = {}) => {
+    const demoMode = Boolean(opts.demoMode);
+
+    return (
+      <>
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode("cross")}
+            className={`px-3 py-1 rounded ${mode === "cross" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
+          >
+            {labels.cross}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("isolated")}
+            className={`px-3 py-1 rounded ${mode === "isolated" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
+          >
+            {labels.isolated}
+          </button>
+          <div className="ml-auto text-[11px] text-slate-500">{demoMode ? labels.demoTrade : labels.demo}</div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setSide("open")}
+            className={`flex-1 py-2 rounded ${side === "open" ? "bg-emerald-600 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
+          >
+            {labels.open}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSide("close")}
+            className={`flex-1 py-2 rounded ${side === "close" ? "bg-slate-700 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
+          >
+            {labels.close}
+          </button>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() => setOrderType("limit")}
+            className={`px-3 py-1 rounded ${orderType === "limit" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+          >
+            {labels.limit}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrderType("market")}
+            className={`px-3 py-1 rounded ${orderType === "market" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+          >
+            {labels.market}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrderType("trigger")}
+            className={`px-3 py-1 rounded ${orderType === "trigger" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+          >
+            {labels.trigger}
+          </button>
+
+          <div className="ml-auto text-[11px] text-slate-500 font-mono">
+            {labels.mark} {lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>{labels.avail}</span>
+            <span className="font-mono">{formatNumber(0)} USDT</span>
+          </div>
+
+          {orderType === "limit" ? (
+            <>
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.price}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    setLastEdited("price");
+                  }}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForPrice(parseNum(price) || lastPrice);
+                    setPrice((v) => wheelAdjust(v, e.deltaY, step));
+                    setLastEdited("price");
+                  }}
+                  placeholder={lastPrice ? String(lastPrice) : labels.enter}
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-500">{labels.amount}</label>
+                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <input
+                      value={amount}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        setLastEdited("amount");
+                      }}
+                      onWheel={(e) => {
+                        e.preventDefault();
+                        const step = stepForAmount(parseNum(amount));
+                        setAmount((v) => wheelAdjust(v, e.deltaY, step));
+                        setLastEdited("amount");
+                      }}
+                      placeholder={labels.enter}
+                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                      inputMode="decimal"
+                    />
+                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+                  </div>
+
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>{amountPct}%</span>
+                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={amountPct}
+                      onChange={(e) => setAmountPct(Number(e.target.value))}
+                      className="mt-2 w-full accent-emerald-500"
+                    />
+                    <div className="mt-2 flex justify-between gap-1">
+                      {[0, 25, 50, 75, 100].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setAmountPct(p)}
+                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                        >
+                          {p}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-500">{labels.total}</label>
+                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <input
+                      value={total}
+                      onChange={(e) => {
+                        setTotal(e.target.value);
+                        setLastEdited("total");
+                      }}
+                      onWheel={(e) => {
+                        e.preventDefault();
+                        const step = stepForPrice(parseNum(total));
+                        setTotal((v) => wheelAdjust(v, e.deltaY, step));
+                        setLastEdited("total");
+                      }}
+                      placeholder="0"
+                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                      inputMode="decimal"
+                    />
+                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {orderType === "market" ? (
+            <>
+              <div className="mt-3 text-[11px] text-slate-500">{labels.marketHint}</div>
+
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForAmount(parseNum(amount));
+                    setAmount((v) => wheelAdjust(v, e.deltaY, step));
+                  }}
+                  placeholder={labels.enter}
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                <span>{labels.estCost}</span>
+                <span className="font-mono">
+                  {refPrice && parseNum(amount) ? formatNumber(refPrice * parseNum(amount), 2) : "—"} USDT
+                </span>
+              </div>
+
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>{amountPct}%</span>
+                  <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={amountPct}
+                  onChange={(e) => setAmountPct(Number(e.target.value))}
+                  className="mt-2 w-full accent-emerald-500"
+                />
+                <div className="mt-2 flex justify-between gap-1">
+                  {[0, 25, 50, 75, 100].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setAmountPct(p)}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          {orderType === "trigger" ? (
+            <>
+              <div className="mt-3 text-[11px] text-slate-500">{labels.triggerHint}</div>
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.triggerPrice}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForPrice(parseNum(price) || lastPrice);
+                    setPrice((v) => wheelAdjust(v, e.deltaY, step));
+                  }}
+                  placeholder={lastPrice ? String(lastPrice) : labels.enter}
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+              </div>
+
+              <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
+              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                <input
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const step = stepForAmount(parseNum(amount));
+                    setAmount((v) => wheelAdjust(v, e.deltaY, step));
+                  }}
+                  placeholder={labels.enter}
+                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  inputMode="decimal"
+                />
+                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+              </div>
+
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>{amountPct}%</span>
+                  <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={amountPct}
+                  onChange={(e) => setAmountPct(Number(e.target.value))}
+                  className="mt-2 w-full accent-emerald-500"
+                />
+                <div className="mt-2 flex justify-between gap-1">
+                  {[0, 25, 50, 75, 100].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setAmountPct(p)}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : null}
+
+          <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.tpSl}</div>
+              <button
+                type="button"
+                onClick={() => setTpSlAdvancedOpen((v) => !v)}
+                className="text-[11px] text-slate-400 hover:text-slate-200"
+              >
+                {labels.advanced}
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-4 text-xs">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={tpSlLongEnabled}
+                  onChange={(e) => setTpSlLongEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+                <span className="text-slate-200">{labels.longTpSl}</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={tpSlShortEnabled}
+                  onChange={(e) => setTpSlShortEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+                <span className="text-slate-200">{labels.shortTpSl}</span>
+              </label>
+            </div>
+
+            {tpSlLongEnabled ? (
+              <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
+                <div className="text-[11px] text-slate-400 mb-2">{labels.longTpSl}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={longTpTrigger}
+                        onChange={(e) => setLongTpTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(longTpTrigger) || lastPrice);
+                          setLongTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={longTpRatio}
+                        onChange={(e) => setLongTpRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setLongTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={longSlTrigger}
+                        onChange={(e) => setLongSlTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(longSlTrigger) || lastPrice);
+                          setLongSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={longSlRatio}
+                        onChange={(e) => setLongSlRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setLongSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {tpSlAdvancedOpen ? (
+                  <div className="mt-3">
+                    <div className="text-[11px] text-slate-400 mb-2">{labels.partialTp}</div>
+                    <div className="space-y-2">
+                      {longTpTargets.map((row) => (
+                        <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.closePct}
+                              onChange={(e) =>
+                                setLongTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
+                              }
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                          </div>
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.price}
+                              onChange={(e) =>
+                                setLongTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, price: e.target.value } : r)))
+                              }
+                              onWheel={(e) => {
+                                e.preventDefault();
+                                const step = stepForPrice(parseNum(row.price) || lastPrice);
+                                setLongTpTargets((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, price: wheelAdjust(r.price, e.deltaY, step) } : r)),
+                                );
+                              }}
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLongTpTargets((prev) => prev.filter((r) => r.id !== row.id))}
+                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            disabled={longTpTargets.length <= 1}
+                            title={labels.remove}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setLongTpTargets((prev) => [...prev, { id: uid(), closePct: "25", price: "" }])}
+                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                      >
+                        {labels.addTarget}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 text-[11px] text-slate-400 mb-2">{labels.partialSl}</div>
+                    <div className="space-y-2">
+                      {longSlTargets.map((row) => (
+                        <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.closePct}
+                              onChange={(e) =>
+                                setLongSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
+                              }
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                          </div>
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.price}
+                              onChange={(e) =>
+                                setLongSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, price: e.target.value } : r)))
+                              }
+                              onWheel={(e) => {
+                                e.preventDefault();
+                                const step = stepForPrice(parseNum(row.price) || lastPrice);
+                                setLongSlTargets((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, price: wheelAdjust(r.price, e.deltaY, step) } : r)),
+                                );
+                              }}
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLongSlTargets((prev) => prev.filter((r) => r.id !== row.id))}
+                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            disabled={longSlTargets.length <= 1}
+                            title={labels.remove}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setLongSlTargets((prev) => [...prev, { id: uid(), closePct: "100", price: "" }])}
+                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                      >
+                        {labels.addTarget}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {tpSlShortEnabled ? (
+              <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
+                <div className="text-[11px] text-slate-400 mb-2">{labels.shortTpSl}</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={shortTpTrigger}
+                        onChange={(e) => setShortTpTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(shortTpTrigger) || lastPrice);
+                          setShortTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={shortTpRatio}
+                        onChange={(e) => setShortTpRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setShortTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={shortSlTrigger}
+                        onChange={(e) => setShortSlTrigger(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          const step = stepForPrice(parseNum(shortSlTrigger) || lastPrice);
+                          setShortSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                      <input
+                        value={shortSlRatio}
+                        onChange={(e) => setShortSlRatio(e.target.value)}
+                        onWheel={(e) => {
+                          e.preventDefault();
+                          setShortSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
+                        }}
+                        placeholder={labels.enter}
+                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        inputMode="decimal"
+                      />
+                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {tpSlAdvancedOpen ? (
+                  <div className="mt-3">
+                    <div className="text-[11px] text-slate-400 mb-2">{labels.partialTp}</div>
+                    <div className="space-y-2">
+                      {shortTpTargets.map((row) => (
+                        <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.closePct}
+                              onChange={(e) =>
+                                setShortTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
+                              }
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                          </div>
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.price}
+                              onChange={(e) =>
+                                setShortTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, price: e.target.value } : r)))
+                              }
+                              onWheel={(e) => {
+                                e.preventDefault();
+                                const step = stepForPrice(parseNum(row.price) || lastPrice);
+                                setShortTpTargets((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, price: wheelAdjust(r.price, e.deltaY, step) } : r)),
+                                );
+                              }}
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShortTpTargets((prev) => prev.filter((r) => r.id !== row.id))}
+                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            disabled={shortTpTargets.length <= 1}
+                            title={labels.remove}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShortTpTargets((prev) => [...prev, { id: uid(), closePct: "25", price: "" }])}
+                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                      >
+                        {labels.addTarget}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 text-[11px] text-slate-400 mb-2">{labels.partialSl}</div>
+                    <div className="space-y-2">
+                      {shortSlTargets.map((row) => (
+                        <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.closePct}
+                              onChange={(e) =>
+                                setShortSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
+                              }
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                          </div>
+                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                            <input
+                              value={row.price}
+                              onChange={(e) =>
+                                setShortSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, price: e.target.value } : r)))
+                              }
+                              onWheel={(e) => {
+                                e.preventDefault();
+                                const step = stepForPrice(parseNum(row.price) || lastPrice);
+                                setShortSlTargets((prev) =>
+                                  prev.map((r) => (r.id === row.id ? { ...r, price: wheelAdjust(r.price, e.deltaY, step) } : r)),
+                                );
+                              }}
+                              placeholder={labels.enter}
+                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              inputMode="decimal"
+                            />
+                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShortSlTargets((prev) => prev.filter((r) => r.id !== row.id))}
+                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            disabled={shortSlTargets.length <= 1}
+                            title={labels.remove}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setShortSlTargets((prev) => [...prev, { id: uid(), closePct: "100", price: "" }])}
+                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                      >
+                        {labels.addTarget}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!demoMode}
+              onClick={() => doDemoOpen("long")}
+              className={`py-3 rounded font-semibold ${demoMode ? "bg-emerald-600 text-white hover:bg-emerald-500" : "bg-emerald-600/40 text-white/70 cursor-not-allowed"}`}
+              title={demoMode ? undefined : labels.disabledTitle}
+            >
+              {demoMode ? labels.demoOpenLong : labels.openLong}
+            </button>
+            <button
+              type="button"
+              disabled={!demoMode}
+              onClick={() => doDemoOpen("short")}
+              className={`py-3 rounded font-semibold ${demoMode ? "bg-rose-600 text-white hover:bg-rose-500" : "bg-rose-600/40 text-white/70 cursor-not-allowed"}`}
+              title={demoMode ? undefined : labels.disabledTitle}
+            >
+              {demoMode ? labels.demoOpenShort : labels.openShort}
+            </button>
+          </div>
+
+          {demoMode ? (
+            <button
+              type="button"
+              onClick={doDemoClose}
+              className="mt-2 w-full py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-sm"
+            >
+              {labels.demoClose}
+            </button>
+          ) : null}
+
+          <p className="mt-3 text-[11px] text-slate-500">{labels.note}</p>
+        </div>
+      </>
+    );
+  };
 
   return (
-    <aside className="h-full w-full bg-[#0f1320] text-slate-200 border-l border-slate-800/60 flex flex-col">
-      <div className="p-3 border-b border-slate-800/60">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+    <aside className="h-full w-full bg-[#0f1320] text-slate-200 border-l border-slate-800/60 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
+        <div className="p-3 border-b border-slate-800/60 shrink-0">
           <TabsList className="bg-slate-900/40">
             <TabsTrigger value="trade" className="data-[state=active]:bg-slate-800">{labels.trade}</TabsTrigger>
             <TabsTrigger value="bots" className="data-[state=active]:bg-slate-800">{labels.bots}</TabsTrigger>
           </TabsList>
+        </div>
 
-          <TabsContent value="trade" className="mt-3">
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setMode("cross")}
-                className={`px-3 py-1 rounded ${mode === "cross" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
-              >
-                {labels.cross}
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("isolated")}
-                className={`px-3 py-1 rounded ${mode === "isolated" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
-              >
-                {labels.isolated}
-              </button>
-              <div className="ml-auto text-[11px] text-slate-500">{labels.demo}</div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setSide("open")}
-                className={`flex-1 py-2 rounded ${side === "open" ? "bg-emerald-600 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
-              >
-                {labels.open}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSide("close")}
-                className={`flex-1 py-2 rounded ${side === "close" ? "bg-slate-700 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
-              >
-                {labels.close}
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setOrderType("limit")}
-                className={`px-3 py-1 rounded ${orderType === "limit" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
-              >
-                {labels.limit}
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderType("market")}
-                className={`px-3 py-1 rounded ${orderType === "market" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
-              >
-                {labels.market}
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderType("trigger")}
-                className={`px-3 py-1 rounded ${orderType === "trigger" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
-              >
-                {labels.trigger}
-              </button>
-
-              <div className="ml-auto text-[11px] text-slate-500 font-mono">
-                {labels.mark} {lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>{labels.avail}</span>
-                <span className="font-mono">{formatNumber(0)} USDT</span>
-              </div>
-
-              {orderType === "limit" ? (
-                <>
-                  <label className="mt-3 block text-[11px] text-slate-500">{labels.price}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={price}
-                      onChange={(e) => {
-                        setPrice(e.target.value);
-                        setLastEdited("price");
-                      }}
-                      onWheel={(e) => {
-                        e.preventDefault();
-                        const step = stepForPrice(parseNum(price) || lastPrice);
-                        setPrice((v) => wheelAdjust(v, e.deltaY, step));
-                        setLastEdited("price");
-                      }}
-                      placeholder={lastPrice ? String(lastPrice) : labels.enter}
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                      inputMode="decimal"
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] text-slate-500">{labels.amount}</label>
-                      <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                        <input
-                          value={amount}
-                          onChange={(e) => {
-                            setAmount(e.target.value);
-                            setLastEdited("amount");
-                          }}
-                          onWheel={(e) => {
-                            e.preventDefault();
-                            const step = stepForAmount(parseNum(amount));
-                            setAmount((v) => wheelAdjust(v, e.deltaY, step));
-                            setLastEdited("amount");
-                          }}
-                          placeholder={labels.enter}
-                          className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                          inputMode="decimal"
-                        />
-                        <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
-                      </div>
-
-                      <div className="mt-2">
-                        <div className="flex items-center justify-between text-[11px] text-slate-500">
-                          <span>{amountPct}%</span>
-                          <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={amountPct}
-                          onChange={(e) => setAmountPct(Number(e.target.value))}
-                          className="mt-2 w-full accent-emerald-500"
-                        />
-                        <div className="mt-2 flex justify-between gap-1">
-                          {[0, 25, 50, 75, 100].map((p) => (
-                            <button
-                              key={p}
-                              type="button"
-                              onClick={() => setAmountPct(p)}
-                              className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                            >
-                              {p}%
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-slate-500">{labels.total}</label>
-                      <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                        <input
-                          value={total}
-                          onChange={(e) => {
-                            setTotal(e.target.value);
-                            setLastEdited("total");
-                          }}
-                          onWheel={(e) => {
-                            e.preventDefault();
-                            const step = stepForPrice(parseNum(total));
-                            setTotal((v) => wheelAdjust(v, e.deltaY, step));
-                            setLastEdited("total");
-                          }}
-                          placeholder="0"
-                          className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                          inputMode="decimal"
-                        />
-                        <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              {orderType === "market" ? (
-                <>
-                  <div className="mt-3 text-[11px] text-slate-500">{labels.marketHint}</div>
-
-                  <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onWheel={(e) => {
-                        e.preventDefault();
-                        const step = stepForAmount(parseNum(amount));
-                        setAmount((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder={labels.enter}
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                      inputMode="decimal"
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
-                  </div>
-
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{amountPct}%</span>
-                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={amountPct}
-                      onChange={(e) => setAmountPct(Number(e.target.value))}
-                      className="mt-2 w-full accent-emerald-500"
-                    />
-                    <div className="mt-2 flex justify-between gap-1">
-                      {[0, 25, 50, 75, 100].map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setAmountPct(p)}
-                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                        >
-                          {p}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{labels.estCost}</span>
-                    <span className="font-mono">
-                      {refPrice && parseNum(amount)
-                        ? formatNumber(refPrice * parseNum(amount), 2)
-                        : "—"}{" "}
-                      USDT
-                    </span>
-                  </div>
-                </>
-              ) : null}
-
-              {orderType === "trigger" ? (
-                <>
-                  <div className="mt-3 text-[11px] text-slate-500">{labels.triggerHint}</div>
-                  <label className="mt-3 block text-[11px] text-slate-500">{labels.triggerPrice}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      onWheel={(e) => {
-                        e.preventDefault();
-                        const step = stepForPrice(parseNum(price) || lastPrice);
-                        setPrice((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder={lastPrice ? String(lastPrice) : labels.enter}
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                      inputMode="decimal"
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                  </div>
-
-                  <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                    <input
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onWheel={(e) => {
-                        e.preventDefault();
-                        const step = stepForAmount(parseNum(amount));
-                        setAmount((v) => wheelAdjust(v, e.deltaY, step));
-                      }}
-                      placeholder={labels.enter}
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                      inputMode="decimal"
-                    />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
-                  </div>
-
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{amountPct}%</span>
-                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={amountPct}
-                      onChange={(e) => setAmountPct(Number(e.target.value))}
-                      className="mt-2 w-full accent-emerald-500"
-                    />
-                    <div className="mt-2 flex justify-between gap-1">
-                      {[0, 25, 50, 75, 100].map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setAmountPct(p)}
-                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                        >
-                          {p}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.tpSl}</div>
-                  <button type="button" className="text-[11px] text-slate-400 hover:text-slate-200">
-                    {labels.advanced}
-                  </button>
-                </div>
-
-                <div className="mt-3 flex items-center gap-4 text-xs">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={tpSlLongEnabled}
-                      onChange={(e) => setTpSlLongEnabled(e.target.checked)}
-                      className="h-4 w-4 accent-emerald-500"
-                    />
-                    <span className="text-slate-200">{labels.longTpSl}</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={tpSlShortEnabled}
-                      onChange={(e) => setTpSlShortEnabled(e.target.checked)}
-                      className="h-4 w-4 accent-emerald-500"
-                    />
-                    <span className="text-slate-200">{labels.shortTpSl}</span>
-                  </label>
-                </div>
-
-                {tpSlLongEnabled ? (
-                  <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
-                    <div className="text-[11px] text-slate-400 mb-2">{labels.longTpSl}</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={longTpTrigger}
-                            onChange={(e) => setLongTpTrigger(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              const step = stepForPrice(parseNum(longTpTrigger) || lastPrice);
-                              setLongTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={longTpRatio}
-                            onChange={(e) => setLongTpRatio(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setLongTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={longSlTrigger}
-                            onChange={(e) => setLongSlTrigger(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              const step = stepForPrice(parseNum(longSlTrigger) || lastPrice);
-                              setLongSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={longSlRatio}
-                            onChange={(e) => setLongSlRatio(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setLongSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {tpSlShortEnabled ? (
-                  <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
-                    <div className="text-[11px] text-slate-400 mb-2">{labels.shortTpSl}</div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={shortTpTrigger}
-                            onChange={(e) => setShortTpTrigger(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              const step = stepForPrice(parseNum(shortTpTrigger) || lastPrice);
-                              setShortTpTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={shortTpRatio}
-                            onChange={(e) => setShortTpRatio(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setShortTpRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={shortSlTrigger}
-                            onChange={(e) => setShortSlTrigger(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              const step = stepForPrice(parseNum(shortSlTrigger) || lastPrice);
-                              setShortSlTrigger((v) => wheelAdjust(v, e.deltaY, step));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
-                        <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
-                          <input
-                            value={shortSlRatio}
-                            onChange={(e) => setShortSlRatio(e.target.value)}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              setShortSlRatio((v) => wheelAdjust(v, e.deltaY, 1));
-                            }}
-                            placeholder={labels.enter}
-                            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
-                            inputMode="decimal"
-                          />
-                          <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled
-                  className="py-3 rounded bg-emerald-600/40 text-white/70 font-semibold cursor-not-allowed"
-                  title={labels.disabledTitle}
-                >
-                  {labels.openLong}
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="py-3 rounded bg-rose-600/40 text-white/70 font-semibold cursor-not-allowed"
-                  title={labels.disabledTitle}
-                >
-                  {labels.openShort}
-                </button>
-              </div>
-
-              <p className="mt-3 text-[11px] text-slate-500">
-                {labels.note}
-              </p>
-            </div>
+        <div className="flex-1 overflow-auto p-3">
+          <TabsContent value="trade" className="mt-0">
+            {renderOrderForm({ demoMode: false })}
           </TabsContent>
 
-          <TabsContent value="bots" className="mt-3">
-            <div className="p-3 rounded bg-slate-900/40 border border-slate-800 text-sm text-slate-300">
-              {labels.botsPlaceholder}
-            </div>
+          <TabsContent value="bots" className="mt-0">
+            {renderOrderForm({ demoMode: true })}
           </TabsContent>
-        </Tabs>
-      </div>
 
-      <div className="flex-1 p-3 overflow-auto">
-        <div className="rounded bg-slate-900/30 border border-slate-800 p-3">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.account}</div>
-          <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <div className="text-[11px] text-slate-500">{labels.balance}</div>
-              <div className="font-mono text-white">{formatNumber(0)} USDT</div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-500">{labels.margin}</div>
-              <div className="font-mono text-white">{formatNumber(0)} USDT</div>
+          <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
+            <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.account}</div>
+            <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-[11px] text-slate-500">{labels.balance}</div>
+                <div className="font-mono text-white">{formatNumber(0)} USDT</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-slate-500">{labels.margin}</div>
+                <div className="font-mono text-white">{formatNumber(0)} USDT</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </Tabs>
     </aside>
   );
+
 }
 
 FuturesTradePanel.propTypes = {

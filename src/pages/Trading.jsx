@@ -74,8 +74,8 @@ export default function Trading({ language = "en" }) {
 
   const t = useMemo(() => {
     return language === "ar"
-      ? { market: "السوق", last: "آخر سعر", change: "تغير 24س" }
-      : { market: "Market", last: "Last", change: "24h" };
+      ? { last: "آخر سعر", change: "تغير 24س" }
+      : { last: "Last", change: "24h" };
   }, [language]);
 
   return (
@@ -92,10 +92,6 @@ export default function Trading({ language = "en" }) {
           <div className="h-6 w-[1px] bg-slate-700/50" />
 
           <div className="min-w-0 flex items-center">
-            <div className="mr-3 hidden sm:block">
-              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{t.market}</div>
-              <div className="text-[11px] text-slate-500">Binance USDT‑M</div>
-            </div>
             <BinanceSymbolSelector
               selectedSymbol={selectedSymbol}
               onSelectSymbol={(s) => setSelectedSymbol(normalizeBinanceSymbol(s))}

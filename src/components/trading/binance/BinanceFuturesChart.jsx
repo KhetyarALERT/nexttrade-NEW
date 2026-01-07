@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
+import { demoTradeStore } from "@/components/trading/binance/demoTradeStore";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -44,6 +45,9 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const volumeSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
+  const [demoPosition, setDemoPosition] = useState(null);
+  const demoLinesRef = useRef({ entry: null, tp: null, sl: null });
+
   const labels = useMemo(() => {
     const isAr = language === "ar";
     return {
@@ -63,6 +67,32 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     try {
       chartRef.current?.timeScale?.()?.applyOptions?.({ rightOffset: 0 });
     } catch {}
+  };
+
+  const removeDemoLine = (key) => {
+    try {
+      if (demoLinesRef.current?.[key] && candleSeriesRef.current?.removePriceLine) {
+        candleSeriesRef.current.removePriceLine(demoLinesRef.current[key]);
+      }
+    } catch {}
+    if (demoLinesRef.current) demoLinesRef.current[key] = null;
+  };
+
+  const upsertDemoLine = (key, opts) => {
+    if (!candleSeriesRef.current) return;
+    try {
+      const existing = demoLinesRef.current?.[key];
+      if (existing && typeof existing.applyOptions === "function") {
+        existing.applyOptions(opts);
+        return;
+      }
+      if (existing) {
+        removeDemoLine(key);
+      }
+      demoLinesRef.current[key] = candleSeriesRef.current.createPriceLine(opts);
+    } catch {
+      // ignore
+    }
   };
 
   // Chart init
@@ -257,6 +287,92 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       } catch {}
     };
   }, [normalizedSymbol, timeframe, key]);
+
+  // Demo position overlay (Bots tab)
+  useEffect(() => {
+    // Clear any previous symbol's lines
+    removeDemoLine("entry");
+    removeDemoLine("tp");
+    removeDemoLine("sl");
+    setDemoPosition(null);
+
+    const sym = normalizedSymbol;
+    if (!sym) return;
+
+    const apply = (pos) => setDemoPosition(pos || null);
+
+    apply(demoTradeStore.getPosition(sym));
+    const unsub = demoTradeStore.subscribe(`position:${sym}`, apply);
+    return () => {
+      try {
+        unsub?.();
+      } catch {}
+      removeDemoLine("entry");
+      removeDemoLine("tp");
+      removeDemoLine("sl");
+      setDemoPosition(null);
+    };
+  }, [normalizedSymbol]);
+
+  // Update demo lines on price/position change
+  useEffect(() => {
+    const pos = demoPosition;
+    if (!pos || !candleSeriesRef.current) {
+      removeDemoLine("entry");
+      removeDemoLine("tp");
+      removeDemoLine("sl");
+      return;
+    }
+
+    const mark = Number(lastPrice);
+    const entry = Number(pos.entryPrice);
+    const qty = Number(pos.qty) || 0;
+
+    const pnl =
+      qty && mark && entry
+        ? (pos.side === "short" ? (entry - mark) * qty : (mark - entry) * qty)
+        : 0;
+
+    const pnlStr = qty && mark && entry ? `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}` : "0.00";
+    const entryTitle = `${pos.side === "short" ? "Short" : "Long"} ${qty || ""} ${pnlStr}`.trim();
+
+    upsertDemoLine("entry", {
+      price: entry,
+      color: pos.side === "short" ? "#ef4444" : "#22c55e",
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: entryTitle,
+    });
+
+    const tp = Number(pos.tpPrice);
+    if (tp && Number.isFinite(tp)) {
+      upsertDemoLine("tp", {
+        price: tp,
+        color: "#ef4444",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "Take Profit",
+      });
+    } else {
+      removeDemoLine("tp");
+    }
+
+    const sl = Number(pos.slPrice);
+    if (sl && Number.isFinite(sl)) {
+      upsertDemoLine("sl", {
+        price: sl,
+        color: "#ef4444",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "Stop Loss",
+      });
+    } else {
+      removeDemoLine("sl");
+    }
+  }, [demoPosition, lastPrice, now]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
