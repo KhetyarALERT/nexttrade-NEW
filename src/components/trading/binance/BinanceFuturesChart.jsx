@@ -308,7 +308,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           setLastTickAt(Date.now());
           onPriceUpdateRef.current?.(Number(p));
 
-          // Update price line
+          // Update price line (hide axis label; we render our own compact right label)
           try {
             if (!priceLineRef.current) {
               priceLineRef.current = candleSeriesRef.current.createPriceLine({
@@ -316,12 +316,14 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 color: "#0099FA",
                 lineWidth: 1,
                 lineStyle: 1,
-                title: `Last ${formatPrice(Number(p))}`,
+                axisLabelVisible: false,
+                title: "",
               });
             } else if (typeof priceLineRef.current.applyOptions === "function") {
               priceLineRef.current.applyOptions({
                 price: Number(p),
-                title: `Last ${formatPrice(Number(p))}`,
+                axisLabelVisible: false,
+                title: "",
               });
             } else {
               // Fallback: recreate
@@ -333,12 +335,20 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 color: "#0099FA",
                 lineWidth: 1,
                 lineStyle: 1,
-                title: `Last ${formatPrice(Number(p))}`,
+                axisLabelVisible: false,
+                title: "",
               });
             }
           } catch {
             // ignore
           }
+
+          // Custom right-side label (short)
+          upsertOverlayBadge("last", {
+            price: Number(p),
+            tone: "last",
+            label: "Last",
+          });
         });
 
         // 3) WS after seeding
@@ -372,7 +382,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayLine("tp");
       removeOverlayLine("sl");
       removeOverlayLine("liq");
-      setOverlayBadges({});
+
+      // Do NOT clear all badges here (we keep Last + pending-order labels).
+      removeOverlayBadge("entry");
+      removeOverlayBadge("tp");
+      removeOverlayBadge("sl");
+      removeOverlayBadge("liq");
       return;
     }
 
@@ -603,7 +618,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         <div ref={containerRef} className="flex-1 min-h-0 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{normalizedSymbol || symbol}</div>
 
-        <div ref={badgeLayerRef} className="absolute inset-0 pointer-events-none">
+        <div ref={badgeLayerRef} className="absolute inset-0 pointer-events-none z-20">
           {overlayBadgeItems.map((b) => {
             const tone = b.tone;
             const isLong = tone === "long";
@@ -613,6 +628,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             const isLiq = tone === "liq";
             const isPendingLimit = tone === "pendingLimit";
             const isPendingStop = tone === "pendingStop";
+            const isLast = tone === "last";
             const cls = isTp
               ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-100"
               : isSl
@@ -623,11 +639,31 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                     ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-100"
                     : isPendingStop
                       ? "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-100"
+                      : isLast
+                        ? "bg-sky-500/15 border-sky-500/30 text-sky-100"
                   : isShort
                     ? "bg-rose-500/10 border-rose-500/20 text-rose-100"
                     : isLong
                       ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-100"
                       : "bg-slate-500/10 border-slate-500/20 text-slate-100";
+
+            const tailCls = isTp
+              ? "border-r-emerald-500/30"
+              : isSl
+                ? "border-r-rose-500/30"
+                : isLiq
+                  ? "border-r-amber-500/30"
+                  : isPendingLimit
+                    ? "border-r-yellow-500/30"
+                    : isPendingStop
+                      ? "border-r-fuchsia-500/30"
+                      : isLast
+                        ? "border-r-sky-500/30"
+                        : isShort
+                          ? "border-r-rose-500/20"
+                          : isLong
+                            ? "border-r-emerald-500/20"
+                            : "border-r-slate-500/20";
 
             return (
               <div
@@ -635,6 +671,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 className={`absolute right-2 px-2 py-0.5 rounded-lg border backdrop-blur-sm shadow-sm ${cls}`}
                 style={{ top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12) }}
               >
+                <div className={`absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[6px] border-y-transparent border-r-[8px] ${tailCls}`} />
                 <div className="text-[10px] leading-none font-semibold">
                   {b.label}
                 </div>
