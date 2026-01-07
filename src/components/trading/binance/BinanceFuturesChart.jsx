@@ -33,13 +33,6 @@ function formatQty(qty) {
   return s.replace(/\.0+$/, "").replace(/(\.[0-9]*?)0+$/, "$1");
 }
 
-function compactPrice(p) {
-  const n = Number(p);
-  if (!Number.isFinite(n)) return "—";
-  const digits = n < 1 ? 6 : 2;
-  return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
-}
-
 export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
@@ -51,11 +44,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [chartType, setChartType] = useState("candles");
   const [showGrid, setShowGrid] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
-
-  const [rightScaleWidth, setRightScaleWidth] = useState(56);
   const [isNarrow, setIsNarrow] = useState(false);
-
-  const [overlayBadges, setOverlayBadges] = useState({});
 
   const onPriceUpdateRef = useRef(onPriceUpdate);
   useEffect(() => {
@@ -75,7 +64,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const key = useMemo(() => `${normalizedSymbol}_${timeframe}`, [normalizedSymbol, timeframe]);
 
   const containerRef = useRef(null);
-  const badgeLayerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const lineSeriesRef = useRef(null);
@@ -117,18 +105,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     if (overlayLinesRef.current) overlayLinesRef.current[key] = null;
   };
 
-  const removeOverlayBadge = (key) => {
-    setOverlayBadges((prev) => {
-      if (!prev?.[key]) return prev;
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-  };
-
-  const upsertOverlayBadge = (key, badge) => {
-    if (disposedRef.current) return;
-    setOverlayBadges((prev) => ({ ...prev, [key]: badge }));
+  const priceLineTextColorForBg = (bg) => {
+    // Keep it simple: use dark text for bright yellows/oranges, otherwise white.
+    const s = String(bg || "").toLowerCase();
+    if (s === "#eab308" || s === "#f59e0b") return "#131722";
+    return "#ffffff";
   };
 
   const upsertOverlayLine = (key, opts) => {
@@ -152,7 +133,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const removePendingLine = (id) => {
     if (!id) return;
     if (disposedRef.current) {
-      removeOverlayBadge(`pending:${id}`);
       try {
         pendingLinesRef.current.delete(id);
       } catch {}
@@ -167,7 +147,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     try {
       pendingLinesRef.current.delete(id);
     } catch {}
-    removeOverlayBadge(`pending:${id}`);
   };
 
   const upsertPendingLine = (id, opts) => {
@@ -213,6 +192,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       borderDownColor: "#ef4444",
       wickUpColor: "#10b981",
       wickDownColor: "#ef4444",
+      lastValueVisible: false,
+      priceLineVisible: false,
       priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
     });
 
@@ -220,7 +201,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       color: "#60a5fa",
       lineWidth: 2,
       priceLineVisible: false,
-      lastValueVisible: true,
+      lastValueVisible: false,
       priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
     });
     // Default view is candlesticks
@@ -249,10 +230,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         height: containerRef.current.clientHeight,
       });
       setIsNarrow(containerRef.current.clientWidth < 520);
-      try {
-        const w = chartRef.current.priceScale?.("right")?.width?.();
-        if (Number.isFinite(w) && w > 0) setRightScaleWidth(w);
-      } catch {}
     };
 
     resize();
@@ -301,8 +278,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     } catch {}
 
     try {
-      candleSeries.applyOptions({ visible: chartType === "candles" });
-      lineSeries.applyOptions({ visible: chartType === "line" });
+      candleSeries.applyOptions({ visible: chartType === "candles", lastValueVisible: false, priceLineVisible: false });
+      lineSeries.applyOptions({ visible: chartType === "line", lastValueVisible: false, priceLineVisible: false });
     } catch {}
 
     try {
@@ -389,7 +366,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           setLastTickAt(Date.now());
           onPriceUpdateRef.current?.(Number(p));
 
-          // Update price line (hide axis label; we render our own compact right label)
+          // Update last price line with native colored axis label (no text badge)
           try {
             if (!priceLineRef.current) {
               priceLineRef.current = candleSeriesRef.current.createPriceLine({
@@ -397,13 +374,17 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 color: "#0099FA",
                 lineWidth: 1,
                 lineStyle: 1,
-                axisLabelVisible: false,
+                axisLabelVisible: true,
+                axisLabelColor: "#0099FA",
+                axisLabelTextColor: priceLineTextColorForBg("#0099FA"),
                 title: "",
               });
             } else if (typeof priceLineRef.current.applyOptions === "function") {
               priceLineRef.current.applyOptions({
                 price: Number(p),
-                axisLabelVisible: false,
+                axisLabelVisible: true,
+                axisLabelColor: "#0099FA",
+                axisLabelTextColor: priceLineTextColorForBg("#0099FA"),
                 title: "",
               });
             } else {
@@ -416,20 +397,15 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
                 color: "#0099FA",
                 lineWidth: 1,
                 lineStyle: 1,
-                axisLabelVisible: false,
+                axisLabelVisible: true,
+                axisLabelColor: "#0099FA",
+                axisLabelTextColor: priceLineTextColorForBg("#0099FA"),
                 title: "",
               });
             }
           } catch {
             // ignore
           }
-
-          // Custom right-side label (short)
-          upsertOverlayBadge("last", {
-            price: Number(p),
-            tone: "last",
-            label: "Last",
-          });
         });
 
         // 3) WS after seeding
@@ -464,12 +440,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       removeOverlayLine("tp");
       removeOverlayLine("sl");
       removeOverlayLine("liq");
-
-      // Do NOT clear all badges here (we keep Last + pending-order labels).
-      removeOverlayBadge("entry");
-      removeOverlayBadge("tp");
-      removeOverlayBadge("sl");
-      removeOverlayBadge("liq");
       return;
     }
     const entry = Number(t.avg_entry_price ?? t.entry_price);
@@ -483,14 +453,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
+        axisLabelColor: isShort ? "#ef4444" : "#22c55e",
+        axisLabelTextColor: priceLineTextColorForBg(isShort ? "#ef4444" : "#22c55e"),
         title: "",
       });
-
-      // Remove any legacy in-chart label (we rely on native axis label)
-      removeOverlayBadge("entry");
     } else {
       removeOverlayLine("entry");
-      removeOverlayBadge("entry");
     }
 
     const tp = Number(t.take_profit ?? t.takeProfit ?? t.tp);
@@ -501,13 +469,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
+        axisLabelColor: "#22c55e",
+        axisLabelTextColor: priceLineTextColorForBg("#22c55e"),
         title: "",
       });
-
-      removeOverlayBadge("tp");
     } else {
       removeOverlayLine("tp");
-      removeOverlayBadge("tp");
     }
 
     const sl = Number(t.stop_loss ?? t.stopLoss ?? t.sl);
@@ -518,13 +485,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
+        axisLabelColor: "#ef4444",
+        axisLabelTextColor: priceLineTextColorForBg("#ef4444"),
         title: "",
       });
-
-      removeOverlayBadge("sl");
     } else {
       removeOverlayLine("sl");
-      removeOverlayBadge("sl");
     }
 
     const liq = Number(t.liquidation_price);
@@ -535,13 +501,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
+        axisLabelColor: "#f59e0b",
+        axisLabelTextColor: priceLineTextColorForBg("#f59e0b"),
         title: "",
       });
-
-      removeOverlayBadge("liq");
     } else {
       removeOverlayLine("liq");
-      removeOverlayBadge("liq");
     }
   }, [positionTrade]);
 
@@ -561,8 +526,6 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       if (!id) continue;
 
       const orderType = String(o?.order_type || "").toUpperCase();
-      const side = String(o?.side || "LONG").toUpperCase();
-      const isShort = side === "SHORT";
 
       const p = Number(o?.limit_price ?? o?.stop_price ?? o?.entry_price);
       if (!Number.isFinite(p) || p <= 0) {
@@ -570,56 +533,97 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         continue;
       }
 
-      const qty = Number(o?.quantity);
-      const typeLabel = orderType === "STOP" ? "Stop" : "Limit";
-      const sideLabel = isShort ? "Sell" : "Buy";
-
+      const lineColor = orderType === "STOP" ? "#a855f7" : "#eab308";
       upsertPendingLine(id, {
         price: p,
-        color: orderType === "STOP" ? "#a855f7" : "#eab308",
+        color: lineColor,
         lineWidth: 1,
         lineStyle: 3,
-        axisLabelVisible: false,
+        axisLabelVisible: true,
+        axisLabelColor: lineColor,
+        axisLabelTextColor: priceLineTextColorForBg(lineColor),
         title: "",
-      });
-
-      upsertOverlayBadge(`pending:${id}`, {
-        price: p,
-        tone: orderType === "STOP" ? "pendingStop" : "pendingLimit",
-        label: `${typeLabel} ${sideLabel}${Number.isFinite(qty) && qty > 0 ? ` ${formatQty(qty)}` : ""}`,
       });
     }
   }, [pendingOrders]);
 
-  // Position the HTML badges on the right side of the chart
-  const overlayBadgeItems = useMemo(() => {
-    if (!overlayBadges || !candleSeriesRef.current) return [];
+  // Left-side labels: show position info + unrealized PNL/ROE, and avoid overlap.
+  const leftLabelItems = useMemo(() => {
+    if (!candleSeriesRef.current) return [];
     const series = candleSeriesRef.current;
     const height = containerRef.current?.clientHeight || 0;
-    const items = Object.entries(overlayBadges)
-      .map(([key, b]) => {
-        let y = Number.NaN;
-        try {
-          y = series.priceToCoordinate?.(Number(b?.price));
-        } catch {
-          // series might be disposed during unmount
-          y = Number.NaN;
-        }
-        if (!Number.isFinite(y)) return null;
-        return { key, y, ...b };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.y - b.y);
+    if (!height) return [];
 
-    // Keep badges anchored to their exact price coordinates.
-    // Clamp only to keep them inside the chart bounds.
-    const badgeH = isNarrow ? 22 : 26;
-    return items.map((it) => {
+    const items = [];
+
+    const t = positionTrade;
+    const entry = Number(t?.avg_entry_price ?? t?.entry_price);
+    const side = String(t?.side || "LONG").toUpperCase();
+    const isShort = side === "SHORT";
+    const qty = Number(t?.qty ?? t?.quantity ?? t?.positionAmt);
+
+    if (Number.isFinite(entry) && entry > 0 && Number.isFinite(qty) && qty !== 0 && Number.isFinite(lastPrice) && lastPrice > 0) {
+      const absQty = Math.abs(qty);
+      const pnl = (isShort ? (entry - lastPrice) : (lastPrice - entry)) * absQty;
+      const notional = entry * absQty;
+      const roe = notional > 0 ? (pnl / notional) * 100 : 0;
+
+      const pnlStr = `${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)} USDT`;
+      const roeStr = `${roe >= 0 ? "+" : ""}${roe.toFixed(2)}%`;
+      const sideStr = isShort ? "Short" : "Long";
+      const qtyStr = formatQty(absQty);
+
+      let y = Number.NaN;
+      try {
+        y = series.priceToCoordinate?.(entry);
+      } catch {
+        y = Number.NaN;
+      }
+      if (Number.isFinite(y)) {
+        items.push({
+          key: "pos",
+          y,
+          tone: pnl >= 0 ? "posUp" : "posDown",
+          leftText: `${pnlStr} (${roeStr})`,
+          rightText: `${sideStr} ${qtyStr}`,
+        });
+      }
+
+      const sl = Number(t?.stop_loss ?? t?.stopLoss ?? t?.sl);
+      if (Number.isFinite(sl) && sl > 0) {
+        let ysl = Number.NaN;
+        try {
+          ysl = series.priceToCoordinate?.(sl);
+        } catch {
+          ysl = Number.NaN;
+        }
+        if (Number.isFinite(ysl)) {
+          const dist = Math.abs(entry - sl);
+          const digits = entry < 1 ? 6 : 2;
+          const distStr = Number.isFinite(dist) ? `${dist >= 0 ? "+" : ""}${dist.toFixed(digits)}` : "";
+          items.push({
+            key: "sl",
+            y: ysl,
+            tone: "sl",
+            leftText: `Stop Loss ${distStr}`.trim(),
+            rightText: "",
+          });
+        }
+      }
+    }
+
+    const sorted = items.sort((a, b) => a.y - b.y);
+    const h = isNarrow ? 22 : 26;
+    const gap = isNarrow ? 24 : 28;
+    let lastTop = -Infinity;
+    return sorted.map((it) => {
       const baseTop = it.y - (isNarrow ? 10 : 12);
-      const top = height ? Math.max(6, Math.min(height - badgeH, baseTop)) : Math.max(6, baseTop);
+      let top = Math.max(6, Math.min(height - h, baseTop));
+      if (top < lastTop + gap) top = Math.min(height - h, lastTop + gap);
+      lastTop = top;
       return { ...it, top };
     });
-  }, [overlayBadges, now, isNarrow]);
+  }, [positionTrade, lastPrice, now, isNarrow]);
 
   return (
     <div className="w-full h-full bg-[#131722] text-white flex flex-col">
@@ -695,73 +699,42 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         <div ref={containerRef} className="flex-1 min-h-0 relative">
         <div className="absolute top-2 left-3 text-xs text-slate-400">{normalizedSymbol || symbol}</div>
 
-        <div ref={badgeLayerRef} className="absolute inset-0 pointer-events-none z-20">
-          {overlayBadgeItems.map((b) => {
+        <div className="absolute inset-0 pointer-events-none z-20">
+          {leftLabelItems.map((b) => {
             const tone = b.tone;
-            const isLong = tone === "long";
-            const isShort = tone === "short";
-            const isTp = tone === "tp";
-            const isSl = tone === "sl";
-            const isLiq = tone === "liq";
-            const isPendingLimit = tone === "pendingLimit";
-            const isPendingStop = tone === "pendingStop";
-            const isLast = tone === "last";
-            const cls = isTp
-              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-100"
-              : isSl
+            const cls =
+              tone === "sl"
                 ? "bg-rose-500/15 border-rose-500/30 text-rose-100"
-                : isLiq
-                  ? "bg-amber-500/15 border-amber-500/30 text-amber-100"
-                  : isPendingLimit
-                    ? "bg-yellow-500/15 border-yellow-500/30 text-yellow-100"
-                    : isPendingStop
-                      ? "bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-100"
-                      : isLast
-                        ? "bg-sky-500/15 border-sky-500/30 text-sky-100"
-                  : isShort
-                    ? "bg-rose-500/10 border-rose-500/20 text-rose-100"
-                    : isLong
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-100"
-                      : "bg-slate-500/10 border-slate-500/20 text-slate-100";
+                : tone === "posDown"
+                  ? "bg-rose-500/10 border-rose-500/20 text-rose-100"
+                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-100";
 
-            const tailCls = isTp
-              ? "border-r-emerald-500/30"
-              : isSl
-                ? "border-r-rose-500/30"
-                : isLiq
-                  ? "border-r-amber-500/30"
-                  : isPendingLimit
-                    ? "border-r-yellow-500/30"
-                    : isPendingStop
-                      ? "border-r-fuchsia-500/30"
-                      : isLast
-                        ? "border-r-sky-500/30"
-                        : isShort
-                          ? "border-r-rose-500/20"
-                          : isLong
-                            ? "border-r-emerald-500/20"
-                            : "border-r-slate-500/20";
-
-            const axisW = Math.max(48, Number(rightScaleWidth) || 56);
+            const tailCls =
+              tone === "sl"
+                ? "border-l-rose-500/30"
+                : tone === "posDown"
+                  ? "border-l-rose-500/20"
+                  : "border-l-emerald-500/20";
 
             return (
               <div
                 key={b.key}
-                className={`absolute rounded-md border backdrop-blur-sm shadow-sm ${cls}`}
+                className={`absolute left-0 rounded-md border backdrop-blur-sm shadow-sm ${cls}`}
                 style={{
                   top: Number.isFinite(b.top) ? b.top : Math.max(6, b.y - 12),
-                  right: 0,
-                  width: axisW,
+                  width: isNarrow ? 176 : 220,
                 }}
               >
-                <div className={`absolute -left-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[7px] ${tailCls}`} />
-                <div className="px-1.5 py-0.5 text-right">
-                  <div className="text-[9px] leading-none font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
-                    {b.label}
+                <div className={`absolute -right-2 top-1/2 -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-l-[7px] ${tailCls}`} />
+                <div className="px-2 py-1 flex items-center justify-between gap-2">
+                  <div className="text-[10px] leading-none font-semibold whitespace-nowrap overflow-hidden text-ellipsis">
+                    {b.leftText}
                   </div>
-                  <div className="mt-0.5 text-[8px] leading-none opacity-90 font-mono whitespace-nowrap overflow-hidden text-ellipsis">
-                    {compactPrice(b.price)}
-                  </div>
+                  {b.rightText ? (
+                    <div className="text-[10px] leading-none font-mono whitespace-nowrap opacity-90">
+                      {b.rightText}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
