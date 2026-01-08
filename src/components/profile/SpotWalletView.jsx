@@ -9,22 +9,22 @@ import CryptoIcon from "@/components/ui/CryptoIcon";
 
 // Same coins as Home page CryptoPriceTable
 const COINS = [
-  { id: "bitcoin", symbol: "BTC", binance: "btcusdt" },
-  { id: "ethereum", symbol: "ETH", binance: "ethusdt" },
-  { id: "binance-coin", symbol: "BNB", binance: "bnbusdt" },
-  { id: "solana", symbol: "SOL", binance: "solusdt" },
-  { id: "ripple", symbol: "XRP", binance: "xrpusdt" },
-  { id: "dogecoin", symbol: "DOGE", binance: "dogeusdt" },
-  { id: "cardano", symbol: "ADA", binance: "adausdt" },
-  { id: "polygon", symbol: "MATIC", binance: "maticusdt" },
-  { id: "polkadot", symbol: "DOT", binance: "dotusdt" },
-  { id: "litecoin", symbol: "LTC", binance: "ltcusdt" },
-  { id: "chainlink", symbol: "LINK", binance: "linkusdt" },
-  { id: "avalanche-2", symbol: "AVAX", binance: "avaxusdt" },
-  { id: "uniswap", symbol: "UNI", binance: "uniusdt" },
-  { id: "cosmos", symbol: "ATOM", binance: "atomusdt" },
-  { id: "stellar", symbol: "XLM", binance: "xlmusdt" }
-];
+{ id: "bitcoin", symbol: "BTC", binance: "btcusdt" },
+{ id: "ethereum", symbol: "ETH", binance: "ethusdt" },
+{ id: "binance-coin", symbol: "BNB", binance: "bnbusdt" },
+{ id: "solana", symbol: "SOL", binance: "solusdt" },
+{ id: "ripple", symbol: "XRP", binance: "xrpusdt" },
+{ id: "dogecoin", symbol: "DOGE", binance: "dogeusdt" },
+{ id: "cardano", symbol: "ADA", binance: "adausdt" },
+{ id: "polygon", symbol: "MATIC", binance: "maticusdt" },
+{ id: "polkadot", symbol: "DOT", binance: "dotusdt" },
+{ id: "litecoin", symbol: "LTC", binance: "ltcusdt" },
+{ id: "chainlink", symbol: "LINK", binance: "linkusdt" },
+{ id: "avalanche-2", symbol: "AVAX", binance: "avaxusdt" },
+{ id: "uniswap", symbol: "UNI", binance: "uniusdt" },
+{ id: "cosmos", symbol: "ATOM", binance: "atomusdt" },
+{ id: "stellar", symbol: "XLM", binance: "xlmusdt" }];
+
 
 const Sparkline = ({ data = [], width = 80, height = 30 }) => {
   if (!data || data.length < 2) return <div style={{ width, height }} className="bg-slate-800/50 rounded" />;
@@ -34,8 +34,8 @@ const Sparkline = ({ data = [], width = 80, height = 30 }) => {
   const range = max - min || 1;
 
   const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((val - min) / range) * height;
+    const x = i / (data.length - 1) * width;
+    const y = height - (val - min) / range * height;
     return `${x},${y}`;
   }).join(" ");
 
@@ -45,8 +45,8 @@ const Sparkline = ({ data = [], width = 80, height = 30 }) => {
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       <polyline fill="none" stroke={stroke} strokeWidth="1.5" points={points} />
-    </svg>
-  );
+    </svg>);
+
 };
 
 const i18n = {
@@ -76,15 +76,15 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
   useEffect(() => {
     // Initial fetch from CoinGecko
     const fetchInitial = async () => {
-      const ids = COINS.map(c => c.id).join(",");
+      const ids = COINS.map((c) => c.id).join(",");
       try {
         const res = await fetch(
           `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`
         );
         if (res.ok) {
           const data = await res.json();
-          const mapped = data.map(coin => {
-            const coinConfig = COINS.find(c => c.id === coin.id);
+          const mapped = data.map((coin) => {
+            const coinConfig = COINS.find((c) => c.id === coin.id);
             return {
               ...coin,
               displaySymbol: coinConfig?.symbol || coin.symbol.toUpperCase(),
@@ -101,7 +101,7 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
     fetchInitial();
 
     // Binance WS for live updates
-    const streams = COINS.filter(c => c.binance).map(c => `${c.binance}@ticker`).join("/");
+    const streams = COINS.filter((c) => c.binance).map((c) => `${c.binance}@ticker`).join("/");
     if (streams) {
       const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
       const connect = () => {
@@ -112,17 +112,17 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
           if (msg.stream && msg.data) {
             const stream = msg.stream.split("@")[0].toLowerCase();
             const d = msg.data;
-            setMarketData(prev =>
-              prev.map(coin => {
-                if (coin.binanceSymbol?.toLowerCase() === stream) {
-                  return {
-                    ...coin,
-                    current_price: parseFloat(d.c),
-                    price_change_percentage_24h: parseFloat(d.P)
-                  };
-                }
-                return coin;
-              })
+            setMarketData((prev) =>
+            prev.map((coin) => {
+              if (coin.binanceSymbol?.toLowerCase() === stream) {
+                return {
+                  ...coin,
+                  current_price: parseFloat(d.c),
+                  price_change_percentage_24h: parseFloat(d.P)
+                };
+              }
+              return coin;
+            })
             );
           }
         };
@@ -149,9 +149,9 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
     return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
   };
 
-  const filteredData = marketData.filter(coin => {
-    if (searchTerm && !coin.displaySymbol.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !coin.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+  const filteredData = marketData.filter((coin) => {
+    if (searchTerm && !coin.displaySymbol.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    !coin.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 
@@ -187,8 +187,8 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                 placeholder={t.search}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`}
-              />
+                className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`} />
+
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
@@ -209,17 +209,17 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
               </tr>
             </thead>
             <tbody>
-              {filteredData.length === 0 ? (
-                <tr>
+              {filteredData.length === 0 ?
+              <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-slate-500 text-sm">
                     Loading...
                   </td>
-                </tr>
-              ) : (
-                filteredData.map((coin) => {
-                  const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
-                  return (
-                    <tr key={coin.id} className="border-b border-slate-100 hover:bg-slate-50">
+                </tr> :
+
+              filteredData.map((coin) => {
+                const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
+                return (
+                  <tr key={coin.id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-3">
                         <div className="flex min-w-0 items-center gap-2">
                           <CryptoIcon currency={coin.displaySymbol} size="sm" />
@@ -251,20 +251,20 @@ export default function SpotWalletView({ spotBalance = 0, onDeposit, onWithdraw,
                           </Button>
                         </Link>
                       </td>
-                    </tr>
-                  );
-                })
-              )}
+                    </tr>);
+
+              })
+              }
             </tbody>
           </table>
         </div>
 
-        <div className="p-2 bg-slate-900/50 text-center border-t border-slate-800">
-          <p className="text-[10px] text-slate-500">Data via CoinGecko • Live via Binance</p>
+        <div className="bg-indigo-600 text-black p-2 text-center border-t border-slate-800">
+          <p className="text-[10px] text-slate-500"></p>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 SpotWalletView.propTypes = {
