@@ -301,7 +301,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
             <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
           </div> :
         positions.filter((p) => p.status === 'active').length === 0 ?
-        <div className="text-center py-4 text-muted-foreground text-xs">
+        <div className="bg-transparent text-muted-foreground py-4 text-xs text-center">
             {t.noStakes}
           </div> :
 
