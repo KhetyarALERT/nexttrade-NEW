@@ -1,4 +1,6 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+// @ts-nocheck
+// This file runs in Deno runtime (serverless function) - TypeScript checking is handled by Deno
+import { createClientFromRequest } from 'https://esm.sh/@base44/sdk@0.8.6?target=deno&dts';
 
 // This function checks price alerts and fires notifications
 // Should be called by a scheduled task every 5 minutes
@@ -21,13 +23,17 @@ Deno.serve(async (req) => {
     }
 
     // Fetch current prices from BingX
-    let prices = {};
+    let prices: Record<string, number> = {};
     try {
       const response = await fetch('https://open-api.bingx.com/openApi/swap/v2/quote/ticker');
-      const data = await response.json();
+      const data: {
+        code?: number;
+        data?: Array<{ symbol: string; lastPrice: string }>;
+      } = await response.json();
+
       if (data.code === 0 && data.data) {
-        data.data.forEach(ticker => {
-          prices[ticker.symbol] = parseFloat(ticker.lastPrice);
+        data.data.forEach((ticker) => {
+          prices[ticker.symbol] = Number.parseFloat(ticker.lastPrice);
         });
       }
     } catch (e) {
@@ -113,7 +119,8 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[PRICE_ALERTS_ERROR]', error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[PRICE_ALERTS_ERROR]', message);
+    return Response.json({ error: message }, { status: 500 });
   }
 });

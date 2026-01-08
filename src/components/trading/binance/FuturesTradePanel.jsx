@@ -561,32 +561,32 @@ export default function FuturesTradePanel({
           <button
             type="button"
             onClick={() => setMode("cross")}
-            className={`px-3 py-1 rounded ${mode === "cross" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
+            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${mode === "cross" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.cross}
           </button>
           <button
             type="button"
             onClick={() => setMode("isolated")}
-            className={`px-3 py-1 rounded ${mode === "isolated" ? "bg-emerald-500 text-black font-semibold" : "bg-slate-800 text-slate-200"}`}
+            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${mode === "isolated" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.isolated}
           </button>
-          <div className="ml-auto text-[11px] text-slate-500">{demoMode ? labels.demoTrade : labels.demo}</div>
+          <div className="ml-auto text-[11px] text-muted-foreground">{demoMode ? labels.demoTrade : labels.demo}</div>
         </div>
 
         <div className="mt-3 flex items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setSide("open")}
-            className={`flex-1 py-2 rounded ${side === "open" ? "bg-emerald-600 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${side === "open" ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.open}
           </button>
           <button
             type="button"
             onClick={() => setSide("close")}
-            className={`flex-1 py-2 rounded ${side === "close" ? "bg-slate-700 text-white font-semibold" : "bg-slate-800 text-slate-300"}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${side === "close" ? "bg-secondary text-secondary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.close}
           </button>
@@ -596,44 +596,44 @@ export default function FuturesTradePanel({
           <button
             type="button"
             onClick={() => setOrderType("limit")}
-            className={`px-3 py-1 rounded ${orderType === "limit" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "limit" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.limit}
           </button>
           <button
             type="button"
             onClick={() => setOrderType("market")}
-            className={`px-3 py-1 rounded ${orderType === "market" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "market" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.market}
           </button>
           <button
             type="button"
             onClick={() => setOrderType("trigger")}
-            className={`px-3 py-1 rounded ${orderType === "trigger" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "trigger" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.trigger}
           </button>
 
-          <div className="ml-auto text-[11px] text-slate-500 font-mono">
+          <div className="ml-auto text-[11px] text-muted-foreground font-mono">
             {labels.mark} {lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}
           </div>
         </div>
 
-        <div className="mt-3 rounded bg-slate-900/30 border border-slate-800 p-3">
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
+        <div className="mt-3 rounded-xl bg-card/50 border border-border p-4">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{labels.orderMode}</span>
-            <span className="text-slate-400">{labels.leverage}: {Math.min(125, Math.max(1, Number(leverage) || 10))}×</span>
+            <span className="text-foreground font-medium">{labels.leverage}: {Math.min(125, Math.max(1, Number(leverage) || 10))}×</span>
           </div>
 
-          <div className="mt-2 flex gap-2 text-xs">
+          <div className="mt-3 flex gap-2 text-xs">
             <button
               type="button"
               onClick={() => {
                 setOrderMode("amount");
                 setLastEdited("amount");
               }}
-              className={`flex-1 py-2 rounded ${orderMode === "amount" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "amount" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
             >
               {labels.byAmount}
             </button>
@@ -643,7 +643,7 @@ export default function FuturesTradePanel({
                 setOrderMode("value");
                 setLastEdited("total");
               }}
-              className={`flex-1 py-2 rounded ${orderMode === "value" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "value" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
             >
               {labels.byValue}
             </button>
@@ -653,14 +653,14 @@ export default function FuturesTradePanel({
                 setOrderMode("cost");
                 setLastEdited("cost");
               }}
-              className={`flex-1 py-2 rounded ${orderMode === "cost" ? "bg-slate-700 text-white" : "bg-slate-800 text-slate-300"}`}
+              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "cost" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
             >
               {labels.byCost}
             </button>
           </div>
 
-          <div className="mt-2">
-            <label className="block text-[11px] text-slate-500">{labels.leverage}</label>
+          <div className="mt-3">
+            <label className="block text-[11px] text-muted-foreground">{labels.leverage}</label>
             <div className="mt-1 flex items-center gap-2">
               <input
                 type="range"
@@ -683,23 +683,23 @@ export default function FuturesTradePanel({
                   });
                   setLastEdited("leverage");
                 }}
-                className="w-full accent-emerald-500"
+                className="w-full accent-primary"
               />
-              <div className="w-16 text-right font-mono text-sm text-white">{Math.min(125, Math.max(1, Number(leverage) || 10))}×</div>
+              <div className="w-16 text-right font-mono text-sm text-foreground">{Math.min(125, Math.max(1, Number(leverage) || 10))}×</div>
             </div>
           </div>
         </div>
 
         <div className="mt-4">
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{labels.avail}</span>
-            <span className="font-mono">{accountSnap.hasAccount ? formatNumber(accountSnap.availableMargin, 2) : "—"} USDT</span>
+            <span className="font-mono text-foreground">{accountSnap.hasAccount ? formatNumber(accountSnap.availableMargin, 2) : "—"} USDT</span>
           </div>
 
           {orderType === "limit" ? (
             <>
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.price}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <label className="mt-3 block text-[11px] text-muted-foreground">{labels.price}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={price}
                   onChange={(e) => {
@@ -714,16 +714,16 @@ export default function FuturesTradePanel({
                     setLastEdited("price");
                   }}
                   placeholder={lastPrice ? String(lastPrice) : labels.enter}
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-slate-500">{labels.amount}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                  <label className="block text-[11px] text-muted-foreground">{labels.amount}</label>
+                  <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                     <input
                       value={amount}
                       onChange={(e) => {
@@ -738,16 +738,16 @@ export default function FuturesTradePanel({
                         setLastEdited("amount");
                       }}
                       placeholder={labels.enter}
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                      className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                       inputMode="decimal"
                     />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+                    <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{baseAsset}</span>
                   </div>
 
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>{amountPct}%</span>
-                      <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                      <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
                     </div>
                     <input
                       type="range"
@@ -756,7 +756,7 @@ export default function FuturesTradePanel({
                       step={1}
                       value={amountPct}
                       onChange={(e) => applyAmountPct(Number(e.target.value))}
-                      className="mt-2 w-full accent-emerald-500"
+                      className="mt-2 w-full accent-primary"
                     />
                     <div className="mt-2 flex justify-between gap-1">
                       {[0, 25, 50, 75, 100].map((p) => (
@@ -764,7 +764,7 @@ export default function FuturesTradePanel({
                           key={p}
                           type="button"
                           onClick={() => applyAmountPct(p)}
-                          className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                          className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
                         >
                           {p}%
                         </button>
@@ -773,8 +773,8 @@ export default function FuturesTradePanel({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
-                  <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                  <label className="block text-[11px] text-muted-foreground">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
+                  <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                     <input
                       value={orderMode === "cost" ? cost : total}
                       onChange={(e) => {
@@ -800,15 +800,15 @@ export default function FuturesTradePanel({
                         }
                       }}
                       placeholder="0"
-                      className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                      className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                       inputMode="decimal"
                     />
-                    <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                    <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                   </div>
                   {orderMode === "cost" ? (
-                    <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                    <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
                       <span>{labels.total}</span>
-                      <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                      <span className="font-mono text-foreground">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
                     </div>
                   ) : null}
                 </div>
@@ -818,10 +818,10 @@ export default function FuturesTradePanel({
 
           {orderType === "market" ? (
             <>
-              <div className="mt-3 text-[11px] text-slate-500">{labels.marketHint}</div>
+              <div className="mt-3 text-[11px] text-muted-foreground">{labels.marketHint}</div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <label className="mt-3 block text-[11px] text-muted-foreground">{labels.amount}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={amount}
                   onChange={(e) => {
@@ -836,14 +836,14 @@ export default function FuturesTradePanel({
                     setLastEdited("amount");
                   }}
                   placeholder={labels.enter}
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{baseAsset}</span>
               </div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <label className="mt-3 block text-[11px] text-muted-foreground">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={orderMode === "cost" ? cost : total}
                   onChange={(e) => {
@@ -869,23 +869,23 @@ export default function FuturesTradePanel({
                     }
                   }}
                   placeholder="0"
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
               </div>
 
               {orderMode === "cost" ? (
-                <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
                   <span>{labels.total}</span>
-                  <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                  <span className="font-mono text-foreground">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
                 </div>
               ) : null}
 
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{amountPct}%</span>
-                  <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                  <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
                 </div>
                 <input
                   type="range"
@@ -894,7 +894,7 @@ export default function FuturesTradePanel({
                   step={1}
                   value={amountPct}
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
-                  className="mt-2 w-full accent-emerald-500"
+                  className="mt-2 w-full accent-primary"
                 />
                 <div className="mt-2 flex justify-between gap-1">
                   {[0, 25, 50, 75, 100].map((p) => (
@@ -902,7 +902,7 @@ export default function FuturesTradePanel({
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                      className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
                     >
                       {p}%
                     </button>
@@ -914,9 +914,9 @@ export default function FuturesTradePanel({
 
           {orderType === "trigger" ? (
             <>
-              <div className="mt-3 text-[11px] text-slate-500">{labels.triggerHint}</div>
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.triggerPrice}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <div className="mt-3 text-[11px] text-muted-foreground">{labels.triggerHint}</div>
+              <label className="mt-3 block text-[11px] text-muted-foreground">{labels.triggerPrice}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
@@ -927,14 +927,14 @@ export default function FuturesTradePanel({
                     setPrice((v) => wheelAdjust(v, e.deltaY, step));
                   }}
                   placeholder={lastPrice ? String(lastPrice) : labels.enter}
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
               </div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{labels.amount}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <label className="mt-3 block text-[11px] text-muted-foreground">{labels.amount}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={amount}
                   onChange={(e) => {
@@ -949,14 +949,14 @@ export default function FuturesTradePanel({
                     setLastEdited("amount");
                   }}
                   placeholder={labels.enter}
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{baseAsset}</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{baseAsset}</span>
               </div>
 
-              <label className="mt-3 block text-[11px] text-slate-500">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
-              <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+              <label className="mt-3 block text-[11px] text-muted-foreground">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
+              <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-3 py-2.5">
                 <input
                   value={orderMode === "cost" ? cost : total}
                   onChange={(e) => {
@@ -982,23 +982,23 @@ export default function FuturesTradePanel({
                     }
                   }}
                   placeholder="0"
-                  className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                  className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                   inputMode="decimal"
                 />
-                <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
               </div>
 
               {orderMode === "cost" ? (
-                <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
+                <div className="mt-2 text-[11px] text-muted-foreground flex items-center justify-between">
                   <span>{labels.total}</span>
-                  <span className="font-mono">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
+                  <span className="font-mono text-foreground">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
                 </div>
               ) : null}
 
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{amountPct}%</span>
-                  <span className="text-[10px] text-slate-600">{labels.amountSliderHint}</span>
+                  <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
                 </div>
                 <input
                   type="range"
@@ -1007,7 +1007,7 @@ export default function FuturesTradePanel({
                   step={1}
                   value={amountPct}
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
-                  className="mt-2 w-full accent-emerald-500"
+                  className="mt-2 w-full accent-primary"
                 />
                 <div className="mt-2 flex justify-between gap-1">
                   {[0, 25, 50, 75, 100].map((p) => (
@@ -1015,7 +1015,7 @@ export default function FuturesTradePanel({
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                      className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
                     >
                       {p}%
                     </button>
@@ -1026,46 +1026,52 @@ export default function FuturesTradePanel({
           ) : null}
 
 
-          <div className="mt-4 rounded bg-slate-900/30 border border-slate-800 p-3">
+          <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
             <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-wider text-slate-500">{labels.tpSl}</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.tpSl}</div>
               <button
                 type="button"
                 onClick={() => setTpSlAdvancedOpen((v) => !v)}
-                className="text-[11px] text-slate-400 hover:text-slate-200"
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 {labels.advanced}
               </button>
             </div>
 
             <div className="mt-3 flex items-center gap-4 text-xs">
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={tpSlLongEnabled}
-                  onChange={(e) => setTpSlLongEnabled(e.target.checked)}
-                  className="h-4 w-4 accent-emerald-500"
+                  onChange={(e) => {
+                    setTpSlLongEnabled(e.target.checked);
+                    if (e.target.checked) setTpSlShortEnabled(false);
+                  }}
+                  className="h-4 w-4 accent-primary rounded"
                 />
-                <span className="text-slate-200">{labels.longTpSl}</span>
+                <span className="text-foreground">{labels.longTpSl}</span>
               </label>
-              <label className="flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={tpSlShortEnabled}
-                  onChange={(e) => setTpSlShortEnabled(e.target.checked)}
-                  className="h-4 w-4 accent-emerald-500"
+                  onChange={(e) => {
+                    setTpSlShortEnabled(e.target.checked);
+                    if (e.target.checked) setTpSlLongEnabled(false);
+                  }}
+                  className="h-4 w-4 accent-primary rounded"
                 />
-                <span className="text-slate-200">{labels.shortTpSl}</span>
+                <span className="text-foreground">{labels.shortTpSl}</span>
               </label>
             </div>
 
             {tpSlLongEnabled ? (
-              <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
-                <div className="text-[11px] text-slate-400 mb-2">{labels.longTpSl}</div>
+              <div className="mt-3 rounded-lg bg-card/30 border border-border p-3">
+                <div className="text-[11px] text-muted-foreground font-medium mb-2">{labels.longTpSl}</div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.tpTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={longTpTrigger}
                         onChange={(e) => {
@@ -1080,16 +1086,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("longTpTrigger");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.tpRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={longTpRatio}
                         onChange={(e) => {
@@ -1103,16 +1109,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("longTpRatio");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{labels.percent}</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.slTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={longSlTrigger}
                         onChange={(e) => {
@@ -1127,16 +1133,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("longSlTrigger");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.slRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={longSlRatio}
                         onChange={(e) => {
@@ -1150,33 +1156,33 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("longSlRatio");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{labels.percent}</span>
                     </div>
                   </div>
                 </div>
 
                 {tpSlAdvancedOpen ? (
                   <div className="mt-3">
-                    <div className="text-[11px] text-slate-400 mb-2">{labels.partialTp}</div>
+                    <div className="text-[11px] text-muted-foreground font-medium mb-2">{labels.partialTp}</div>
                     <div className="space-y-2">
                       {longTpTargets.map((row) => (
                         <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.closePct}
                               onChange={(e) =>
                                 setLongTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
                               }
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">%</span>
                           </div>
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.price}
                               onChange={(e) =>
@@ -1190,15 +1196,15 @@ export default function FuturesTradePanel({
                                 );
                               }}
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => setLongTpTargets((prev) => prev.filter((r) => r.id !== row.id))}
-                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            className="px-2 py-2 rounded-md bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground text-[11px] transition-colors"
                             disabled={longTpTargets.length <= 1}
                             title={labels.remove}
                           >
@@ -1209,29 +1215,29 @@ export default function FuturesTradePanel({
                       <button
                         type="button"
                         onClick={() => setLongTpTargets((prev) => [...prev, { id: uid(), closePct: "25", price: "" }])}
-                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                        className="px-3 py-2 rounded-md bg-muted text-foreground hover:bg-secondary text-[11px] transition-colors"
                       >
                         {labels.addTarget}
                       </button>
                     </div>
 
-                    <div className="mt-4 text-[11px] text-slate-400 mb-2">{labels.partialSl}</div>
+                    <div className="mt-4 text-[11px] text-muted-foreground font-medium mb-2">{labels.partialSl}</div>
                     <div className="space-y-2">
                       {longSlTargets.map((row) => (
                         <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.closePct}
                               onChange={(e) =>
                                 setLongSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
                               }
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">%</span>
                           </div>
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.price}
                               onChange={(e) =>
@@ -1245,15 +1251,15 @@ export default function FuturesTradePanel({
                                 );
                               }}
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => setLongSlTargets((prev) => prev.filter((r) => r.id !== row.id))}
-                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            className="px-2 py-2 rounded-md bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground text-[11px] transition-colors"
                             disabled={longSlTargets.length <= 1}
                             title={labels.remove}
                           >
@@ -1264,7 +1270,7 @@ export default function FuturesTradePanel({
                       <button
                         type="button"
                         onClick={() => setLongSlTargets((prev) => [...prev, { id: uid(), closePct: "100", price: "" }])}
-                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                        className="px-3 py-2 rounded-md bg-muted text-foreground hover:bg-secondary text-[11px] transition-colors"
                       >
                         {labels.addTarget}
                       </button>
@@ -1275,12 +1281,12 @@ export default function FuturesTradePanel({
             ) : null}
 
             {tpSlShortEnabled ? (
-              <div className="mt-3 rounded bg-slate-950/20 border border-slate-800/70 p-3">
-                <div className="text-[11px] text-slate-400 mb-2">{labels.shortTpSl}</div>
+              <div className="mt-3 rounded-lg bg-card/30 border border-border p-3">
+                <div className="text-[11px] text-muted-foreground font-medium mb-2">{labels.shortTpSl}</div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.tpTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={shortTpTrigger}
                         onChange={(e) => {
@@ -1295,16 +1301,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("shortTpTrigger");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.tpRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.tpRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={shortTpRatio}
                         onChange={(e) => {
@@ -1318,16 +1324,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("shortTpRatio");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{labels.percent}</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.slTrigger}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.slTrigger}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={shortSlTrigger}
                         onChange={(e) => {
@@ -1342,16 +1348,16 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("shortSlTrigger");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                     </div>
                   </div>
 
                   <div>
-                    <div className="text-[11px] text-slate-500">{labels.slRatio}</div>
-                    <div className="mt-1 flex items-center gap-2 rounded bg-slate-900/40 border border-slate-800 px-2 py-2">
+                    <div className="text-[11px] text-muted-foreground">{labels.slRatio}</div>
+                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-input border border-border px-2 py-2">
                       <input
                         value={shortSlRatio}
                         onChange={(e) => {
@@ -1365,33 +1371,33 @@ export default function FuturesTradePanel({
                           setTpSlLastEdited("shortSlRatio");
                         }}
                         placeholder={labels.enter}
-                        className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                        className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                         inputMode="decimal"
                       />
-                      <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">{labels.percent}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{labels.percent}</span>
                     </div>
                   </div>
                 </div>
 
                 {tpSlAdvancedOpen ? (
                   <div className="mt-3">
-                    <div className="text-[11px] text-slate-400 mb-2">{labels.partialTp}</div>
+                    <div className="text-[11px] text-muted-foreground font-medium mb-2">{labels.partialTp}</div>
                     <div className="space-y-2">
                       {shortTpTargets.map((row) => (
                         <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.closePct}
                               onChange={(e) =>
                                 setShortTpTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
                               }
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">%</span>
                           </div>
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.price}
                               onChange={(e) =>
@@ -1405,15 +1411,15 @@ export default function FuturesTradePanel({
                                 );
                               }}
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => setShortTpTargets((prev) => prev.filter((r) => r.id !== row.id))}
-                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            className="px-2 py-2 rounded-md bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground text-[11px] transition-colors"
                             disabled={shortTpTargets.length <= 1}
                             title={labels.remove}
                           >
@@ -1424,29 +1430,29 @@ export default function FuturesTradePanel({
                       <button
                         type="button"
                         onClick={() => setShortTpTargets((prev) => [...prev, { id: uid(), closePct: "25", price: "" }])}
-                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                        className="px-3 py-2 rounded-md bg-muted text-foreground hover:bg-secondary text-[11px] transition-colors"
                       >
                         {labels.addTarget}
                       </button>
                     </div>
 
-                    <div className="mt-4 text-[11px] text-slate-400 mb-2">{labels.partialSl}</div>
+                    <div className="mt-4 text-[11px] text-muted-foreground font-medium mb-2">{labels.partialSl}</div>
                     <div className="space-y-2">
                       {shortSlTargets.map((row) => (
                         <div key={row.id} className="grid grid-cols-[1fr,1fr,auto] gap-2">
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.closePct}
                               onChange={(e) =>
                                 setShortSlTargets((prev) => prev.map((r) => (r.id === row.id ? { ...r, closePct: e.target.value } : r)))
                               }
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">%</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">%</span>
                           </div>
-                          <div className="rounded bg-slate-900/40 border border-slate-800 px-2 py-2 flex items-center gap-2">
+                          <div className="rounded-lg bg-input border border-border px-2 py-2 flex items-center gap-2">
                             <input
                               value={row.price}
                               onChange={(e) =>
@@ -1460,15 +1466,15 @@ export default function FuturesTradePanel({
                                 );
                               }}
                               placeholder={labels.enter}
-                              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-slate-600"
+                              className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
                               inputMode="decimal"
                             />
-                            <span className="text-[11px] px-2 py-1 rounded bg-slate-800 text-slate-200">USDT</span>
+                            <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">USDT</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => setShortSlTargets((prev) => prev.filter((r) => r.id !== row.id))}
-                            className="px-2 py-2 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
+                            className="px-2 py-2 rounded-md bg-muted text-muted-foreground hover:bg-destructive hover:text-destructive-foreground text-[11px] transition-colors"
                             disabled={shortSlTargets.length <= 1}
                             title={labels.remove}
                           >
@@ -1479,7 +1485,7 @@ export default function FuturesTradePanel({
                       <button
                         type="button"
                         onClick={() => setShortSlTargets((prev) => [...prev, { id: uid(), closePct: "100", price: "" }])}
-                        className="px-3 py-2 rounded bg-slate-800 text-slate-200 hover:bg-slate-700 text-[11px]"
+                        className="px-3 py-2 rounded-md bg-muted text-foreground hover:bg-secondary text-[11px] transition-colors"
                       >
                         {labels.addTarget}
                       </button>
@@ -1490,12 +1496,12 @@ export default function FuturesTradePanel({
             ) : null}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-5 grid grid-cols-2 gap-3">
             <button
               type="button"
               disabled={!demoMode || botsBusy}
               onClick={() => doDemoOpen("long")}
-              className={`py-3 rounded font-semibold ${demoMode ? "bg-emerald-600 text-white hover:bg-emerald-500" : "bg-emerald-600/40 text-white/70 cursor-not-allowed"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${demoMode ? "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25" : "bg-emerald-600/40 text-white/70 cursor-not-allowed"}`}
               title={demoMode ? undefined : labels.disabledTitle}
             >
               {demoMode ? (botsBusy ? "..." : labels.demoOpenLong) : labels.openLong}
@@ -1504,7 +1510,7 @@ export default function FuturesTradePanel({
               type="button"
               disabled={!demoMode || botsBusy}
               onClick={() => doDemoOpen("short")}
-              className={`py-3 rounded font-semibold ${demoMode ? "bg-rose-600 text-white hover:bg-rose-500" : "bg-rose-600/40 text-white/70 cursor-not-allowed"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${demoMode ? "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25" : "bg-rose-600/40 text-white/70 cursor-not-allowed"}`}
               title={demoMode ? undefined : labels.disabledTitle}
             >
               {demoMode ? (botsBusy ? "..." : labels.demoOpenShort) : labels.openShort}
@@ -1516,19 +1522,19 @@ export default function FuturesTradePanel({
               type="button"
               onClick={doDemoClose}
               disabled={botsBusy}
-              className={`mt-2 w-full py-2 rounded text-sm ${botsBusy ? "bg-slate-800/60 text-slate-400 cursor-not-allowed" : "bg-slate-800 text-slate-200 hover:bg-slate-700"}`}
+              className={`mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all ${botsBusy ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : "bg-muted text-foreground hover:bg-secondary"}`}
             >
               {botsBusy ? "..." : labels.demoClose}
             </button>
           ) : null}
 
           {demoMode && botsError ? (
-            <div className="mt-2 text-[11px] text-rose-300">
+            <div className="mt-2 text-[11px] text-destructive">
               {botsError}
             </div>
           ) : null}
 
-          <p className="mt-3 text-[11px] text-slate-500">{labels.note}</p>
+          <p className="mt-4 text-[11px] text-muted-foreground">{labels.note}</p>
         </div>
       </>
     );
@@ -1553,9 +1559,9 @@ export default function FuturesTradePanel({
             {renderOrderForm({ demoMode: true })}
           </TabsContent>
 
-          <div className="mt-4 rounded bg-muted border border-border p-3">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{labels.account}</div>
-            <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+          <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.account}</div>
+            <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                   <span>{labels.balance}</span>
@@ -1566,7 +1572,7 @@ export default function FuturesTradePanel({
                     !
                   </span>
                 </div>
-                <div className="font-mono text-white">
+                <div className="font-mono text-foreground mt-1">
                   {(() => {
                     const snap = getAccountSnapshot(activeTab === "bots");
                     return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
@@ -1574,16 +1580,16 @@ export default function FuturesTradePanel({
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
                   <span>{labels.margin}</span>
                   <span
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[10px] text-slate-300"
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground"
                     title={language === "ar" ? "الهامش المستخدم حاليًا للمراكز المفتوحة" : "Margin currently used by open positions"}
                   >
                     !
                   </span>
                 </div>
-                <div className="font-mono text-white">
+                <div className="font-mono text-foreground mt-1">
                   {(() => {
                     const snap = getAccountSnapshot(activeTab === "bots");
                     return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
