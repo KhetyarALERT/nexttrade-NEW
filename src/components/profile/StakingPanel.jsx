@@ -292,7 +292,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
           </div>
           <div className="p-3 bg-muted border border-border rounded-xl">
             <p className="text-[10px] text-muted-foreground">Earned</p>
-            <p className={`text-sm font-bold ${totalEarned >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{fmtMoney(totalEarned)} USDT</p>
+            <p className="text-green-600 text-sm font-bold">{fmtMoney(totalEarned)} USDT</p>
           </div>
         </div>
         
