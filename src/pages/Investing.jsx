@@ -18,9 +18,9 @@ export default function Investing({ language = "en" }) {
   const tierDurations = Array.isArray(stakeTiers?.durations) ? stakeTiers.durations : [];
   const durationMin = tierDurations.length ? Math.min(...tierDurations) : null;
   const durationMax = tierDurations.length ? Math.max(...tierDurations) : null;
-  const pctValues = tierDurations
-    .map((d) => Number(stakeTiers?.percentByDuration?.[d]))
-    .filter((v) => Number.isFinite(v));
+  const pctValues = tierDurations.
+  map((d) => Number(stakeTiers?.percentByDuration?.[d])).
+  filter((v) => Number.isFinite(v));
   const pctMin = pctValues.length ? Math.min(...pctValues) : null;
   const pctMax = pctValues.length ? Math.max(...pctValues) : null;
 
@@ -96,14 +96,14 @@ export default function Investing({ language = "en" }) {
                               </div>
                             </div>
 
-                            <div className="flex-1 text-sm font-semibold text-emerald-300">
+                            <div className="text-emerald-600 text-sm font-semibold flex-1">
                               {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
                             </div>
 
                             <div className="text-sm text-muted-foreground whitespace-nowrap">
-                              {language === "ar"
-                                ? `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}`
-                                : `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
+                              {language === "ar" ?
+                              `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}` :
+                              `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
                             </div>
                           </div>
                         </AccordionTrigger>
@@ -114,27 +114,27 @@ export default function Investing({ language = "en" }) {
                               <thead>
                                 <tr className="text-xs text-slate-400">
                                   <th className="text-left py-2 pr-4">{`${t.amount} (USDT)`}</th>
-                                  {stakeTiers?.durations?.map((d) => (
-                                    <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
+                                  {stakeTiers?.durations?.map((d) =>
+                                  <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
                                       {language === "ar" ? `${d} ${t.days}` : `${d}d`}
                                     </th>
-                                  ))}
+                                  )}
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border">
-                                {stakeTiers?.amounts?.map((amt) => (
-                                  <tr key={amt}>
+                                {stakeTiers?.amounts?.map((amt) =>
+                                <tr key={amt}>
                                     <td className="py-2 pr-4 font-semibold text-foreground">{Number(amt).toLocaleString()}</td>
                                     {stakeTiers?.durations?.map((d) => {
-                                      const pct = stakeTiers?.percentByDuration?.[d];
-                                      return (
-                                        <td key={d} className="py-2 pl-4 text-right font-mono text-muted-foreground">
+                                    const pct = stakeTiers?.percentByDuration?.[d];
+                                    return (
+                                      <td key={d} className="py-2 pl-4 text-right font-mono text-muted-foreground">
                                           {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
-                                        </td>
-                                      );
-                                    })}
+                                        </td>);
+
+                                  })}
                                   </tr>
-                                ))}
+                                )}
                               </tbody>
                             </table>
                           </div>
@@ -158,10 +158,10 @@ export default function Investing({ language = "en" }) {
           </Card>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 Investing.propTypes = {
-  language: PropTypes.oneOf(["en", "ar"]),
+  language: PropTypes.oneOf(["en", "ar"])
 };
