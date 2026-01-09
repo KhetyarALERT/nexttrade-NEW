@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { 
   ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2, 
-  ExternalLink, RefreshCw, Globe, Link2, Send, ShieldCheck
+  ExternalLink, RefreshCw, Globe, Link2, Send, ShieldCheck, Clock, Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -113,7 +113,8 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
   const [sortConfig, setSortConfig] = useState({ key: 'volume24h', direction: 'desc' });
   const [timeframe, setTimeframe] = useState('24h');
   const [mobilePreset, setMobilePreset] = useState('hot');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [desktopFiltersOpen, setDesktopFiltersOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
     minLiquidity: '',
     minMarketCap: '',
@@ -127,6 +128,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
 
   // Best-effort enrichment (may be blocked by some networks)
   const [rugcheckStatus, setRugcheckStatus] = useState({});
+  const [holdersByMint, setHoldersByMint] = useState({});
   
   // Swap state
   const [swapMode, setSwapMode] = useState('buy');
@@ -286,6 +288,33 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
     const key = getVolumeKey(timeframe);
     return toNumber(token?.[key]);
   }, [getVolumeKey, timeframe]);
+
+  const strengthScale = useMemo(() => {
+    const vols = (filteredTokens || []).map((t) => Math.log10(Math.max(1, getTokenVolume(t) || 0)));
+    const liqs = (filteredTokens || []).map((t) => Math.log10(Math.max(1, toNumber(t?.liquidity) || 0)));
+    const minLogVol = vols.length ? Math.min(...vols) : 0;
+    const maxLogVol = vols.length ? Math.max(...vols) : 1;
+    const minLogLiq = liqs.length ? Math.min(...liqs) : 0;
+    const maxLogLiq = liqs.length ? Math.max(...liqs) : 1;
+    return { minLogVol, maxLogVol, minLogLiq, maxLogLiq };
+  }, [filteredTokens, getTokenVolume]);
+
+  const getTrendStrength = useCallback(
+    (token) => {
+      const clamp01 = (v) => Math.max(0, Math.min(1, v));
+      const vol = Math.log10(Math.max(1, getTokenVolume(token) || 0));
+      const liq = Math.log10(Math.max(1, toNumber(token?.liquidity) || 0));
+      const change = toNumber(getTokenChange(token));
+
+      const volN = clamp01((vol - strengthScale.minLogVol) / Math.max(1e-6, strengthScale.maxLogVol - strengthScale.minLogVol));
+      const liqN = clamp01((liq - strengthScale.minLogLiq) / Math.max(1e-6, strengthScale.maxLogLiq - strengthScale.minLogLiq));
+      // Map -20%..+20% into 0..1
+      const changeN = clamp01((change + 20) / 40);
+
+      return 0.6 * volN + 0.25 * changeN + 0.15 * liqN;
+    },
+    [getTokenChange, getTokenVolume, strengthScale]
+  );
 
   const hasSocials = useCallback((token) => {
     const socials = Array.isArray(token?.socials) ? token.socials : [];
@@ -503,15 +532,85 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
     [rugcheckStatus]
   );
 
+  const fetchHoldersCountForMint = useCallback(
+    async (mint) => {
+      if (!mint) return;
+      const existing = holdersByMint[mint];
+      if (existing?.status === 'ok' || existing?.status === 'loading') return;
+
+      setHoldersByMint((prev) => ({ ...prev, [mint]: { status: 'loading' } }));
+
+      const endpoints = [
+        `https://public-api.solscan.io/token/meta?tokenAddress=${mint}`,
+      ];
+
+      const pickNumber = (...vals) => {
+        for (const v of vals) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n;
+        }
+        return null;
+      };
+
+      try {
+        let data = null;
+        for (const url of endpoints) {
+          try {
+            const res = await fetch(url, { headers: { Accept: 'application/json' } });
+            if (!res.ok) continue;
+            data = await res.json();
+            if (data) break;
+          } catch {
+            // try next
+          }
+        }
+
+        if (!data) {
+          setHoldersByMint((prev) => ({ ...prev, [mint]: { status: 'error' } }));
+          return;
+        }
+
+        const holders = pickNumber(
+          data?.holder,
+          data?.holders,
+          data?.data?.holder,
+          data?.data?.holders,
+        );
+
+        setHoldersByMint((prev) => ({
+          ...prev,
+          [mint]: {
+            status: 'ok',
+            holders: Number.isFinite(Number(holders)) ? Number(holders) : null,
+            updatedAt: Date.now(),
+          },
+        }));
+      } catch {
+        setHoldersByMint((prev) => ({ ...prev, [mint]: { status: 'error' } }));
+      }
+    },
+    [holdersByMint]
+  );
+
   useEffect(() => {
     if (!selectedToken?.address) return;
     fetchRugcheckForMint(selectedToken.address);
   }, [selectedToken?.address, fetchRugcheckForMint]);
 
   useEffect(() => {
+    if (!selectedToken?.address) return;
+    fetchHoldersCountForMint(selectedToken.address);
+  }, [selectedToken?.address, fetchHoldersCountForMint]);
+
+  useEffect(() => {
     if (!filters.onlyLpSecured) return;
     (tokens || []).slice(0, 40).forEach((tok) => tok?.address && fetchRugcheckForMint(tok.address));
   }, [filters.onlyLpSecured, tokens, fetchRugcheckForMint]);
+
+  useEffect(() => {
+    // Best-effort: keep the token dashboard informative without over-fetching.
+    (filteredTokens || []).slice(0, 15).forEach((tok) => tok?.address && fetchHoldersCountForMint(tok.address));
+  }, [filteredTokens, fetchHoldersCountForMint]);
 
   const setQuickSolAmount = useCallback((amount) => {
     setInputAmount(String(amount));
@@ -749,10 +848,10 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               ))}
 
               <div className="ml-auto flex items-center gap-2">
-                <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <Collapsible open={desktopFiltersOpen} onOpenChange={setDesktopFiltersOpen}>
                   <CollapsibleTrigger asChild>
                     <Button type="button" size="sm" variant="outline" className="h-8">
-                      Filters
+                      {t.filters}
                       {countActiveFilters() > 0 ? (
                         <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">
                           {countActiveFilters()}
@@ -850,7 +949,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
 
             {/* Mobile Filters */}
             <div className="sm:hidden space-y-2">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="hidden sm:flex gap-2 overflow-x-auto pb-1">
                 <Button
                   type="button"
                   size="sm"
@@ -903,104 +1002,88 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                   </Button>
                 ))}
                 <div className="ml-auto shrink-0 flex items-center gap-2">
-                  <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" size="sm" variant="outline" className="h-8">
-                        Filters
-                        {countActiveFilters() > 0 ? (
-                          <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">
-                            {countActiveFilters()}
-                          </span>
-                        ) : null}
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2">
-                      <Card className="bg-card border-border p-3 space-y-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">{t.minLiquidity}</Label>
-                            <Input
-                              inputMode="numeric"
-                              placeholder="e.g. 10000"
-                              value={filters.minLiquidity}
-                              onChange={(e) => setFilters((p) => ({ ...p, minLiquidity: e.target.value }))}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">{t.minMarketCap}</Label>
-                            <Input
-                              inputMode="numeric"
-                              placeholder="e.g. 50000"
-                              value={filters.minMarketCap}
-                              onChange={(e) => setFilters((p) => ({ ...p, minMarketCap: e.target.value }))}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">{t.minVolume} ({timeframe})</Label>
-                            <Input
-                              inputMode="numeric"
-                              placeholder="e.g. 5000"
-                              value={filters.minVolume}
-                              onChange={(e) => setFilters((p) => ({ ...p, minVolume: e.target.value }))}
-                              className="h-9"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">{t.maxAgeHours}</Label>
-                            <Input
-                              inputMode="numeric"
-                              placeholder="e.g. 24"
-                              value={filters.maxAgeHours}
-                              onChange={(e) => setFilters((p) => ({ ...p, maxAgeHours: e.target.value }))}
-                              className="h-9"
-                            />
-                          </div>
-                        </div>
+                  <Sheet modal={false} open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+                    <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => setMobileFiltersOpen(true)}>
+                      {t.filters}
+                      {countActiveFilters() > 0 ? (
+                        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">
+                          {countActiveFilters()}
+                        </span>
+                      ) : null}
+                    </Button>
+                    <SheetContent side="bottom" className="w-full bg-background border-border p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">{t.filters}</div>
+                        <Button type="button" variant="outline" size="sm" className="h-8" onClick={resetFilters}>
+                          {t.reset}
+                        </Button>
+                      </div>
 
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={filters.onlyGreen}
-                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyGreen: !!checked }))}
-                            />
-                            <div className="text-xs">{t.greenOnly}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={filters.onlyWithImage}
-                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithImage: !!checked }))}
-                            />
-                            <div className="text-xs">{t.hasLogo}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={filters.onlyWithSocials}
-                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithSocials: !!checked }))}
-                            />
-                            <div className="text-xs">{t.hasSocials}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={filters.onlyLpSecured}
-                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyLpSecured: !!checked }))}
-                            />
-                            <div className="text-xs">{t.lpSecured}</div>
-                          </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">{t.minLiquidity}</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="e.g. 10000"
+                            value={filters.minLiquidity}
+                            onChange={(e) => setFilters((p) => ({ ...p, minLiquidity: e.target.value }))}
+                            className="h-10"
+                          />
                         </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">{t.minMarketCap}</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="e.g. 50000"
+                            value={filters.minMarketCap}
+                            onChange={(e) => setFilters((p) => ({ ...p, minMarketCap: e.target.value }))}
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">{t.minVolume} ({timeframe})</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="e.g. 5000"
+                            value={filters.minVolume}
+                            onChange={(e) => setFilters((p) => ({ ...p, minVolume: e.target.value }))}
+                            className="h-10"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">{t.maxAgeHours}</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="e.g. 24"
+                            value={filters.maxAgeHours}
+                            onChange={(e) => setFilters((p) => ({ ...p, maxAgeHours: e.target.value }))}
+                            className="h-10"
+                          />
+                        </div>
+                      </div>
 
-                        <div className="flex items-center justify-between gap-2">
-                          <Button type="button" size="sm" variant="outline" className="h-8" onClick={resetFilters}>
-                            {t.reset}
-                          </Button>
-                          <div className="text-xs text-muted-foreground">
-                            {filteredTokens.length} {t.tokens}
-                          </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={filters.onlyGreen} onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyGreen: !!checked }))} />
+                          <div className="text-sm">{t.greenOnly}</div>
                         </div>
-                      </Card>
-                    </CollapsibleContent>
-                  </Collapsible>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={filters.onlyWithImage} onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithImage: !!checked }))} />
+                          <div className="text-sm">{t.hasLogo}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={filters.onlyWithSocials} onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithSocials: !!checked }))} />
+                          <div className="text-sm">{t.hasSocials}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={filters.onlyLpSecured} onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyLpSecured: !!checked }))} />
+                          <div className="text-sm">{t.lpSecured}</div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 text-xs text-muted-foreground">{filteredTokens.length} {t.tokens}</div>
+                    </SheetContent>
+                  </Sheet>
                 </div>
               </div>
             </div>
@@ -1109,8 +1192,14 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           <div>
                             <div className="font-semibold">{token.symbol}</div>
                             <div className="text-xs text-muted-foreground truncate max-w-[150px]">{token.name}</div>
-                            {hasSocials(token) || rugcheckStatus[token.address]?.lpSecured ? (
+                            {token.pairCreatedAt || hasSocials(token) || rugcheckStatus[token.address]?.lpSecured || holdersByMint[token.address]?.holders ? (
                               <div className="mt-1 flex flex-wrap items-center gap-1">
+                                {token.pairCreatedAt ? (
+                                  <Badge variant="outline" className="h-5 px-2 text-[10px] gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatAgeMs(Date.now() - Number(token.pairCreatedAt))}
+                                  </Badge>
+                                ) : null}
                                 {hasSocials(token) ? (
                                   <Badge variant="outline" className="h-5 px-2 text-[10px] gap-1">
                                     <Link2 className="w-3 h-3" />
@@ -1123,8 +1212,33 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                     {t.lpSecured}
                                   </Badge>
                                 ) : null}
+                                {holdersByMint[token.address]?.holders ? (
+                                  <Badge variant="outline" className="h-5 px-2 text-[10px] gap-1">
+                                    <Users className="w-3 h-3" />
+                                    {Math.round(Number(holdersByMint[token.address]?.holders)).toLocaleString()}
+                                  </Badge>
+                                ) : null}
                               </div>
                             ) : null}
+
+                            <div className="mt-2 h-1.5 w-28 rounded-full bg-muted overflow-hidden">
+                              {(() => {
+                                const strength = getTrendStrength(token);
+                                const w = Math.round(strength * 100);
+                                const up = getTokenChange(token) >= 0;
+                                return (
+                                  <div
+                                    className={
+                                      'h-full ' +
+                                      (up
+                                        ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                                        : 'bg-gradient-to-r from-rose-500 to-orange-500')
+                                    }
+                                    style={{ width: `${w}%` }}
+                                  />
+                                );
+                              })()}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1183,11 +1297,11 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               {loading ? (
                 <Card className="bg-card border-border p-8 text-center">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-                  <p className="text-muted-foreground text-sm">Loading meme coins...</p>
+                  <p className="text-muted-foreground text-sm">{t.loadingMemeCoins}</p>
                 </Card>
               ) : filteredTokens.length === 0 ? (
                 <Card className="bg-card border-border p-8 text-center text-muted-foreground text-sm">
-                  {searchQuery ? 'No tokens match your search' : 'No tokens found'}
+                  {searchQuery ? t.noTokensMatchSearch : t.noTokensFound}
                 </Card>
               ) : (
                 filteredTokens.map((token) => (
@@ -1211,8 +1325,50 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         )}
                         <div>
                           <div className="font-semibold">{token.symbol}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatPrice(token.price)}
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            <span className="font-mono">{formatPrice(token.price)}</span>
+                            {token.pairCreatedAt ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatAgeMs(Date.now() - Number(token.pairCreatedAt))}
+                              </span>
+                            ) : null}
+                            {hasSocials(token) ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Link2 className="w-3 h-3" />
+                                {t.socials}
+                              </span>
+                            ) : null}
+                            {rugcheckStatus[token.address]?.lpSecured ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-500">
+                                <ShieldCheck className="w-3 h-3" />
+                                {t.lpSecured}
+                              </span>
+                            ) : null}
+                            {holdersByMint[token.address]?.holders ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {Math.round(Number(holdersByMint[token.address]?.holders)).toLocaleString()}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="mt-2 h-1.5 w-40 rounded-full bg-muted overflow-hidden">
+                            {(() => {
+                              const strength = getTrendStrength(token);
+                              const w = Math.round(strength * 100);
+                              const up = getTokenChange(token) >= 0;
+                              return (
+                                <div
+                                  className={
+                                    'h-full ' +
+                                    (up
+                                      ? 'bg-gradient-to-r from-emerald-500 to-cyan-500'
+                                      : 'bg-gradient-to-r from-rose-500 to-orange-500')
+                                  }
+                                  style={{ width: `${w}%` }}
+                                />
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1223,7 +1379,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           {formatChange(getTokenChange(token))}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Vol: {formatVolume(getTokenVolume(token))}
+                          {t.volume}: {formatVolume(getTokenVolume(token))}
                         </div>
                       </div>
                     </div>
@@ -1277,7 +1433,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
 
                   {/* Chart-first */}
                   {getDexScreenerEmbedUrl(selectedToken) ? (
-                    <div className="relative w-full h-[320px] overflow-hidden bg-background">
+                    <div className="relative w-full h-[360px] overflow-hidden bg-background">
                       <iframe
                         title={`${selectedToken.symbol} chart`}
                         src={getDexScreenerEmbedUrl(selectedToken)}
@@ -1285,7 +1441,6 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         frameBorder="0"
                         allow="clipboard-write"
                       />
-                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background via-background to-transparent" />
                     </div>
                   ) : null}
 
@@ -1563,7 +1718,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             <div className="flex flex-col h-full">
               {/* Chart-first layout */}
               <div className="relative">
-                <div className="relative h-[42vh] min-h-[260px] max-h-[320px] w-full bg-background overflow-hidden">
+                <div className="relative h-[56vh] min-h-[360px] max-h-[520px] w-full bg-background overflow-hidden">
                   {getDexScreenerEmbedUrl(selectedToken) ? (
                     <iframe
                       title={`${selectedToken.symbol} chart`}
@@ -1577,7 +1732,6 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       {t.chartUnavailable}
                     </div>
                   )}
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background via-background to-transparent" />
                 </div>
 
                 {/* Compact overlay header */}
