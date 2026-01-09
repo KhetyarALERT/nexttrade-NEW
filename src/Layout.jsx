@@ -737,7 +737,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </main>
 
       {/* Footer */}
-      {!isTradingPage && (
+      {!isTradingPage && !isMemeCoinsPage && (
       <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
@@ -823,6 +823,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       )}
       
       {/* Mobile Bottom Navigation */}
+      {!isMemeCoinsPage && (
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-border safe-area-bottom">
         <div className="flex items-center justify-around h-16 px-2">
           <Link
@@ -887,6 +888,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           </Link>
         </div>
       </nav>
+      )}
       
       <NotificationSettings 
         open={notificationSettingsOpen} 

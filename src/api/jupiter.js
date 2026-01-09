@@ -3,7 +3,12 @@ import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
 // Jupiter API v6 configuration
 // Public (no API key) Jupiter endpoints.
 // NOTE: `api.jup.ag/swap/v1` returns 401 without an API key, so we do not use it as a fallback.
-const JUPITER_API_BASES = ['https://quote-api.jup.ag/v6'];
+const ENV_JUPITER_BASE =
+  typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_JUPITER_QUOTE_BASE
+    ? String(import.meta.env.VITE_JUPITER_QUOTE_BASE)
+    : '';
+
+const JUPITER_API_BASES = [ENV_JUPITER_BASE || 'https://quote-api.jup.ag/v6'];
 
 function assertValidMint(label, mint) {
   if (typeof mint !== 'string' || !mint.trim()) {
@@ -31,7 +36,10 @@ async function fetchWithFallback(path, options) {
 
   throw lastError || new Error('Failed to fetch Jupiter API');
 }
-const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+const SOLANA_RPC =
+  typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SOLANA_RPC_URL
+    ? String(import.meta.env.VITE_SOLANA_RPC_URL)
+    : 'https://rpc.ankr.com/solana';
 
 // Common token addresses on Solana
 export const TOKENS = {

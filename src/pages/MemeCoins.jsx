@@ -4,8 +4,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { 
   ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2, 
-  Wallet, ChevronDown, ExternalLink, Copy, LogOut, Check,
-  RefreshCw, Zap
+  ExternalLink, RefreshCw, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -21,16 +20,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 import * as jupiterApi from '@/api/jupiter';
 import { fetchTrendingSolanaTokens } from '@/api/dexscreener';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Constants
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
@@ -76,6 +69,7 @@ export default function MemeCoinsTerminal() {
   const { connection } = useConnection();
   const wallet = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
+  const isMobile = useIsMobile();
   
   // State
   const [tokens, setTokens] = useState([]);
@@ -86,10 +80,6 @@ export default function MemeCoinsTerminal() {
   const [refreshing, setRefreshing] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'volume24h', direction: 'desc' });
   
-  // Wallet dropdown state
-  const [walletDropdownOpen, setWalletDropdownOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  
   // Swap state
   const [swapMode, setSwapMode] = useState('buy');
   const [inputAmount, setInputAmount] = useState('');
@@ -99,6 +89,7 @@ export default function MemeCoinsTerminal() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapping, setSwapping] = useState(false);
   const [currentQuote, setCurrentQuote] = useState(null);
+  const [quoteSource, setQuoteSource] = useState('');
 
   // Mint decimals cache (needed for correct raw amounts in Jupiter)
   const mintDecimalsCacheRef = useRef(new Map());
@@ -134,16 +125,6 @@ export default function MemeCoinsTerminal() {
     const str = address.toString();
     return str.slice(0, 4) + '...' + str.slice(-4);
   }, []);
-
-  // Copy address
-  const copyAddress = useCallback(async () => {
-    if (wallet.publicKey) {
-      await navigator.clipboard.writeText(wallet.publicKey.toString());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast.success('Address copied!');
-    }
-  }, [wallet.publicKey]);
 
   // Fetch tokens from DexScreener
   const fetchTokens = useCallback(async () => {
@@ -261,11 +242,16 @@ export default function MemeCoinsTerminal() {
     return `https://dexscreener.com/solana/${token.pairAddress}?embed=1&theme=${theme}&trades=0&info=0`;
   }, []);
 
+  const setQuickSolAmount = useCallback((amount) => {
+    setInputAmount(String(amount));
+  }, []);
+
   // Get quote when amount changes
   useEffect(() => {
     if (!selectedToken || !inputAmount || parseFloat(inputAmount) <= 0) {
       setOutputAmount('');
       setCurrentQuote(null);
+      setQuoteSource('');
       return;
     }
 
@@ -288,24 +274,52 @@ export default function MemeCoinsTerminal() {
         const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
         const slippageBps = slippage * 100;
 
-        const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
-        
-        if (quote) {
-          const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount, 10), outputDecimals);
-          const displayDecimals = Math.min(Math.max(outputDecimals, 2), 6);
-          setOutputAmount(Number.isFinite(output) ? output.toFixed(displayDecimals) : '');
-          setCurrentQuote(quote);
+        // 1) Try Jupiter (real swap)
+        try {
+          const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
+          if (quote) {
+            const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount, 10), outputDecimals);
+            const displayDecimals = Math.min(Math.max(outputDecimals, 2), 6);
+            setOutputAmount(Number.isFinite(output) ? output.toFixed(displayDecimals) : '');
+            setCurrentQuote(quote);
+            setQuoteSource('jupiter');
+            return;
+          }
+        } catch (e) {
+          // 2) Fallback to an estimate using DexScreener native price
+          // If the pair is SOL-quoted, `priceNative` is SOL-per-token.
+          const priceNative = toNumber(selectedToken.priceNative);
+          if (priceNative > 0 && inputMint === SOL_MINT && outputMint === selectedToken.address) {
+            // buy token with SOL
+            const out = parseFloat(inputAmount) / priceNative;
+            setOutputAmount(Number.isFinite(out) ? out.toFixed(4) : '');
+            setCurrentQuote(null);
+            setQuoteSource('estimate');
+            return;
+          }
+          if (priceNative > 0 && inputMint === selectedToken.address && outputMint === SOL_MINT) {
+            // sell token for SOL
+            const out = parseFloat(inputAmount) * priceNative;
+            setOutputAmount(Number.isFinite(out) ? out.toFixed(4) : '');
+            setCurrentQuote(null);
+            setQuoteSource('estimate');
+            return;
+          }
+
+          setOutputAmount('');
+          setCurrentQuote(null);
+          setQuoteSource('');
+
+          const msg = String(e?.message || 'Failed to fetch quote');
+          if (msg.includes('Failed to fetch') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
+            toast.error('Live quotes are blocked in this network. Estimated pricing may be shown; live swapping requires Jupiter access.');
+          }
         }
       } catch (error) {
         console.error('Quote error:', error);
         setOutputAmount('');
         setCurrentQuote(null);
-
-        // Helpful UX hint for hosted previews where Jupiter DNS is blocked.
-        const msg = String(error?.message || 'Failed to fetch quote');
-        if (msg.includes('Failed to fetch') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
-          toast.error('Quotes blocked by network/DNS in this environment. Try local dev or add a proxy for quote-api.jup.ag.');
-        }
+        setQuoteSource('');
       } finally {
         setQuoteLoading(false);
       }
@@ -322,7 +336,7 @@ export default function MemeCoinsTerminal() {
     }
 
     if (!currentQuote) {
-      toast.error('No quote available');
+      toast.error('Live quote required to swap');
       return;
     }
 
@@ -348,136 +362,69 @@ export default function MemeCoinsTerminal() {
 
   // Format helpers
   const formatPrice = (price) => {
-    if (!price || price === 0) return '$0.00';
-    if (price < 0.000001) return '$' + price.toExponential(2);
-    if (price < 0.01) return '$' + price.toFixed(8);
-    if (price < 1) return '$' + price.toFixed(6);
-    return '$' + price.toFixed(2);
-  };
-
-  const formatVolume = (volume) => {
-    if (!volume || volume === 0) return '$0';
-    if (volume >= 1e9) return '$' + (volume / 1e9).toFixed(2) + 'B';
-    if (volume >= 1e6) return '$' + (volume / 1e6).toFixed(2) + 'M';
-    if (volume >= 1e3) return '$' + (volume / 1e3).toFixed(2) + 'K';
-    return '$' + volume.toFixed(2);
+    const n = toNumber(price);
+    if (!n) return '—';
+    if (n >= 1) return `$${n.toFixed(4)}`;
+    if (n >= 0.01) return `$${n.toFixed(6)}`;
+    return `$${n.toPrecision(4)}`;
   };
 
   const formatChange = (change) => {
-    if (change === undefined || change === null) return '0.00%';
-    return (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+    const n = toNumber(change);
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${n.toFixed(2)}%`;
   };
 
-  // Wallet Button Component
-  const WalletButton = () => {
-    if (wallet.connected && wallet.publicKey) {
-      return (
-        <DropdownMenu open={walletDropdownOpen} onOpenChange={setWalletDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="gap-2 bg-card border-border hover:bg-accent min-w-[140px]"
-            >
-              {wallet.wallet?.adapter?.icon ? (
-                <img 
-                  src={wallet.wallet.adapter.icon} 
-                  alt={wallet.wallet.adapter.name}
-                  className="w-5 h-5 rounded-full"
-                />
-              ) : (
-                <Wallet className="w-4 h-4" />
-              )}
-              <span className="font-mono text-sm">{formatAddress(wallet.publicKey)}</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-3 py-2 border-b border-border">
-              <p className="text-xs text-muted-foreground mb-1">Connected with {wallet.wallet?.adapter?.name}</p>
-              <p className="font-mono text-sm">{formatAddress(wallet.publicKey)}</p>
-            </div>
-            <DropdownMenuItem onClick={copyAddress} className="gap-2 cursor-pointer">
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Address'}
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => window.open('https://solscan.io/account/' + wallet.publicKey, '_blank')}
-              className="gap-2 cursor-pointer"
-            >
-              <ExternalLink className="w-4 h-4" />
-              View on Explorer
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => wallet.disconnect()}
-              className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-            >
-              <LogOut className="w-4 h-4" />
-              Disconnect
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    return (
-      <Button 
-        onClick={() => setWalletModalVisible(true)}
-        className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-4 hover:from-blue-700 hover:to-cyan-700 gap-2"
-      >
-        <Wallet className="w-4 h-4" />
-        Connect Wallet
-      </Button>
-    );
+  const formatVolume = (value) => {
+    const n = toNumber(value);
+    if (!n) return '—';
+    return new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: 2,
+    }).format(n);
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold">Meme Coin Terminal</h1>
-              <Badge className="bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20 hover:bg-violet-500/20">
-                Solana
-              </Badge>
-            </div>
-            
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="h-9 w-9"
-              >
-                <RefreshCw className={'w-4 h-4 ' + (refreshing ? 'animate-spin' : '')} />
-              </Button>
-              <WalletButton />
-            </div>
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold truncate">Meme Coin Terminal</h1>
+            <Badge className="bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20 hover:bg-violet-500/20">
+              Solana
+            </Badge>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="h-9 w-9"
+              aria-label="Refresh"
+            >
+              <RefreshCw className={'w-4 h-4 ' + (refreshing ? 'animate-spin' : '')} />
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-6">
-        {/* Search */}
-        <div className="mb-4 sm:mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search meme coins..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border"
-            />
-          </div>
-        </div>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search meme coins..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-card border-border"
+              />
+            </div>
 
-        {/* Token Table - Desktop */}
-        <Card className="hidden sm:block bg-card border-border overflow-hidden">
-          <div className="overflow-x-auto">
+            {/* Token Table - Desktop */}
+            <Card className="hidden sm:block bg-card border-border overflow-hidden">
+              <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
@@ -629,71 +576,236 @@ export default function MemeCoinsTerminal() {
                 )}
               </tbody>
             </table>
-          </div>
-        </Card>
+              </div>
+            </Card>
 
-        {/* Token List - Mobile */}
-        <div className="sm:hidden space-y-2">
-          {loading ? (
-            <Card className="bg-card border-border p-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-              <p className="text-muted-foreground text-sm">Loading meme coins...</p>
-            </Card>
-          ) : filteredTokens.length === 0 ? (
-            <Card className="bg-card border-border p-8 text-center text-muted-foreground text-sm">
-              {searchQuery ? 'No tokens match your search' : 'No tokens found'}
-            </Card>
-          ) : (
-            filteredTokens.map((token) => (
-              <Card
-                key={token.pairAddress || token.address}
-                className="bg-card border-border p-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => selectToken(token)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {token.imageUrl ? (
-                      <img
-                        src={token.imageUrl}
-                        alt={token.symbol}
-                        className="w-10 h-10 rounded-full bg-muted"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
-                        {token.symbol?.charAt(0) || '?'}
+            {/* Token List - Mobile */}
+            <div className="sm:hidden space-y-2">
+              {loading ? (
+                <Card className="bg-card border-border p-8 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                  <p className="text-muted-foreground text-sm">Loading meme coins...</p>
+                </Card>
+              ) : filteredTokens.length === 0 ? (
+                <Card className="bg-card border-border p-8 text-center text-muted-foreground text-sm">
+                  {searchQuery ? 'No tokens match your search' : 'No tokens found'}
+                </Card>
+              ) : (
+                filteredTokens.map((token) => (
+                  <Card
+                    key={token.pairAddress || token.address}
+                    className="bg-card border-border p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => selectToken(token)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {token.imageUrl ? (
+                          <img
+                            src={token.imageUrl}
+                            alt={token.symbol}
+                            className="w-10 h-10 rounded-full bg-muted"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
+                            {token.symbol?.charAt(0) || '?'}
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-semibold">{token.symbol}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatPrice(token.price)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <div>
-                      <div className="font-semibold">{token.symbol}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatPrice(token.price)}
+                      <div className="text-right">
+                        <div
+                          className={'text-sm font-medium ' + (token.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500')}
+                        >
+                          {formatChange(token.change24h)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Vol: {formatVolume(token.volume24h)}
+                        </div>
                       </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Side Panel */}
+          <div className="hidden lg:block">
+            <div className="sticky top-24">
+              {selectedToken ? (
+                <Card className="bg-card border-border overflow-hidden">
+                  <div className="p-4 border-b border-border bg-muted/30 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-lg font-bold leading-tight truncate">{selectedToken.symbol}</div>
+                      <div className="text-sm text-muted-foreground truncate">{selectedToken.name}</div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setSelectedToken(null)}>Close</Button>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground">Price</div>
+                        <div className="text-base font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground">24h</div>
+                        <div className={(selectedToken.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-base font-bold'}>
+                          {formatChange(selectedToken.change24h)}
+                        </div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground">Vol</div>
+                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.volume24h)}</div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground">MC</div>
+                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                      </Card>
+                    </div>
+
+                    {getDexScreenerEmbedUrl(selectedToken) ? (
+                      <div className="w-full h-[300px] rounded-lg overflow-hidden bg-background">
+                        <iframe
+                          title={`${selectedToken.symbol} chart`}
+                          src={getDexScreenerEmbedUrl(selectedToken)}
+                          className="w-full h-full"
+                          frameBorder="0"
+                          allow="clipboard-write"
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Trade</div>
+                        {quoteSource === 'estimate' ? (
+                          <Badge variant="outline" className="text-xs">Estimated</Badge>
+                        ) : quoteSource === 'jupiter' ? (
+                          <Badge className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Live</Badge>
+                        ) : null}
+                      </div>
+
+                      {!wallet.connected ? (
+                        <div className="text-xs text-muted-foreground">
+                          Connect your Solana wallet from the navbar to enable swapping.
+                        </div>
+                      ) : null}
+
+                      <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 bg-muted">
+                          <TabsTrigger value="buy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Buy</TabsTrigger>
+                          <TabsTrigger value="sell" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white">Sell</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value={swapMode} className="mt-3">
+                          <div className="space-y-3">
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-xs">{swapMode === 'buy' ? 'Pay (SOL)' : `Pay (${selectedToken.symbol})`}</Label>
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                value={inputAmount}
+                                onChange={(e) => setInputAmount(e.target.value)}
+                                className="bg-background border-border h-11"
+                              />
+                              {swapMode === 'buy' ? (
+                                <div className="flex gap-2">
+                                  {[0.1, 0.25, 0.5, 1].map((v) => (
+                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8" onClick={() => setQuickSolAmount(v)}>
+                                      {v} SOL
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-xs">{swapMode === 'buy' ? `Receive (${selectedToken.symbol})` : 'Receive (SOL)'}</Label>
+                              <Input
+                                type="text"
+                                placeholder="0.00"
+                                value={quoteLoading ? '...' : outputAmount}
+                                readOnly
+                                className="bg-muted border-border h-11"
+                              />
+                              {quoteLoading ? (
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Getting quote...
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-xs">Slippage</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {SLIPPAGE_OPTIONS.map((option) => (
+                                  <Button
+                                    key={option}
+                                    size="sm"
+                                    variant={slippage === option ? 'default' : 'outline'}
+                                    onClick={() => {
+                                      setSlippage(option);
+                                      setCustomSlippage('');
+                                    }}
+                                    className={'h-8 ' + (slippage === option ? 'bg-primary' : '')}
+                                  >
+                                    {option}%
+                                  </Button>
+                                ))}
+                                <Input
+                                  type="number"
+                                  placeholder="Cust"
+                                  value={customSlippage}
+                                  onChange={(e) => {
+                                    setCustomSlippage(e.target.value);
+                                    const val = parseFloat(e.target.value);
+                                    if (val > 0 && val <= 50) setSlippage(val);
+                                  }}
+                                  className="w-20 h-8 bg-background border-border text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <Button
+                              size="lg"
+                              className={'w-full text-base h-11 ' + (swapMode === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700') + ' text-white'}
+                              onClick={handleSwap}
+                              disabled={!wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote}
+                            >
+                              {swapping ? (
+                                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Swapping...</>
+                              ) : quoteSource === 'estimate' ? (
+                                'Live quote required'
+                              ) : (
+                                <><Zap className="w-4 h-4 mr-2" />{swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}</>
+                              )}
+                            </Button>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div
-                      className={'text-sm font-medium ' + 
-                        (token.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500')
-                      }
-                    >
-                      {formatChange(token.change24h)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Vol: {formatVolume(token.volume24h)}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))
-          )}
+                </Card>
+              ) : (
+                <Card className="bg-card border-border p-4 text-sm text-muted-foreground">
+                  Select a token to open the terminal.
+                </Card>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Token Detail Sheet */}
-      <Sheet open={!!selectedToken} onOpenChange={(open) => !open && setSelectedToken(null)}>
+      {/* Token Detail Sheet (Mobile only) */}
+      <Sheet open={!!selectedToken && isMobile} onOpenChange={(open) => !open && setSelectedToken(null)}>
         <SheetContent 
           side="right" 
-          className="w-full sm:max-w-[920px] bg-background border-border overflow-y-auto p-0"
+          className="w-full bg-background border-border overflow-y-auto p-0"
         >
           {selectedToken && (
             <div className="flex flex-col h-full">
@@ -749,9 +861,8 @@ export default function MemeCoinsTerminal() {
                 </SheetTitle>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <Card className="bg-muted/30 border-border p-3">
                         <div className="text-xs text-muted-foreground mb-1">Price</div>
@@ -810,72 +921,69 @@ export default function MemeCoinsTerminal() {
                         </div>
                       )}
                     </Card>
-                  </div>
 
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    {!wallet.connected && (
-                      <Button
-                        onClick={() => setWalletModalVisible(true)}
-                        className="w-full glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl hover:from-blue-700 hover:to-cyan-700"
-                      >
-                        <Wallet className="w-4 h-4 mr-2" />
-                        Connect Solana Wallet
-                      </Button>
-                    )}
+                    <Card className="bg-muted/30 border-border p-3 sm:p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-sm font-medium">Trade</div>
+                        {quoteSource === 'estimate' ? (
+                          <Badge variant="outline" className="text-xs">Estimated</Badge>
+                        ) : quoteSource === 'jupiter' ? (
+                          <Badge className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Live</Badge>
+                        ) : null}
+                      </div>
 
-                    <div className={wallet.connected ? '' : 'mt-3'}>
+                      {!wallet.connected ? (
+                        <div className="text-xs text-muted-foreground mb-3">
+                          Connect your Solana wallet from the navbar to trade.
+                        </div>
+                      ) : null}
+
                       <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted">
-                          <TabsTrigger value="buy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
-                            Buy
-                          </TabsTrigger>
-                          <TabsTrigger value="sell" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white">
-                            Sell
-                          </TabsTrigger>
+                          <TabsTrigger value="buy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">Buy</TabsTrigger>
+                          <TabsTrigger value="sell" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white">Sell</TabsTrigger>
                         </TabsList>
-
                         <TabsContent value={swapMode} className="mt-0">
                           <div className="space-y-4">
                             <div className="space-y-2">
                               <Label className="text-muted-foreground text-sm">
                                 {swapMode === 'buy' ? 'Pay (SOL)' : `Pay (${selectedToken.symbol})`}
                               </Label>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={inputAmount}
-                                  onChange={(e) => setInputAmount(e.target.value)}
-                                  className="bg-background border-border text-lg h-12 pr-16"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                  {swapMode === 'buy' ? 'SOL' : selectedToken.symbol}
-                                </span>
-                              </div>
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                value={inputAmount}
+                                onChange={(e) => setInputAmount(e.target.value)}
+                                className="bg-background border-border text-lg h-12"
+                              />
+                              {swapMode === 'buy' ? (
+                                <div className="flex gap-2">
+                                  {[0.1, 0.25, 0.5, 1].map((v) => (
+                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8" onClick={() => setQuickSolAmount(v)}>
+                                      {v} SOL
+                                    </Button>
+                                  ))}
+                                </div>
+                              ) : null}
                             </div>
 
                             <div className="space-y-2">
                               <Label className="text-muted-foreground text-sm">
                                 {swapMode === 'buy' ? `Receive (${selectedToken.symbol})` : 'Receive (SOL)'}
                               </Label>
-                              <div className="relative">
-                                <Input
-                                  type="text"
-                                  placeholder="0.00"
-                                  value={quoteLoading ? '...' : outputAmount}
-                                  readOnly
-                                  className="bg-muted border-border text-lg h-12 pr-16"
-                                />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                  {swapMode === 'buy' ? selectedToken.symbol : 'SOL'}
-                                </span>
-                              </div>
-                              {quoteLoading && (
+                              <Input
+                                type="text"
+                                placeholder="0.00"
+                                value={quoteLoading ? '...' : outputAmount}
+                                readOnly
+                                className="bg-muted border-border text-lg h-12"
+                              />
+                              {quoteLoading ? (
                                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                                   <Loader2 className="w-3 h-3 animate-spin" />
                                   Getting quote...
                                 </div>
-                              )}
+                              ) : null}
                             </div>
 
                             <div className="space-y-2">
@@ -912,43 +1020,24 @@ export default function MemeCoinsTerminal() {
                             <Button
                               size="lg"
                               className={'w-full text-base h-12 ' +
-                                (swapMode === 'buy'
-                                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-rose-600 hover:bg-rose-700') +
+                                (swapMode === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700') +
                                 ' text-white'
                               }
                               onClick={handleSwap}
                               disabled={!wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote}
                             >
                               {swapping ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                  Swapping...
-                                </>
-                              ) : !wallet.connected ? (
-                                'Connect wallet'
-                              ) : !inputAmount ? (
-                                'Enter amount'
-                              ) : quoteLoading ? (
-                                'Getting quote...'
+                                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Swapping...</>
+                              ) : quoteSource === 'estimate' ? (
+                                'Live quote required'
                               ) : (
-                                <>
-                                  <Zap className="w-4 h-4 mr-2" />
-                                  {swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}
-                                </>
+                                <><Zap className="w-4 h-4 mr-2" />{swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}</>
                               )}
                             </Button>
-
-                            {currentQuote && currentQuote.priceImpactPct > 1 && (
-                              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 dark:text-amber-400">
-                                Price impact: {parseFloat(currentQuote.priceImpactPct).toFixed(2)}%
-                              </div>
-                            )}
                           </div>
                         </TabsContent>
                       </Tabs>
-                    </div>
-                  </Card>
+                    </Card>
                 </div>
               </div>
             </div>
