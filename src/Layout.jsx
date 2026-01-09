@@ -304,7 +304,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="nav-link text-sm font-medium transition-colors text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                          className="nav-link text-sm font-medium transition-all transform text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                         >
                           {item.name[language]}
                           <ChevronDown className="w-4 h-4 opacity-80" />
@@ -336,7 +336,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                   <Link
                     key={item.url}
                     to={item.url}
-                    className={`nav-link text-sm font-medium transition-colors ${
+                    className={`nav-link text-sm font-medium transition-all transform ${
                       isActive
                         ? 'text-blue-600 active'
                         : 'text-muted-foreground hover:text-foreground'
@@ -684,7 +684,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               <ul className="space-y-2 text-sm text-gray-400">
                 {footerQuickLinks.map((item) => (
                   <li key={item.url}>
-                    <Link to={item.url} className="hover:text-white transition-colors">
+                    <Link to={item.url} className="hover:text-white transition-all transform">
                       {item.name[language]}
                     </Link>
                   </li>
@@ -725,7 +725,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             </p>
             <p className="mt-2 text-xs">
               <a
-                className="hover:text-white transition-colors"
+                className="hover:text-white transition-all transform"
                 href="https://www.tradingview.com/"
                 target="_blank"
                 rel="noreferrer"
@@ -750,9 +750,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         <div className="flex items-center justify-around h-16 px-2">
           <Link
             to={createPageUrl("Dashboard")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
               location.pathname === createPageUrl("Dashboard")
-                ? 'text-primary bg-primary/10'
+                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -762,9 +762,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           
           <Link
             to={createPageUrl("Futures")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
               location.pathname === createPageUrl("Futures")
-                ? 'text-primary bg-primary/10'
+                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -774,9 +774,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           
           <Link
             to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
               location.pathname.includes("Profile") && location.search.includes("assets")
-                ? 'text-primary bg-primary/10'
+                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -786,9 +786,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           
           <Link
             to={createPageUrl("Investing")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
               location.pathname === createPageUrl("Investing")
-                ? 'text-primary bg-primary/10'
+                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -799,9 +799,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           <Link
             to={isAuthenticated ? createPageUrl("Profile") : '#'}
             onClick={isAuthenticated ? undefined : (e) => { e.preventDefault(); navigateToLogin(); }}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-colors ${
+            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
               location.pathname.includes("Profile") && !location.search.includes("assets")
-                ? 'text-primary bg-primary/10'
+                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
