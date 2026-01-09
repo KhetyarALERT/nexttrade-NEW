@@ -352,73 +352,14 @@ export default function MemeCoins() {
     };
   }, [selectedToken, timeframe]);
 
-  // Load Jupiter Terminal
-  useEffect(() => {
-    // Only load Jupiter if wallet is connected
-    if (!isConnected || walletType !== 'solana') return;
+  // Jupiter Terminal URL builder
+  // Using Jupiter's widget URL instead of embedded SDK to avoid React conflicts
+  const getJupiterSwapUrl = () => {
+    if (!selectedToken?.address) return null;
     
-    const loadJupiter = async () => {
-      // Check if Jupiter is already loaded
-      if (window.Jupiter) {
-        initJupiter();
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://terminal.jup.ag/main-v3.js';
-      script.async = true;
-      script.onload = () => {
-        // Wait a bit for Jupiter to initialize
-        setTimeout(initJupiter, 500);
-      };
-      script.onerror = () => {
-        console.error('[Jupiter] Failed to load Jupiter Terminal script');
-      };
-      document.head.appendChild(script);
-    };
-
-    const initJupiter = () => {
-      const container = document.getElementById('jupiter-terminal');
-      if (!container) return;
-
-      try {
-        // @ts-ignore - Jupiter is loaded dynamically from external script
-        if (window.Jupiter && selectedToken?.address) {
-          // @ts-ignore
-          window.Jupiter.init({
-            displayMode: 'integrated',
-            integratedTargetId: 'jupiter-terminal',
-            endpoint: 'https://api.mainnet-beta.solana.com',
-            strictTokenList: false,
-            defaultExplorer: 'Solscan',
-            formProps: {
-              initialOutputMint: selectedToken.address,
-              fixedOutputMint: false,
-              initialInputMint: 'So11111111111111111111111111111111111111112',
-            },
-            platformFeeAndAccounts: {
-              feeBps: PLATFORM_FEE_BPS,
-              feeAccounts: new Map([
-                ['So11111111111111111111111111111111111111112', FEE_WALLET]
-              ])
-            }
-          });
-        }
-      } catch (error) {
-        console.error('[Jupiter] Failed to initialize:', error);
-      }
-    };
-
-    loadJupiter();
-
-    return () => {
-      // Cleanup: Jupiter doesn't have a destroy method, but we should clean up
-      const container = document.getElementById('jupiter-terminal');
-      if (container) {
-        container.innerHTML = '';
-      }
-    };
-  }, [selectedToken, isConnected, walletType]);
+    // Build Jupiter swap URL with the token
+    return `https://jup.ag/swap/SOL-${selectedToken.address}`;
+  };
 
   // Filter tokens based on search
   const filteredTokens = tokens.filter(token =>
@@ -836,13 +777,100 @@ export default function MemeCoins() {
                   </CardHeader>
                   <CardContent>
                     {isConnected && walletType === 'solana' ? (
-                      <>
-                        <div id="jupiter-terminal" className="min-h-[400px]" />
-                        <div className="mt-3 p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
-                          <Shield className="w-3 h-3 inline mr-1" />
-                          Powered by Jupiter • 1% platform fee applied to all swaps
+                      <div className="space-y-4">
+                        {/* Quick swap buttons */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <Button 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => {
+                              const url = getJupiterSwapUrl();
+                              if (url) window.open(url, '_blank');
+                            }}
+                          >
+                            <TrendingUp className="w-4 h-4 mr-2" />
+                            Buy {selectedToken?.symbol}
+                          </Button>
+                          <Button 
+                            variant="destructive"
+                            onClick={() => {
+                              if (selectedToken?.address) {
+                                window.open(`https://jup.ag/swap/${selectedToken.address}-SOL`, '_blank');
+                              }
+                            }}
+                          >
+                            <TrendingDown className="w-4 h-4 mr-2" />
+                            Sell {selectedToken?.symbol}
+                          </Button>
                         </div>
-                      </>
+
+                        {/* Token info */}
+                        <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Token Address:</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs">
+                                {selectedToken?.address?.slice(0, 8)}...{selectedToken?.address?.slice(-6)}
+                              </span>
+                              <button 
+                                onClick={() => copyAddress(selectedToken?.address)}
+                                className="hover:text-primary"
+                              >
+                                {copiedAddress === selectedToken?.address ? (
+                                  <Check className="w-3.5 h-3.5 text-green-400" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Current Price:</span>
+                            <span className="font-mono">{formatPrice(selectedToken?.price)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">24h Change:</span>
+                            <span className={selectedToken?.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {selectedToken?.priceChange24h >= 0 ? '+' : ''}{selectedToken?.priceChange24h?.toFixed(2)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* External links */}
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(`https://dexscreener.com/solana/${selectedToken?.pairAddress || selectedToken?.address}`, '_blank')}
+                          >
+                            <BarChart3 className="w-4 h-4 mr-1" />
+                            DexScreener
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(`https://birdeye.so/token/${selectedToken?.address}?chain=solana`, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Birdeye
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(`https://solscan.io/token/${selectedToken?.address}`, '_blank')}
+                          >
+                            <Search className="w-4 h-4 mr-1" />
+                            Solscan
+                          </Button>
+                        </div>
+
+                        <div className="p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
+                          <Shield className="w-3 h-3 inline mr-1" />
+                          Swaps powered by Jupiter • 1% platform fee applied
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-center py-10">
                         <Rocket className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />

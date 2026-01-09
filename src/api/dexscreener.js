@@ -6,21 +6,23 @@
  * All endpoints are public and do not require authentication.
  * Rate limits vary by endpoint (60-300 requests per minute).
  * 
- * API Endpoints (as of 2024):
- * - GET /token-profiles/latest/v1 - Latest token profiles (60 req/min)
- * - GET /token-boosts/latest/v1 - Latest boosted tokens (60 req/min)  
- * - GET /token-boosts/top/v1 - Top boosted tokens (60 req/min)
- * - GET /tokens/v1/:chainId/:tokenAddresses - Get tokens by addresses (300 req/min)
- * - GET /token-pairs/v1/:chainId/:tokenAddress - Get pairs by token (300 req/min)
- * - GET /latest/dex/search?q=:q - Search pairs (300 req/min)
- * - GET /latest/dex/pairs/:chainId/:pairId - Get pair by address (300 req/min)
+ * Working API Endpoints:
+ * - GET /token-profiles/latest/v1 - Latest token profiles with social info
+ * - GET /token-boosts/latest/v1 - Latest boosted tokens  
+ * - GET /token-boosts/top/v1 - Top boosted tokens by total boost amount
+ * - GET /latest/dex/search?q=:q - Search pairs by token name/symbol
+ * - GET /latest/dex/pairs/:chainId/:pairId - Get pair by address
+ * - GET /orders/v1/:chainId/:tokenAddress - Get orders for a token
  */
 
 const DEXSCREENER_API = 'https://api.dexscreener.com';
 
+// Known meme coin symbols to search for
+const MEME_SEARCH_TERMS = ['BONK', 'WIF', 'POPCAT', 'MEW', 'BOME', 'MYRO', 'SLERF', 'PENG', 'BOOK', 'MICHI'];
+
 // Simple in-memory cache
 const cache = new Map();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 60000; // 60 seconds
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -55,6 +57,14 @@ export function formatPrice(price) {
   if (price < 0.01) return price.toFixed(6);
   if (price < 1) return price.toFixed(4);
   return price.toFixed(2);
+}
+
+/**
+ * Check if token is a stablecoin or wrapped token (to filter out)
+ */
+function isStablecoinOrWrapped(symbol) {
+  const excluded = ['USDC', 'USDT', 'DAI', 'BUSD', 'SOL', 'WSOL', 'WETH', 'ETH', 'BTC', 'WBTC', 'MSOL', 'JSOL', 'BSOL', 'STSOL'];
+  return excluded.includes(symbol?.toUpperCase());
 }
 
 /**
@@ -107,148 +117,11 @@ function transformPairToToken(pair) {
 }
 
 /**
- * Get trending Solana tokens using search endpoint
- * This is more reliable than token-specific endpoints
- * API: GET /latest/dex/search?q=SOL
+ * Search for a specific token by symbol
  */
-export async function fetchTrendingSolanaTokens(limit = 50) {
-  const cacheKey = `trending_${limit}`;
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
+async function searchBySymbol(symbol) {
   try {
-    // Use search endpoint with common Solana DEX names to get active pairs
-    // This is more reliable than deprecated token endpoints
-    const response = await fetch(`${DEXSCREENER_API}/latest/dex/search?q=solana`, {
-      headers: { 
-        'Accept': 'application/json',
-        'User-Agent': 'NextTrade/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`[DexScreener] API error: ${response.status} ${response.statusText}`);
-      throw new Error(`DexScreener API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('[DexScreener] Search response:', { pairsCount: data?.pairs?.length || 0 });
-    
-    // Filter and format Solana pairs with good liquidity
-    const tokens = (data.pairs || [])
-      .filter(pair => 
-        pair.chainId === 'solana' &&
-        (pair.liquidity?.usd || 0) > 1000 // Lower threshold
-      )
-      .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0)) // Sort by 24h volume
-      .slice(0, limit)
-      .map(transformPairToToken);
-
-    if (tokens.length > 0) {
-      setCache(cacheKey, tokens);
-    }
-    
-    console.log('[DexScreener] Filtered tokens:', tokens.length);
-    return tokens;
-
-  } catch (error) {
-    console.error('[DexScreener] Failed to fetch trending tokens:', error);
-    // Try fallback method
-    return fetchTrendingFallback(limit);
-  }
-}
-
-/**
- * Fallback method: Get tokens from boosted/promoted list
- * API: GET /token-boosts/top/v1
- */
-async function fetchTrendingFallback(limit = 50) {
-  try {
-    console.log('[DexScreener] Trying fallback: boosted tokens');
-    
-    const response = await fetch(`${DEXSCREENER_API}/token-boosts/top/v1`, {
-      headers: { 
-        'Accept': 'application/json',
-        'User-Agent': 'NextTrade/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`DexScreener API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('[DexScreener] Boosted tokens response:', { count: data?.length || 0 });
-    
-    // Filter for Solana and get pair details
-    const solanaTokens = (data || [])
-      .filter(t => t.chainId === 'solana')
-      .slice(0, limit);
-
-    if (solanaTokens.length === 0) {
-      console.log('[DexScreener] No Solana tokens in boosted list, trying profiles');
-      return fetchFromProfiles(limit);
-    }
-
-    // Get full pair data for each token
-    const tokensWithData = await Promise.all(
-      solanaTokens.slice(0, 20).map(async (token) => {
-        try {
-          const pairData = await fetchTokenPairs(token.tokenAddress);
-          if (pairData && pairData.length > 0) {
-            return transformPairToToken(pairData[0]);
-          }
-          return null;
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    return tokensWithData.filter(Boolean);
-
-  } catch (error) {
-    console.error('[DexScreener] Fallback failed:', error);
-    return fetchFromProfiles(limit);
-  }
-}
-
-/**
- * Get token pairs by token address
- * API: GET /token-pairs/v1/:chainId/:tokenAddress
- */
-async function fetchTokenPairs(tokenAddress) {
-  try {
-    const response = await fetch(
-      `${DEXSCREENER_API}/token-pairs/v1/solana/${tokenAddress}`,
-      { 
-        headers: { 
-          'Accept': 'application/json',
-          'User-Agent': 'NextTrade/1.0'
-        }
-      }
-    );
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data.pairs || data || [];
-
-  } catch (error) {
-    console.error('[DexScreener] Failed to fetch token pairs:', error);
-    return null;
-  }
-}
-
-/**
- * Fallback: Get tokens from latest profiles
- * API: GET /token-profiles/latest/v1
- */
-async function fetchFromProfiles(limit = 50) {
-  try {
-    console.log('[DexScreener] Trying profiles fallback');
-    
-    const response = await fetch(`${DEXSCREENER_API}/token-profiles/latest/v1`, {
+    const response = await fetch(`${DEXSCREENER_API}/latest/dex/search?q=${encodeURIComponent(symbol)}`, {
       headers: { 
         'Accept': 'application/json',
         'User-Agent': 'NextTrade/1.0'
@@ -258,46 +131,171 @@ async function fetchFromProfiles(limit = 50) {
     if (!response.ok) return [];
 
     const data = await response.json();
-    console.log('[DexScreener] Profiles response:', { count: data?.length || 0 });
     
-    // Filter for Solana tokens
-    const solanaProfiles = (data || [])
-      .filter(t => t.chainId === 'solana')
-      .slice(0, limit);
-
-    if (solanaProfiles.length === 0) return [];
-
-    // Get pair data for each profile
-    const tokensWithData = await Promise.all(
-      solanaProfiles.slice(0, 20).map(async (profile) => {
-        try {
-          const pairData = await fetchTokenPairs(profile.tokenAddress);
-          if (pairData && pairData.length > 0) {
-            const token = transformPairToToken(pairData[0]);
-            token.imageUrl = profile.icon || token.imageUrl;
-            token.description = profile.description;
-            return token;
-          }
-          return {
-            id: profile.tokenAddress,
-            mint: profile.tokenAddress,
-            symbol: profile.header?.split(' ')[0] || 'UNKNOWN',
-            name: profile.header || 'Unknown',
-            description: profile.description || '',
-            imageUrl: profile.icon,
-            price: 0,
-            source: 'dexscreener'
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    return tokensWithData.filter(Boolean);
+    // Filter for Solana pairs only, exclude stablecoins, require liquidity
+    return (data.pairs || [])
+      .filter(pair => 
+        pair.chainId === 'solana' &&
+        !isStablecoinOrWrapped(pair.baseToken?.symbol) &&
+        (pair.liquidity?.usd || 0) > 5000
+      )
+      .slice(0, 5); // Take top 5 for each search term
 
   } catch (error) {
-    console.error('[DexScreener] Profiles fallback failed:', error);
+    console.error(`[DexScreener] Search failed for ${symbol}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Get trending Solana meme coins
+ * Searches for popular meme coin symbols and aggregates results
+ */
+export async function fetchTrendingSolanaTokens(limit = 50) {
+  const cacheKey = `trending_${limit}`;
+  const cached = getCached(cacheKey);
+  if (cached && cached.length > 0) {
+    console.log('[DexScreener] Returning cached tokens:', cached.length);
+    return cached;
+  }
+
+  try {
+    console.log('[DexScreener] Fetching trending tokens...');
+    
+    // Method 1: Search for known meme coins
+    const searchPromises = MEME_SEARCH_TERMS.map(term => searchBySymbol(term));
+    const searchResults = await Promise.all(searchPromises);
+    
+    // Flatten and deduplicate by pair address
+    const seenPairs = new Set();
+    let allPairs = [];
+    
+    for (const results of searchResults) {
+      for (const pair of results) {
+        if (!seenPairs.has(pair.pairAddress)) {
+          seenPairs.add(pair.pairAddress);
+          allPairs.push(pair);
+        }
+      }
+    }
+
+    console.log('[DexScreener] Meme coin search results:', allPairs.length);
+
+    // Method 2: Also get boosted tokens as additional source
+    try {
+      const boostedResponse = await fetch(`${DEXSCREENER_API}/token-boosts/top/v1`, {
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      });
+
+      if (boostedResponse.ok) {
+        const boostedData = await boostedResponse.json();
+        const solanaBoosted = (boostedData || [])
+          .filter(t => t.chainId === 'solana')
+          .slice(0, 20);
+
+        console.log('[DexScreener] Boosted Solana tokens:', solanaBoosted.length);
+
+        // Get pair data for boosted tokens
+        for (const token of solanaBoosted) {
+          try {
+            const pairResponse = await fetch(
+              `${DEXSCREENER_API}/latest/dex/search?q=${token.tokenAddress}`,
+              { headers: { 'Accept': 'application/json', 'User-Agent': 'NextTrade/1.0' } }
+            );
+            
+            if (pairResponse.ok) {
+              const pairData = await pairResponse.json();
+              const solanaPairs = (pairData.pairs || []).filter(p => 
+                p.chainId === 'solana' && 
+                !isStablecoinOrWrapped(p.baseToken?.symbol) &&
+                !seenPairs.has(p.pairAddress)
+              );
+              
+              for (const pair of solanaPairs.slice(0, 2)) {
+                seenPairs.add(pair.pairAddress);
+                allPairs.push(pair);
+              }
+            }
+          } catch {
+            // Skip failed individual fetches
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[DexScreener] Boosted fetch failed, continuing with search results');
+    }
+
+    // Method 3: Get latest token profiles
+    try {
+      const profilesResponse = await fetch(`${DEXSCREENER_API}/token-profiles/latest/v1`, {
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      });
+
+      if (profilesResponse.ok) {
+        const profilesData = await profilesResponse.json();
+        const solanaProfiles = (profilesData || [])
+          .filter(t => t.chainId === 'solana')
+          .slice(0, 30);
+
+        console.log('[DexScreener] Solana profiles:', solanaProfiles.length);
+
+        // Get pair data for profiles
+        for (const profile of solanaProfiles.slice(0, 15)) {
+          try {
+            const pairResponse = await fetch(
+              `${DEXSCREENER_API}/latest/dex/search?q=${profile.tokenAddress}`,
+              { headers: { 'Accept': 'application/json', 'User-Agent': 'NextTrade/1.0' } }
+            );
+            
+            if (pairResponse.ok) {
+              const pairData = await pairResponse.json();
+              const solanaPairs = (pairData.pairs || []).filter(p => 
+                p.chainId === 'solana' && 
+                !isStablecoinOrWrapped(p.baseToken?.symbol) &&
+                !seenPairs.has(p.pairAddress) &&
+                (p.liquidity?.usd || 0) > 1000
+              );
+              
+              for (const pair of solanaPairs.slice(0, 1)) {
+                seenPairs.add(pair.pairAddress);
+                // Add profile image if available
+                pair.info = pair.info || {};
+                pair.info.imageUrl = pair.info.imageUrl || profile.icon;
+                allPairs.push(pair);
+              }
+            }
+          } catch {
+            // Skip failed individual fetches
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[DexScreener] Profiles fetch failed, continuing');
+    }
+
+    // Sort by 24h volume and transform
+    const sortedPairs = allPairs
+      .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+      .slice(0, limit);
+
+    const tokens = sortedPairs.map(transformPairToToken);
+    
+    console.log('[DexScreener] Total tokens found:', tokens.length);
+
+    if (tokens.length > 0) {
+      setCache(cacheKey, tokens);
+    }
+    
+    return tokens;
+
+  } catch (error) {
+    console.error('[DexScreener] Failed to fetch trending tokens:', error);
     return [];
   }
 }
@@ -385,7 +383,7 @@ export async function fetchPairDetails(pairAddress) {
 
 /**
  * Get token info by token address (mint)
- * API: GET /token-pairs/v1/:chainId/:tokenAddress
+ * Uses search API to find pairs for the token
  */
 export async function fetchTokenByMint(mintAddress) {
   if (!mintAddress) return null;
@@ -395,8 +393,23 @@ export async function fetchTokenByMint(mintAddress) {
   if (cached) return cached;
 
   try {
-    const pairs = await fetchTokenPairs(mintAddress);
-    if (!pairs || pairs.length === 0) return null;
+    // Search for the token by address
+    const response = await fetch(
+      `${DEXSCREENER_API}/latest/dex/search?q=${mintAddress}`,
+      { 
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const pairs = (data.pairs || []).filter(p => p.chainId === 'solana');
+    
+    if (pairs.length === 0) return null;
 
     // Get the pair with most liquidity
     const bestPair = pairs.reduce((best, current) => {
