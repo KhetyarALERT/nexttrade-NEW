@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Grid } from "lucide-react";
+import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Grid, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -136,6 +136,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const navigation = [
     { type: "link", name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
     { type: "link", name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
+    { type: "link", name: { en: "Meme Coins", ar: "ميم كوينز" }, url: createPageUrl("MemeCoins") },
     { type: "link", name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
     { type: "link", name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
     {
