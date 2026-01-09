@@ -13,8 +13,12 @@ import '@solana/wallet-adapter-react-ui/styles.css';
  * Supports: Phantom, Solflare, and other standard Solana wallets
  */
 export function SolanaWalletProvider({ children }) {
-  // Use mainnet for production
-  const endpoint = useMemo(() => clusterApiUrl('mainnet-beta'), []);
+  // Use a CORS-friendly RPC endpoint in browsers.
+  // Can be overridden via Vite env: VITE_SOLANA_RPC_URL
+  const endpoint = useMemo(() => {
+    const envUrl = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SOLANA_RPC_URL : null;
+    return envUrl || 'https://rpc.ankr.com/solana';
+  }, []);
   
   // Configure supported wallets
   const wallets = useMemo(

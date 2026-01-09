@@ -30,17 +30,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import * as jupiterApi from '@/api/jupiter';
+import { fetchTrendingSolanaTokens } from '@/api/dexscreener';
+import { getMemeSwapQuote, getMemeSwapTransaction } from '@/api/functions';
 
 // Constants
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
-const DEXSCREENER_API = 'https://api.dexscreener.com';
-
-// Popular Solana meme coins to search for
-const MEME_COINS = [
-  'BONK', 'WIF', 'POPCAT', 'MEW', 'BOME', 'MYRO', 
-  'SLERF', 'PENG', 'BOOK', 'MICHI', 'SAMO', 'FOXY',
-  'PONKE', 'GOAT', 'MUMU', 'TREMP', 'HARAMBE', 'GIGA'
-];
 
 // Simple cache
 const cache = new Map();
@@ -148,89 +142,31 @@ export default function MemeCoinsTerminal() {
 
     try {
       console.log('[MemeCoins] Fetching tokens...');
-      
-      // Search for each meme coin in parallel
-      const searchPromises = MEME_COINS.map(async (symbol) => {
-        try {
-          const response = await fetch(
-            DEXSCREENER_API + '/latest/dex/search?q=' + symbol,
-            { headers: { 'Accept': 'application/json' } }
-          );
-          if (!response.ok) return [];
-          const data = await response.json();
-          
-          return (data.pairs || [])
-            .filter(pair => 
-              pair.chainId === 'solana' &&
-              pair.baseToken?.symbol?.toUpperCase() === symbol &&
-              (pair.liquidity?.usd || 0) > 10000
-            )
-            .slice(0, 1);
-        } catch {
-          return [];
-        }
-      });
 
-      const results = await Promise.all(searchPromises);
-      const allPairs = results.flat();
+      const trending = await fetchTrendingSolanaTokens(50);
 
-      // Also fetch boosted tokens
-      try {
-        const boostedRes = await fetch(DEXSCREENER_API + '/token-boosts/top/v1');
-        if (boostedRes.ok) {
-          const boostedData = await boostedRes.json();
-          const solanaBoosted = (boostedData || [])
-            .filter(t => t.chainId === 'solana')
-            .slice(0, 10);
-
-          for (const token of solanaBoosted) {
-            try {
-              const pairRes = await fetch(
-                DEXSCREENER_API + '/latest/dex/search?q=' + token.tokenAddress
-              );
-              if (pairRes.ok) {
-                const pairData = await pairRes.json();
-                const solanaPair = (pairData.pairs || []).find(p => 
-                  p.chainId === 'solana' && 
-                  p.baseToken?.address === token.tokenAddress
-                );
-                if (solanaPair && !allPairs.find(p => p.pairAddress === solanaPair.pairAddress)) {
-                  allPairs.push(solanaPair);
-                }
-              }
-            } catch {
-              // Skip
-            }
-          }
-        }
-      } catch {
-        console.log('[MemeCoins] Boosted fetch failed');
-      }
-
-      // Transform to our format
-      const formatted = allPairs
-        .map(pair => ({
-          address: pair.baseToken?.address || '',
-          pairAddress: pair.pairAddress || '',
-          symbol: pair.baseToken?.symbol || 'UNKNOWN',
-          name: pair.baseToken?.name || 'Unknown Token',
-          price: parseFloat(pair.priceUsd) || 0,
-          priceNative: parseFloat(pair.priceNative) || 0,
-          change24h: parseFloat(pair.priceChange?.h24) || 0,
-          change1h: parseFloat(pair.priceChange?.h1) || 0,
-          volume24h: parseFloat(pair.volume?.h24) || 0,
-          volume1h: parseFloat(pair.volume?.h1) || 0,
-          liquidity: parseFloat(pair.liquidity?.usd) || 0,
-          marketCap: parseFloat(pair.fdv) || 0,
-          txns24h: {
-            buys: pair.txns?.h24?.buys || 0,
-            sells: pair.txns?.h24?.sells || 0
-          },
-          imageUrl: pair.info?.imageUrl || null,
-          dexUrl: pair.url || null,
+      // Normalize to the shape this page expects
+      const formatted = (trending || [])
+        .map((t) => ({
+          address: t.mint || '',
+          pairAddress: t.pairAddress || t.id || '',
+          symbol: t.symbol || 'UNKNOWN',
+          name: t.name || 'Unknown Token',
+          price: Number(t.price) || 0,
+          priceNative: Number(t.priceNative) || 0,
+          change24h: Number(t.priceChange24h) || 0,
+          change1h: Number(t.priceChange1h) || 0,
+          volume24h: Number(t.volume24h) || 0,
+          volume1h: Number(t.volume1h) || 0,
+          liquidity: Number(t.liquidity) || 0,
+          marketCap: Number(t.marketCap) || 0,
+          txns24h: t.txns24h || { buys: 0, sells: 0 },
+          imageUrl: t.imageUrl || null,
+          dexUrl: t.dexUrl || null,
+          pairCreatedAt: t.pairCreatedAt || null,
         }))
-        .filter(t => t.address && t.symbol !== 'UNKNOWN')
-        .sort((a, b) => b.volume24h - a.volume24h);
+        .filter((t) => t.address && t.symbol !== 'UNKNOWN')
+        .sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0));
 
       console.log('[MemeCoins] Tokens loaded:', formatted.length);
 
@@ -330,7 +266,15 @@ export default function MemeCoinsTerminal() {
         const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
         const slippageBps = slippage * 100;
 
-        const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
+        // Prefer calling through Base44 Functions (avoids browser DNS/CORS issues in hosted previews)
+        let quote = null;
+        try {
+          const result = await getMemeSwapQuote(inputMint, outputMint, rawAmount, slippageBps);
+          quote = result?.data?.success ? result.data.data : result?.data?.data || result?.data;
+        } catch {
+          // fallback to direct Jupiter call (useful in local dev)
+          quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
+        }
         
         if (quote) {
           const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount, 10), outputDecimals);
@@ -365,10 +309,14 @@ export default function MemeCoinsTerminal() {
     try {
       setSwapping(true);
 
-      const swapTransaction = await jupiterApi.getSwapTransaction(
-        currentQuote,
-        wallet.publicKey.toString()
-      );
+      let swapTransaction = null;
+      try {
+        const result = await getMemeSwapTransaction(currentQuote, wallet.publicKey.toString());
+        const data = result?.data?.success ? result.data.data : result?.data?.data || result?.data;
+        swapTransaction = data?.swapTransaction || data;
+      } catch {
+        swapTransaction = await jupiterApi.getSwapTransaction(currentQuote, wallet.publicKey.toString());
+      }
 
       const signature = await jupiterApi.executeSwap(swapTransaction, wallet);
       

@@ -1,9 +1,9 @@
 import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
 
 // Jupiter API v6 configuration
-// NOTE: Some hosted preview environments intermittently fail DNS for `quote-api.jup.ag`.
-// We keep v6 as the primary, but retry against the newer `api.jup.ag` swap endpoint.
-const JUPITER_API_BASES = ['https://quote-api.jup.ag/v6', 'https://api.jup.ag/swap/v1'];
+// Public (no API key) Jupiter endpoints.
+// NOTE: `api.jup.ag/swap/v1` returns 401 without an API key, so we do not use it as a fallback.
+const JUPITER_API_BASES = ['https://quote-api.jup.ag/v6'];
 
 function assertValidMint(label, mint) {
   if (typeof mint !== 'string' || !mint.trim()) {
@@ -64,7 +64,13 @@ export async function getQuote(inputMint, outputMint, amount, slippageBps = 50) 
 
     const response = await fetchWithFallback(`/quote?${params}`);
     if (!response.ok) {
-      throw new Error(`Jupiter quote failed: ${response.statusText}`);
+      let bodyText = '';
+      try {
+        bodyText = await response.text();
+      } catch {
+        // ignore
+      }
+      throw new Error(`Jupiter quote failed: ${response.status} ${response.statusText}${bodyText ? ` - ${bodyText}` : ''}`);
     }
 
     const quote = await response.json();
