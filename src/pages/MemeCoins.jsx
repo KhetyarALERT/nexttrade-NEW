@@ -1,135 +1,297 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createChart } from 'lightweight-charts';
-import { useWallet } from '../lib/web3/WalletContext';
-import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, TrendingUp, Zap, Shield, AlertTriangle, ExternalLink, RefreshCw, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { WalletButton } from '@/components/wallet/WalletButton';
+import { useWallet } from '@/lib/web3/WalletContext';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Search, 
+  RefreshCw, 
+  ExternalLink, 
+  Copy, 
+  Check,
+  Flame,
+  Clock,
+  DollarSign,
+  BarChart3,
+  Shield,
+  AlertTriangle,
+  Rocket,
+  Zap,
+  Crown
+} from 'lucide-react';
+import { createChart, ColorType } from 'lightweight-charts';
+import { toast } from 'sonner';
 
-// Configuration
-const CONFIG = {
-  SOLANA_RPC: 'https://api.mainnet-beta.solana.com',
-  JUPITER_API: 'https://quote-api.jup.ag/v6',
-  DEXSCREENER_API: 'https://api.dexscreener.com',
-  FEE_WALLET: 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL',
-  PLATFORM_FEE_BPS: 100, // 1% commission
-  SOL_MINT: 'So11111111111111111111111111111111111111112',
-  REFRESH_INTERVAL: 30000, // 30 seconds
-};
+// Commission wallet address
+const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
+const PLATFORM_FEE_BPS = 100; // 1%
 
-// Utility functions
-const formatNumber = (num, decimals = 2) => {
-  if (!num) return '0';
-  if (num >= 1e9) return (num / 1e9).toFixed(decimals) + 'B';
-  if (num >= 1e6) return (num / 1e6).toFixed(decimals) + 'M';
-  if (num >= 1e3) return (num / 1e3).toFixed(decimals) + 'K';
-  return num.toFixed(decimals);
-};
-
-const formatPrice = (price) => {
-  if (!price) return '$0';
-  if (price < 0.00001) return '$' + price.toExponential(2);
-  if (price < 1) return '$' + price.toFixed(6);
-  return '$' + price.toFixed(2);
-};
-
-// Token Card Component
-const TokenCard = ({ token, onSelect, isSelected }) => {
-  const priceChange = token.priceChange?.h24 || 0;
-  const isPositive = priceChange >= 0;
-  
-  return (
-    <Card 
-      className={`cursor-pointer transition-all hover:border-primary ${
-        isSelected ? 'border-primary bg-primary/5' : ''
-      }`}
-      onClick={() => onSelect(token)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            {token.info?.imageUrl && (
-              <img 
-                src={token.info.imageUrl} 
-                alt={token.baseToken?.symbol} 
-                className="w-8 h-8 rounded-full"
-                onError={(e) => e.target.style.display = 'none'}
-              />
-            )}
-            <div>
-              <h3 className="font-bold text-sm">{token.baseToken?.symbol || 'Unknown'}</h3>
-              <p className="text-xs text-muted-foreground truncate max-w-[100px]">
-                {token.baseToken?.name || 'Unknown Token'}
-              </p>
-            </div>
-          </div>
-          <Badge variant={isPositive ? 'default' : 'destructive'} className="text-xs">
-            {isPositive ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
-            {Math.abs(priceChange).toFixed(1)}%
-          </Badge>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-muted-foreground">Price</span>
-            <p className="font-medium">{formatPrice(parseFloat(token.priceUsd))}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">MCap</span>
-            <p className="font-medium">${formatNumber(token.marketCap || token.fdv)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Liquidity</span>
-            <p className="font-medium">${formatNumber(token.liquidity?.usd)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground">24h Vol</span>
-            <p className="font-medium">${formatNumber(token.volume?.h24)}</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-1 mt-2">
-          {token.txns?.h24?.buys > token.txns?.h24?.sells && (
-            <Badge variant="outline" className="text-xs text-green-500">🟢 More Buys</Badge>
-          )}
-          {token.liquidity?.usd > 50000 && (
-            <Badge variant="outline" className="text-xs">💧 Good Liq</Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Price Chart Component
-const PriceChart = ({ tokenAddress }) => {
+export default function MemeCoins() {
+  const { account, isConnected, walletType } = useWallet();
+  const [language, setLanguage] = useState('en');
+  const [activeTab, setActiveTab] = useState('trending');
+  const [tokens, setTokens] = useState([]);
+  const [pumpTokens, setPumpTokens] = useState([]);
+  const [selectedToken, setSelectedToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [timeframe, setTimeframe] = useState('5m');
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
-  
-  useEffect(() => {
-    if (!chartContainerRef.current || !tokenAddress) return;
+
+  const t = language === 'ar' ? {
+    title: 'تداول الميم كوين',
+    subtitle: 'اكتشف وتداول أحدث العملات على سولانا',
+    trending: 'الرائجة',
+    newLaunches: 'إطلاقات جديدة',
+    pumpFun: 'Pump.fun',
+    graduated: 'متخرجة',
+    search: 'بحث عن عملة...',
+    price: 'السعر',
+    marketCap: 'القيمة السوقية',
+    volume: 'الحجم 24س',
+    liquidity: 'السيولة',
+    change: 'التغيير',
+    buy: 'شراء',
+    sell: 'بيع',
+    connectWallet: 'قم بتوصيل محفظة Solana للتداول',
+    lastUpdated: 'آخر تحديث',
+    created: 'تم الإنشاء',
+    bondingCurve: 'منحنى الربط',
+    loading: 'جاري التحميل...',
+    noTokens: 'لم يتم العثور على عملات',
+    viewChart: 'عرض الرسم البياني',
+    copied: 'تم النسخ!',
+    safetyScore: 'درجة الأمان',
+    holders: 'حاملين',
+    txns: 'معاملات',
+    refreshing: 'جاري التحديث...',
+    kingOfHill: 'ملك التل'
+  } : {
+    title: 'Meme Coin Trading',
+    subtitle: 'Discover & trade the hottest tokens on Solana',
+    trending: 'Trending',
+    newLaunches: 'New Launches',
+    pumpFun: 'Pump.fun',
+    graduated: 'Graduated',
+    search: 'Search token...',
+    price: 'Price',
+    marketCap: 'Market Cap',
+    volume: '24h Volume',
+    liquidity: 'Liquidity',
+    change: 'Change',
+    buy: 'Buy',
+    sell: 'Sell',
+    connectWallet: 'Connect a Solana wallet to trade',
+    lastUpdated: 'Last updated',
+    created: 'Created',
+    bondingCurve: 'Bonding Curve',
+    loading: 'Loading...',
+    noTokens: 'No tokens found',
+    viewChart: 'View Chart',
+    copied: 'Copied!',
+    safetyScore: 'Safety Score',
+    holders: 'Holders',
+    txns: 'Txns',
+    refreshing: 'Refreshing...',
+    kingOfHill: 'King of the Hill'
+  };
+
+  // Timeframe options
+  const timeframes = [
+    { value: '1m', label: '1m' },
+    { value: '5m', label: '5m' },
+    { value: '15m', label: '15m' },
+    { value: '1h', label: '1H' },
+    { value: '4h', label: '4H' },
+    { value: '1d', label: '1D' },
+  ];
+
+  // Format time ago
+  const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    const now = Date.now();
+    const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+    const diff = now - time;
     
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  // Format large numbers
+  const formatNumber = (num) => {
+    if (!num) return '$0';
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  // Format price with proper decimals
+  const formatPrice = (price) => {
+    if (!price) return '$0';
+    if (price < 0.00001) return `$${price.toExponential(2)}`;
+    if (price < 0.01) return `$${price.toFixed(8)}`;
+    if (price < 1) return `$${price.toFixed(6)}`;
+    return `$${price.toFixed(4)}`;
+  };
+
+  // Copy address to clipboard
+  const copyAddress = async (address) => {
+    await navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    toast.success(t.copied);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
+  // Fetch trending tokens from DexScreener
+  const fetchTrendingTokens = async () => {
+    try {
+      const response = await fetch(
+        'https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112'
+      );
+      const data = await response.json();
+      
+      // Filter for Solana pairs with good liquidity
+      const solanaPairs = (data.pairs || []).filter(pair => 
+        pair.chainId === 'solana' && 
+        pair.liquidity?.usd > 1000 &&
+        pair.baseToken?.symbol !== 'SOL'
+      ).slice(0, 50);
+
+      const formattedTokens = solanaPairs.map(pair => ({
+        id: pair.pairAddress,
+        symbol: pair.baseToken?.symbol || 'Unknown',
+        name: pair.baseToken?.name || 'Unknown',
+        address: pair.baseToken?.address,
+        price: parseFloat(pair.priceUsd) || 0,
+        priceChange24h: pair.priceChange?.h24 || 0,
+        volume24h: pair.volume?.h24 || 0,
+        liquidity: pair.liquidity?.usd || 0,
+        marketCap: pair.fdv || pair.marketCap || 0,
+        pairAddress: pair.pairAddress,
+        dexId: pair.dexId,
+        txns24h: (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0),
+        buys24h: pair.txns?.h24?.buys || 0,
+        sells24h: pair.txns?.h24?.sells || 0,
+        createdAt: pair.pairCreatedAt,
+        url: pair.url,
+        imageUrl: pair.info?.imageUrl || `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${pair.baseToken?.address}/logo.png`
+      }));
+
+      setTokens(formattedTokens);
+      setLastUpdated(new Date());
+      
+      if (!selectedToken && formattedTokens.length > 0) {
+        setSelectedToken(formattedTokens[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching tokens:', error);
+      toast.error('Failed to fetch tokens');
+    }
+  };
+
+  // Fetch Pump.fun tokens
+  const fetchPumpTokens = async () => {
+    try {
+      // Use pump.fun's frontend API
+      const response = await fetch(
+        'https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false'
+      );
+      const data = await response.json();
+      
+      const formattedPumpTokens = (data || []).map(token => ({
+        id: token.mint,
+        symbol: token.symbol || 'Unknown',
+        name: token.name || 'Unknown',
+        address: token.mint,
+        price: token.usd_market_cap ? token.usd_market_cap / 1e9 : 0, // Approx price from mcap
+        marketCap: token.usd_market_cap || 0,
+        bondingCurveProgress: token.bonding_curve_progress || 0,
+        isKingOfHill: token.king_of_the_hill_timestamp != null,
+        createdAt: token.created_timestamp,
+        description: token.description,
+        imageUrl: token.image_uri,
+        twitter: token.twitter,
+        telegram: token.telegram,
+        website: token.website,
+        replyCount: token.reply_count || 0,
+        isPump: true,
+        graduated: token.complete || false
+      }));
+
+      setPumpTokens(formattedPumpTokens);
+    } catch (error) {
+      console.error('Error fetching Pump.fun tokens:', error);
+      // Fallback: try alternative endpoint or show cached data
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      await Promise.all([fetchTrendingTokens(), fetchPumpTokens()]);
+      setLoading(false);
+    };
+    fetchAll();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchTrendingTokens();
+      fetchPumpTokens();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initialize chart
+  useEffect(() => {
+    if (!chartContainerRef.current || !selectedToken) return;
+
+    // Clear previous chart
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: 'solid', color: 'transparent' },
+        background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#9ca3af',
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.1)' },
-        horzLines: { color: 'rgba(255,255,255,0.1)' },
+        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
       },
       width: chartContainerRef.current.clientWidth,
       height: 300,
+      crosshair: {
+        mode: 1,
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+      },
       timeScale: {
+        borderColor: 'rgba(255, 255, 255, 0.1)',
         timeVisible: true,
-        secondsVisible: false,
       },
     });
-    
-    const candleSeries = chart.addCandlestickSeries({
+
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderDownColor: '#ef4444',
@@ -137,586 +299,508 @@ const PriceChart = ({ tokenAddress }) => {
       wickDownColor: '#ef4444',
       wickUpColor: '#22c55e',
     });
-    
-    // Fetch chart data from DexScreener
-    // Note: DexScreener doesn't provide OHLC directly, so we simulate with price data
-    // In production, you'd use a proper chart data provider
-    const generateMockCandles = () => {
-      const candles = [];
+
+    // Generate sample OHLC data based on current price
+    const generateOHLC = () => {
+      const data = [];
+      const basePrice = selectedToken.price || 0.0001;
       const now = Math.floor(Date.now() / 1000);
-      let price = 0.0001;
+      const interval = timeframe === '1m' ? 60 : 
+                       timeframe === '5m' ? 300 : 
+                       timeframe === '15m' ? 900 : 
+                       timeframe === '1h' ? 3600 : 
+                       timeframe === '4h' ? 14400 : 86400;
       
       for (let i = 100; i >= 0; i--) {
-        const time = now - i * 3600;
-        const open = price;
-        const change = (Math.random() - 0.48) * 0.1;
-        price = price * (1 + change);
-        const close = price;
-        const high = Math.max(open, close) * (1 + Math.random() * 0.02);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.02);
+        const time = now - (i * interval);
+        const volatility = 0.02 + Math.random() * 0.03;
+        const trend = Math.sin(i / 10) * 0.01;
+        const open = basePrice * (1 + (Math.random() - 0.5) * volatility + trend);
+        const close = open * (1 + (Math.random() - 0.5) * volatility);
+        const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+        const low = Math.min(open, close) * (1 - Math.random() * 0.01);
         
-        candles.push({ time, open, high, low, close });
+        data.push({ time, open, high, low, close });
       }
-      return candles;
+      return data;
     };
-    
-    candleSeries.setData(generateMockCandles());
+
+    candlestickSeries.setData(generateOHLC());
+    chart.timeScale().fitContent();
     chartRef.current = chart;
-    
+
+    // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       }
     };
-    
     window.addEventListener('resize', handleResize);
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [tokenAddress]);
-  
-  return <div ref={chartContainerRef} className="w-full" />;
-};
+  }, [selectedToken, timeframe]);
 
-// Swap Panel Component
-const SwapPanel = ({ selectedToken, solBalance }) => {
-  const { solanaWallet, solanaConnected } = useWallet();
-  const [mode, setMode] = useState('buy');
-  const [amount, setAmount] = useState('');
-  const [quote, setQuote] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [swapping, setSwapping] = useState(false);
-  const [error, setError] = useState(null);
-  
-  const quickAmounts = mode === 'buy' 
-    ? [0.1, 0.5, 1, 2, 5] 
-    : [25, 50, 75, 100];
-  
-  // Get quote from Jupiter
-  const getQuote = useCallback(async () => {
-    if (!selectedToken || !amount || parseFloat(amount) <= 0) {
-      setQuote(null);
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const inputMint = mode === 'buy' ? CONFIG.SOL_MINT : selectedToken.baseToken.address;
-      const outputMint = mode === 'buy' ? selectedToken.baseToken.address : CONFIG.SOL_MINT;
-      
-      // Convert amount to lamports/smallest unit
-      const inputAmount = mode === 'buy' 
-        ? Math.floor(parseFloat(amount) * 1e9) // SOL has 9 decimals
-        : Math.floor(parseFloat(amount) * Math.pow(10, selectedToken.baseToken.decimals || 9));
-      
-      const params = new URLSearchParams({
-        inputMint,
-        outputMint,
-        amount: inputAmount.toString(),
-        slippageBps: '100', // 1% slippage
-        platformFeeBps: CONFIG.PLATFORM_FEE_BPS.toString(),
-      });
-      
-      const response = await fetch(`${CONFIG.JUPITER_API}/quote?${params}`);
-      const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      setQuote(data);
-    } catch (err) {
-      console.error('Quote error:', err);
-      setError(err.message || 'Failed to get quote');
-      setQuote(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedToken, amount, mode]);
-  
-  // Debounced quote fetch
+  // Load Jupiter Terminal
   useEffect(() => {
-    const timer = setTimeout(getQuote, 500);
-    return () => clearTimeout(timer);
-  }, [getQuote]);
-  
-  // Execute swap
-  const executeSwap = async () => {
-    if (!quote || !solanaWallet || !solanaConnected) return;
-    
-    setSwapping(true);
-    setError(null);
-    
-    try {
-      // Get swap transaction from Jupiter
-      const swapResponse = await fetch(`${CONFIG.JUPITER_API}/swap`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quoteResponse: quote,
-          userPublicKey: solanaWallet.toString(),
-          feeAccount: CONFIG.FEE_WALLET,
-          wrapAndUnwrapSol: true,
-        }),
-      });
-      
-      const swapData = await swapResponse.json();
-      
-      if (swapData.error) {
-        throw new Error(swapData.error);
-      }
-      
-      // Deserialize and sign transaction
-      const swapTransactionBuf = Buffer.from(swapData.swapTransaction, 'base64');
-      const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-      
-      // Get provider (Phantom)
-      const provider = window.solana;
-      if (!provider) {
-        throw new Error('Solana wallet not found');
-      }
-      
-      // Sign and send
-      const signedTx = await provider.signTransaction(transaction);
-      const connection = new Connection(CONFIG.SOLANA_RPC, 'confirmed');
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(txid, 'confirmed');
-      
-      alert(`Swap successful! TX: ${txid}`);
-      setAmount('');
-      setQuote(null);
-      
-    } catch (err) {
-      console.error('Swap error:', err);
-      setError(err.message || 'Swap failed');
-    } finally {
-      setSwapping(false);
-    }
-  };
-  
-  if (!selectedToken) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <Zap className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>Select a token to trade</p>
-        </CardContent>
-      </Card>
-    );
-  }
-  
-  const outputAmount = quote ? (
-    mode === 'buy' 
-      ? parseFloat(quote.outAmount) / Math.pow(10, selectedToken.baseToken.decimals || 9)
-      : parseFloat(quote.outAmount) / 1e9
-  ) : 0;
-  
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center justify-between">
-          <span>Swap</span>
-          <Badge variant="outline">1% Fee</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Buy/Sell Toggle */}
-        <div className="flex gap-2">
-          <Button 
-            variant={mode === 'buy' ? 'default' : 'outline'}
-            className={`flex-1 ${mode === 'buy' ? 'bg-green-600 hover:bg-green-700' : ''}`}
-            onClick={() => setMode('buy')}
-          >
-            Buy
-          </Button>
-          <Button 
-            variant={mode === 'sell' ? 'default' : 'outline'}
-            className={`flex-1 ${mode === 'sell' ? 'bg-red-600 hover:bg-red-700' : ''}`}
-            onClick={() => setMode('sell')}
-          >
-            Sell
-          </Button>
-        </div>
-        
-        {/* Amount Input */}
-        <div>
-          <label className="text-sm text-muted-foreground mb-1 block">
-            {mode === 'buy' ? 'SOL Amount' : `${selectedToken.baseToken.symbol} Amount`}
-          </label>
-          <Input
-            type="number"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="text-lg"
-          />
-          {mode === 'buy' && solBalance && (
-            <p className="text-xs text-muted-foreground mt-1">Balance: {solBalance.toFixed(4)} SOL</p>
-          )}
-        </div>
-        
-        {/* Quick Amount Buttons */}
-        <div className="flex gap-2 flex-wrap">
-          {quickAmounts.map((amt) => (
-            <Button
-              key={amt}
-              variant="outline"
-              size="sm"
-              onClick={() => setAmount(mode === 'buy' ? amt.toString() : (amt / 100 * 100).toString())}
-            >
-              {mode === 'buy' ? `${amt} SOL` : `${amt}%`}
-            </Button>
-          ))}
-        </div>
-        
-        {/* Quote Display */}
-        {loading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
-        )}
-        
-        {quote && !loading && (
-          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">You receive</span>
-              <span className="font-medium">
-                {formatNumber(outputAmount, 4)} {mode === 'buy' ? selectedToken.baseToken.symbol : 'SOL'}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Price Impact</span>
-              <span className={parseFloat(quote.priceImpactPct) > 5 ? 'text-red-500' : ''}>
-                {(parseFloat(quote.priceImpactPct) * 100).toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Platform Fee (1%)</span>
-              <span>~{(parseFloat(amount) * 0.01).toFixed(4)} {mode === 'buy' ? 'SOL' : selectedToken.baseToken.symbol}</span>
-            </div>
-          </div>
-        )}
-        
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-500">
-            <AlertTriangle className="w-4 h-4 inline mr-2" />
-            {error}
-          </div>
-        )}
-        
-        {/* Swap Button */}
-        <Button 
-          className={`w-full ${mode === 'buy' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-          size="lg"
-          disabled={!quote || loading || swapping || !solanaConnected}
-          onClick={executeSwap}
-        >
-          {swapping ? (
-            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
-          ) : !solanaConnected ? (
-            'Connect Solana Wallet'
-          ) : (
-            `${mode === 'buy' ? 'Buy' : 'Sell'} ${selectedToken.baseToken.symbol}`
-          )}
-        </Button>
-        
-        <p className="text-xs text-center text-muted-foreground">
-          Powered by Jupiter • 1% platform fee
-        </p>
-      </CardContent>
-    </Card>
-  );
-};
+    const script = document.createElement('script');
+    script.src = 'https://terminal.jup.ag/main-v2.js';
+    script.async = true;
+    document.head.appendChild(script);
 
-// Main MemeCoins Page Component
-export default function MemeCoins() {
-  const { solanaConnected, solanaWallet } = useWallet();
-  const [tokens, setTokens] = useState([]);
-  const [filteredTokens, setFilteredTokens] = useState([]);
-  const [selectedToken, setSelectedToken] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('trending');
-  const [solBalance, setSolBalance] = useState(null);
-  
-  // Fetch SOL balance
-  useEffect(() => {
-    const fetchBalance = async () => {
-      if (!solanaWallet || !solanaConnected) return;
-      
-      try {
-        const connection = new Connection(CONFIG.SOLANA_RPC, 'confirmed');
-        const balance = await connection.getBalance(new PublicKey(solanaWallet));
-        setSolBalance(balance / 1e9);
-      } catch (err) {
-        console.error('Balance fetch error:', err);
+    script.onload = () => {
+      if (window.Jupiter && selectedToken?.address) {
+        window.Jupiter.init({
+          displayMode: 'integrated',
+          integratedTargetId: 'jupiter-terminal',
+          endpoint: 'https://api.mainnet-beta.solana.com',
+          strictTokenList: false,
+          defaultExplorer: 'Solscan',
+          formProps: {
+            initialOutputMint: selectedToken.address,
+            fixedOutputMint: false,
+            initialInputMint: 'So11111111111111111111111111111111111111112',
+          },
+          platformFeeAndAccounts: {
+            feeBps: PLATFORM_FEE_BPS,
+            feeAccounts: new Map([
+              ['So11111111111111111111111111111111111111112', FEE_WALLET]
+            ])
+          }
+        });
       }
     };
-    
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 30000);
-    return () => clearInterval(interval);
-  }, [solanaWallet, solanaConnected]);
-  
-  // Fetch tokens from DexScreener
-  const fetchTokens = useCallback(async () => {
-    setLoading(true);
-    try {
-      let endpoint = '';
-      
-      switch (activeTab) {
-        case 'trending':
-          endpoint = `${CONFIG.DEXSCREENER_API}/token-boosts/top/v1`;
-          break;
-        case 'new':
-          endpoint = `${CONFIG.DEXSCREENER_API}/token-profiles/latest/v1`;
-          break;
-        case 'gainers':
-          endpoint = `${CONFIG.DEXSCREENER_API}/token-boosts/top/v1`;
-          break;
-        default:
-          endpoint = `${CONFIG.DEXSCREENER_API}/token-boosts/top/v1`;
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
       }
-      
-      const response = await fetch(endpoint);
-      const data = await response.json();
-      
-      // Filter for Solana tokens and fetch full details
-      let solanaTokens = [];
-      
-      if (Array.isArray(data)) {
-        const solanaAddresses = data
-          .filter(t => t.chainId === 'solana')
-          .slice(0, 20)
-          .map(t => t.tokenAddress);
-        
-        if (solanaAddresses.length > 0) {
-          // Fetch full token details
-          const detailsResponse = await fetch(
-            `${CONFIG.DEXSCREENER_API}/latest/dex/tokens/${solanaAddresses.join(',')}`
-          );
-          const detailsData = await detailsResponse.json();
-          solanaTokens = detailsData.pairs?.filter(p => p.chainId === 'solana') || [];
-        }
-      } else if (data.pairs) {
-        solanaTokens = data.pairs.filter(p => p.chainId === 'solana');
-      }
-      
-      // Sort by volume
-      solanaTokens.sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0));
-      
-      setTokens(solanaTokens);
-      setFilteredTokens(solanaTokens);
-    } catch (err) {
-      console.error('Fetch tokens error:', err);
-    } finally {
-      setLoading(false);
+    };
+  }, [selectedToken]);
+
+  // Filter tokens based on search
+  const filteredTokens = tokens.filter(token =>
+    token.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    token.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    token.address?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredPumpTokens = pumpTokens.filter(token =>
+    token.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    token.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    token.address?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Get safety indicators
+  const getSafetyBadge = (token) => {
+    if (token.isPump && !token.graduated) {
+      return { color: 'bg-yellow-500/20 text-yellow-400', text: 'Pre-DEX', icon: AlertTriangle };
     }
-  }, [activeTab]);
-  
-  useEffect(() => {
-    fetchTokens();
-    const interval = setInterval(fetchTokens, CONFIG.REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchTokens]);
-  
-  // Search filter
-  useEffect(() => {
-    if (!searchQuery) {
-      setFilteredTokens(tokens);
-      return;
+    if (token.liquidity > 100000) {
+      return { color: 'bg-green-500/20 text-green-400', text: 'High Liq', icon: Shield };
     }
-    
-    const query = searchQuery.toLowerCase();
-    const filtered = tokens.filter(token => 
-      token.baseToken?.symbol?.toLowerCase().includes(query) ||
-      token.baseToken?.name?.toLowerCase().includes(query) ||
-      token.baseToken?.address?.toLowerCase().includes(query)
-    );
-    setFilteredTokens(filtered);
-  }, [searchQuery, tokens]);
-  
-  // Search by address
-  const searchByAddress = async (address) => {
-    if (!address || address.length < 32) return;
-    
-    setLoading(true);
-    try {
-      const response = await fetch(`${CONFIG.DEXSCREENER_API}/latest/dex/tokens/${address}`);
-      const data = await response.json();
-      
-      const solanaPairs = data.pairs?.filter(p => p.chainId === 'solana') || [];
-      if (solanaPairs.length > 0) {
-        setFilteredTokens(solanaPairs);
-        setSelectedToken(solanaPairs[0]);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
-    } finally {
-      setLoading(false);
+    if (token.liquidity > 10000) {
+      return { color: 'bg-blue-500/20 text-blue-400', text: 'Med Liq', icon: Shield };
     }
+    return { color: 'bg-orange-500/20 text-orange-400', text: 'Low Liq', icon: AlertTriangle };
   };
-  
-  return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="w-6 h-6 text-yellow-500" />
-            Meme Coins
-          </h1>
-          <p className="text-muted-foreground">Trade Solana meme coins with 1-click</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {solanaConnected && solBalance !== null && (
-            <Badge variant="outline" className="text-sm py-1 px-3">
-              💰 {solBalance.toFixed(4)} SOL
-            </Badge>
-          )}
-          <Button variant="outline" size="sm" onClick={fetchTokens}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
-      
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, symbol, or paste token address..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            if (e.target.value.length >= 32) {
-              searchByAddress(e.target.value);
-            }
-          }}
-          className="pl-10"
-        />
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Token List */}
-        <div className="lg:col-span-2 space-y-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="trending">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Trending
-              </TabsTrigger>
-              <TabsTrigger value="new">
-                <Zap className="w-4 h-4 mr-2" />
-                New Launches
-              </TabsTrigger>
-              <TabsTrigger value="gainers">
-                <ArrowUpRight className="w-4 h-4 mr-2" />
-                Top Gainers
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
-          ) : filteredTokens.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Search className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>No tokens found</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredTokens.map((token, index) => (
-                <TokenCard
-                  key={token.pairAddress || index}
-                  token={token}
-                  onSelect={setSelectedToken}
-                  isSelected={selectedToken?.pairAddress === token.pairAddress}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* Trading Panel */}
-        <div className="space-y-4">
+
+  // Token card component
+  const TokenCard = ({ token, onClick }) => {
+    const safety = getSafetyBadge(token);
+    const SafetyIcon = safety.icon;
+    
+    return (
+      <div 
+        onClick={() => onClick(token)}
+        className={`p-3 rounded-lg border cursor-pointer transition-all hover:border-primary/50 ${
+          selectedToken?.id === token.id 
+            ? 'border-primary bg-primary/5' 
+            : 'border-border/50 bg-card/50 hover:bg-card'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          {/* Token Image */}
+          <div className="w-10 h-10 rounded-full bg-muted flex-shrink-0 overflow-hidden">
+            {token.imageUrl ? (
+              <img 
+                src={token.imageUrl} 
+                alt={token.symbol}
+                className="w-full h-full object-cover"
+                onError={(e) => e.target.style.display = 'none'}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground">
+                {token.symbol?.[0] || '?'}
+              </div>
+            )}
+          </div>
+
           {/* Token Info */}
-          {selectedToken && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {selectedToken.info?.imageUrl && (
-                      <img 
-                        src={selectedToken.info.imageUrl} 
-                        alt={selectedToken.baseToken?.symbol}
-                        className="w-8 h-8 rounded-full"
-                      />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm truncate">{token.symbol}</span>
+              {token.isKingOfHill && (
+                <Crown className="w-3.5 h-3.5 text-yellow-400" />
+              )}
+              <Badge className={`${safety.color} text-[10px] px-1.5 py-0`}>
+                <SafetyIcon className="w-2.5 h-2.5 mr-0.5" />
+                {safety.text}
+              </Badge>
+            </div>
+            <div className="text-xs text-muted-foreground truncate">{token.name}</div>
+            
+            {/* Price & Change */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="font-mono text-sm font-semibold">
+                {formatPrice(token.price)}
+              </span>
+              {token.priceChange24h !== undefined && (
+                <span className={`text-xs flex items-center ${
+                  token.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {token.priceChange24h >= 0 ? (
+                    <TrendingUp className="w-3 h-3 mr-0.5" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3 mr-0.5" />
+                  )}
+                  {Math.abs(token.priceChange24h).toFixed(1)}%
+                </span>
+              )}
+            </div>
+
+            {/* Stats Row */}
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+              {token.marketCap > 0 && (
+                <span>MC: {formatNumber(token.marketCap)}</span>
+              )}
+              {token.liquidity > 0 && (
+                <span>Liq: {formatNumber(token.liquidity)}</span>
+              )}
+              {token.bondingCurveProgress !== undefined && (
+                <span>{Math.round(token.bondingCurveProgress * 100)}% bonded</span>
+              )}
+            </div>
+
+            {/* Created Time */}
+            {token.createdAt && (
+              <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                <Clock className="w-2.5 h-2.5" />
+                {formatTimeAgo(token.createdAt)}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                <Rocket className="w-6 h-6 text-primary" />
+                {t.title}
+              </h1>
+              <p className="text-xs md:text-sm text-muted-foreground">{t.subtitle}</p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Last Updated */}
+              {lastUpdated && (
+                <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5" />
+                  {t.lastUpdated}: {formatTimeAgo(lastUpdated)}
+                </div>
+              )}
+              
+              {/* Refresh Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLoading(true);
+                  Promise.all([fetchTrendingTokens(), fetchPumpTokens()]).then(() => setLoading(false));
+                }}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+
+              {/* Wallet Button - Uses existing component */}
+              <WalletButton language={language} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Left Panel - Token List */}
+          <div className="lg:col-span-4 xl:col-span-3">
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder={t.search}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-background/50"
+                  />
+                </div>
+
+                {/* Tabs */}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
+                  <TabsList className="grid grid-cols-3 w-full">
+                    <TabsTrigger value="trending" className="text-xs">
+                      <Flame className="w-3 h-3 mr-1" />
+                      {t.trending}
+                    </TabsTrigger>
+                    <TabsTrigger value="pump" className="text-xs">
+                      <Zap className="w-3 h-3 mr-1" />
+                      {t.pumpFun}
+                    </TabsTrigger>
+                    <TabsTrigger value="new" className="text-xs">
+                      <Rocket className="w-3 h-3 mr-1" />
+                      {t.newLaunches}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </CardHeader>
+
+              <CardContent className="pt-0">
+                <ScrollArea className="h-[calc(100vh-320px)] md:h-[600px]">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-40">
+                      <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pr-4">
+                      {activeTab === 'trending' && filteredTokens.map(token => (
+                        <TokenCard 
+                          key={token.id} 
+                          token={token} 
+                          onClick={setSelectedToken}
+                        />
+                      ))}
+                      
+                      {activeTab === 'pump' && filteredPumpTokens.filter(t => !t.graduated).map(token => (
+                        <TokenCard 
+                          key={token.id} 
+                          token={token} 
+                          onClick={setSelectedToken}
+                        />
+                      ))}
+                      
+                      {activeTab === 'new' && filteredTokens
+                        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+                        .slice(0, 20)
+                        .map(token => (
+                          <TokenCard 
+                            key={token.id} 
+                            token={token} 
+                            onClick={setSelectedToken}
+                          />
+                        ))}
+                      
+                      {((activeTab === 'trending' && filteredTokens.length === 0) ||
+                        (activeTab === 'pump' && filteredPumpTokens.length === 0) ||
+                        (activeTab === 'new' && filteredTokens.length === 0)) && (
+                        <div className="text-center py-10 text-muted-foreground">
+                          {t.noTokens}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Panel - Chart & Trading */}
+          <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+            {selectedToken ? (
+              <>
+                {/* Token Header */}
+                <Card className="border-border/50">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-muted overflow-hidden">
+                          {selectedToken.imageUrl ? (
+                            <img 
+                              src={selectedToken.imageUrl} 
+                              alt={selectedToken.symbol}
+                              className="w-full h-full object-cover"
+                              onError={(e) => e.target.style.display = 'none'}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl font-bold">
+                              {selectedToken.symbol?.[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-xl font-bold">{selectedToken.symbol}</h2>
+                            {selectedToken.isKingOfHill && (
+                              <Badge className="bg-yellow-500/20 text-yellow-400">
+                                <Crown className="w-3 h-3 mr-1" />
+                                {t.kingOfHill}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="font-mono text-xs">
+                              {selectedToken.address?.slice(0, 6)}...{selectedToken.address?.slice(-4)}
+                            </span>
+                            <button 
+                              onClick={() => copyAddress(selectedToken.address)}
+                              className="hover:text-primary transition-colors"
+                            >
+                              {copiedAddress === selectedToken.address ? (
+                                <Check className="w-3.5 h-3.5 text-green-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            {selectedToken.url && (
+                              <a 
+                                href={selectedToken.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="hover:text-primary transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
+                          {selectedToken.createdAt && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {t.created}: {formatTimeAgo(selectedToken.createdAt)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Price & Stats */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t.price}</div>
+                          <div className="font-mono font-bold">{formatPrice(selectedToken.price)}</div>
+                          {selectedToken.priceChange24h !== undefined && (
+                            <div className={`text-xs ${selectedToken.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {selectedToken.priceChange24h >= 0 ? '+' : ''}{selectedToken.priceChange24h.toFixed(2)}%
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t.marketCap}</div>
+                          <div className="font-mono font-bold">{formatNumber(selectedToken.marketCap)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t.volume}</div>
+                          <div className="font-mono font-bold">{formatNumber(selectedToken.volume24h)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">{t.liquidity}</div>
+                          <div className="font-mono font-bold">{formatNumber(selectedToken.liquidity)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bonding Curve Progress for Pump tokens */}
+                    {selectedToken.bondingCurveProgress !== undefined && (
+                      <div className="mt-4">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-muted-foreground">{t.bondingCurve}</span>
+                          <span className="font-mono">{Math.round(selectedToken.bondingCurveProgress * 100)}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-primary to-green-400 transition-all"
+                            style={{ width: `${selectedToken.bondingCurveProgress * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     )}
-                    <span>{selectedToken.baseToken?.symbol}</span>
-                  </div>
-                  <a 
-                    href={`https://dexscreener.com/solana/${selectedToken.pairAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold mb-2">
-                  {formatPrice(parseFloat(selectedToken.priceUsd))}
-                </div>
-                <PriceChart tokenAddress={selectedToken.baseToken?.address} />
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Swap Panel */}
-          <SwapPanel selectedToken={selectedToken} solBalance={solBalance} />
-          
-          {/* Safety Info */}
-          {selectedToken && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  Token Info
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Contract</span>
-                  <span className="font-mono truncate max-w-[150px]">
-                    {selectedToken.baseToken?.address?.slice(0, 8)}...{selectedToken.baseToken?.address?.slice(-6)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">DEX</span>
-                  <span>{selectedToken.dexId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pair Created</span>
-                  <span>{selectedToken.pairCreatedAt ? new Date(selectedToken.pairCreatedAt).toLocaleDateString() : 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Txns (24h)</span>
-                  <span className="text-green-500">{selectedToken.txns?.h24?.buys || 0} buys</span>
-                  <span className="text-red-500">{selectedToken.txns?.h24?.sells || 0} sells</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+
+                {/* Chart */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        Price Chart
+                        {selectedToken.marketCap > 0 && (
+                          <Badge variant="outline" className="ml-2 font-mono">
+                            MC: {formatNumber(selectedToken.marketCap)}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      
+                      {/* Timeframe Selector */}
+                      <div className="flex gap-1">
+                        {timeframes.map(tf => (
+                          <Button
+                            key={tf.value}
+                            variant={timeframe === tf.value ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setTimeframe(tf.value)}
+                          >
+                            {tf.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div ref={chartContainerRef} className="w-full" />
+                  </CardContent>
+                </Card>
+
+                {/* Trading Panel */}
+                <Card className="border-border/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <DollarSign className="w-4 h-4" />
+                      Swap
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isConnected && walletType === 'solana' ? (
+                      <div id="jupiter-terminal" className="min-h-[400px]" />
+                    ) : (
+                      <div className="text-center py-10">
+                        <Rocket className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground mb-4">{t.connectWallet}</p>
+                        <WalletButton language={language} />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card className="border-border/50">
+                <CardContent className="py-20 text-center">
+                  <Rocket className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">Select a token to start trading</h3>
+                  <p className="text-muted-foreground">Choose a token from the list to view charts and trade</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </div>
     </div>
