@@ -1,14 +1,18 @@
 import { base44 } from './base44Client';
 
-
-export const Query = base44.entities.Query;
-
-// Rewards / wallets / staking entities (may require permissions configuration in Base44)
-export const VoucherClaim = base44.entities.VoucherClaim;
+// Entities that exist in Base44 dashboard
+export const Subaccount = base44.entities.Subaccount;
+export const SpotAccount = base44.entities.SpotAccount;
+export const FuturesAccount = base44.entities.FuturesAccount;
+export const InternalTransfer = base44.entities.InternalTransfer;
+export const TradingAccount = base44.entities.TradingAccount;
+export const Trade = base44.entities.Trade;
+export const Wallet = base44.entities.Wallet;
 export const WalletTransaction = base44.entities.WalletTransaction;
 export const StakingPosition = base44.entities.StakingPosition;
-export const Web3Wallet = base44.entities.Web3Wallet;
+export const CustodyAccount = base44.entities.CustodyAccount;
+export const UserPreferences = base44.entities.UserPreferences;
+export const Notification = base44.entities.Notification;
 
-
-// auth sdk:
+// Auth SDK
 export const User = base44.auth;
