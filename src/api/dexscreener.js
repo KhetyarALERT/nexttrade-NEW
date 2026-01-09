@@ -4,11 +4,19 @@
  * Official API Documentation: https://docs.dexscreener.com/api/reference
  * 
  * All endpoints are public and do not require authentication.
- * Rate limits: 300 requests per minute.
+ * Rate limits vary by endpoint (60-300 requests per minute).
+ * 
+ * API Endpoints (as of 2024):
+ * - GET /token-profiles/latest/v1 - Latest token profiles (60 req/min)
+ * - GET /token-boosts/latest/v1 - Latest boosted tokens (60 req/min)  
+ * - GET /token-boosts/top/v1 - Top boosted tokens (60 req/min)
+ * - GET /tokens/v1/:chainId/:tokenAddresses - Get tokens by addresses (300 req/min)
+ * - GET /token-pairs/v1/:chainId/:tokenAddress - Get pairs by token (300 req/min)
+ * - GET /latest/dex/search?q=:q - Search pairs (300 req/min)
+ * - GET /latest/dex/pairs/:chainId/:pairId - Get pair by address (300 req/min)
  */
 
 const DEXSCREENER_API = 'https://api.dexscreener.com';
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 // Simple in-memory cache
 const cache = new Map();
@@ -50,8 +58,58 @@ export function formatPrice(price) {
 }
 
 /**
- * Get trending Solana tokens from DexScreener
- * Uses the tokens endpoint with SOL address to find popular pairs
+ * Transform DexScreener pair data to our token format
+ */
+function transformPairToToken(pair) {
+  return {
+    id: pair.pairAddress,
+    mint: pair.baseToken?.address,
+    pairAddress: pair.pairAddress,
+    symbol: pair.baseToken?.symbol || 'UNKNOWN',
+    name: pair.baseToken?.name || 'Unknown Token',
+    
+    // Pricing data
+    price: parseFloat(pair.priceUsd) || 0,
+    priceNative: parseFloat(pair.priceNative) || 0,
+    priceChange5m: pair.priceChange?.m5 || 0,
+    priceChange1h: pair.priceChange?.h1 || 0,
+    priceChange6h: pair.priceChange?.h6 || 0,
+    priceChange24h: pair.priceChange?.h24 || 0,
+    
+    // Volume & liquidity
+    volume5m: pair.volume?.m5 || 0,
+    volume1h: pair.volume?.h1 || 0,
+    volume6h: pair.volume?.h6 || 0,
+    volume24h: pair.volume?.h24 || 0,
+    liquidity: pair.liquidity?.usd || 0,
+    marketCap: pair.fdv || pair.marketCap || 0,
+    
+    // Transaction data
+    txns5m: { buys: pair.txns?.m5?.buys || 0, sells: pair.txns?.m5?.sells || 0 },
+    txns1h: { buys: pair.txns?.h1?.buys || 0, sells: pair.txns?.h1?.sells || 0 },
+    txns24h: { buys: pair.txns?.h24?.buys || 0, sells: pair.txns?.h24?.sells || 0 },
+    
+    // DEX info
+    dexId: pair.dexId,
+    dexUrl: pair.url,
+    
+    // Token metadata
+    imageUrl: pair.info?.imageUrl || null,
+    websites: pair.info?.websites || [],
+    socials: pair.info?.socials || [],
+    
+    // Timestamps
+    pairCreatedAt: pair.pairCreatedAt,
+    
+    // Source
+    source: 'dexscreener'
+  };
+}
+
+/**
+ * Get trending Solana tokens using search endpoint
+ * This is more reliable than token-specific endpoints
+ * API: GET /latest/dex/search?q=SOL
  */
 export async function fetchTrendingSolanaTokens(limit = 50) {
   const cacheKey = `trending_${limit}`;
@@ -59,9 +117,60 @@ export async function fetchTrendingSolanaTokens(limit = 50) {
   if (cached) return cached;
 
   try {
-    // Get pairs involving SOL (the native Solana token)
-    const response = await fetch(`${DEXSCREENER_API}/latest/dex/tokens/${SOL_MINT}`, {
-      headers: { 'Accept': 'application/json' }
+    // Use search endpoint with common Solana DEX names to get active pairs
+    // This is more reliable than deprecated token endpoints
+    const response = await fetch(`${DEXSCREENER_API}/latest/dex/search?q=solana`, {
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'NextTrade/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`[DexScreener] API error: ${response.status} ${response.statusText}`);
+      throw new Error(`DexScreener API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('[DexScreener] Search response:', { pairsCount: data?.pairs?.length || 0 });
+    
+    // Filter and format Solana pairs with good liquidity
+    const tokens = (data.pairs || [])
+      .filter(pair => 
+        pair.chainId === 'solana' &&
+        (pair.liquidity?.usd || 0) > 1000 // Lower threshold
+      )
+      .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0)) // Sort by 24h volume
+      .slice(0, limit)
+      .map(transformPairToToken);
+
+    if (tokens.length > 0) {
+      setCache(cacheKey, tokens);
+    }
+    
+    console.log('[DexScreener] Filtered tokens:', tokens.length);
+    return tokens;
+
+  } catch (error) {
+    console.error('[DexScreener] Failed to fetch trending tokens:', error);
+    // Try fallback method
+    return fetchTrendingFallback(limit);
+  }
+}
+
+/**
+ * Fallback method: Get tokens from boosted/promoted list
+ * API: GET /token-boosts/top/v1
+ */
+async function fetchTrendingFallback(limit = 50) {
+  try {
+    console.log('[DexScreener] Trying fallback: boosted tokens');
+    
+    const response = await fetch(`${DEXSCREENER_API}/token-boosts/top/v1`, {
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'NextTrade/1.0'
+      }
     });
 
     if (!response.ok) {
@@ -69,65 +178,126 @@ export async function fetchTrendingSolanaTokens(limit = 50) {
     }
 
     const data = await response.json();
+    console.log('[DexScreener] Boosted tokens response:', { count: data?.length || 0 });
     
-    // Filter and format Solana pairs with good liquidity
-    const tokens = (data.pairs || [])
-      .filter(pair => 
-        pair.chainId === 'solana' &&
-        (pair.liquidity?.usd || 0) > 5000 &&
-        pair.baseToken?.symbol !== 'SOL' &&
-        pair.baseToken?.symbol !== 'WSOL'
-      )
-      .slice(0, limit)
-      .map(pair => ({
-        id: pair.pairAddress,
-        mint: pair.baseToken?.address,
-        pairAddress: pair.pairAddress,
-        symbol: pair.baseToken?.symbol || 'UNKNOWN',
-        name: pair.baseToken?.name || 'Unknown Token',
-        
-        // Pricing data
-        price: parseFloat(pair.priceUsd) || 0,
-        priceNative: parseFloat(pair.priceNative) || 0,
-        priceChange5m: pair.priceChange?.m5 || 0,
-        priceChange1h: pair.priceChange?.h1 || 0,
-        priceChange6h: pair.priceChange?.h6 || 0,
-        priceChange24h: pair.priceChange?.h24 || 0,
-        
-        // Volume & liquidity
-        volume5m: pair.volume?.m5 || 0,
-        volume1h: pair.volume?.h1 || 0,
-        volume6h: pair.volume?.h6 || 0,
-        volume24h: pair.volume?.h24 || 0,
-        liquidity: pair.liquidity?.usd || 0,
-        marketCap: pair.fdv || pair.marketCap || 0,
-        
-        // Transaction data
-        txns5m: { buys: pair.txns?.m5?.buys || 0, sells: pair.txns?.m5?.sells || 0 },
-        txns1h: { buys: pair.txns?.h1?.buys || 0, sells: pair.txns?.h1?.sells || 0 },
-        txns24h: { buys: pair.txns?.h24?.buys || 0, sells: pair.txns?.h24?.sells || 0 },
-        
-        // DEX info
-        dexId: pair.dexId,
-        dexUrl: pair.url,
-        
-        // Token metadata
-        imageUrl: pair.info?.imageUrl || null,
-        websites: pair.info?.websites || [],
-        socials: pair.info?.socials || [],
-        
-        // Timestamps
-        pairCreatedAt: pair.pairCreatedAt,
-        
-        // Source
-        source: 'dexscreener'
-      }));
+    // Filter for Solana and get pair details
+    const solanaTokens = (data || [])
+      .filter(t => t.chainId === 'solana')
+      .slice(0, limit);
 
-    setCache(cacheKey, tokens);
-    return tokens;
+    if (solanaTokens.length === 0) {
+      console.log('[DexScreener] No Solana tokens in boosted list, trying profiles');
+      return fetchFromProfiles(limit);
+    }
+
+    // Get full pair data for each token
+    const tokensWithData = await Promise.all(
+      solanaTokens.slice(0, 20).map(async (token) => {
+        try {
+          const pairData = await fetchTokenPairs(token.tokenAddress);
+          if (pairData && pairData.length > 0) {
+            return transformPairToToken(pairData[0]);
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return tokensWithData.filter(Boolean);
 
   } catch (error) {
-    console.error('[DexScreener] Failed to fetch trending tokens:', error);
+    console.error('[DexScreener] Fallback failed:', error);
+    return fetchFromProfiles(limit);
+  }
+}
+
+/**
+ * Get token pairs by token address
+ * API: GET /token-pairs/v1/:chainId/:tokenAddress
+ */
+async function fetchTokenPairs(tokenAddress) {
+  try {
+    const response = await fetch(
+      `${DEXSCREENER_API}/token-pairs/v1/solana/${tokenAddress}`,
+      { 
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return data.pairs || data || [];
+
+  } catch (error) {
+    console.error('[DexScreener] Failed to fetch token pairs:', error);
+    return null;
+  }
+}
+
+/**
+ * Fallback: Get tokens from latest profiles
+ * API: GET /token-profiles/latest/v1
+ */
+async function fetchFromProfiles(limit = 50) {
+  try {
+    console.log('[DexScreener] Trying profiles fallback');
+    
+    const response = await fetch(`${DEXSCREENER_API}/token-profiles/latest/v1`, {
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'NextTrade/1.0'
+      }
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    console.log('[DexScreener] Profiles response:', { count: data?.length || 0 });
+    
+    // Filter for Solana tokens
+    const solanaProfiles = (data || [])
+      .filter(t => t.chainId === 'solana')
+      .slice(0, limit);
+
+    if (solanaProfiles.length === 0) return [];
+
+    // Get pair data for each profile
+    const tokensWithData = await Promise.all(
+      solanaProfiles.slice(0, 20).map(async (profile) => {
+        try {
+          const pairData = await fetchTokenPairs(profile.tokenAddress);
+          if (pairData && pairData.length > 0) {
+            const token = transformPairToToken(pairData[0]);
+            token.imageUrl = profile.icon || token.imageUrl;
+            token.description = profile.description;
+            return token;
+          }
+          return {
+            id: profile.tokenAddress,
+            mint: profile.tokenAddress,
+            symbol: profile.header?.split(' ')[0] || 'UNKNOWN',
+            name: profile.header || 'Unknown',
+            description: profile.description || '',
+            imageUrl: profile.icon,
+            price: 0,
+            source: 'dexscreener'
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    return tokensWithData.filter(Boolean);
+
+  } catch (error) {
+    console.error('[DexScreener] Profiles fallback failed:', error);
     return [];
   }
 }
@@ -146,7 +316,12 @@ export async function searchTokens(query) {
   try {
     const response = await fetch(
       `${DEXSCREENER_API}/latest/dex/search?q=${encodeURIComponent(query)}`,
-      { headers: { 'Accept': 'application/json' } }
+      { 
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      }
     );
 
     if (!response.ok) return [];
@@ -157,24 +332,11 @@ export async function searchTokens(query) {
     const results = (data.pairs || [])
       .filter(pair => pair.chainId === 'solana')
       .slice(0, 30)
-      .map(pair => ({
-        id: pair.pairAddress,
-        mint: pair.baseToken?.address,
-        pairAddress: pair.pairAddress,
-        symbol: pair.baseToken?.symbol || 'UNKNOWN',
-        name: pair.baseToken?.name || 'Unknown',
-        price: parseFloat(pair.priceUsd) || 0,
-        priceChange24h: pair.priceChange?.h24 || 0,
-        volume24h: pair.volume?.h24 || 0,
-        liquidity: pair.liquidity?.usd || 0,
-        marketCap: pair.fdv || 0,
-        dexId: pair.dexId,
-        dexUrl: pair.url,
-        imageUrl: pair.info?.imageUrl || null,
-        source: 'dexscreener'
-      }));
+      .map(transformPairToToken);
 
-    setCache(cacheKey, results);
+    if (results.length > 0) {
+      setCache(cacheKey, results);
+    }
     return results;
 
   } catch (error) {
@@ -185,7 +347,7 @@ export async function searchTokens(query) {
 
 /**
  * Get token pair details by pair address
- * API: GET /latest/dex/pairs/{chainId}/{pairAddress}
+ * API: GET /latest/dex/pairs/:chainId/:pairAddress
  */
 export async function fetchPairDetails(pairAddress) {
   if (!pairAddress) return null;
@@ -197,7 +359,12 @@ export async function fetchPairDetails(pairAddress) {
   try {
     const response = await fetch(
       `${DEXSCREENER_API}/latest/dex/pairs/solana/${pairAddress}`,
-      { headers: { 'Accept': 'application/json' } }
+      { 
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'NextTrade/1.0'
+        }
+      }
     );
 
     if (!response.ok) return null;
@@ -206,30 +373,7 @@ export async function fetchPairDetails(pairAddress) {
     const pair = data.pairs?.[0] || data.pair;
     if (!pair) return null;
 
-    const formatted = {
-      id: pair.pairAddress,
-      mint: pair.baseToken?.address,
-      pairAddress: pair.pairAddress,
-      symbol: pair.baseToken?.symbol,
-      name: pair.baseToken?.name,
-      price: parseFloat(pair.priceUsd) || 0,
-      priceNative: parseFloat(pair.priceNative) || 0,
-      priceChange5m: pair.priceChange?.m5 || 0,
-      priceChange1h: pair.priceChange?.h1 || 0,
-      priceChange6h: pair.priceChange?.h6 || 0,
-      priceChange24h: pair.priceChange?.h24 || 0,
-      volume24h: pair.volume?.h24 || 0,
-      liquidity: pair.liquidity?.usd || 0,
-      marketCap: pair.fdv || 0,
-      dexId: pair.dexId,
-      dexUrl: pair.url,
-      imageUrl: pair.info?.imageUrl || null,
-      websites: pair.info?.websites || [],
-      socials: pair.info?.socials || [],
-      txns24h: { buys: pair.txns?.h24?.buys || 0, sells: pair.txns?.h24?.sells || 0 },
-      source: 'dexscreener'
-    };
-
+    const formatted = transformPairToToken(pair);
     setCache(cacheKey, formatted);
     return formatted;
 
@@ -241,7 +385,7 @@ export async function fetchPairDetails(pairAddress) {
 
 /**
  * Get token info by token address (mint)
- * API: GET /latest/dex/tokens/{tokenAddress}
+ * API: GET /token-pairs/v1/:chainId/:tokenAddress
  */
 export async function fetchTokenByMint(mintAddress) {
   if (!mintAddress) return null;
@@ -251,40 +395,17 @@ export async function fetchTokenByMint(mintAddress) {
   if (cached) return cached;
 
   try {
-    const response = await fetch(
-      `${DEXSCREENER_API}/latest/dex/tokens/${mintAddress}`,
-      { headers: { 'Accept': 'application/json' } }
-    );
+    const pairs = await fetchTokenPairs(mintAddress);
+    if (!pairs || pairs.length === 0) return null;
 
-    if (!response.ok) return null;
-
-    const data = await response.json();
     // Get the pair with most liquidity
-    const pairs = (data.pairs || []).filter(p => p.chainId === 'solana');
-    if (pairs.length === 0) return null;
-
     const bestPair = pairs.reduce((best, current) => {
       return (current.liquidity?.usd || 0) > (best.liquidity?.usd || 0) ? current : best;
     }, pairs[0]);
 
-    const formatted = {
-      id: bestPair.pairAddress,
-      mint: mintAddress,
-      pairAddress: bestPair.pairAddress,
-      symbol: bestPair.baseToken?.symbol,
-      name: bestPair.baseToken?.name,
-      price: parseFloat(bestPair.priceUsd) || 0,
-      priceChange24h: bestPair.priceChange?.h24 || 0,
-      volume24h: bestPair.volume?.h24 || 0,
-      liquidity: bestPair.liquidity?.usd || 0,
-      marketCap: bestPair.fdv || 0,
-      dexId: bestPair.dexId,
-      dexUrl: bestPair.url,
-      imageUrl: bestPair.info?.imageUrl || null,
-      allPairs: pairs.length,
-      source: 'dexscreener'
-    };
-
+    const formatted = transformPairToToken(bestPair);
+    formatted.allPairs = pairs.length;
+    
     setCache(cacheKey, formatted);
     return formatted;
 
@@ -305,7 +426,10 @@ export async function fetchLatestProfiles() {
 
   try {
     const response = await fetch(`${DEXSCREENER_API}/token-profiles/latest/v1`, {
-      headers: { 'Accept': 'application/json' }
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'NextTrade/1.0'
+      }
     });
 
     if (!response.ok) return [];
@@ -327,7 +451,9 @@ export async function fetchLatestProfiles() {
         source: 'dexscreener'
       }));
 
-    setCache(cacheKey, tokens);
+    if (tokens.length > 0) {
+      setCache(cacheKey, tokens);
+    }
     return tokens;
 
   } catch (error) {
@@ -338,16 +464,19 @@ export async function fetchLatestProfiles() {
 
 /**
  * Get boosted/promoted tokens
- * API: GET /token-boosts/latest/v1
+ * API: GET /token-boosts/top/v1
  */
 export async function fetchBoostedTokens() {
-  const cacheKey = 'boosted_latest';
+  const cacheKey = 'boosted_top';
   const cached = getCached(cacheKey);
   if (cached) return cached;
 
   try {
-    const response = await fetch(`${DEXSCREENER_API}/token-boosts/latest/v1`, {
-      headers: { 'Accept': 'application/json' }
+    const response = await fetch(`${DEXSCREENER_API}/token-boosts/top/v1`, {
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'NextTrade/1.0'
+      }
     });
 
     if (!response.ok) return [];
@@ -359,7 +488,9 @@ export async function fetchBoostedTokens() {
       .filter(t => t.chainId === 'solana')
       .slice(0, 30);
 
-    setCache(cacheKey, tokens);
+    if (tokens.length > 0) {
+      setCache(cacheKey, tokens);
+    }
     return tokens;
 
   } catch (error) {

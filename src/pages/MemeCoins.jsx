@@ -354,42 +354,71 @@ export default function MemeCoins() {
 
   // Load Jupiter Terminal
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://terminal.jup.ag/main-v2.js';
-    script.async = true;
-    document.head.appendChild(script);
+    // Only load Jupiter if wallet is connected
+    if (!isConnected || walletType !== 'solana') return;
+    
+    const loadJupiter = async () => {
+      // Check if Jupiter is already loaded
+      if (window.Jupiter) {
+        initJupiter();
+        return;
+      }
 
-    script.onload = () => {
-      // @ts-ignore - Jupiter is loaded dynamically from external script
-      if (window.Jupiter && selectedToken?.address) {
-        // @ts-ignore
-        window.Jupiter.init({
-          displayMode: 'integrated',
-          integratedTargetId: 'jupiter-terminal',
-          endpoint: 'https://api.mainnet-beta.solana.com',
-          strictTokenList: false,
-          defaultExplorer: 'Solscan',
-          formProps: {
-            initialOutputMint: selectedToken.address,
-            fixedOutputMint: false,
-            initialInputMint: 'So11111111111111111111111111111111111111112',
-          },
-          platformFeeAndAccounts: {
-            feeBps: PLATFORM_FEE_BPS,
-            feeAccounts: new Map([
-              ['So11111111111111111111111111111111111111112', FEE_WALLET]
-            ])
-          }
-        });
+      const script = document.createElement('script');
+      script.src = 'https://terminal.jup.ag/main-v3.js';
+      script.async = true;
+      script.onload = () => {
+        // Wait a bit for Jupiter to initialize
+        setTimeout(initJupiter, 500);
+      };
+      script.onerror = () => {
+        console.error('[Jupiter] Failed to load Jupiter Terminal script');
+      };
+      document.head.appendChild(script);
+    };
+
+    const initJupiter = () => {
+      const container = document.getElementById('jupiter-terminal');
+      if (!container) return;
+
+      try {
+        // @ts-ignore - Jupiter is loaded dynamically from external script
+        if (window.Jupiter && selectedToken?.address) {
+          // @ts-ignore
+          window.Jupiter.init({
+            displayMode: 'integrated',
+            integratedTargetId: 'jupiter-terminal',
+            endpoint: 'https://api.mainnet-beta.solana.com',
+            strictTokenList: false,
+            defaultExplorer: 'Solscan',
+            formProps: {
+              initialOutputMint: selectedToken.address,
+              fixedOutputMint: false,
+              initialInputMint: 'So11111111111111111111111111111111111111112',
+            },
+            platformFeeAndAccounts: {
+              feeBps: PLATFORM_FEE_BPS,
+              feeAccounts: new Map([
+                ['So11111111111111111111111111111111111111112', FEE_WALLET]
+              ])
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[Jupiter] Failed to initialize:', error);
       }
     };
+
+    loadJupiter();
 
     return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+      // Cleanup: Jupiter doesn't have a destroy method, but we should clean up
+      const container = document.getElementById('jupiter-terminal');
+      if (container) {
+        container.innerHTML = '';
       }
     };
-  }, [selectedToken]);
+  }, [selectedToken, isConnected, walletType]);
 
   // Filter tokens based on search
   const filteredTokens = tokens.filter(token =>
