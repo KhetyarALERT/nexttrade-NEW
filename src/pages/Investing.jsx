@@ -78,44 +78,49 @@ export default function Investing({ language = "en" }) {
               <CardHeader className="border-b border-border">
                 <CardTitle className="text-lg">{t.stakingVouchersTitle}</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <p className="text-xs text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
 
-                {/* Enhanced UX: USDT-only row like screenshot; details expand */}
+                {/* Enhanced Mobile-First USDT Staking Card */}
                 <Card className="bg-card border-border text-foreground shadow-sm">
                   <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full">
                       <AccordionItem value="usdt" className="border-border">
-                        <AccordionTrigger className="hover:no-underline px-4 py-4">
-                          <div className="flex w-full items-center gap-4">
-                            <div className="flex items-center gap-3 min-w-[160px]">
+                        <AccordionTrigger className="hover:no-underline px-3 sm:px-4 py-3 sm:py-4">
+                          {/* Mobile: Stack vertically | Desktop: Horizontal */}
+                          <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4 sm:items-center">
+                            {/* Asset info - always visible */}
+                            <div className="flex items-center gap-3 shrink-0">
                               <CryptoIcon currency="USDT" size="sm" className="ring-1 ring-border" />
-                              <div className="leading-tight">
+                              <div className="leading-tight text-left">
                                 <div className="text-sm font-semibold text-foreground">USDT</div>
                                 <div className="text-[11px] text-muted-foreground">Tether</div>
                               </div>
                             </div>
 
-                            <div className="text-emerald-600 text-sm font-semibold flex-1">
-                              {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
-                            </div>
+                            {/* APY & Duration - wrap on mobile */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:flex-1">
+                              <div className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">
+                                {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
+                              </div>
 
-                            <div className="text-sm text-muted-foreground whitespace-nowrap">
-                              {language === "ar" ?
-                              `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}` :
-                              `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
+                              <div className="text-xs sm:text-sm text-muted-foreground">
+                                {language === "ar" ?
+                                `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}` :
+                                `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
+                              </div>
                             </div>
                           </div>
                         </AccordionTrigger>
 
-                        <AccordionContent className="px-4 pb-4">
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm border-collapse">
+                        <AccordionContent className="px-3 sm:px-4 pb-4">
+                          <div className="overflow-x-auto -mx-3 sm:mx-0">
+                            <table className="w-full text-sm border-collapse min-w-[300px]">
                               <thead>
-                                <tr className="text-xs text-slate-400">
-                                  <th className="text-left py-2 pr-4">{`${t.amount} (USDT)`}</th>
+                                <tr className="text-xs text-muted-foreground">
+                                  <th className="text-left py-2 pr-2 sm:pr-4 pl-3 sm:pl-0">{`${t.amount} (USDT)`}</th>
                                   {stakeTiers?.durations?.map((d) =>
-                                  <th key={d} className="text-right py-2 pl-4 whitespace-nowrap">
+                                  <th key={d} className="text-right py-2 px-1 sm:pl-4 whitespace-nowrap">
                                       {language === "ar" ? `${d} ${t.days}` : `${d}d`}
                                     </th>
                                   )}
@@ -124,11 +129,11 @@ export default function Investing({ language = "en" }) {
                               <tbody className="divide-y divide-border">
                                 {stakeTiers?.amounts?.map((amt) =>
                                 <tr key={amt}>
-                                    <td className="py-2 pr-4 font-semibold text-foreground">{Number(amt).toLocaleString()}</td>
+                                    <td className="py-2 pr-2 sm:pr-4 pl-3 sm:pl-0 font-semibold text-foreground">{Number(amt).toLocaleString()}</td>
                                     {stakeTiers?.durations?.map((d) => {
                                     const pct = stakeTiers?.percentByDuration?.[d];
                                     return (
-                                      <td key={d} className="py-2 pl-4 text-right font-mono text-muted-foreground">
+                                      <td key={d} className="py-2 px-1 sm:pl-4 text-right font-mono text-muted-foreground text-xs sm:text-sm">
                                           {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
                                         </td>);
 
