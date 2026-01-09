@@ -12,7 +12,6 @@ import {
   TrendingDown, 
   Search, 
   RefreshCw, 
-  ExternalLink, 
   Copy, 
   Check,
   Flame,
@@ -32,16 +31,8 @@ import { toast } from 'sonner';
 // Use frontend-only DexScreener API (no backend needed)
 import { 
   fetchTrendingSolanaTokens, 
-  searchTokens as searchDexScreener,
-  fetchNewLaunches,
-  fetchGainers,
-  formatNumber as dexFormatNumber,
-  formatPrice as dexFormatPrice
+  fetchNewLaunches
 } from '@/api/dexscreener';
-
-// Commission wallet address
-const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
-const PLATFORM_FEE_BPS = 100; // 1%
 
 export default function MemeCoins() {
   const { isConnected, walletType } = useWallet();
@@ -272,11 +263,17 @@ export default function MemeCoins() {
   useEffect(() => {
     if (!chartContainerRef.current || !selectedToken) return;
 
-    // Clear previous chart
+    // Clear previous chart safely
     if (chartRef.current) {
-      chartRef.current.remove();
+      try {
+        chartRef.current.remove();
+      } catch {
+        // Chart may already be disposed
+      }
+      chartRef.current = null;
     }
 
+    let isDisposed = false;
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
@@ -340,15 +337,25 @@ export default function MemeCoins() {
 
     // Handle resize
     const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      if (chartContainerRef.current && !isDisposed) {
+        try {
+          chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        } catch {
+          // Chart may be disposed
+        }
       }
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
+      isDisposed = true;
       window.removeEventListener('resize', handleResize);
-      chart.remove();
+      try {
+        chart.remove();
+      } catch {
+        // Chart may already be disposed
+      }
+      chartRef.current = null;
     };
   }, [selectedToken, timeframe]);
 
@@ -669,9 +676,9 @@ export default function MemeCoins() {
                                 href={selectedToken.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="hover:text-primary transition-colors"
+                                className="hover:text-primary transition-colors text-xs"
                               >
-                                <ExternalLink className="w-3.5 h-3.5" />
+                                ↗
                               </a>
                             )}
                           </div>
@@ -833,37 +840,6 @@ export default function MemeCoins() {
                               {selectedToken?.priceChange24h >= 0 ? '+' : ''}{selectedToken?.priceChange24h?.toFixed(2)}%
                             </span>
                           </div>
-                        </div>
-
-                        {/* External links */}
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => window.open(`https://dexscreener.com/solana/${selectedToken?.pairAddress || selectedToken?.address}`, '_blank')}
-                          >
-                            <BarChart3 className="w-4 h-4 mr-1" />
-                            DexScreener
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => window.open(`https://birdeye.so/token/${selectedToken?.address}?chain=solana`, '_blank')}
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            Birdeye
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => window.open(`https://solscan.io/token/${selectedToken?.address}`, '_blank')}
-                          >
-                            <Search className="w-4 h-4 mr-1" />
-                            Solscan
-                          </Button>
                         </div>
 
                         <div className="p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
