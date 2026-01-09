@@ -38,9 +38,9 @@ function normalizeSymbol(sym) {
 function EmptyState({ title, subtitle, icon: Icon }) {
   return (
     <div className="p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
-      {Icon && <Icon className="h-12 w-12 text-slate-600 mb-4" />}
-      <div className="text-sm font-semibold text-slate-200">{title}</div>
-      <div className="mt-2 text-xs text-slate-500 max-w-[280px]">{subtitle}</div>
+      {Icon && <Icon className="h-12 w-12 text-muted-foreground mb-4" />}
+      <div className="text-sm font-semibold text-foreground">{title}</div>
+      <div className="mt-2 text-xs text-muted-foreground max-w-[280px]">{subtitle}</div>
     </div>
   );
 }
@@ -79,11 +79,11 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
       className={`relative rounded-2xl border transition-all duration-200 overflow-hidden ${
         isSelected 
           ? "border-blue-500/50 bg-blue-500/5 shadow-lg shadow-blue-500/10" 
-          : "border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-950/60 hover:border-slate-700/80"
+          : "border-border bg-gradient-to-br from-card to-card hover:border-border"
       }`}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-800/50">
+      <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`p-1.5 rounded-lg ${side === "LONG" ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
@@ -91,7 +91,7 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-100">{sym}</span>
+                <span className="font-bold text-foreground">{sym}</span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   side === "LONG" 
                     ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" 
@@ -107,14 +107,14 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
               </div>
             </div>
           </div>
-          <ChevronRight className="h-4 w-4 text-slate-600" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
       
       {/* PnL Banner */}
       <div className={`px-4 py-2.5 ${isProfit ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Unrealized PnL</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL</span>
           <div className="text-right">
             <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
               {isProfit ? "+" : ""}{formatNum(pnl, 2)} <span className="text-xs">USDT</span>
@@ -131,20 +131,20 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
       {/* Stats Grid */}
       <div className="p-4 grid grid-cols-2 gap-3">
         <div className="space-y-0.5">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Entry</div>
-          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(entry)}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Entry</div>
+          <div className="font-mono text-sm text-foreground">{formatCompactPrice(entry)}</div>
         </div>
         <div className="space-y-0.5">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Mark</div>
-          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(mark)}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mark</div>
+          <div className="font-mono text-sm text-foreground">{formatCompactPrice(mark)}</div>
         </div>
         <div className="space-y-0.5">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Size</div>
-          <div className="font-mono text-sm text-slate-200">{formatNum(qty, 4)} {baseAsset}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Size</div>
+          <div className="font-mono text-sm text-foreground">{formatNum(qty, 4)} {baseAsset}</div>
         </div>
         <div className="space-y-0.5">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500">Margin</div>
-          <div className="font-mono text-sm text-slate-200">{formatNum(margin, 2)} USDT</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Margin</div>
+          <div className="font-mono text-sm text-foreground">{formatNum(margin, 2)} USDT</div>
         </div>
       </div>
 
@@ -156,14 +156,14 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
             className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-colors ${
               pos?.take_profit 
                 ? "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20" 
-                : "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
+                : "bg-muted border-border hover:bg-muted"
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <Target className={`h-3.5 w-3.5 ${pos?.take_profit ? "text-emerald-400" : "text-slate-500"}`} />
-              <span className={`text-[10px] font-medium ${pos?.take_profit ? "text-emerald-300" : "text-slate-500"}`}>TP</span>
+              <Target className={`h-3.5 w-3.5 ${pos?.take_profit ? "text-emerald-400" : "text-muted-foreground"}`} />
+              <span className={`text-[10px] font-medium ${pos?.take_profit ? "text-emerald-300" : "text-muted-foreground"}`}>TP</span>
             </div>
-            <span className={`font-mono text-xs ${pos?.take_profit ? "text-emerald-300" : "text-slate-500"}`}>
+            <span className={`font-mono text-xs ${pos?.take_profit ? "text-emerald-300" : "text-muted-foreground"}`}>
               {pos?.take_profit ? formatCompactPrice(pos.take_profit) : "—"}
             </span>
           </button>
@@ -172,14 +172,14 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
             className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-colors ${
               pos?.stop_loss 
                 ? "bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20" 
-                : "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
+                : "bg-muted border-border hover:bg-muted"
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <ShieldAlert className={`h-3.5 w-3.5 ${pos?.stop_loss ? "text-rose-400" : "text-slate-500"}`} />
-              <span className={`text-[10px] font-medium ${pos?.stop_loss ? "text-rose-300" : "text-slate-500"}`}>SL</span>
+              <ShieldAlert className={`h-3.5 w-3.5 ${pos?.stop_loss ? "text-rose-400" : "text-muted-foreground"}`} />
+              <span className={`text-[10px] font-medium ${pos?.stop_loss ? "text-rose-300" : "text-muted-foreground"}`}>SL</span>
             </div>
-            <span className={`font-mono text-xs ${pos?.stop_loss ? "text-rose-300" : "text-slate-500"}`}>
+            <span className={`font-mono text-xs ${pos?.stop_loss ? "text-rose-300" : "text-muted-foreground"}`}>
               {pos?.stop_loss ? formatCompactPrice(pos.stop_loss) : "—"}
             </span>
           </button>
@@ -201,12 +201,12 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
       )}
 
       {/* Action Buttons */}
-      <div className="p-3 border-t border-slate-800/50 flex gap-2">
+      <div className="p-3 border-t border-border flex gap-2">
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="flex-1 h-10 rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+          className="flex-1 h-10 rounded-xl border-border text-foreground hover:bg-muted hover:text-foreground"
           onClick={(e) => { e.stopPropagation(); onEditTpSl?.(pos); }}
         >
           <Pencil className="h-3.5 w-3.5 mr-1.5" />
@@ -243,10 +243,10 @@ function OrderCard({ order, onCancel, isBusy, labels }) {
   const isConditional = order?.kind === "TP" || order?.kind === "SL";
   
   return (
-    <div className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-200">{sym}</span>
+          <span className="font-semibold text-foreground">{sym}</span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
             order?.kind === "TP" ? "bg-emerald-500/15 text-emerald-300" :
             order?.kind === "SL" ? "bg-rose-500/15 text-rose-300" :
@@ -259,7 +259,7 @@ function OrderCard({ order, onCancel, isBusy, labels }) {
           type="button"
           size="sm"
           variant="ghost"
-          className="h-8 px-3 text-xs text-slate-400 hover:text-white"
+          className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => onCancel?.(order)}
           disabled={isBusy}
         >
@@ -268,12 +268,12 @@ function OrderCard({ order, onCancel, isBusy, labels }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="text-[10px] text-slate-500 uppercase">Price</div>
-          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(order?.price)}</div>
+          <div className="text-[10px] text-muted-foreground uppercase">Price</div>
+          <div className="font-mono text-sm text-foreground">{formatCompactPrice(order?.price)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-slate-500 uppercase">Qty</div>
-          <div className="font-mono text-sm text-slate-200">{order?.qty ? formatNum(order.qty, 4) : "—"}</div>
+          <div className="text-[10px] text-muted-foreground uppercase">Qty</div>
+          <div className="font-mono text-sm text-foreground">{order?.qty ? formatNum(order.qty, 4) : "—"}</div>
         </div>
       </div>
     </div>
@@ -294,10 +294,10 @@ function HistoryCard({ trade, type }) {
   const isProfit = Number(pnl) >= 0;
   
   return (
-    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-4">
+    <div className="rounded-xl border border-border bg-muted p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-200">{sym}</span>
+          <span className="font-semibold text-foreground">{sym}</span>
           <span className={`text-[10px] px-2 py-0.5 rounded-full ${
             trade?.side === "LONG" ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
           }`}>
@@ -310,7 +310,7 @@ function HistoryCard({ trade, type }) {
           </span>
         )}
       </div>
-      <div className="text-[10px] text-slate-500">
+      <div className="text-[10px] text-muted-foreground">
         {trade?.closed_at ? new Date(trade.closed_at).toLocaleString() : 
          trade?.created_at ? new Date(trade.created_at).toLocaleString() : "—"}
       </div>
@@ -709,10 +709,10 @@ export default function FuturesActivityTabs({
         {/* Simplified Tab Header */}
         <div className="px-3 py-2 border-b border-border flex items-center gap-2 bg-card/50 shrink-0">
           <div className="flex-1 overflow-x-auto scrollbar-hide">
-            <TabsList className="bg-muted/50 h-9 p-1 rounded-xl">
+            <TabsList className="bg-muted/50 h-9 p-1 rounded-xl inline-flex w-auto min-w-0">
               <TabsTrigger 
                 value="positions" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
               >
                 {labels.tabs.positions}
                 {openPositions.length > 0 && (
@@ -723,7 +723,7 @@ export default function FuturesActivityTabs({
               </TabsTrigger>
               <TabsTrigger 
                 value="openOrders" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
               >
                 {labels.tabs.openOrders}
                 {openOrders.length > 0 && (
@@ -734,7 +734,7 @@ export default function FuturesActivityTabs({
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
               >
                 {labels.tabs.history}
               </TabsTrigger>
@@ -784,15 +784,15 @@ export default function FuturesActivityTabs({
                 <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-slate-500">{labels.positions.futures}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.positionValue}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.unrealized}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.entry}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.mark}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.liq}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.margin}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.tpSl}</TableHead>
-                      <TableHead className="text-slate-500">{labels.positions.actions}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.futures}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.positionValue}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.unrealized}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.entry}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.mark}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.liq}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.margin}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.tpSl}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.actions}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -814,12 +814,12 @@ export default function FuturesActivityTabs({
                       return (
                         <TableRow
                           key={pos?.id || `${sym}_${entry}_${qty}`}
-                          className={`hover:bg-slate-900/20 ${pos?.id && selectedTradeId === pos.id ? "bg-slate-900/30" : ""}`}
+                          className={`hover:bg-muted/50 ${pos?.id && selectedTradeId === pos.id ? "bg-muted" : ""}`}
                           onClick={() => onSelectTrade?.(pos)}
                           role={onSelectTrade ? "button" : undefined}
                           tabIndex={onSelectTrade ? 0 : undefined}
                         >
-                          <TableCell className="text-slate-200 font-medium">
+                          <TableCell className="text-foreground font-medium">
                             <div className="flex items-center gap-2">
                               <span>{sym}</span>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
@@ -832,10 +832,10 @@ export default function FuturesActivityTabs({
                               {pos?.leverage && <span className="text-[10px] text-amber-400">{pos.leverage}x</span>}
                             </div>
                           </TableCell>
-                          <TableCell className="text-slate-200">
+                          <TableCell className="text-foreground">
                             <div className="leading-tight">
                               <div className="font-mono">{formatNum(qty, 4)} {baseAsset}</div>
-                              <div className="font-mono text-[11px] text-slate-400">{formatNum(positionValue, 2)} USDT</div>
+                              <div className="font-mono text-[11px] text-muted-foreground">{formatNum(positionValue, 2)} USDT</div>
                             </div>
                           </TableCell>
                           <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
@@ -844,21 +844,21 @@ export default function FuturesActivityTabs({
                               <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `${pnlPct.toFixed(2)}%` : "—"}</div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-slate-200 font-mono">{formatPrice(entry)}</TableCell>
-                          <TableCell className="text-slate-200 font-mono">{formatPrice(mark)}</TableCell>
+                          <TableCell className="text-foreground font-mono">{formatPrice(entry)}</TableCell>
+                          <TableCell className="text-foreground font-mono">{formatPrice(mark)}</TableCell>
                           <TableCell className="text-amber-300 font-mono">{formatPrice(pos?.liquidation_price)}</TableCell>
-                          <TableCell className="text-slate-200 font-mono">{formatNum(margin, 2)} USDT</TableCell>
-                          <TableCell className="text-slate-200">
+                          <TableCell className="text-foreground font-mono">{formatNum(margin, 2)} USDT</TableCell>
+                          <TableCell className="text-foreground">
                             <div className="flex items-center gap-2">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.take_profit ? "bg-emerald-500/10 text-emerald-200" : "text-slate-500"}`}>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.take_profit ? "bg-emerald-500/10 text-emerald-200" : "text-muted-foreground"}`}>
                                 TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}
                               </span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.stop_loss ? "bg-rose-500/10 text-rose-200" : "text-slate-500"}`}>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.stop_loss ? "bg-rose-500/10 text-rose-200" : "text-muted-foreground"}`}>
                                 SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
                               </span>
                               <button
                                 type="button"
-                                className="p-1 rounded hover:bg-slate-800"
+                                className="p-1 rounded hover:bg-muted"
                                 onClick={(e) => { e.stopPropagation(); openTpSlDialog(pos); }}
                               >
                                 {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
@@ -913,22 +913,22 @@ export default function FuturesActivityTabs({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                      <TableHead className="text-slate-500">{labels.common.type}</TableHead>
-                      <TableHead className="text-slate-500">{labels.common.side}</TableHead>
-                      <TableHead className="text-slate-500 text-right">{labels.common.price}</TableHead>
-                      <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
-                      <TableHead className="text-slate-500 text-right">{labels.common.action}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.symbol}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.type}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.side}</TableHead>
+                      <TableHead className="text-muted-foreground text-right">{labels.common.price}</TableHead>
+                      <TableHead className="text-muted-foreground text-right">{labels.common.qty}</TableHead>
+                      <TableHead className="text-muted-foreground text-right">{labels.common.action}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {openOrders.map((o) => (
                       <TableRow key={o?.id}>
-                        <TableCell className="text-slate-200">{normalizeSymbol(o?.symbol)}</TableCell>
-                        <TableCell className="text-slate-200">{o?.type}</TableCell>
-                        <TableCell className="text-slate-200">{o?.side}</TableCell>
-                        <TableCell className="text-slate-200 text-right font-mono">{formatPrice(o?.price)}</TableCell>
-                        <TableCell className="text-slate-200 text-right font-mono">{o?.qty ? formatNum(o.qty, 4) : "—"}</TableCell>
+                        <TableCell className="text-foreground">{normalizeSymbol(o?.symbol)}</TableCell>
+                        <TableCell className="text-foreground">{o?.type}</TableCell>
+                        <TableCell className="text-foreground">{o?.side}</TableCell>
+                        <TableCell className="text-foreground text-right font-mono">{formatPrice(o?.price)}</TableCell>
+                        <TableCell className="text-foreground text-right font-mono">{o?.qty ? formatNum(o.qty, 4) : "—"}</TableCell>
                         <TableCell className="text-right">
                           <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => cancelOpenOrder(o)} disabled={cancelBusyId === o?.id}>
                             {cancelBusyId === o?.id ? labels.common.updating : labels.common.cancel}
@@ -965,18 +965,18 @@ export default function FuturesActivityTabs({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-slate-500">{labels.common.time}</TableHead>
-                      <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                      <TableHead className="text-slate-500">{labels.common.side}</TableHead>
-                      <TableHead className="text-slate-500 text-right">{labels.common.pnl}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.time}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.symbol}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.common.side}</TableHead>
+                      <TableHead className="text-muted-foreground text-right">{labels.common.pnl}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {tradeHistory.slice(0, 50).map((t) => (
                       <TableRow key={t?.id}>
-                        <TableCell className="text-slate-200">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
-                        <TableCell className="text-slate-200">{normalizeSymbol(t?.symbol)}</TableCell>
-                        <TableCell className="text-slate-200">{t?.side}</TableCell>
+                        <TableCell className="text-foreground">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
+                        <TableCell className="text-foreground">{normalizeSymbol(t?.symbol)}</TableCell>
+                        <TableCell className="text-foreground">{t?.side}</TableCell>
                         <TableCell className={`text-right font-mono ${Number(t?.pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                           {t?.pnl !== undefined ? `${Number(t.pnl) >= 0 ? "+" : ""}${formatNum(t.pnl, 2)} USDT` : "—"}
                         </TableCell>
@@ -1026,7 +1026,7 @@ export default function FuturesActivityTabs({
               <div className="rounded-xl border border-border bg-card p-4">
                 <label className="flex items-center gap-3 mb-3">
                   <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={tpEnabled} onChange={(e) => setTpEnabled(e.target.checked)} />
-                  <span className="font-medium text-slate-100">{labels.common.takeProfit}</span>
+                  <span className="font-medium text-foreground">{labels.common.takeProfit}</span>
                 </label>
                 {tpEnabled && (
                   <div>
@@ -1034,12 +1034,12 @@ export default function FuturesActivityTabs({
                       value={tpValue}
                       onChange={(e) => setTpValue(e.target.value)}
                       placeholder="—"
-                      className="w-full rounded-xl bg-slate-950/30 border border-slate-800 px-4 py-3 text-sm text-slate-100 outline-none"
+                      className="w-full rounded-xl bg-slate-950/30 border border-border px-4 py-3 text-sm text-foreground outline-none"
                       inputMode="decimal"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
                       {[10, 25, 50, 100].map((p) => (
-                        <button key={`tp_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs" onClick={() => { setTpEnabled(true); setTpValue(calcPresetPrice(tpSlTrade, "tp", p)); }}>
+                        <button key={`tp_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-slate-700 text-xs" onClick={() => { setTpEnabled(true); setTpValue(calcPresetPrice(tpSlTrade, "tp", p)); }}>
                           +{p}%
                         </button>
                       ))}
@@ -1049,10 +1049,10 @@ export default function FuturesActivityTabs({
               </div>
 
               {/* Stop Loss */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
+              <div className="rounded-xl border border-border bg-muted/50 p-4">
                 <label className="flex items-center gap-3 mb-3">
                   <input type="checkbox" className="h-4 w-4 accent-rose-500" checked={slEnabled} onChange={(e) => setSlEnabled(e.target.checked)} />
-                  <span className="font-medium text-slate-100">{labels.common.stopLoss}</span>
+                  <span className="font-medium text-foreground">{labels.common.stopLoss}</span>
                 </label>
                 {slEnabled && (
                   <div>
@@ -1060,12 +1060,12 @@ export default function FuturesActivityTabs({
                       value={slValue}
                       onChange={(e) => setSlValue(e.target.value)}
                       placeholder="—"
-                      className="w-full rounded-xl bg-slate-950/30 border border-slate-800 px-4 py-3 text-sm text-slate-100 outline-none"
+                      className="w-full rounded-xl bg-slate-950/30 border border-border px-4 py-3 text-sm text-foreground outline-none"
                       inputMode="decimal"
                     />
                     <div className="mt-2 flex flex-wrap gap-2">
                       {[5, 10, 25, 50].map((p) => (
-                        <button key={`sl_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs" onClick={() => { setSlEnabled(true); setSlValue(calcPresetPrice(tpSlTrade, "sl", p)); }}>
+                        <button key={`sl_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-muted text-foreground hover:bg-slate-700 text-xs" onClick={() => { setSlEnabled(true); setSlValue(calcPresetPrice(tpSlTrade, "sl", p)); }}>
                           -{p}%
                         </button>
                       ))}
