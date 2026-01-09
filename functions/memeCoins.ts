@@ -1,49 +1,118 @@
-// @ts-nocheck
-/// <reference lib="deno.ns" />
-
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-
 /**
  * Meme Coins Backend Function
  * - Pump.fun API: Pre-DEX tokens on bonding curve
  * - DexScreener API: Migrated/graduated tokens
  * - Jupiter API: Swaps with 1% platform commission
+ * 
+ * NOTE: This function does NOT require any Base44 entities.
+ * It only fetches data from external APIs.
  */
 
 // Constants
-const PLATFORM_FEE_BPS = 100;
-const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
-const PUMP_FUN_API = 'https://frontend-api.pump.fun';
-const DEXSCREENER_API = 'https://api.dexscreener.com';
-const JUPITER_API = 'https://quote-api.jup.ag/v6';
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const CACHE_TTL = 30000;
+var PLATFORM_FEE_BPS = 100;
+var FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
+var PUMP_FUN_API = 'https://frontend-api.pump.fun';
+var DEXSCREENER_API = 'https://api.dexscreener.com';
+var JUPITER_API = 'https://quote-api.jup.ag/v6';
+var SOL_MINT = 'So11111111111111111111111111111111111111112';
+var CACHE_TTL = 30000;
 
-const cache = new Map();
+var cache = new Map<string, { data: unknown; timestamp: number }>();
 
-const log = (action, data) => {
-  console.log(`[${new Date().toISOString()}] [MEME_COINS] ${action}`, data ? JSON.stringify(data) : '');
+type PumpFunCoinApi = {
+  mint: string;
+  symbol?: string;
+  name?: string;
+  description?: string;
+  image_uri?: string;
+
+  complete?: boolean;
+  bonding_curve_progress?: number;
+  king_of_the_hill_timestamp?: number | null;
+
+  usd_market_cap?: number;
+  virtual_sol_reserves?: number;
+  virtual_token_reserves?: number;
+
+  reply_count?: number;
+  twitter?: string;
+  telegram?: string;
+  website?: string;
+
+  creator?: string;
+  created_timestamp?: number;
+  last_trade_timestamp?: number;
 };
 
-const logError = (action, error) => {
-  console.error(`[${new Date().toISOString()}] [MEME_COINS_ERROR] ${action}:`, error?.message || error);
+type DexTokenProfileApi = {
+  chainId: string;
+  tokenAddress: string;
+  header?: string;
+  description?: string;
+  icon?: string;
+  links?: unknown[];
 };
 
-const getCached = (key) => {
-  const entry = cache.get(key);
+type DexBoostApi = {
+  chainId: string;
+  [key: string]: unknown;
+};
+
+type DexPairApi = {
+  chainId?: string;
+  pairAddress?: string;
+  baseToken?: { address?: string; symbol?: string; name?: string };
+  priceUsd?: string;
+  priceNative?: string;
+  priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
+  volume?: { m5?: number; h1?: number; h6?: number; h24?: number };
+  liquidity?: { usd?: number };
+  fdv?: number;
+  marketCap?: number;
+  txns?: {
+    m5?: { buys?: number; sells?: number };
+    h1?: { buys?: number; sells?: number };
+    h24?: { buys?: number; sells?: number };
+  };
+  dexId?: string;
+  url?: string;
+  info?: { imageUrl?: string | null; websites?: unknown[]; socials?: unknown[] };
+  pairCreatedAt?: number;
+};
+
+type DexPairsResponseApi = {
+  pairs?: DexPairApi[];
+  pair?: DexPairApi;
+};
+
+type JupiterPriceResponseApi = {
+  data?: Record<string, { price?: number }>;
+};
+
+function log(action: string, data?: unknown) {
+  console.log('[' + new Date().toISOString() + '] [MEME_COINS] ' + action, data ? JSON.stringify(data) : '');
+}
+
+function logError(action: string, error: unknown) {
+  const message = error instanceof Error ? error.message : error;
+  console.error('[' + new Date().toISOString() + '] [MEME_COINS_ERROR] ' + action + ':', message);
+}
+
+function getCached<T = unknown>(key: string): T | null {
+  var entry = cache.get(key);
   if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-    return entry.data;
+    return entry.data as T;
   }
   cache.delete(key);
   return null;
-};
+}
 
-const setCache = (key, data) => {
-  cache.set(key, { data, timestamp: Date.now() });
-};
+function setCache(key: string, data: unknown) {
+  cache.set(key, { data: data, timestamp: Date.now() });
+}
 
 // Pump.fun API
-async function fetchPumpFunTokens(options) {
+async function fetchPumpFunTokens(options?: { limit?: number; offset?: number; sort?: string; order?: string; includeNsfw?: boolean }) {
   const limit = options?.limit || 50;
   const offset = options?.offset || 0;
   const sort = options?.sort || 'last_trade_timestamp';
@@ -72,7 +141,7 @@ async function fetchPumpFunTokens(options) {
       throw new Error(`Pump.fun API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: PumpFunCoinApi[] = await response.json();
     
     // Transform to consistent format
     const tokens = (data || []).map((token) => ({
@@ -124,7 +193,7 @@ async function fetchPumpFunTokens(options) {
 /**
  * Fetch a specific token from Pump.fun by mint address
  */
-async function fetchPumpFunToken(mint) {
+async function fetchPumpFunToken(mint: string) {
   const cacheKey = `pump_token_${mint}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -139,7 +208,7 @@ async function fetchPumpFunToken(mint) {
 
     if (!response.ok) return null;
 
-    const token = await response.json();
+    const token: PumpFunCoinApi = await response.json();
     const formatted = {
       id: token.mint,
       mint: token.mint,
@@ -190,7 +259,7 @@ async function fetchDexScreenerLatest() {
       throw new Error(`DexScreener API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: DexTokenProfileApi[] = await response.json();
     
     // Filter for Solana tokens only
     const solanaTokens = (data || [])
@@ -234,7 +303,7 @@ async function fetchDexScreenerBoosted() {
 
     if (!response.ok) return [];
 
-    const data = await response.json();
+    const data: DexBoostApi[] = await response.json();
     const solanaTokens = (data || [])
       .filter((t) => t.chainId === 'solana')
       .slice(0, 30);
@@ -271,13 +340,13 @@ async function fetchDexScreenerTrending(limit = 50) {
       throw new Error(`DexScreener API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: DexPairsResponseApi = await response.json();
     
     // Filter and format Solana pairs with good liquidity
     const pairs = (data.pairs || [])
       .filter((pair) => 
         pair.chainId === 'solana' &&
-        pair.liquidity?.usd > 5000 &&
+        (pair.liquidity?.usd || 0) > 5000 &&
         pair.baseToken?.symbol !== 'SOL' &&
         pair.baseToken?.symbol !== 'WSOL'
       )
@@ -341,7 +410,7 @@ async function fetchDexScreenerTrending(limit = 50) {
 /**
  * Search tokens on DexScreener
  */
-async function searchDexScreener(query) {
+async function searchDexScreener(query: string) {
   if (!query || query.length < 2) return [];
 
   const cacheKey = `dex_search_${query.toLowerCase()}`;
@@ -356,7 +425,7 @@ async function searchDexScreener(query) {
 
     if (!response.ok) return [];
 
-    const data = await response.json();
+    const data: DexPairsResponseApi = await response.json();
     
     // Filter for Solana only
     const results = (data.pairs || [])
@@ -392,7 +461,7 @@ async function searchDexScreener(query) {
 /**
  * Get token pair details by address
  */
-async function fetchTokenPair(pairAddress) {
+async function fetchTokenPair(pairAddress: string) {
   const cacheKey = `dex_pair_${pairAddress}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -405,7 +474,7 @@ async function fetchTokenPair(pairAddress) {
 
     if (!response.ok) return null;
 
-    const data = await response.json();
+    const data: DexPairsResponseApi = await response.json();
     const pair = data.pairs?.[0] || data.pair;
     if (!pair) return null;
 
@@ -445,7 +514,7 @@ async function fetchTokenPair(pairAddress) {
  * Get swap quote from Jupiter with platform fee
  * Jupiter API docs: https://station.jup.ag/docs/apis/swap-api
  */
-async function getSwapQuote(params) {
+async function getSwapQuote(params: { inputMint: string; outputMint: string; amount: string | number; slippageBps?: number }) {
   const JUPITER_API_KEY = Deno.env.get('JUPITER_API_KEY');
   
   const inputMint = params.inputMint;
@@ -505,7 +574,7 @@ async function getSwapQuote(params) {
  * Get swap transaction from Jupiter
  * Returns serialized transaction ready for signing
  */
-async function getSwapTransaction(params) {
+async function getSwapTransaction(params: { quoteResponse: unknown; userPublicKey: string; wrapUnwrapSOL?: boolean; feeAccount?: string }) {
   const JUPITER_API_KEY = Deno.env.get('JUPITER_API_KEY');
   
   const quoteResponse = params.quoteResponse;
@@ -556,7 +625,7 @@ async function getSwapTransaction(params) {
 /**
  * Get token price in USD from Jupiter
  */
-async function getTokenPrice(mint) {
+async function getTokenPrice(mint: string) {
   const cacheKey = `jup_price_${mint}`;
   const cached = getCached(cacheKey);
   if (cached !== null) return cached;
@@ -569,7 +638,7 @@ async function getTokenPrice(mint) {
 
     if (!response.ok) return null;
 
-    const data = await response.json();
+    const data: JupiterPriceResponseApi = await response.json();
     const price = data.data?.[mint]?.price || null;
     
     if (price !== null) {
@@ -589,209 +658,175 @@ async function getTokenPrice(mint) {
 // =============================================================================
 
 Deno.serve(async (req) => {
-  const base44 = createClientFromRequest(req);
-
   try {
-    // Verify authentication
-    const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    // Optional: require authentication (Base44 SDK removed because it's not required by this function)
+    // If you need auth later, re-introduce the SDK using a supported import for your runtime.
+
+    var body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return Response.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
+    
+    var action = body.action;
+    log('REQUEST', { action: action });
+
+    // PUMP.FUN ACTIONS - Pre-DEX Meme Coins
+    
+    if (action === 'getPumpFunTokens') {
+      var tokens = await fetchPumpFunTokens({
+        limit: body.limit || 50,
+        offset: body.offset || 0,
+        sort: body.sort || 'last_trade_timestamp',
+        order: body.order || 'DESC',
+        includeNsfw: body.includeNsfw || false
+      });
+      return Response.json({ success: true, data: tokens, source: 'pump.fun' });
     }
 
-    const body = await req.json();
-    const { action, ...params } = body;
+    if (action === 'getPumpFunNewLaunches') {
+      var tokens = await fetchPumpFunTokens({
+        limit: body.limit || 30,
+        offset: 0,
+        sort: 'created_timestamp',
+        order: 'DESC',
+        includeNsfw: false
+      });
+      return Response.json({ success: true, data: tokens, source: 'pump.fun' });
+    }
 
-    log('REQUEST', { action, userId: user.id });
+    if (action === 'getPumpFunKingOfHill') {
+      var allTokens = await fetchPumpFunTokens({ limit: 100 });
+      var kingTokens = allTokens.filter(function(t) { return t.isKingOfHill; });
+      return Response.json({ success: true, data: kingTokens, source: 'pump.fun' });
+    }
 
-    switch (action) {
-      // =====================================================================
-      // PUMP.FUN ACTIONS - Pre-DEX Meme Coins
-      // =====================================================================
-      
-      case 'getPumpFunTokens': {
-        // Fetch latest tokens from Pump.fun (on bonding curve)
-        const tokens = await fetchPumpFunTokens({
-          limit: params.limit || 50,
-          offset: params.offset || 0,
-          sort: params.sort || 'last_trade_timestamp',
-          order: params.order || 'DESC',
-          includeNsfw: params.includeNsfw || false
-        });
-        return Response.json({ success: true, data: tokens, source: 'pump.fun' });
+    if (action === 'getPumpFunToken') {
+      if (!body.mint) {
+        return Response.json({ success: false, error: 'Mint address required' }, { status: 400 });
       }
-
-      case 'getPumpFunNewLaunches': {
-        // Get newest token launches on Pump.fun
-        const tokens = await fetchPumpFunTokens({
-          limit: params.limit || 30,
-          offset: 0,
-          sort: 'created_timestamp',
-          order: 'DESC',
-          includeNsfw: false
-        });
-        return Response.json({ success: true, data: tokens, source: 'pump.fun' });
+      var token = await fetchPumpFunToken(body.mint);
+      if (!token) {
+        return Response.json({ success: false, error: 'Token not found' }, { status: 404 });
       }
+      return Response.json({ success: true, data: token, source: 'pump.fun' });
+    }
 
-      case 'getPumpFunKingOfHill': {
-        // Get tokens at King of the Hill (top of bonding curve)
-        const allTokens = await fetchPumpFunTokens({ limit: 100 });
-        const kingTokens = allTokens.filter(t => t.isKingOfHill);
-        return Response.json({ success: true, data: kingTokens, source: 'pump.fun' });
+    // DEXSCREENER ACTIONS - Graduated/Migrated Tokens
+
+    if (action === 'getTrendingTokens') {
+      var tokens = await fetchDexScreenerTrending(body.limit || 50);
+      return Response.json({ success: true, data: tokens, source: 'dexscreener' });
+    }
+
+    if (action === 'getLatestProfiles') {
+      var tokens = await fetchDexScreenerLatest();
+      return Response.json({ success: true, data: tokens, source: 'dexscreener' });
+    }
+
+    if (action === 'getBoostedTokens') {
+      var tokens = await fetchDexScreenerBoosted();
+      return Response.json({ success: true, data: tokens, source: 'dexscreener' });
+    }
+
+    if (action === 'searchTokens') {
+      if (!body.query) {
+        return Response.json({ success: false, error: 'Search query required' }, { status: 400 });
       }
+      var results = await searchDexScreener(body.query);
+      return Response.json({ success: true, data: results, source: 'dexscreener' });
+    }
 
-      case 'getPumpFunToken': {
-        // Get specific Pump.fun token by mint
-        if (!params.mint) {
-          return Response.json({ success: false, error: 'Mint address required' }, { status: 400 });
+    if (action === 'getTokenPair') {
+      if (!body.pairAddress) {
+        return Response.json({ success: false, error: 'Pair address required' }, { status: 400 });
+      }
+      var pair = await fetchTokenPair(body.pairAddress);
+      if (!pair) {
+        return Response.json({ success: false, error: 'Pair not found' }, { status: 404 });
+      }
+      return Response.json({ success: true, data: pair, source: 'dexscreener' });
+    }
+
+    // COMBINED/ALL SOURCES
+
+    if (action === 'getAllMemeCoins') {
+      var pumpTokens = await fetchPumpFunTokens({ limit: body.pumpLimit || 30 });
+      var dexTrending = await fetchDexScreenerTrending(body.dexLimit || 30);
+      return Response.json({
+        success: true,
+        data: {
+          pumpFun: pumpTokens,
+          graduated: dexTrending,
+          totalPumpFun: pumpTokens.length,
+          totalGraduated: dexTrending.length
         }
-        const token = await fetchPumpFunToken(params.mint);
-        if (!token) {
-          return Response.json({ success: false, error: 'Token not found' }, { status: 404 });
-        }
-        return Response.json({ success: true, data: token, source: 'pump.fun' });
-      }
+      });
+    }
 
-      // =====================================================================
-      // DEXSCREENER ACTIONS - Graduated/Migrated Tokens
-      // =====================================================================
+    // JUPITER SWAP ACTIONS (with 1% commission)
 
-      case 'getTrendingTokens': {
-        // Get trending Solana tokens from DexScreener
-        const tokens = await fetchDexScreenerTrending(params.limit || 50);
-        return Response.json({ success: true, data: tokens, source: 'dexscreener' });
-      }
-
-      case 'getLatestProfiles': {
-        // Get tokens with recently updated profiles
-        const tokens = await fetchDexScreenerLatest();
-        return Response.json({ success: true, data: tokens, source: 'dexscreener' });
-      }
-
-      case 'getBoostedTokens': {
-        // Get promoted/boosted tokens on DexScreener
-        const tokens = await fetchDexScreenerBoosted();
-        return Response.json({ success: true, data: tokens, source: 'dexscreener' });
-      }
-
-      case 'searchTokens': {
-        // Search tokens across DexScreener
-        if (!params.query) {
-          return Response.json({ success: false, error: 'Search query required' }, { status: 400 });
-        }
-        const results = await searchDexScreener(params.query);
-        return Response.json({ success: true, data: results, source: 'dexscreener' });
-      }
-
-      case 'getTokenPair': {
-        // Get specific pair details
-        if (!params.pairAddress) {
-          return Response.json({ success: false, error: 'Pair address required' }, { status: 400 });
-        }
-        const pair = await fetchTokenPair(params.pairAddress);
-        if (!pair) {
-          return Response.json({ success: false, error: 'Pair not found' }, { status: 404 });
-        }
-        return Response.json({ success: true, data: pair, source: 'dexscreener' });
-      }
-
-      // =====================================================================
-      // COMBINED/ALL SOURCES
-      // =====================================================================
-
-      case 'getAllMemeCoins': {
-        // Fetch from all sources and combine
-        const [pumpTokens, dexTrending] = await Promise.all([
-          fetchPumpFunTokens({ limit: params.pumpLimit || 30 }),
-          fetchDexScreenerTrending(params.dexLimit || 30)
-        ]);
-
-        return Response.json({
-          success: true,
-          data: {
-            pumpFun: pumpTokens,          // Pre-DEX tokens on bonding curve
-            graduated: dexTrending,        // Migrated tokens on DEXes
-            totalPumpFun: pumpTokens.length,
-            totalGraduated: dexTrending.length
-          }
-        });
-      }
-
-      // =====================================================================
-      // JUPITER SWAP ACTIONS (with 1% commission)
-      // =====================================================================
-
-      case 'getSwapQuote': {
-        // Get swap quote with platform fee
-        if (!params.inputMint || !params.outputMint || !params.amount) {
-          return Response.json({ 
-            success: false, 
-            error: 'inputMint, outputMint, and amount required' 
-          }, { status: 400 });
-        }
-        
-        const quote = await getSwapQuote({
-          inputMint: params.inputMint,
-          outputMint: params.outputMint,
-          amount: params.amount,
-          slippageBps: params.slippageBps
-        });
-        
-        return Response.json({ success: true, data: quote });
-      }
-
-      case 'getSwapTransaction': {
-        // Get serialized swap transaction
-        if (!params.quoteResponse || !params.userPublicKey) {
-          return Response.json({ 
-            success: false, 
-            error: 'quoteResponse and userPublicKey required' 
-          }, { status: 400 });
-        }
-        
-        const swapTx = await getSwapTransaction({
-          quoteResponse: params.quoteResponse,
-          userPublicKey: params.userPublicKey,
-          wrapUnwrapSOL: params.wrapUnwrapSOL,
-          feeAccount: params.feeAccount
-        });
-        
-        return Response.json({ success: true, data: swapTx });
-      }
-
-      case 'getTokenPrice': {
-        // Get token price from Jupiter
-        if (!params.mint) {
-          return Response.json({ success: false, error: 'Mint address required' }, { status: 400 });
-        }
-        
-        const price = await getTokenPrice(params.mint);
-        return Response.json({ success: true, data: { mint: params.mint, price } });
-      }
-
-      // =====================================================================
-      // CONFIG/INFO
-      // =====================================================================
-
-      case 'getConfig': {
-        // Return platform configuration
-        return Response.json({
-          success: true,
-          data: {
-            platformFeeBps: PLATFORM_FEE_BPS,
-            platformFeePercent: PLATFORM_FEE_BPS / 100,
-            feeWallet: FEE_WALLET,
-            cacheTtlMs: CACHE_TTL,
-            sources: ['pump.fun', 'dexscreener', 'jupiter']
-          }
-        });
-      }
-
-      default:
+    if (action === 'getSwapQuote') {
+      if (!body.inputMint || !body.outputMint || !body.amount) {
         return Response.json({ 
           success: false, 
-          error: `Unknown action: ${action}. Valid actions: getPumpFunTokens, getPumpFunNewLaunches, getPumpFunKingOfHill, getPumpFunToken, getTrendingTokens, getLatestProfiles, getBoostedTokens, searchTokens, getTokenPair, getAllMemeCoins, getSwapQuote, getSwapTransaction, getTokenPrice, getConfig` 
+          error: 'inputMint, outputMint, and amount required' 
         }, { status: 400 });
+      }
+      var quote = await getSwapQuote({
+        inputMint: body.inputMint,
+        outputMint: body.outputMint,
+        amount: body.amount,
+        slippageBps: body.slippageBps
+      });
+      return Response.json({ success: true, data: quote });
     }
+
+    if (action === 'getSwapTransaction') {
+      if (!body.quoteResponse || !body.userPublicKey) {
+        return Response.json({ 
+          success: false, 
+          error: 'quoteResponse and userPublicKey required' 
+        }, { status: 400 });
+      }
+      var swapTx = await getSwapTransaction({
+        quoteResponse: body.quoteResponse,
+        userPublicKey: body.userPublicKey,
+        wrapUnwrapSOL: body.wrapUnwrapSOL,
+        feeAccount: body.feeAccount
+      });
+      return Response.json({ success: true, data: swapTx });
+    }
+
+    if (action === 'getTokenPrice') {
+      if (!body.mint) {
+        return Response.json({ success: false, error: 'Mint address required' }, { status: 400 });
+      }
+      var price = await getTokenPrice(body.mint);
+      return Response.json({ success: true, data: { mint: body.mint, price: price } });
+    }
+
+    // CONFIG/INFO
+
+    if (action === 'getConfig') {
+      return Response.json({
+        success: true,
+        data: {
+          platformFeeBps: PLATFORM_FEE_BPS,
+          platformFeePercent: PLATFORM_FEE_BPS / 100,
+          feeWallet: FEE_WALLET,
+          cacheTtlMs: CACHE_TTL,
+          sources: ['pump.fun', 'dexscreener', 'jupiter']
+        }
+      });
+    }
+
+    // Unknown action
+    return Response.json({ 
+      success: false, 
+      error: 'Unknown action: ' + action + '. Valid actions: getPumpFunTokens, getPumpFunNewLaunches, getPumpFunKingOfHill, getPumpFunToken, getTrendingTokens, getLatestProfiles, getBoostedTokens, searchTokens, getTokenPair, getAllMemeCoins, getSwapQuote, getSwapTransaction, getTokenPrice, getConfig' 
+    }, { status: 400 });
 
   } catch (error) {
     logError('HANDLER_ERROR', error);
