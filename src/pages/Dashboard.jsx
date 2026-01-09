@@ -169,7 +169,7 @@ const PositionCard = ({ position, language }) => {
 };
 
 // Mobile-friendly Order Card
-const OrderCard = ({ order, language }) => {
+const OrderCard = ({ order, language: _language }) => {
   return (
     <div className="rounded-xl border border-border bg-card/50 p-4">
       <div className="flex items-center justify-between mb-2">
@@ -311,7 +311,7 @@ export default function Dashboard({ language = "en" }) {
   };
 
   const referralCode = user?.referralCode || user?.referral_code || '';
-  const referralLink = referralCode ? `https://nexttrade.app/ref/${referralCode}` : '';
+  const _referralLink = referralCode ? `https://nexttrade.app/ref/${referralCode}` : '';
 
   const copyReferralCode = () => {
     if (!referralCode) return;

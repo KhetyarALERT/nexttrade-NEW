@@ -52,7 +52,7 @@ EmptyState.propTypes = {
 };
 
 // Mobile Position Card Component
-function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSelected }) {
+function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpSl, isSelected }) {
   const sym = normalizeSymbol(pos?.symbol);
   const entry = Number(pos?.entry_price);
   const qty = Number(pos?.quantity);
@@ -64,7 +64,7 @@ function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSele
     ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
     : NaN;
   const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
-  const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
+  const _positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
   const liq = Number(pos?.liquidation_price);
   const liqDistPct = Number.isFinite(mark) && mark > 0 && Number.isFinite(liq) && liq > 0
     ? (Math.abs(mark - liq) / mark) * 100
@@ -240,7 +240,7 @@ PositionCard.propTypes = {
 // Mobile Order Card
 function OrderCard({ order, onCancel, isBusy, labels }) {
   const sym = normalizeSymbol(order?.symbol);
-  const isConditional = order?.kind === "TP" || order?.kind === "SL";
+  const _isConditional = order?.kind === "TP" || order?.kind === "SL";
   
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -354,7 +354,7 @@ export default function FuturesActivityTabs({
     return Number.isFinite(n) ? n : NaN;
   };
 
-  const stepForPrice = (p) => {
+  const _stepForPrice = (p) => {
     const n = Number(p);
     if (!Number.isFinite(n) || n <= 0) return 0.01;
     if (n < 0.01) return 0.000001;
@@ -366,7 +366,7 @@ export default function FuturesActivityTabs({
     return 1;
   };
 
-  const wheelAdjust = (currentValue, deltaY, step) => {
+  const _wheelAdjust = (currentValue, deltaY, step) => {
     const curr = parseNum(currentValue);
     const base = Number.isFinite(curr) ? curr : 0;
     const dir = deltaY > 0 ? -1 : 1;

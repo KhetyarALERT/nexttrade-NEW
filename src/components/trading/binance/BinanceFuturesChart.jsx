@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
-import { Settings, RotateCcw, TrendingUp, BarChart3, Grid3X3, Volume2, Maximize2 } from "lucide-react";
+import { Settings, TrendingUp, BarChart3, Grid3X3, Volume2, Maximize2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -67,7 +67,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
-  const [markPrice, setMarkPrice] = useState(0);
+  const [_markPrice, setMarkPrice] = useState(0);
   const [lastTickAt, setLastTickAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 

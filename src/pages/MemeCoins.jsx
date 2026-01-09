@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { WalletButton } from '@/components/wallet/WalletButton';
 import { useWallet } from '@/lib/web3/WalletContext';
@@ -23,18 +23,24 @@ import {
   AlertTriangle,
   Rocket,
   Zap,
-  Crown
+  Crown,
+  Sparkles,
+  GraduationCap
 } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 import { toast } from 'sonner';
+import { 
+  fetchPumpFunTokens, 
+  fetchTrendingMemeCoins 
+} from '@/api/functions';
 
 // Commission wallet address
 const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
 const PLATFORM_FEE_BPS = 100; // 1%
 
 export default function MemeCoins() {
-  const { account, isConnected, walletType } = useWallet();
-  const [language, setLanguage] = useState('en');
+  const { isConnected, walletType } = useWallet();
+  const [language] = useState('en');
   const [activeTab, setActiveTab] = useState('trending');
   const [tokens, setTokens] = useState([]);
   const [pumpTokens, setPumpTokens] = useState([]);
@@ -158,39 +164,41 @@ export default function MemeCoins() {
     setTimeout(() => setCopiedAddress(null), 2000);
   };
 
-  // Fetch trending tokens from DexScreener
+  /**
+   * Fetch trending tokens from backend (DexScreener data)
+   * Uses the memeCoins backend function for rate limiting & caching
+   */
   const fetchTrendingTokens = async () => {
     try {
-      const response = await fetch(
-        'https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112'
-      );
-      const data = await response.json();
+      const result = await fetchTrendingMemeCoins(50);
       
-      // Filter for Solana pairs with good liquidity
-      const solanaPairs = (data.pairs || []).filter(pair => 
-        pair.chainId === 'solana' && 
-        pair.liquidity?.usd > 1000 &&
-        pair.baseToken?.symbol !== 'SOL'
-      ).slice(0, 50);
+      if (!result?.success || !result?.data) {
+        console.warn('Failed to fetch trending tokens from backend');
+        return;
+      }
 
-      const formattedTokens = solanaPairs.map(pair => ({
-        id: pair.pairAddress,
-        symbol: pair.baseToken?.symbol || 'Unknown',
-        name: pair.baseToken?.name || 'Unknown',
-        address: pair.baseToken?.address,
-        price: parseFloat(pair.priceUsd) || 0,
-        priceChange24h: pair.priceChange?.h24 || 0,
-        volume24h: pair.volume?.h24 || 0,
-        liquidity: pair.liquidity?.usd || 0,
-        marketCap: pair.fdv || pair.marketCap || 0,
-        pairAddress: pair.pairAddress,
-        dexId: pair.dexId,
-        txns24h: (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0),
-        buys24h: pair.txns?.h24?.buys || 0,
-        sells24h: pair.txns?.h24?.sells || 0,
-        createdAt: pair.pairCreatedAt,
-        url: pair.url,
-        imageUrl: pair.info?.imageUrl || `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${pair.baseToken?.address}/logo.png`
+      // Backend already formats the data correctly
+      const formattedTokens = result.data.map(token => ({
+        id: token.pairAddress || token.id,
+        symbol: token.symbol || 'Unknown',
+        name: token.name || 'Unknown',
+        address: token.mint,
+        price: token.price || 0,
+        priceChange24h: token.priceChange24h || 0,
+        volume24h: token.volume24h || 0,
+        liquidity: token.liquidity || 0,
+        marketCap: token.marketCap || 0,
+        pairAddress: token.pairAddress,
+        dexId: token.dexId,
+        txns24h: (token.txns24h?.buys || 0) + (token.txns24h?.sells || 0),
+        buys24h: token.txns24h?.buys || 0,
+        sells24h: token.txns24h?.sells || 0,
+        createdAt: token.pairCreatedAt,
+        url: token.dexUrl,
+        imageUrl: token.imageUrl,
+        // Mark as graduated (on DEX)
+        isGraduated: true,
+        isPump: false
       }));
 
       setTokens(formattedTokens);
@@ -200,44 +208,53 @@ export default function MemeCoins() {
         setSelectedToken(formattedTokens[0]);
       }
     } catch (error) {
-      console.error('Error fetching tokens:', error);
+      console.error('Error fetching trending tokens:', error);
       toast.error('Failed to fetch tokens');
     }
   };
 
-  // Fetch Pump.fun tokens
+  /**
+   * Fetch Pump.fun tokens from backend
+   * These are pre-DEX tokens still on the bonding curve
+   */
   const fetchPumpTokens = async () => {
     try {
-      // Use pump.fun's frontend API
-      const response = await fetch(
-        'https://frontend-api.pump.fun/coins?offset=0&limit=50&sort=last_trade_timestamp&order=DESC&includeNsfw=false'
-      );
-      const data = await response.json();
+      const result = await fetchPumpFunTokens({
+        limit: 50,
+        sort: 'last_trade_timestamp',
+        order: 'DESC'
+      });
       
-      const formattedPumpTokens = (data || []).map(token => ({
-        id: token.mint,
+      if (!result?.success || !result?.data) {
+        console.warn('Failed to fetch Pump.fun tokens from backend');
+        return;
+      }
+
+      // Backend already formats the data correctly
+      const formattedPumpTokens = result.data.map(token => ({
+        id: token.mint || token.id,
         symbol: token.symbol || 'Unknown',
         name: token.name || 'Unknown',
         address: token.mint,
-        price: token.usd_market_cap ? token.usd_market_cap / 1e9 : 0, // Approx price from mcap
-        marketCap: token.usd_market_cap || 0,
-        bondingCurveProgress: token.bonding_curve_progress || 0,
-        isKingOfHill: token.king_of_the_hill_timestamp != null,
-        createdAt: token.created_timestamp,
+        price: token.price || 0,
+        marketCap: token.marketCap || 0,
+        bondingCurveProgress: token.bondingCurveProgress || 0,
+        isKingOfHill: token.isKingOfHill || false,
+        createdAt: token.createdTimestamp,
         description: token.description,
-        imageUrl: token.image_uri,
+        imageUrl: token.imageUrl,
         twitter: token.twitter,
         telegram: token.telegram,
         website: token.website,
-        replyCount: token.reply_count || 0,
+        replyCount: token.replyCount || 0,
         isPump: true,
-        graduated: token.complete || false
+        graduated: token.isGraduated || false
       }));
 
       setPumpTokens(formattedPumpTokens);
     } catch (error) {
       console.error('Error fetching Pump.fun tokens:', error);
-      // Fallback: try alternative endpoint or show cached data
+      // Silently fail - don't show error toast for pump.fun as it's optional
     }
   };
 
@@ -312,7 +329,7 @@ export default function MemeCoins() {
                        timeframe === '4h' ? 14400 : 86400;
       
       for (let i = 100; i >= 0; i--) {
-        const time = now - (i * interval);
+        const time = (now - (i * interval));
         const volatility = 0.02 + Math.random() * 0.03;
         const trend = Math.sin(i / 10) * 0.01;
         const open = basePrice * (1 + (Math.random() - 0.5) * volatility + trend);
@@ -320,7 +337,7 @@ export default function MemeCoins() {
         const high = Math.max(open, close) * (1 + Math.random() * 0.01);
         const low = Math.min(open, close) * (1 - Math.random() * 0.01);
         
-        data.push({ time, open, high, low, close });
+        data.push({ time: /** @type {import('lightweight-charts').Time} */ (time), open, high, low, close });
       }
       return data;
     };
@@ -351,7 +368,9 @@ export default function MemeCoins() {
     document.head.appendChild(script);
 
     script.onload = () => {
+      // @ts-ignore - Jupiter is loaded dynamically from external script
       if (window.Jupiter && selectedToken?.address) {
+        // @ts-ignore
         window.Jupiter.init({
           displayMode: 'integrated',
           integratedTargetId: 'jupiter-terminal',
@@ -393,17 +412,25 @@ export default function MemeCoins() {
     token.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Get safety indicators
+  // Get safety indicators based on token status and liquidity
   const getSafetyBadge = (token) => {
+    // Pre-DEX tokens (still on Pump.fun bonding curve)
     if (token.isPump && !token.graduated) {
-      return { color: 'bg-yellow-500/20 text-yellow-400', text: 'Pre-DEX', icon: AlertTriangle };
+      return { color: 'bg-yellow-500/20 text-yellow-400', text: 'Pre-DEX', icon: Zap };
     }
+    // Graduated tokens (migrated from Pump.fun to DEX)
+    if (token.isGraduated && token.liquidity > 100000) {
+      return { color: 'bg-emerald-500/20 text-emerald-400', text: 'Graduated', icon: GraduationCap };
+    }
+    // High liquidity (>$100k)
     if (token.liquidity > 100000) {
       return { color: 'bg-green-500/20 text-green-400', text: 'High Liq', icon: Shield };
     }
+    // Medium liquidity ($10k-$100k)
     if (token.liquidity > 10000) {
       return { color: 'bg-blue-500/20 text-blue-400', text: 'Med Liq', icon: Shield };
     }
+    // Low liquidity (<$10k) - higher risk
     return { color: 'bg-orange-500/20 text-orange-400', text: 'Low Liq', icon: AlertTriangle };
   };
 
@@ -429,7 +456,7 @@ export default function MemeCoins() {
                 src={token.imageUrl} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => e.target.style.display = 'none'}
+                onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground">
@@ -557,19 +584,23 @@ export default function MemeCoins() {
                   />
                 </div>
 
-                {/* Tabs */}
+                {/* Tabs - 4 categories: Trending, Pump.fun (Pre-DEX), Graduated (On DEX), New */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
-                  <TabsList className="grid grid-cols-3 w-full">
+                  <TabsList className="grid grid-cols-4 w-full">
                     <TabsTrigger value="trending" className="text-xs">
                       <Flame className="w-3 h-3 mr-1" />
                       {t.trending}
                     </TabsTrigger>
                     <TabsTrigger value="pump" className="text-xs">
                       <Zap className="w-3 h-3 mr-1" />
-                      {t.pumpFun}
+                      Pre-DEX
+                    </TabsTrigger>
+                    <TabsTrigger value="graduated" className="text-xs">
+                      <GraduationCap className="w-3 h-3 mr-1" />
+                      {t.graduated}
                     </TabsTrigger>
                     <TabsTrigger value="new" className="text-xs">
-                      <Rocket className="w-3 h-3 mr-1" />
+                      <Sparkles className="w-3 h-3 mr-1" />
                       {t.newLaunches}
                     </TabsTrigger>
                   </TabsList>
@@ -584,6 +615,7 @@ export default function MemeCoins() {
                     </div>
                   ) : (
                     <div className="space-y-2 pr-4">
+                      {/* Trending Tab - All tokens sorted by volume/activity */}
                       {activeTab === 'trending' && filteredTokens.map(token => (
                         <TokenCard 
                           key={token.id} 
@@ -592,6 +624,7 @@ export default function MemeCoins() {
                         />
                       ))}
                       
+                      {/* Pre-DEX Tab - Pump.fun tokens still on bonding curve */}
                       {activeTab === 'pump' && filteredPumpTokens.filter(t => !t.graduated).map(token => (
                         <TokenCard 
                           key={token.id} 
@@ -600,7 +633,22 @@ export default function MemeCoins() {
                         />
                       ))}
                       
-                      {activeTab === 'new' && filteredTokens
+                      {/* Graduated Tab - Tokens that migrated from Pump.fun to DEX */}
+                      {activeTab === 'graduated' && filteredTokens
+                        .filter(t => t.isGraduated)
+                        .map(token => (
+                          <TokenCard 
+                            key={token.id} 
+                            token={token} 
+                            onClick={setSelectedToken}
+                          />
+                        ))}
+                      
+                      {/* New Launches Tab - Newest tokens from both sources */}
+                      {activeTab === 'new' && [
+                        ...filteredPumpTokens.slice(0, 10),
+                        ...filteredTokens.slice(0, 10)
+                      ]
                         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
                         .slice(0, 20)
                         .map(token => (
@@ -611,9 +659,11 @@ export default function MemeCoins() {
                           />
                         ))}
                       
+                      {/* Empty state handling for all tabs */}
                       {((activeTab === 'trending' && filteredTokens.length === 0) ||
-                        (activeTab === 'pump' && filteredPumpTokens.length === 0) ||
-                        (activeTab === 'new' && filteredTokens.length === 0)) && (
+                        (activeTab === 'pump' && filteredPumpTokens.filter(t => !t.graduated).length === 0) ||
+                        (activeTab === 'graduated' && filteredTokens.filter(t => t.isGraduated).length === 0) ||
+                        (activeTab === 'new' && filteredTokens.length === 0 && filteredPumpTokens.length === 0)) && (
                         <div className="text-center py-10 text-muted-foreground">
                           {t.noTokens}
                         </div>
@@ -640,7 +690,7 @@ export default function MemeCoins() {
                               src={selectedToken.imageUrl} 
                               alt={selectedToken.symbol}
                               className="w-full h-full object-cover"
-                              onError={(e) => e.target.style.display = 'none'}
+                              onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xl font-bold">
@@ -770,17 +820,28 @@ export default function MemeCoins() {
                   </CardContent>
                 </Card>
 
-                {/* Trading Panel */}
+                {/* Trading Panel with Jupiter Swap + 1% Platform Fee */}
                 <Card className="border-border/50">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Swap
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        Swap
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs">
+                        1% Platform Fee
+                      </Badge>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {isConnected && walletType === 'solana' ? (
-                      <div id="jupiter-terminal" className="min-h-[400px]" />
+                      <>
+                        <div id="jupiter-terminal" className="min-h-[400px]" />
+                        <div className="mt-3 p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
+                          <Shield className="w-3 h-3 inline mr-1" />
+                          Powered by Jupiter • 1% platform fee applied to all swaps
+                        </div>
+                      </>
                     ) : (
                       <div className="text-center py-10">
                         <Rocket className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
