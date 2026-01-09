@@ -29,10 +29,15 @@ import {
 } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 import { toast } from 'sonner';
+// Use frontend-only DexScreener API (no backend needed)
 import { 
-  fetchPumpFunTokens, 
-  fetchTrendingMemeCoins 
-} from '@/api/functions';
+  fetchTrendingSolanaTokens, 
+  searchTokens as searchDexScreener,
+  fetchNewLaunches,
+  fetchGainers,
+  formatNumber as dexFormatNumber,
+  formatPrice as dexFormatPrice
+} from '@/api/dexscreener';
 
 // Commission wallet address
 const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
@@ -165,20 +170,20 @@ export default function MemeCoins() {
   };
 
   /**
-   * Fetch trending tokens from backend (DexScreener data)
-   * Uses the memeCoins backend function for rate limiting & caching
+   * Fetch trending tokens directly from DexScreener (frontend API)
+   * No backend needed - DexScreener API is public and CORS-enabled
    */
   const fetchTrendingTokens = async () => {
     try {
-      const result = await fetchTrendingMemeCoins(50);
+      const data = await fetchTrendingSolanaTokens(50);
       
-      if (!result?.success || !result?.data) {
-        console.warn('Failed to fetch trending tokens from backend');
+      if (!data || data.length === 0) {
+        console.warn('No trending tokens returned from DexScreener');
         return;
       }
 
-      // Backend already formats the data correctly
-      const formattedTokens = result.data.map(token => ({
+      // Format tokens for display
+      const formattedTokens = data.map(token => ({
         id: token.pairAddress || token.id,
         symbol: token.symbol || 'Unknown',
         name: token.name || 'Unknown',
@@ -196,7 +201,6 @@ export default function MemeCoins() {
         createdAt: token.pairCreatedAt,
         url: token.dexUrl,
         imageUrl: token.imageUrl,
-        // Mark as graduated (on DEX)
         isGraduated: true,
         isPump: false
       }));
@@ -214,47 +218,35 @@ export default function MemeCoins() {
   };
 
   /**
-   * Fetch Pump.fun tokens from backend
-   * These are pre-DEX tokens still on the bonding curve
+   * Fetch new token launches from DexScreener
    */
-  const fetchPumpTokens = async () => {
+  const fetchNewTokens = async () => {
     try {
-      const result = await fetchPumpFunTokens({
-        limit: 50,
-        sort: 'last_trade_timestamp',
-        order: 'DESC'
-      });
+      const data = await fetchNewLaunches(30);
       
-      if (!result?.success || !result?.data) {
-        console.warn('Failed to fetch Pump.fun tokens from backend');
-        return;
-      }
-
-      // Backend already formats the data correctly
-      const formattedPumpTokens = result.data.map(token => ({
-        id: token.mint || token.id,
+      // Format for display  
+      const formattedTokens = data.map(token => ({
+        id: token.pairAddress || token.id,
         symbol: token.symbol || 'Unknown',
         name: token.name || 'Unknown',
         address: token.mint,
         price: token.price || 0,
+        priceChange24h: token.priceChange24h || 0,
+        volume24h: token.volume24h || 0,
+        liquidity: token.liquidity || 0,
         marketCap: token.marketCap || 0,
-        bondingCurveProgress: token.bondingCurveProgress || 0,
-        isKingOfHill: token.isKingOfHill || false,
-        createdAt: token.createdTimestamp,
-        description: token.description,
+        pairAddress: token.pairAddress,
+        dexId: token.dexId,
+        createdAt: token.pairCreatedAt,
+        url: token.dexUrl,
         imageUrl: token.imageUrl,
-        twitter: token.twitter,
-        telegram: token.telegram,
-        website: token.website,
-        replyCount: token.replyCount || 0,
-        isPump: true,
-        graduated: token.isGraduated || false
+        isGraduated: true,
+        isPump: false
       }));
 
-      setPumpTokens(formattedPumpTokens);
+      setPumpTokens(formattedTokens); // Reusing pumpTokens state for new launches
     } catch (error) {
-      console.error('Error fetching Pump.fun tokens:', error);
-      // Silently fail - don't show error toast for pump.fun as it's optional
+      console.error('Error fetching new launches:', error);
     }
   };
 
@@ -262,7 +254,7 @@ export default function MemeCoins() {
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
-      await Promise.all([fetchTrendingTokens(), fetchPumpTokens()]);
+      await Promise.all([fetchTrendingTokens(), fetchNewTokens()]);
       setLoading(false);
     };
     fetchAll();
@@ -270,7 +262,7 @@ export default function MemeCoins() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchTrendingTokens();
-      fetchPumpTokens();
+      fetchNewTokens();
     }, 30000);
     
     return () => clearInterval(interval);
@@ -553,7 +545,7 @@ export default function MemeCoins() {
                 size="sm"
                 onClick={() => {
                   setLoading(true);
-                  Promise.all([fetchTrendingTokens(), fetchPumpTokens()]).then(() => setLoading(false));
+                  Promise.all([fetchTrendingTokens(), fetchNewTokens()]).then(() => setLoading(false));
                 }}
                 disabled={loading}
               >
@@ -584,20 +576,16 @@ export default function MemeCoins() {
                   />
                 </div>
 
-                {/* Tabs - 4 categories: Trending, Pump.fun (Pre-DEX), Graduated (On DEX), New */}
+                {/* Tabs - 3 categories: Trending, Gainers, New Launches */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
-                  <TabsList className="grid grid-cols-4 w-full">
+                  <TabsList className="grid grid-cols-3 w-full">
                     <TabsTrigger value="trending" className="text-xs">
                       <Flame className="w-3 h-3 mr-1" />
                       {t.trending}
                     </TabsTrigger>
-                    <TabsTrigger value="pump" className="text-xs">
-                      <Zap className="w-3 h-3 mr-1" />
-                      Pre-DEX
-                    </TabsTrigger>
-                    <TabsTrigger value="graduated" className="text-xs">
-                      <GraduationCap className="w-3 h-3 mr-1" />
-                      {t.graduated}
+                    <TabsTrigger value="gainers" className="text-xs">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      Gainers
                     </TabsTrigger>
                     <TabsTrigger value="new" className="text-xs">
                       <Sparkles className="w-3 h-3 mr-1" />
@@ -624,8 +612,19 @@ export default function MemeCoins() {
                         />
                       ))}
                       
-                      {/* Pre-DEX Tab - Pump.fun tokens still on bonding curve */}
-                      {activeTab === 'pump' && filteredPumpTokens.filter(t => !t.graduated).map(token => (
+                      {/* Gainers Tab - Tokens with highest price increase */}
+                      {activeTab === 'gainers' && [...filteredTokens]
+                        .sort((a, b) => (b.priceChange24h || 0) - (a.priceChange24h || 0))
+                        .map(token => (
+                          <TokenCard 
+                            key={token.id} 
+                            token={token} 
+                            onClick={setSelectedToken}
+                          />
+                        ))}
+                      
+                      {/* New Launches Tab - Newest tokens */}
+                      {activeTab === 'new' && filteredPumpTokens.map(token => (
                         <TokenCard 
                           key={token.id} 
                           token={token} 
@@ -633,37 +632,10 @@ export default function MemeCoins() {
                         />
                       ))}
                       
-                      {/* Graduated Tab - Tokens that migrated from Pump.fun to DEX */}
-                      {activeTab === 'graduated' && filteredTokens
-                        .filter(t => t.isGraduated)
-                        .map(token => (
-                          <TokenCard 
-                            key={token.id} 
-                            token={token} 
-                            onClick={setSelectedToken}
-                          />
-                        ))}
-                      
-                      {/* New Launches Tab - Newest tokens from both sources */}
-                      {activeTab === 'new' && [
-                        ...filteredPumpTokens.slice(0, 10),
-                        ...filteredTokens.slice(0, 10)
-                      ]
-                        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-                        .slice(0, 20)
-                        .map(token => (
-                          <TokenCard 
-                            key={token.id} 
-                            token={token} 
-                            onClick={setSelectedToken}
-                          />
-                        ))}
-                      
                       {/* Empty state handling for all tabs */}
                       {((activeTab === 'trending' && filteredTokens.length === 0) ||
-                        (activeTab === 'pump' && filteredPumpTokens.filter(t => !t.graduated).length === 0) ||
-                        (activeTab === 'graduated' && filteredTokens.filter(t => t.isGraduated).length === 0) ||
-                        (activeTab === 'new' && filteredTokens.length === 0 && filteredPumpTokens.length === 0)) && (
+                        (activeTab === 'gainers' && filteredTokens.length === 0) ||
+                        (activeTab === 'new' && filteredPumpTokens.length === 0)) && (
                         <div className="text-center py-10 text-muted-foreground">
                           {t.noTokens}
                         </div>

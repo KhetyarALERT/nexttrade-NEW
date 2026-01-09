@@ -1,22 +1,17 @@
-// @ts-nocheck
 /**
  * Meme Coins Backend Function - DEPRECATED
  * 
  * This function is no longer used. The frontend now calls DexScreener API directly
  * since DexScreener supports CORS and doesn't require a backend proxy.
  * 
- * The frontend implementation is in: src/api/dexscreener.js
- * 
  * This file is kept as a placeholder. You can delete it from Base44 dashboard.
  */
 
-/// <reference lib="deno.ns" />
-
-Deno.serve(async () => {
+// Simple pass-through function that returns a deprecation notice
+Deno.serve(async (req) => {
   return Response.json({
     success: false,
     error: 'This endpoint is deprecated. Use the DexScreener API directly from the frontend.',
-    documentation: 'https://docs.dexscreener.com/api/reference',
-    frontendService: 'src/api/dexscreener.js'
+    documentation: 'https://docs.dexscreener.com/api/reference'
   }, { status: 410 }); // 410 Gone
 });

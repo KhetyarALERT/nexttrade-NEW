@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Grid } from "lucide-react";
+import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -786,15 +786,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           </Link>
           
           <Link
-            to={createPageUrl("Investing")}
+            to={createPageUrl("MemeCoins")}
             className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
-              location.pathname === createPageUrl("Investing")
+              location.pathname === createPageUrl("MemeCoins")
                 ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Grid className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'استثمار' : 'Invest'}</span>
+            <Rocket className="w-5 h-5" />
+            <span className="text-[10px] font-medium">{language === 'ar' ? 'ميم' : 'Meme'}</span>
           </Link>
           
           <Link
