@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import BinanceTickerPanel from "@/components/trading/binance/BinanceTickerPanel";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
@@ -9,6 +9,14 @@ function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
   const digits = p < 1 ? 6 : 2;
   return p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatCompactPrice(p) {
+  if (!p || !Number.isFinite(p)) return "--";
+  if (p >= 10000) return `$${(p/1000).toFixed(1)}K`;
+  if (p >= 1000) return `$${p.toFixed(0)}`;
+  if (p < 1) return `$${p.toFixed(6)}`;
+  return `$${p.toFixed(2)}`;
 }
 
 export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
@@ -21,11 +29,12 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
   const labels = useMemo(() => {
     const isAr = language === "ar";
     return {
-      contractType: isAr ? "عقد دائم USDT‑M" : "USDT‑M Perpetual",
+      contractType: isAr ? "عقد دائم USDT‑M" : "Perpetual",
       mark: isAr ? "مارك" : "Mark",
       index: isAr ? "مؤشر" : "Index",
       selectMarketTitle: isAr ? "اختر السوق" : "Select market",
       selectMarketDesc: isAr ? "اختر رمزًا دائمًا USDT‑M لعرض الشارت." : "Select a USDT-M perpetual symbol to view its live chart and stats.",
+      tap: isAr ? "اضغط للتغيير" : "Tap to change"
     };
   }, [language]);
 
@@ -52,60 +61,61 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
     if (prem?.markPrice) setMarkPrice(prem.markPrice);
     if (prem?.indexPrice) setIndexPrice(prem.indexPrice);
 
-    // Selected symbol mark/index polling
     binanceFuturesStore.startPremiumPolling?.(selectedSymbol, 5000);
 
     return () => {
-      try {
-        unsubTicker?.();
-      } catch {}
-      try {
-        unsubPrice?.();
-      } catch {}
-      try {
-        unsubPremium?.();
-      } catch {}
+      try { unsubTicker?.(); } catch {}
+      try { unsubPrice?.(); } catch {}
+      try { unsubPremium?.(); } catch {}
     };
   }, [selectedSymbol]);
 
-  const changeClass = useMemo(() => (changePct >= 0 ? "text-emerald-400" : "text-rose-400"), [changePct]);
+  const isPositive = changePct >= 0;
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800/40 transition-colors min-w-0"
+        className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-xl hover:bg-slate-800/50 active:bg-slate-800/70 transition-all min-w-0 touch-manipulation"
         aria-label="Select symbol"
       >
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-white font-bold truncate">{selectedSymbol}</span>
+        {/* Symbol Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-white font-bold text-base sm:text-lg truncate">{selectedSymbol}</span>
             <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           </div>
-          <div className="text-[11px] text-slate-500">{labels.contractType}</div>
+          <div className="text-[10px] text-slate-500 hidden sm:block">{labels.contractType}</div>
         </div>
 
-        <div className="flex items-center gap-6">
+        {/* Price & Change - Mobile Optimized */}
+        <div className="flex items-center gap-3 sm:gap-6">
+          {/* Main Price */}
           <div className="text-right">
-            <div className="text-foreground font-mono font-semibold">{formatPrice(lastPrice)}</div>
-            <div className={`text-[11px] font-medium ${changeClass}`}>{changePct >= 0 ? "+" : ""}{Number(changePct).toFixed(2)}%</div>
+            <div className="text-foreground font-mono font-bold text-sm sm:text-base">{formatCompactPrice(lastPrice)}</div>
+            <div className={`flex items-center justify-end gap-1 text-[11px] font-semibold ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+              <TrendIcon className="h-3 w-3" />
+              <span>{isPositive ? "+" : ""}{Number(changePct).toFixed(2)}%</span>
+            </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-6 text-right">
+          {/* Mark & Index - Desktop Only */}
+          <div className="hidden md:flex items-center gap-4 text-right border-l border-slate-800 pl-4">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{labels.mark}</div>
-              <div className="text-[12px] font-mono text-foreground">{formatPrice(markPrice)}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{labels.mark}</div>
+              <div className="text-[11px] font-mono text-foreground">{formatPrice(markPrice)}</div>
             </div>
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{labels.index}</div>
-              <div className="text-[12px] font-mono text-foreground">{formatPrice(indexPrice)}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{labels.index}</div>
+              <div className="text-[11px] font-mono text-foreground">{formatPrice(indexPrice)}</div>
             </div>
           </div>
         </div>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-background border-border text-foreground p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)]">
+        <DialogContent className="bg-background border-border text-foreground p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)] rounded-2xl">
           <DialogHeader className="sr-only">
             <DialogTitle>{labels.selectMarketTitle}</DialogTitle>
             <DialogDescription>{labels.selectMarketDesc}</DialogDescription>
