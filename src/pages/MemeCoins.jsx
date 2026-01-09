@@ -1,874 +1,697 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { WalletButton } from '@/components/wallet/WalletButton';
-import { useWallet } from '@/lib/web3/WalletContext';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Search, 
-  RefreshCw, 
-  Copy, 
-  Check,
-  Flame,
-  Clock,
-  DollarSign,
-  BarChart3,
-  Shield,
-  AlertTriangle,
-  Rocket,
-  Zap,
-  Crown,
-  Sparkles,
-  GraduationCap
-} from 'lucide-react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { createChart } from 'lightweight-charts';
+import { ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-// Use frontend-only DexScreener API (no backend needed)
-import { 
-  fetchTrendingSolanaTokens, 
-  fetchNewLaunches
-} from '@/api/dexscreener';
 
-export default function MemeCoins() {
-  const { isConnected, walletType } = useWallet();
-  const [language] = useState('en');
-  const [activeTab, setActiveTab] = useState('trending');
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '../components/ui/sheet';
+
+import * as jupiterApi from '../api/jupiter';
+import { fetchTrendingSolanaTokens } from '../api/dexscreener';
+
+// UI CONSTANTS
+const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
+
+export default function MemeCoinsTerminal() {
+  const wallet = useWallet();
+  
+  // State
   const [tokens, setTokens] = useState([]);
-  const [pumpTokens, setPumpTokens] = useState([]);
+  const [filteredTokens, setFilteredTokens] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedAddress, setCopiedAddress] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [timeframe, setTimeframe] = useState('5m');
+  const [loading, setLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: 'volume24h', direction: 'desc' });
+  
+  // Swap state
+  const [swapMode, setSwapMode] = useState('buy'); // 'buy' or 'sell'
+  const [inputAmount, setInputAmount] = useState('');
+  const [outputAmount, setOutputAmount] = useState('');
+  const [slippage, setSlippage] = useState(1);
+  const [customSlippage, setCustomSlippage] = useState('');
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
+  const [currentQuote, setCurrentQuote] = useState(null);
+  
+  // Chart
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
+  const [chartData, setChartData] = useState([]);
 
-  const t = language === 'ar' ? {
-    title: 'تداول الميم كوين',
-    subtitle: 'اكتشف وتداول أحدث العملات على سولانا',
-    trending: 'الرائجة',
-    newLaunches: 'إطلاقات جديدة',
-    pumpFun: 'Pump.fun',
-    graduated: 'متخرجة',
-    search: 'بحث عن عملة...',
-    price: 'السعر',
-    marketCap: 'القيمة السوقية',
-    volume: 'الحجم 24س',
-    liquidity: 'السيولة',
-    change: 'التغيير',
-    buy: 'شراء',
-    sell: 'بيع',
-    connectWallet: 'قم بتوصيل محفظة Solana للتداول',
-    lastUpdated: 'آخر تحديث',
-    created: 'تم الإنشاء',
-    bondingCurve: 'منحنى الربط',
-    loading: 'جاري التحميل...',
-    noTokens: 'لم يتم العثور على عملات',
-    viewChart: 'عرض الرسم البياني',
-    copied: 'تم النسخ!',
-    safetyScore: 'درجة الأمان',
-    holders: 'حاملين',
-    txns: 'معاملات',
-    refreshing: 'جاري التحديث...',
-    kingOfHill: 'ملك التل'
-  } : {
-    title: 'Meme Coin Trading',
-    subtitle: 'Discover & trade the hottest tokens on Solana',
-    trending: 'Trending',
-    newLaunches: 'New Launches',
-    pumpFun: 'Pump.fun',
-    graduated: 'Graduated',
-    search: 'Search token...',
-    price: 'Price',
-    marketCap: 'Market Cap',
-    volume: '24h Volume',
-    liquidity: 'Liquidity',
-    change: 'Change',
-    buy: 'Buy',
-    sell: 'Sell',
-    connectWallet: 'Connect a Solana wallet to trade',
-    lastUpdated: 'Last updated',
-    created: 'Created',
-    bondingCurve: 'Bonding Curve',
-    loading: 'Loading...',
-    noTokens: 'No tokens found',
-    viewChart: 'View Chart',
-    copied: 'Copied!',
-    safetyScore: 'Safety Score',
-    holders: 'Holders',
-    txns: 'Txns',
-    refreshing: 'Refreshing...',
-    kingOfHill: 'King of the Hill'
-  };
-
-  // Timeframe options
-  const timeframes = [
-    { value: '1m', label: '1m' },
-    { value: '5m', label: '5m' },
-    { value: '15m', label: '15m' },
-    { value: '1h', label: '1H' },
-    { value: '4h', label: '4H' },
-    { value: '1d', label: '1D' },
-  ];
-
-  // Format time ago
-  const formatTimeAgo = (timestamp) => {
-    if (!timestamp) return 'Unknown';
-    const now = Date.now();
-    const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
-    const diff = now - time;
-    
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  // Format large numbers
-  const formatNumber = (num) => {
-    if (!num) return '$0';
-    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
-    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
-    if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
-    return `$${num.toFixed(2)}`;
-  };
-
-  // Format price with proper decimals
-  const formatPrice = (price) => {
-    if (!price) return '$0';
-    if (price < 0.00001) return `$${price.toExponential(2)}`;
-    if (price < 0.01) return `$${price.toFixed(8)}`;
-    if (price < 1) return `$${price.toFixed(6)}`;
-    return `$${price.toFixed(4)}`;
-  };
-
-  // Copy address to clipboard
-  const copyAddress = async (address) => {
-    await navigator.clipboard.writeText(address);
-    setCopiedAddress(address);
-    toast.success(t.copied);
-    setTimeout(() => setCopiedAddress(null), 2000);
-  };
-
-  /**
-   * Fetch trending tokens directly from DexScreener (frontend API)
-   * No backend needed - DexScreener API is public and CORS-enabled
-   */
-  const fetchTrendingTokens = async () => {
-    try {
-      const data = await fetchTrendingSolanaTokens(50);
-      
-      if (!data || data.length === 0) {
-        console.warn('No trending tokens returned from DexScreener');
-        return;
-      }
-
-      // Format tokens for display
-      const formattedTokens = data.map(token => ({
-        id: token.pairAddress || token.id,
-        symbol: token.symbol || 'Unknown',
-        name: token.name || 'Unknown',
-        address: token.mint,
-        price: token.price || 0,
-        priceChange24h: token.priceChange24h || 0,
-        volume24h: token.volume24h || 0,
-        liquidity: token.liquidity || 0,
-        marketCap: token.marketCap || 0,
-        pairAddress: token.pairAddress,
-        dexId: token.dexId,
-        txns24h: (token.txns24h?.buys || 0) + (token.txns24h?.sells || 0),
-        buys24h: token.txns24h?.buys || 0,
-        sells24h: token.txns24h?.sells || 0,
-        createdAt: token.pairCreatedAt,
-        url: token.dexUrl,
-        imageUrl: token.imageUrl,
-        isGraduated: true,
-        isPump: false
-      }));
-
-      setTokens(formattedTokens);
-      setLastUpdated(new Date());
-      
-      if (!selectedToken && formattedTokens.length > 0) {
-        setSelectedToken(formattedTokens[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching trending tokens:', error);
-      toast.error('Failed to fetch tokens');
-    }
-  };
-
-  /**
-   * Fetch new token launches from DexScreener
-   */
-  const fetchNewTokens = async () => {
-    try {
-      const data = await fetchNewLaunches(30);
-      
-      // Format for display  
-      const formattedTokens = data.map(token => ({
-        id: token.pairAddress || token.id,
-        symbol: token.symbol || 'Unknown',
-        name: token.name || 'Unknown',
-        address: token.mint,
-        price: token.price || 0,
-        priceChange24h: token.priceChange24h || 0,
-        volume24h: token.volume24h || 0,
-        liquidity: token.liquidity || 0,
-        marketCap: token.marketCap || 0,
-        pairAddress: token.pairAddress,
-        dexId: token.dexId,
-        createdAt: token.pairCreatedAt,
-        url: token.dexUrl,
-        imageUrl: token.imageUrl,
-        isGraduated: true,
-        isPump: false
-      }));
-
-      setPumpTokens(formattedTokens); // Reusing pumpTokens state for new launches
-    } catch (error) {
-      console.error('Error fetching new launches:', error);
-    }
-  };
-
-  // Initial fetch
+  // Fetch tokens on mount
   useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      await Promise.all([fetchTrendingTokens(), fetchNewTokens()]);
-      setLoading(false);
-    };
-    fetchAll();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchTrendingTokens();
-      fetchNewTokens();
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    loadTokens();
   }, []);
+
+  // Filter tokens when search changes
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredTokens(tokens);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = tokens.filter(token =>
+      token.symbol?.toLowerCase().includes(query) ||
+      token.name?.toLowerCase().includes(query)
+    );
+    setFilteredTokens(filtered);
+  }, [searchQuery, tokens]);
+
+  // Load tokens from DexScreener
+  async function loadTokens() {
+    try {
+      setLoading(true);
+      const data = await fetchTrendingSolanaTokens();
+      
+      // Transform DexScreener data to our format
+      const formatted = data.map(token => ({
+        address: token.baseToken?.address || token.tokenAddress,
+        symbol: token.baseToken?.symbol || token.info?.symbol || 'UNKNOWN',
+        name: token.baseToken?.name || token.info?.name || 'Unknown Token',
+        price: parseFloat(token.priceUsd || 0),
+        change24h: parseFloat(token.priceChange?.h24 || 0),
+        volume24h: parseFloat(token.volume?.h24 || 0),
+        liquidity: parseFloat(token.liquidity?.usd || 0),
+        imageUrl: token.info?.imageUrl || token.baseToken?.imageUrl,
+      }));
+
+      setTokens(formatted);
+      setFilteredTokens(formatted);
+    } catch (error) {
+      console.error('Error loading tokens:', error);
+      toast.error('Failed to load meme coins');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Sort tokens
+  function handleSort(key) {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+
+    const sorted = [...filteredTokens].sort((a, b) => {
+      if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
+      if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredTokens(sorted);
+  }
+
+  // Select token and open detail panel
+  function selectToken(token) {
+    setSelectedToken(token);
+    setInputAmount('');
+    setOutputAmount('');
+    setCurrentQuote(null);
+    generateMockChartData(token);
+  }
+
+  // Generate mock chart data (replace with real data later)
+  function generateMockChartData(token) {
+    const now = Date.now() / 1000;
+    const data = [];
+    let price = token.price;
+
+    for (let i = 100; i >= 0; i--) {
+      const time = now - i * 3600;
+      price = price * (1 + (Math.random() - 0.5) * 0.02);
+      data.push({
+        time,
+        value: price,
+      });
+    }
+
+    setChartData(data);
+  }
 
   // Initialize chart
   useEffect(() => {
-    if (!chartContainerRef.current || !selectedToken) return;
+    if (!selectedToken || !chartContainerRef.current || chartData.length === 0) {
+      return;
+    }
 
-    // Clear previous chart safely
+    // Cleanup existing chart
     if (chartRef.current) {
       try {
         chartRef.current.remove();
       } catch {
-        // Chart may already be disposed
+        // Chart already disposed
       }
       chartRef.current = null;
     }
 
-    let isDisposed = false;
+    // Create new chart
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#9ca3af',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      },
       width: chartContainerRef.current.clientWidth,
       height: 300,
-      crosshair: {
-        mode: 1,
+      layout: {
+        background: { color: '#0a0a0a' },
+        textColor: '#999',
       },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+      grid: {
+        vertLines: { color: '#1a1a1a' },
+        horzLines: { color: '#1a1a1a' },
       },
       timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.1)',
         timeVisible: true,
+        secondsVisible: false,
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderDownColor: '#ef4444',
-      borderUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
-      wickUpColor: '#22c55e',
+    const lineSeries = chart.addLineSeries({
+      color: '#22c55e',
+      lineWidth: 2,
     });
 
-    // Generate sample OHLC data based on current price
-    const generateOHLC = () => {
-      const data = [];
-      const basePrice = selectedToken.price || 0.0001;
-      const now = Math.floor(Date.now() / 1000);
-      const interval = timeframe === '1m' ? 60 : 
-                       timeframe === '5m' ? 300 : 
-                       timeframe === '15m' ? 900 : 
-                       timeframe === '1h' ? 3600 : 
-                       timeframe === '4h' ? 14400 : 86400;
-      
-      for (let i = 100; i >= 0; i--) {
-        const time = (now - (i * interval));
-        const volatility = 0.02 + Math.random() * 0.03;
-        const trend = Math.sin(i / 10) * 0.01;
-        const open = basePrice * (1 + (Math.random() - 0.5) * volatility + trend);
-        const close = open * (1 + (Math.random() - 0.5) * volatility);
-        const high = Math.max(open, close) * (1 + Math.random() * 0.01);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.01);
-        
-        data.push({ time: /** @type {import('lightweight-charts').Time} */ (time), open, high, low, close });
-      }
-      return data;
-    };
-
-    candlestickSeries.setData(generateOHLC());
-    chart.timeScale().fitContent();
+    lineSeries.setData(chartData);
     chartRef.current = chart;
 
     // Handle resize
     const handleResize = () => {
-      if (chartContainerRef.current && !isDisposed) {
+      if (chartContainerRef.current && chartRef.current) {
         try {
           chart.applyOptions({ width: chartContainerRef.current.clientWidth });
         } catch {
-          // Chart may be disposed
+          // Chart disposed
         }
       }
     };
+
     window.addEventListener('resize', handleResize);
 
     return () => {
-      isDisposed = true;
       window.removeEventListener('resize', handleResize);
-      try {
-        chart.remove();
-      } catch {
-        // Chart may already be disposed
+      if (chartRef.current) {
+        try {
+          chartRef.current.remove();
+        } catch {
+          // Already disposed
+        }
+        chartRef.current = null;
       }
-      chartRef.current = null;
     };
-  }, [selectedToken, timeframe]);
+  }, [selectedToken, chartData]);
 
-  // Jupiter Terminal URL builder
-  // Using Jupiter's widget URL instead of embedded SDK to avoid React conflicts
-  const getJupiterSwapUrl = () => {
-    if (!selectedToken?.address) return null;
-    
-    // Build Jupiter swap URL with the token
-    return `https://jup.ag/swap/SOL-${selectedToken.address}`;
+  // Get quote when amount changes
+  useEffect(() => {
+    if (!selectedToken || !inputAmount || parseFloat(inputAmount) <= 0) {
+      setOutputAmount('');
+      setCurrentQuote(null);
+      return;
+    }
+
+    const delayDebounce = setTimeout(() => {
+      fetchQuote();
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [inputAmount, selectedToken, swapMode, slippage]);
+
+  // Fetch quote from Jupiter
+  async function fetchQuote() {
+    if (!selectedToken || !inputAmount) return;
+
+    try {
+      setQuoteLoading(true);
+
+      const inputMint = swapMode === 'buy' ? jupiterApi.TOKENS.USDC : selectedToken.address;
+      const outputMint = swapMode === 'buy' ? selectedToken.address : jupiterApi.TOKENS.USDC;
+      
+      // Determine decimals (USDC = 6, most tokens = 9)
+      const inputDecimals = swapMode === 'buy' ? 6 : 9;
+      const outputDecimals = swapMode === 'buy' ? 9 : 6;
+      
+      const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
+      const slippageBps = slippage * 100; // Convert to basis points
+
+      const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
+      
+      if (quote) {
+        const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount), outputDecimals);
+        setOutputAmount(output.toFixed(6));
+        setCurrentQuote(quote);
+      }
+    } catch (error) {
+      console.error('Error fetching quote:', error);
+      toast.error('Failed to get quote');
+      setOutputAmount('');
+      setCurrentQuote(null);
+    } finally {
+      setQuoteLoading(false);
+    }
+  }
+
+  // Execute swap
+  async function handleSwap() {
+    if (!wallet.connected) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    if (!currentQuote) {
+      toast.error('No quote available');
+      return;
+    }
+
+    try {
+      setSwapping(true);
+
+      // Get swap transaction
+      const swapTransaction = await jupiterApi.getSwapTransaction(
+        currentQuote,
+        wallet.publicKey.toString()
+      );
+
+      // Execute transaction
+      const signature = await jupiterApi.executeSwap(swapTransaction, wallet);
+
+      toast.success(`Swap successful! Signature: ${signature.slice(0, 8)}...`);
+      
+      // Reset form
+      setInputAmount('');
+      setOutputAmount('');
+      setCurrentQuote(null);
+    } catch (error) {
+      console.error('Error executing swap:', error);
+      toast.error(`Swap failed: ${error.message}`);
+    } finally {
+      setSwapping(false);
+    }
+  }
+
+  // Format number helpers
+  const formatPrice = (price) => {
+    if (price < 0.01) return `$${price.toFixed(6)}`;
+    return `$${price.toFixed(4)}`;
   };
 
-  // Filter tokens based on search
-  const filteredTokens = tokens.filter(token =>
-    token.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    token.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    token.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredPumpTokens = pumpTokens.filter(token =>
-    token.symbol?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    token.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    token.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Get safety indicators based on token status and liquidity
-  const getSafetyBadge = (token) => {
-    // Pre-DEX tokens (still on Pump.fun bonding curve)
-    if (token.isPump && !token.graduated) {
-      return { color: 'bg-yellow-500/20 text-yellow-400', text: 'Pre-DEX', icon: Zap };
-    }
-    // Graduated tokens (migrated from Pump.fun to DEX)
-    if (token.isGraduated && token.liquidity > 100000) {
-      return { color: 'bg-emerald-500/20 text-emerald-400', text: 'Graduated', icon: GraduationCap };
-    }
-    // High liquidity (>$100k)
-    if (token.liquidity > 100000) {
-      return { color: 'bg-green-500/20 text-green-400', text: 'High Liq', icon: Shield };
-    }
-    // Medium liquidity ($10k-$100k)
-    if (token.liquidity > 10000) {
-      return { color: 'bg-blue-500/20 text-blue-400', text: 'Med Liq', icon: Shield };
-    }
-    // Low liquidity (<$10k) - higher risk
-    return { color: 'bg-orange-500/20 text-orange-400', text: 'Low Liq', icon: AlertTriangle };
-  };
-
-  // Token card component
-  const TokenCard = ({ token, onClick }) => {
-    const safety = getSafetyBadge(token);
-    const SafetyIcon = safety.icon;
-    
-    return (
-      <div 
-        onClick={() => onClick(token)}
-        className={`p-3 rounded-lg border cursor-pointer transition-all hover:border-primary/50 ${
-          selectedToken?.id === token.id 
-            ? 'border-primary bg-primary/5' 
-            : 'border-border/50 bg-card/50 hover:bg-card'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          {/* Token Image */}
-          <div className="w-10 h-10 rounded-full bg-muted flex-shrink-0 overflow-hidden">
-            {token.imageUrl ? (
-              <img 
-                src={token.imageUrl} 
-                alt={token.symbol}
-                className="w-full h-full object-cover"
-                onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-lg font-bold text-muted-foreground">
-                {token.symbol?.[0] || '?'}
-              </div>
-            )}
-          </div>
-
-          {/* Token Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm truncate">{token.symbol}</span>
-              {token.isKingOfHill && (
-                <Crown className="w-3.5 h-3.5 text-yellow-400" />
-              )}
-              <Badge className={`${safety.color} text-[10px] px-1.5 py-0`}>
-                <SafetyIcon className="w-2.5 h-2.5 mr-0.5" />
-                {safety.text}
-              </Badge>
-            </div>
-            <div className="text-xs text-muted-foreground truncate">{token.name}</div>
-            
-            {/* Price & Change */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="font-mono text-sm font-semibold">
-                {formatPrice(token.price)}
-              </span>
-              {token.priceChange24h !== undefined && (
-                <span className={`text-xs flex items-center ${
-                  token.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {token.priceChange24h >= 0 ? (
-                    <TrendingUp className="w-3 h-3 mr-0.5" />
-                  ) : (
-                    <TrendingDown className="w-3 h-3 mr-0.5" />
-                  )}
-                  {Math.abs(token.priceChange24h).toFixed(1)}%
-                </span>
-              )}
-            </div>
-
-            {/* Stats Row */}
-            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
-              {token.marketCap > 0 && (
-                <span>MC: {formatNumber(token.marketCap)}</span>
-              )}
-              {token.liquidity > 0 && (
-                <span>Liq: {formatNumber(token.liquidity)}</span>
-              )}
-              {token.bondingCurveProgress !== undefined && (
-                <span>{Math.round(token.bondingCurveProgress * 100)}% bonded</span>
-              )}
-            </div>
-
-            {/* Created Time */}
-            {token.createdAt && (
-              <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                <Clock className="w-2.5 h-2.5" />
-                {formatTimeAgo(token.createdAt)}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+  const formatVolume = (volume) => {
+    if (volume >= 1e9) return `$${(volume / 1e9).toFixed(2)}B`;
+    if (volume >= 1e6) return `$${(volume / 1e6).toFixed(2)}M`;
+    if (volume >= 1e3) return `$${(volume / 1e3).toFixed(2)}K`;
+    return `$${volume.toFixed(2)}`;
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Header */}
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-                <Rocket className="w-6 h-6 text-primary" />
-                {t.title}
-              </h1>
-              <p className="text-xs md:text-sm text-muted-foreground">{t.subtitle}</p>
+      <div className="border-b border-gray-800">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold">Meme Coin Terminal</h1>
+              <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">
+                Solana
+              </Badge>
             </div>
             
-            <div className="flex items-center gap-3">
-              {/* Last Updated */}
-              {lastUpdated && (
-                <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="w-3.5 h-3.5" />
-                  {t.lastUpdated}: {formatTimeAgo(lastUpdated)}
-                </div>
-              )}
-              
-              {/* Refresh Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setLoading(true);
-                  Promise.all([fetchTrendingTokens(), fetchNewTokens()]).then(() => setLoading(false));
-                }}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-
-              {/* Wallet Button - Uses existing component */}
-              <WalletButton language={language} />
+            <div className="flex items-center gap-4">
+              <WalletMultiButton />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left Panel - Token List */}
-          <div className="lg:col-span-4 xl:col-span-3">
-            <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t.search}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-background/50"
-                  />
-                </div>
-
-                {/* Tabs - 3 categories: Trending, Gainers, New Launches */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
-                  <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="trending" className="text-xs">
-                      <Flame className="w-3 h-3 mr-1" />
-                      {t.trending}
-                    </TabsTrigger>
-                    <TabsTrigger value="gainers" className="text-xs">
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      Gainers
-                    </TabsTrigger>
-                    <TabsTrigger value="new" className="text-xs">
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      {t.newLaunches}
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </CardHeader>
-
-              <CardContent className="pt-0">
-                <ScrollArea className="h-[calc(100vh-320px)] md:h-[600px]">
-                  {loading ? (
-                    <div className="flex items-center justify-center h-40">
-                      <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <div className="space-y-2 pr-4">
-                      {/* Trending Tab - All tokens sorted by volume/activity */}
-                      {activeTab === 'trending' && filteredTokens.map(token => (
-                        <TokenCard 
-                          key={token.id} 
-                          token={token} 
-                          onClick={setSelectedToken}
-                        />
-                      ))}
-                      
-                      {/* Gainers Tab - Tokens with highest price increase */}
-                      {activeTab === 'gainers' && [...filteredTokens]
-                        .sort((a, b) => (b.priceChange24h || 0) - (a.priceChange24h || 0))
-                        .map(token => (
-                          <TokenCard 
-                            key={token.id} 
-                            token={token} 
-                            onClick={setSelectedToken}
-                          />
-                        ))}
-                      
-                      {/* New Launches Tab - Newest tokens */}
-                      {activeTab === 'new' && filteredPumpTokens.map(token => (
-                        <TokenCard 
-                          key={token.id} 
-                          token={token} 
-                          onClick={setSelectedToken}
-                        />
-                      ))}
-                      
-                      {/* Empty state handling for all tabs */}
-                      {((activeTab === 'trending' && filteredTokens.length === 0) ||
-                        (activeTab === 'gainers' && filteredTokens.length === 0) ||
-                        (activeTab === 'new' && filteredPumpTokens.length === 0)) && (
-                        <div className="text-center py-10 text-muted-foreground">
-                          {t.noTokens}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Panel - Chart & Trading */}
-          <div className="lg:col-span-8 xl:col-span-9 space-y-4">
-            {selectedToken ? (
-              <>
-                {/* Token Header */}
-                <Card className="border-border/50">
-                  <CardContent className="py-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted overflow-hidden">
-                          {selectedToken.imageUrl ? (
-                            <img 
-                              src={selectedToken.imageUrl} 
-                              alt={selectedToken.symbol}
-                              className="w-full h-full object-cover"
-                              onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xl font-bold">
-                              {selectedToken.symbol?.[0]}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-xl font-bold">{selectedToken.symbol}</h2>
-                            {selectedToken.isKingOfHill && (
-                              <Badge className="bg-yellow-500/20 text-yellow-400">
-                                <Crown className="w-3 h-3 mr-1" />
-                                {t.kingOfHill}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span className="font-mono text-xs">
-                              {selectedToken.address?.slice(0, 6)}...{selectedToken.address?.slice(-4)}
-                            </span>
-                            <button 
-                              onClick={() => copyAddress(selectedToken.address)}
-                              className="hover:text-primary transition-colors"
-                            >
-                              {copiedAddress === selectedToken.address ? (
-                                <Check className="w-3.5 h-3.5 text-green-400" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            {selectedToken.url && (
-                              <a 
-                                href={selectedToken.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="hover:text-primary transition-colors text-xs"
-                              >
-                                ↗
-                              </a>
-                            )}
-                          </div>
-                          {selectedToken.createdAt && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {t.created}: {formatTimeAgo(selectedToken.createdAt)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Price & Stats */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <div className="text-xs text-muted-foreground">{t.price}</div>
-                          <div className="font-mono font-bold">{formatPrice(selectedToken.price)}</div>
-                          {selectedToken.priceChange24h !== undefined && (
-                            <div className={`text-xs ${selectedToken.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {selectedToken.priceChange24h >= 0 ? '+' : ''}{selectedToken.priceChange24h.toFixed(2)}%
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">{t.marketCap}</div>
-                          <div className="font-mono font-bold">{formatNumber(selectedToken.marketCap)}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">{t.volume}</div>
-                          <div className="font-mono font-bold">{formatNumber(selectedToken.volume24h)}</div>
-                        </div>
-                        <div>
-                          <div className="text-xs text-muted-foreground">{t.liquidity}</div>
-                          <div className="font-mono font-bold">{formatNumber(selectedToken.liquidity)}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bonding Curve Progress for Pump tokens */}
-                    {selectedToken.bondingCurveProgress !== undefined && (
-                      <div className="mt-4">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">{t.bondingCurve}</span>
-                          <span className="font-mono">{Math.round(selectedToken.bondingCurveProgress * 100)}%</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-primary to-green-400 transition-all"
-                            style={{ width: `${selectedToken.bondingCurveProgress * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Chart */}
-                <Card className="border-border/50">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Price Chart
-                        {selectedToken.marketCap > 0 && (
-                          <Badge variant="outline" className="ml-2 font-mono">
-                            MC: {formatNumber(selectedToken.marketCap)}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      
-                      {/* Timeframe Selector */}
-                      <div className="flex gap-1">
-                        {timeframes.map(tf => (
-                          <Button
-                            key={tf.value}
-                            variant={timeframe === tf.value ? 'default' : 'ghost'}
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => setTimeframe(tf.value)}
-                          >
-                            {tf.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div ref={chartContainerRef} className="w-full" />
-                  </CardContent>
-                </Card>
-
-                {/* Trading Panel with Jupiter Swap + 1% Platform Fee */}
-                <Card className="border-border/50">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" />
-                        Swap
-                      </CardTitle>
-                      <Badge variant="outline" className="text-xs">
-                        1% Platform Fee
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {isConnected && walletType === 'solana' ? (
-                      <div className="space-y-4">
-                        {/* Quick swap buttons */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <Button 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => {
-                              const url = getJupiterSwapUrl();
-                              if (url) window.open(url, '_blank');
-                            }}
-                          >
-                            <TrendingUp className="w-4 h-4 mr-2" />
-                            Buy {selectedToken?.symbol}
-                          </Button>
-                          <Button 
-                            variant="destructive"
-                            onClick={() => {
-                              if (selectedToken?.address) {
-                                window.open(`https://jup.ag/swap/${selectedToken.address}-SOL`, '_blank');
-                              }
-                            }}
-                          >
-                            <TrendingDown className="w-4 h-4 mr-2" />
-                            Sell {selectedToken?.symbol}
-                          </Button>
-                        </div>
-
-                        {/* Token info */}
-                        <div className="p-3 bg-muted/30 rounded-lg space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Token Address:</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs">
-                                {selectedToken?.address?.slice(0, 8)}...{selectedToken?.address?.slice(-6)}
-                              </span>
-                              <button 
-                                onClick={() => copyAddress(selectedToken?.address)}
-                                className="hover:text-primary"
-                              >
-                                {copiedAddress === selectedToken?.address ? (
-                                  <Check className="w-3.5 h-3.5 text-green-400" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Current Price:</span>
-                            <span className="font-mono">{formatPrice(selectedToken?.price)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">24h Change:</span>
-                            <span className={selectedToken?.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}>
-                              {selectedToken?.priceChange24h >= 0 ? '+' : ''}{selectedToken?.priceChange24h?.toFixed(2)}%
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="p-2 bg-muted/30 rounded-lg text-xs text-muted-foreground text-center">
-                          <Shield className="w-3 h-3 inline mr-1" />
-                          Swaps powered by Jupiter • 1% platform fee applied
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-10">
-                        <Rocket className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-muted-foreground mb-4">{t.connectWallet}</p>
-                        <WalletButton language={language} />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card className="border-border/50">
-                <CardContent className="py-20 text-center">
-                  <Rocket className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Select a token to start trading</h3>
-                  <p className="text-muted-foreground">Choose a token from the list to view charts and trade</p>
-                </CardContent>
-              </Card>
-            )}
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-6 py-6">
+        {/* Search */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search meme coins..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-gray-900/50 border-gray-800"
+            />
           </div>
         </div>
+
+        {/* Token Table */}
+        <Card className="bg-gray-900/50 border-gray-800">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">
+                    <button
+                      onClick={() => handleSort('symbol')}
+                      className="flex items-center gap-1 hover:text-white"
+                    >
+                      Token <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                    <button
+                      onClick={() => handleSort('price')}
+                      className="flex items-center gap-1 ml-auto hover:text-white"
+                    >
+                      Price <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                    <button
+                      onClick={() => handleSort('change24h')}
+                      className="flex items-center gap-1 ml-auto hover:text-white"
+                    >
+                      24h % <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                    <button
+                      onClick={() => handleSort('volume24h')}
+                      className="flex items-center gap-1 ml-auto hover:text-white"
+                    >
+                      Volume <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                    <button
+                      onClick={() => handleSort('liquidity')}
+                      className="flex items-center gap-1 ml-auto hover:text-white"
+                    >
+                      Liquidity <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                      Loading meme coins...
+                    </td>
+                  </tr>
+                ) : filteredTokens.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                      No tokens found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTokens.map((token) => (
+                    <tr
+                      key={token.address}
+                      className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      onClick={() => selectToken(token)}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {token.imageUrl ? (
+                            <img
+                              src={token.imageUrl}
+                              alt={token.symbol}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs">
+                              {token.symbol?.charAt(0)}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium">{token.symbol}</div>
+                            <div className="text-xs text-gray-400">{token.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {formatPrice(token.price)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`flex items-center justify-end gap-1 ${
+                            token.change24h >= 0 ? 'text-green-500' : 'text-red-500'
+                          }`}
+                        >
+                          {token.change24h >= 0 ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          {Math.abs(token.change24h).toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {formatVolume(token.volume24h)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {formatVolume(token.liquidity)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectToken(token);
+                          }}
+                        >
+                          Trade
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
+
+      {/* Token Detail Sheet */}
+      <Sheet open={!!selectedToken} onOpenChange={(open) => !open && setSelectedToken(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-[600px] bg-gray-900 border-gray-800 overflow-y-auto">
+          {selectedToken && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-3">
+                  {selectedToken.imageUrl ? (
+                    <img
+                      src={selectedToken.imageUrl}
+                      alt={selectedToken.symbol}
+                      className="w-10 h-10 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                      {selectedToken.symbol?.charAt(0)}
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xl font-bold">{selectedToken.symbol}</div>
+                    <div className="text-sm text-gray-400 font-normal">
+                      {selectedToken.name}
+                    </div>
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-6">
+                {/* Price Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <div className="text-sm text-gray-400 mb-1">Price</div>
+                    <div className="text-xl font-bold font-mono">
+                      {formatPrice(selectedToken.price)}
+                    </div>
+                  </div>
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <div className="text-sm text-gray-400 mb-1">24h Change</div>
+                    <div
+                      className={`text-xl font-bold flex items-center gap-1 ${
+                        selectedToken.change24h >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}
+                    >
+                      {selectedToken.change24h >= 0 ? (
+                        <TrendingUp className="w-4 h-4" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4" />
+                      )}
+                      {selectedToken.change24h.toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <div className="text-sm font-medium mb-3">Price Chart</div>
+                  <div ref={chartContainerRef} className="w-full h-[300px]" />
+                </div>
+
+                {/* Swap Panel */}
+                <div className="bg-gray-800/50 rounded-lg p-4">
+                  <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="buy" className="data-[state=active]:bg-green-600">
+                        Buy
+                      </TabsTrigger>
+                      <TabsTrigger value="sell" className="data-[state=active]:bg-red-600">
+                        Sell
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="buy" className="space-y-4">
+                      <SwapForm
+                        inputLabel="Pay (USDC)"
+                        outputLabel={`Receive (${selectedToken.symbol})`}
+                        inputAmount={inputAmount}
+                        outputAmount={outputAmount}
+                        onInputChange={setInputAmount}
+                        slippage={slippage}
+                        customSlippage={customSlippage}
+                        onSlippageChange={setSlippage}
+                        onCustomSlippageChange={setCustomSlippage}
+                        quoteLoading={quoteLoading}
+                        swapping={swapping}
+                        onSwap={handleSwap}
+                        walletConnected={wallet.connected}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="sell" className="space-y-4">
+                      <SwapForm
+                        inputLabel={`Pay (${selectedToken.symbol})`}
+                        outputLabel="Receive (USDC)"
+                        inputAmount={inputAmount}
+                        outputAmount={outputAmount}
+                        onInputChange={setInputAmount}
+                        slippage={slippage}
+                        customSlippage={customSlippage}
+                        onSlippageChange={setSlippage}
+                        onCustomSlippageChange={setCustomSlippage}
+                        quoteLoading={quoteLoading}
+                        swapping={swapping}
+                        onSwap={handleSwap}
+                        walletConnected={wallet.connected}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+// Swap Form Component
+function SwapForm({
+  inputLabel,
+  outputLabel,
+  inputAmount,
+  outputAmount,
+  onInputChange,
+  slippage,
+  customSlippage,
+  onSlippageChange,
+  onCustomSlippageChange,
+  quoteLoading,
+  swapping,
+  onSwap,
+  walletConnected,
+}) {
+  return (
+    <>
+      {/* Input Amount */}
+      <div className="space-y-2">
+        <Label className="text-gray-400">{inputLabel}</Label>
+        <Input
+          type="number"
+          placeholder="0.00"
+          value={inputAmount}
+          onChange={(e) => onInputChange(e.target.value)}
+          className="bg-gray-900 border-gray-700 text-lg h-12"
+        />
+      </div>
+
+      {/* Output Amount */}
+      <div className="space-y-2">
+        <Label className="text-gray-400">{outputLabel}</Label>
+        <Input
+          type="text"
+          placeholder="0.00"
+          value={outputAmount}
+          readOnly
+          className="bg-gray-900 border-gray-700 text-lg h-12"
+        />
+        {quoteLoading && (
+          <div className="text-xs text-gray-400 flex items-center gap-2">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Getting best price...
+          </div>
+        )}
+      </div>
+
+      {/* Slippage */}
+      <div className="space-y-2">
+        <Label className="text-gray-400">Slippage Tolerance</Label>
+        <div className="flex gap-2">
+          {SLIPPAGE_OPTIONS.map((option) => (
+            <Button
+              key={option}
+              size="sm"
+              variant={slippage === option ? 'default' : 'outline'}
+              onClick={() => onSlippageChange(option)}
+              className={slippage === option ? 'bg-green-600' : ''}
+            >
+              {option}%
+            </Button>
+          ))}
+          <Input
+            type="number"
+            placeholder="Custom"
+            value={customSlippage}
+            onChange={(e) => {
+              onCustomSlippageChange(e.target.value);
+              const val = parseFloat(e.target.value);
+              if (val > 0) onSlippageChange(val);
+            }}
+            className="w-24 bg-gray-900 border-gray-700"
+          />
+        </div>
+      </div>
+
+      {/* Swap Button */}
+      <Button
+        size="lg"
+        className="w-full bg-green-600 hover:bg-green-700 text-lg h-12"
+        onClick={onSwap}
+        disabled={!walletConnected || !inputAmount || !outputAmount || swapping || quoteLoading}
+      >
+        {!walletConnected ? (
+          'Connect Wallet'
+        ) : swapping ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Swapping...
+          </>
+        ) : (
+          'Swap'
+        )}
+      </Button>
+    </>
   );
 }
