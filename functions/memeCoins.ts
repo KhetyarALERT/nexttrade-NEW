@@ -1,64 +1,35 @@
-/**
- * Meme Coins Backend Function
- * 
- * Fetches data from:
- * - Pump.fun API: Pre-DEX tokens on bonding curve
- * - DexScreener API: Migrated/graduated tokens on DEXes
- * - Jupiter API: Swap quotes with 1% platform commission
- * 
- * DexScreener API docs: https://docs.dexscreener.com/api/reference
- * Pump.fun uses their frontend API (no official docs)
- * Jupiter API docs: https://station.jup.ag/docs/apis/swap-api
- */
-
 // @ts-nocheck
-// deno-lint-ignore-file
+/// <reference lib="deno.ns" />
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
+/**
+ * Meme Coins Backend Function
+ * - Pump.fun API: Pre-DEX tokens on bonding curve
+ * - DexScreener API: Migrated/graduated tokens
+ * - Jupiter API: Swaps with 1% platform commission
+ */
 
-// Platform commission: 1% (100 basis points)
+// Constants
 const PLATFORM_FEE_BPS = 100;
-
-// Commission wallet for fee collection
 const FEE_WALLET = 'CrQyg1WovDzakhqd7UfBrVvPbEZzPHWyui6Qd2zMV2UL';
-
-// API endpoints
 const PUMP_FUN_API = 'https://frontend-api.pump.fun';
 const DEXSCREENER_API = 'https://api.dexscreener.com';
 const JUPITER_API = 'https://quote-api.jup.ag/v6';
-
-// Solana native token (SOL) mint address
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-
-// Cache TTL in milliseconds (30 seconds for live data)
 const CACHE_TTL = 30000;
 
-// In-memory cache for rate limiting protection
-const cache: Map<string, { data: any; timestamp: number }> = new Map();
+const cache = new Map();
 
-// =============================================================================
-// LOGGING UTILITIES
-// =============================================================================
-
-const log = (action: string, data?: any) => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [MEME_COINS] ${action}`, data ? JSON.stringify(data) : '');
+const log = (action, data) => {
+  console.log(`[${new Date().toISOString()}] [MEME_COINS] ${action}`, data ? JSON.stringify(data) : '');
 };
 
-const logError = (action: string, error: any) => {
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] [MEME_COINS_ERROR] ${action}:`, error?.message || error);
+const logError = (action, error) => {
+  console.error(`[${new Date().toISOString()}] [MEME_COINS_ERROR] ${action}:`, error?.message || error);
 };
 
-// =============================================================================
-// CACHE HELPERS
-// =============================================================================
-
-const getCached = (key: string): any | null => {
+const getCached = (key) => {
   const entry = cache.get(key);
   if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
     return entry.data;
@@ -67,32 +38,17 @@ const getCached = (key: string): any | null => {
   return null;
 };
 
-const setCache = (key: string, data: any): void => {
+const setCache = (key, data) => {
   cache.set(key, { data, timestamp: Date.now() });
 };
 
-// =============================================================================
-// PUMP.FUN API FUNCTIONS
-// =============================================================================
-
-/**
- * Fetch tokens from Pump.fun (pre-DEX, on bonding curve)
- * These are new meme coins that haven't graduated to Raydium yet
- */
-async function fetchPumpFunTokens(options: {
-  limit?: number;
-  offset?: number;
-  sort?: 'last_trade_timestamp' | 'created_timestamp' | 'market_cap' | 'bump_order';
-  order?: 'ASC' | 'DESC';
-  includeNsfw?: boolean;
-} = {}): Promise<any[]> {
-  const {
-    limit = 50,
-    offset = 0,
-    sort = 'last_trade_timestamp',
-    order = 'DESC',
-    includeNsfw = false
-  } = options;
+// Pump.fun API
+async function fetchPumpFunTokens(options) {
+  const limit = options?.limit || 50;
+  const offset = options?.offset || 0;
+  const sort = options?.sort || 'last_trade_timestamp';
+  const order = options?.order || 'DESC';
+  const includeNsfw = options?.includeNsfw || false;
 
   const cacheKey = `pump_${sort}_${order}_${offset}_${limit}`;
   const cached = getCached(cacheKey);
@@ -119,7 +75,7 @@ async function fetchPumpFunTokens(options: {
     const data = await response.json();
     
     // Transform to consistent format
-    const tokens = (data || []).map((token: any) => ({
+    const tokens = (data || []).map((token) => ({
       id: token.mint,
       mint: token.mint,
       symbol: token.symbol || 'UNKNOWN',
@@ -168,7 +124,7 @@ async function fetchPumpFunTokens(options: {
 /**
  * Fetch a specific token from Pump.fun by mint address
  */
-async function fetchPumpFunToken(mint: string): Promise<any | null> {
+async function fetchPumpFunToken(mint) {
   const cacheKey = `pump_token_${mint}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -217,7 +173,7 @@ async function fetchPumpFunToken(mint: string): Promise<any | null> {
  * Fetch latest token profiles from DexScreener
  * These are tokens with updated social/marketing profiles
  */
-async function fetchDexScreenerLatest(): Promise<any[]> {
+async function fetchDexScreenerLatest() {
   const cacheKey = 'dex_latest';
   const cached = getCached(cacheKey);
   if (cached) {
@@ -238,9 +194,9 @@ async function fetchDexScreenerLatest(): Promise<any[]> {
     
     // Filter for Solana tokens only
     const solanaTokens = (data || [])
-      .filter((t: any) => t.chainId === 'solana')
+      .filter((t) => t.chainId === 'solana')
       .slice(0, 50)
-      .map((token: any) => ({
+      .map((token) => ({
         id: token.tokenAddress,
         mint: token.tokenAddress,
         symbol: token.header?.split(' ')[0] || 'UNKNOWN',
@@ -266,7 +222,7 @@ async function fetchDexScreenerLatest(): Promise<any[]> {
 /**
  * Fetch boosted tokens from DexScreener (promoted/trending)
  */
-async function fetchDexScreenerBoosted(): Promise<any[]> {
+async function fetchDexScreenerBoosted() {
   const cacheKey = 'dex_boosted';
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -280,7 +236,7 @@ async function fetchDexScreenerBoosted(): Promise<any[]> {
 
     const data = await response.json();
     const solanaTokens = (data || [])
-      .filter((t: any) => t.chainId === 'solana')
+      .filter((t) => t.chainId === 'solana')
       .slice(0, 30);
 
     setCache(cacheKey, solanaTokens);
@@ -296,7 +252,7 @@ async function fetchDexScreenerBoosted(): Promise<any[]> {
  * Fetch trending Solana pairs from DexScreener
  * Gets tokens paired with SOL that have good liquidity/volume
  */
-async function fetchDexScreenerTrending(limit: number = 50): Promise<any[]> {
+async function fetchDexScreenerTrending(limit = 50) {
   const cacheKey = `dex_trending_${limit}`;
   const cached = getCached(cacheKey);
   if (cached) {
@@ -319,14 +275,14 @@ async function fetchDexScreenerTrending(limit: number = 50): Promise<any[]> {
     
     // Filter and format Solana pairs with good liquidity
     const pairs = (data.pairs || [])
-      .filter((pair: any) => 
+      .filter((pair) => 
         pair.chainId === 'solana' &&
-        pair.liquidity?.usd > 5000 && // Minimum $5k liquidity
+        pair.liquidity?.usd > 5000 &&
         pair.baseToken?.symbol !== 'SOL' &&
         pair.baseToken?.symbol !== 'WSOL'
       )
       .slice(0, limit)
-      .map((pair: any) => ({
+      .map((pair) => ({
         id: pair.pairAddress,
         mint: pair.baseToken?.address,
         pairAddress: pair.pairAddress,
@@ -385,7 +341,7 @@ async function fetchDexScreenerTrending(limit: number = 50): Promise<any[]> {
 /**
  * Search tokens on DexScreener
  */
-async function searchDexScreener(query: string): Promise<any[]> {
+async function searchDexScreener(query) {
   if (!query || query.length < 2) return [];
 
   const cacheKey = `dex_search_${query.toLowerCase()}`;
@@ -404,9 +360,9 @@ async function searchDexScreener(query: string): Promise<any[]> {
     
     // Filter for Solana only
     const results = (data.pairs || [])
-      .filter((pair: any) => pair.chainId === 'solana')
+      .filter((pair) => pair.chainId === 'solana')
       .slice(0, 20)
-      .map((pair: any) => ({
+      .map((pair) => ({
         id: pair.pairAddress,
         mint: pair.baseToken?.address,
         symbol: pair.baseToken?.symbol,
@@ -436,7 +392,7 @@ async function searchDexScreener(query: string): Promise<any[]> {
 /**
  * Get token pair details by address
  */
-async function fetchTokenPair(pairAddress: string): Promise<any | null> {
+async function fetchTokenPair(pairAddress) {
   const cacheKey = `dex_pair_${pairAddress}`;
   const cached = getCached(cacheKey);
   if (cached) return cached;
@@ -489,23 +445,15 @@ async function fetchTokenPair(pairAddress: string): Promise<any | null> {
  * Get swap quote from Jupiter with platform fee
  * Jupiter API docs: https://station.jup.ag/docs/apis/swap-api
  */
-async function getSwapQuote(params: {
-  inputMint: string;
-  outputMint: string;
-  amount: number; // In smallest units (lamports for SOL)
-  slippageBps?: number;
-}): Promise<any> {
+async function getSwapQuote(params) {
   const JUPITER_API_KEY = Deno.env.get('JUPITER_API_KEY');
   
-  const {
-    inputMint,
-    outputMint,
-    amount,
-    slippageBps = 50 // 0.5% default slippage
-  } = params;
+  const inputMint = params.inputMint;
+  const outputMint = params.outputMint;
+  const amount = params.amount;
+  const slippageBps = params.slippageBps || 50;
 
   try {
-    // Build query params with platform fee
     const queryParams = new URLSearchParams({
       inputMint,
       outputMint,
@@ -514,7 +462,7 @@ async function getSwapQuote(params: {
       platformFeeBps: PLATFORM_FEE_BPS.toString(),
     });
 
-    const headers: Record<string, string> = {
+    const headers = {
       'Accept': 'application/json'
     };
 
@@ -557,23 +505,16 @@ async function getSwapQuote(params: {
  * Get swap transaction from Jupiter
  * Returns serialized transaction ready for signing
  */
-async function getSwapTransaction(params: {
-  quoteResponse: any;
-  userPublicKey: string;
-  wrapUnwrapSOL?: boolean;
-  feeAccount?: string;
-}): Promise<any> {
+async function getSwapTransaction(params) {
   const JUPITER_API_KEY = Deno.env.get('JUPITER_API_KEY');
   
-  const {
-    quoteResponse,
-    userPublicKey,
-    wrapUnwrapSOL = true,
-    feeAccount = FEE_WALLET
-  } = params;
+  const quoteResponse = params.quoteResponse;
+  const userPublicKey = params.userPublicKey;
+  const wrapUnwrapSOL = params.wrapUnwrapSOL !== false;
+  const feeAccount = params.feeAccount || FEE_WALLET;
 
   try {
-    const headers: Record<string, string> = {
+    const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     };
@@ -615,7 +556,7 @@ async function getSwapTransaction(params: {
 /**
  * Get token price in USD from Jupiter
  */
-async function getTokenPrice(mint: string): Promise<number | null> {
+async function getTokenPrice(mint) {
   const cacheKey = `jup_price_${mint}`;
   const cached = getCached(cacheKey);
   if (cached !== null) return cached;
