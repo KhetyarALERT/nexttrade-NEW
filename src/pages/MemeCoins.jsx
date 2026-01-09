@@ -4,7 +4,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { 
   ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2, 
-  ExternalLink, RefreshCw, Zap
+  ExternalLink, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -586,6 +586,146 @@ export default function MemeCoinsTerminal() {
               />
             </div>
 
+            {/* Desktop Toolbar */}
+            <div className="hidden sm:flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={mobilePreset === 'hot' ? 'default' : 'outline'}
+                className="h-8"
+                onClick={() => applyMobilePreset('hot')}
+              >
+                Hot
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mobilePreset === 'new' ? 'default' : 'outline'}
+                className="h-8"
+                onClick={() => applyMobilePreset('new')}
+              >
+                New
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mobilePreset === 'mc' ? 'default' : 'outline'}
+                className="h-8"
+                onClick={() => applyMobilePreset('mc')}
+              >
+                MC
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={mobilePreset === 'liq' ? 'default' : 'outline'}
+                className="h-8"
+                onClick={() => applyMobilePreset('liq')}
+              >
+                Liquidity
+              </Button>
+
+              <div className="mx-2 h-5 w-px bg-border" />
+
+              {['5m', '1h', '6h', '24h'].map((tf) => (
+                <Button
+                  key={tf}
+                  type="button"
+                  size="sm"
+                  variant={timeframe === tf ? 'default' : 'outline'}
+                  className="h-8"
+                  onClick={() => setTimeframe(tf)}
+                >
+                  {tf}
+                </Button>
+              ))}
+
+              <div className="ml-auto flex items-center gap-2">
+                <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" size="sm" variant="outline" className="h-8">
+                      Filters
+                      {countActiveFilters() > 0 ? (
+                        <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">
+                          {countActiveFilters()}
+                        </span>
+                      ) : null}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <Card className="bg-card border-border p-3">
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Min Liquidity ($)</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="10000"
+                            value={filters.minLiquidity}
+                            onChange={(e) => setFilters((p) => ({ ...p, minLiquidity: e.target.value }))}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Min MC ($)</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="50000"
+                            value={filters.minMarketCap}
+                            onChange={(e) => setFilters((p) => ({ ...p, minMarketCap: e.target.value }))}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Min Vol ({timeframe})</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="5000"
+                            value={filters.minVolume}
+                            onChange={(e) => setFilters((p) => ({ ...p, minVolume: e.target.value }))}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Max Age (hours)</Label>
+                          <Input
+                            inputMode="numeric"
+                            placeholder="24"
+                            value={filters.maxAgeHours}
+                            onChange={(e) => setFilters((p) => ({ ...p, maxAgeHours: e.target.value }))}
+                            className="h-9"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={filters.onlyGreen}
+                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyGreen: !!checked }))}
+                            />
+                            <div className="text-xs">Green only</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={filters.onlyWithImage}
+                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithImage: !!checked }))}
+                            />
+                            <div className="text-xs">Has logo</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-xs text-muted-foreground">{filteredTokens.length} tokens</div>
+                          <Button type="button" size="sm" variant="outline" className="h-8" onClick={resetFilters}>
+                            Reset
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </div>
+
             {/* Mobile Filters */}
             <div className="sm:hidden space-y-2">
               <div className="flex gap-2 overflow-x-auto pb-1">
@@ -753,18 +893,18 @@ export default function MemeCoinsTerminal() {
                   </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
                     <button
-                      onClick={() => handleSort('change24h')}
+                      onClick={() => handleSort(getChangeKey(timeframe))}
                       className="flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors"
                     >
-                      24h % <ArrowUpDown className="w-3 h-3" />
+                      {timeframe} % <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground hidden lg:table-cell">
                     <button
-                      onClick={() => handleSort('volume24h')}
+                      onClick={() => handleSort(getVolumeKey(timeframe))}
                       className="flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors"
                     >
-                      Volume <ArrowUpDown className="w-3 h-3" />
+                      Vol {timeframe} <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground hidden lg:table-cell">
@@ -842,19 +982,19 @@ export default function MemeCoinsTerminal() {
                       <td className="px-4 py-3 text-right">
                         <span
                           className={'inline-flex items-center gap-1 text-sm font-medium ' + 
-                            (token.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500')
+                            (getTokenChange(token) >= 0 ? 'text-emerald-500' : 'text-rose-500')
                           }
                         >
-                          {token.change24h >= 0 ? (
+                          {getTokenChange(token) >= 0 ? (
                             <TrendingUp className="w-3.5 h-3.5" />
                           ) : (
                             <TrendingDown className="w-3.5 h-3.5" />
                           )}
-                          {formatChange(token.change24h)}
+                          {formatChange(getTokenChange(token))}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-sm hidden lg:table-cell">
-                        {formatVolume(token.volume24h)}
+                        {formatVolume(getTokenVolume(token))}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-sm hidden lg:table-cell">
                         {formatVolume(token.marketCap)}
@@ -868,13 +1008,13 @@ export default function MemeCoinsTerminal() {
                       <td className="px-4 py-3 text-right">
                         <Button
                           size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             selectToken(token);
                           }}
                         >
-                          <Zap className="w-3.5 h-3.5 mr-1" />
+                          <SolanaMark className="w-3.5 h-3.5" />
                           Trade
                         </Button>
                       </td>
@@ -947,61 +1087,94 @@ export default function MemeCoinsTerminal() {
               {selectedToken ? (
                 <Card className="bg-card border-border overflow-hidden">
                   <div className="p-4 border-b border-border bg-muted/30 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-lg font-bold leading-tight truncate">{selectedToken.symbol}</div>
-                      <div className="text-sm text-muted-foreground truncate">{selectedToken.name}</div>
+                    <div className="min-w-0 flex items-center gap-3">
+                      {selectedToken.imageUrl ? (
+                        <img src={selectedToken.imageUrl} alt={selectedToken.symbol} className="w-10 h-10 rounded-full bg-muted" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-sm font-bold text-white">
+                          {selectedToken.symbol?.charAt(0) || '?'}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-lg font-bold leading-tight truncate">{selectedToken.symbol}</div>
+                        <div className="text-sm text-muted-foreground truncate">{selectedToken.name}</div>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-mono">{formatAddress(selectedToken.address)}</span>
+                          {selectedToken.pairCreatedAt ? (
+                            <span>• {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}</span>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setSelectedToken(null)}>Close</Button>
+                    <div className="flex items-center gap-2">
+                      {selectedToken.dexUrl ? (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                          aria-label="Open chart"
+                          title="Open chart"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      ) : null}
+                      <Button variant="outline" size="sm" onClick={() => setSelectedToken(null)}>Close</Button>
+                    </div>
                   </div>
+
+                  {/* Chart-first */}
+                  {getDexScreenerEmbedUrl(selectedToken) ? (
+                    <div className="w-full h-[360px] overflow-hidden bg-background">
+                      <iframe
+                        title={`${selectedToken.symbol} chart`}
+                        src={getDexScreenerEmbedUrl(selectedToken)}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allow="clipboard-write"
+                      />
+                    </div>
+                  ) : null}
+
                   <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground">Price</div>
-                        <div className="text-base font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                    {/* Compact stats */}
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Price</div>
+                        <div className="text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
                       </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground">24h</div>
-                        <div className={(selectedToken.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-base font-bold'}>
-                          {formatChange(selectedToken.change24h)}
+                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">{timeframe} %</div>
+                        <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
+                          {formatChange(getTokenChange(selectedToken))}
                         </div>
                       </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground">Vol</div>
-                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.volume24h)}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Vol {timeframe}</div>
+                        <div className="text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
                       </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground">MC</div>
-                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">MC</div>
+                        <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                      </Card>
+                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Liq</div>
+                        <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
                       </Card>
                     </div>
-
-                    {getDexScreenerEmbedUrl(selectedToken) ? (
-                      <div className="w-full h-[300px] rounded-lg overflow-hidden bg-background">
-                        <iframe
-                          title={`${selectedToken.symbol} chart`}
-                          src={getDexScreenerEmbedUrl(selectedToken)}
-                          className="w-full h-full"
-                          frameBorder="0"
-                          allow="clipboard-write"
-                        />
-                      </div>
-                    ) : null}
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium">Trade</div>
+                        <div className="text-sm font-medium flex items-center gap-2">
+                          <SolanaMark className="w-4 h-4" />
+                          Trade
+                        </div>
                         {quoteSource === 'estimate' ? (
                           <Badge variant="outline" className="text-xs">Estimated</Badge>
                         ) : quoteSource === 'jupiter' ? (
                           <Badge className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Live</Badge>
                         ) : null}
                       </div>
-
-                      {!wallet.connected ? (
-                        <div className="text-xs text-muted-foreground">
-                          Connect your Solana wallet from the navbar to enable swapping.
-                        </div>
-                      ) : null}
 
                       <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
                         <TabsList className="grid w-full grid-cols-2 bg-muted">
@@ -1011,7 +1184,19 @@ export default function MemeCoinsTerminal() {
                         <TabsContent value={swapMode} className="mt-3">
                           <div className="space-y-3">
                             <div className="space-y-2">
-                              <Label className="text-muted-foreground text-xs">{swapMode === 'buy' ? 'Pay (SOL)' : `Pay (${selectedToken.symbol})`}</Label>
+                              <Label className="text-muted-foreground text-xs">
+                                {swapMode === 'buy' ? (
+                                  <span className="inline-flex items-center gap-2">
+                                    Pay
+                                    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5">
+                                      <SolanaMark className="h-3.5 w-3.5" />
+                                      SOL
+                                    </span>
+                                  </span>
+                                ) : (
+                                  `Pay (${selectedToken.symbol})`
+                                )}
+                              </Label>
                               <Input
                                 type="number"
                                 placeholder="0.00"
@@ -1020,9 +1205,9 @@ export default function MemeCoinsTerminal() {
                                 className="bg-background border-border h-11"
                               />
                               {swapMode === 'buy' ? (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 overflow-x-auto pb-1">
                                   {[0.1, 0.25, 0.5, 1].map((v) => (
-                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8" onClick={() => setQuickSolAmount(v)}>
+                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => setQuickSolAmount(v)}>
                                       {v} SOL
                                     </Button>
                                   ))}
@@ -1077,24 +1262,65 @@ export default function MemeCoinsTerminal() {
                                 />
                               </div>
                             </div>
-
-                            <Button
-                              size="lg"
-                              className={'w-full text-base h-11 ' + (swapMode === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700') + ' text-white'}
-                              onClick={handleSwap}
-                              disabled={!wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote}
-                            >
-                              {swapping ? (
-                                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Swapping...</>
-                              ) : quoteSource === 'estimate' ? (
-                                'Live quote required'
-                              ) : (
-                                <><Zap className="w-4 h-4 mr-2" />{swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}</>
-                              )}
-                            </Button>
                           </div>
                         </TabsContent>
                       </Tabs>
+
+                      {/* Sticky action bar */}
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Button
+                          size="lg"
+                          className={
+                            (swapMode === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-muted text-foreground hover:bg-muted/80') +
+                            ' h-11 w-full'
+                          }
+                          onClick={() => {
+                            if (swapMode !== 'buy') {
+                              switchSwapMode('buy');
+                              return;
+                            }
+                            handleSwap();
+                          }}
+                          disabled={swapMode === 'buy' ? !wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote : swapping}
+                        >
+                          {swapMode === 'buy'
+                            ? swapping
+                              ? 'Buying…'
+                              : quoteSource === 'estimate'
+                                ? 'BUY (live quote required)'
+                                : `BUY ${inputAmount || '0'} SOL`
+                            : 'BUY'}
+                        </Button>
+                        <Button
+                          size="lg"
+                          className={
+                            (swapMode === 'sell' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-muted text-foreground hover:bg-muted/80') +
+                            ' h-11 w-full'
+                          }
+                          onClick={() => {
+                            if (swapMode !== 'sell') {
+                              switchSwapMode('sell');
+                              return;
+                            }
+                            handleSwap();
+                          }}
+                          disabled={swapMode === 'sell' ? !wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote : swapping}
+                        >
+                          {swapMode === 'sell'
+                            ? swapping
+                              ? 'Selling…'
+                              : quoteSource === 'estimate'
+                                ? 'SELL (live quote required)'
+                                : `SELL ${inputAmount || '0'} ${selectedToken.symbol}`
+                            : 'SELL'}
+                        </Button>
+                      </div>
+
+                      {!wallet.connected ? (
+                        <div className="text-xs text-muted-foreground">
+                          Connect your Solana wallet from the navbar to trade.
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </Card>
