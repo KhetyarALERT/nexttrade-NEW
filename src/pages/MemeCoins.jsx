@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { createChart } from 'lightweight-charts';
+import { PublicKey } from '@solana/web3.js';
 import { 
   ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2, 
   Wallet, ChevronDown, ExternalLink, Copy, LogOut, Check,
@@ -46,6 +46,9 @@ const MEME_COINS = [
 const cache = new Map();
 const CACHE_TTL = 30000;
 
+const SOL_MINT = jupiterApi.TOKENS.SOL;
+const SOL_DECIMALS = 9;
+
 function getCached(key) {
   const entry = cache.get(key);
   if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
@@ -60,6 +63,7 @@ function setCache(key, data) {
 }
 
 export default function MemeCoinsTerminal() {
+  const { connection } = useConnection();
   const wallet = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   
@@ -85,11 +89,34 @@ export default function MemeCoinsTerminal() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapping, setSwapping] = useState(false);
   const [currentQuote, setCurrentQuote] = useState(null);
-  
-  // Chart
-  const chartContainerRef = useRef(null);
-  const chartRef = useRef(null);
-  const [chartData, setChartData] = useState([]);
+
+  // Mint decimals cache (needed for correct raw amounts in Jupiter)
+  const mintDecimalsCacheRef = useRef(new Map());
+
+  const getMintDecimals = useCallback(async (mint) => {
+    if (!mint) return SOL_DECIMALS;
+    if (mint === SOL_MINT) return SOL_DECIMALS;
+
+    const cached = mintDecimalsCacheRef.current.get(mint);
+    if (typeof cached === 'number') return cached;
+
+    try {
+      const info = await connection.getParsedAccountInfo(new PublicKey(mint));
+      const data = info?.value?.data;
+      const parsed = data && typeof data === 'object' && 'parsed' in data ? data.parsed : null;
+      const decimals = parsed?.info?.decimals;
+      if (typeof decimals === 'number' && Number.isFinite(decimals)) {
+        mintDecimalsCacheRef.current.set(mint, decimals);
+        return decimals;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Safe-ish default for most SPL meme coins
+    mintDecimalsCacheRef.current.set(mint, 9);
+    return 9;
+  }, [connection]);
 
   // Format address
   const formatAddress = useCallback((address) => {
@@ -268,90 +295,13 @@ export default function MemeCoinsTerminal() {
     setInputAmount('');
     setOutputAmount('');
     setCurrentQuote(null);
-    
-    // Generate chart data
-    const now = Date.now() / 1000;
-    const data = [];
-    let price = token.price;
-    
-    for (let i = 100; i >= 0; i--) {
-      const time = now - i * 3600;
-      const volatility = token.change24h > 0 ? 0.02 : 0.015;
-      price = price * (1 + (Math.random() - 0.5) * volatility);
-      data.push({ time, value: Math.max(price, 0.000001) });
-    }
-    
-    setChartData(data);
   }, []);
 
-  // Initialize chart
-  useEffect(() => {
-    if (!selectedToken || !chartContainerRef.current || chartData.length === 0) return;
-
-    if (chartRef.current) {
-      try {
-        chartRef.current.remove();
-      } catch {
-        // Already disposed
-      }
-      chartRef.current = null;
-    }
-
-    const isDark = document.documentElement.classList.contains('dark');
-
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: 250,
-      layout: {
-        background: { color: isDark ? '#0f172a' : '#f8fafc' },
-        textColor: isDark ? '#94a3b8' : '#64748b',
-      },
-      grid: {
-        vertLines: { color: isDark ? '#1e293b' : '#e2e8f0' },
-        horzLines: { color: isDark ? '#1e293b' : '#e2e8f0' },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: false,
-        borderColor: isDark ? '#1e293b' : '#e2e8f0',
-      },
-      rightPriceScale: {
-        borderColor: isDark ? '#1e293b' : '#e2e8f0',
-      },
-      crosshair: {
-        mode: 1,
-      },
-    });
-
-    const lineSeries = chart.addLineSeries({
-      color: selectedToken.change24h >= 0 ? '#22c55e' : '#ef4444',
-      lineWidth: 2,
-    });
-
-    lineSeries.setData(chartData);
-    chart.timeScale().fitContent();
-    chartRef.current = chart;
-
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (chartRef.current) {
-        try {
-          chartRef.current.remove();
-        } catch {
-          // Already disposed
-        }
-        chartRef.current = null;
-      }
-    };
-  }, [selectedToken, chartData]);
+  const getDexScreenerEmbedUrl = useCallback((token) => {
+    if (!token?.pairAddress) return null;
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    return `https://dexscreener.com/solana/${token.pairAddress}?embed=1&theme=${theme}&trades=0&info=0`;
+  }, []);
 
   // Get quote when amount changes
   useEffect(() => {
@@ -365,10 +315,17 @@ export default function MemeCoinsTerminal() {
       try {
         setQuoteLoading(true);
 
-        const inputMint = swapMode === 'buy' ? jupiterApi.TOKENS.USDC : selectedToken.address;
-        const outputMint = swapMode === 'buy' ? selectedToken.address : jupiterApi.TOKENS.USDC;
-        const inputDecimals = swapMode === 'buy' ? 6 : 9;
-        const outputDecimals = swapMode === 'buy' ? 9 : 6;
+        const inputMint = swapMode === 'buy' ? SOL_MINT : selectedToken.address;
+        const outputMint = swapMode === 'buy' ? selectedToken.address : SOL_MINT;
+
+        if (!inputMint || !outputMint) {
+          setOutputAmount('');
+          setCurrentQuote(null);
+          return;
+        }
+
+        const inputDecimals = await getMintDecimals(inputMint);
+        const outputDecimals = await getMintDecimals(outputMint);
         
         const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
         const slippageBps = slippage * 100;
@@ -376,8 +333,9 @@ export default function MemeCoinsTerminal() {
         const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
         
         if (quote) {
-          const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount), outputDecimals);
-          setOutputAmount(output.toFixed(outputDecimals === 6 ? 2 : 6));
+          const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount, 10), outputDecimals);
+          const displayDecimals = Math.min(Math.max(outputDecimals, 2), 6);
+          setOutputAmount(Number.isFinite(output) ? output.toFixed(displayDecimals) : '');
           setCurrentQuote(quote);
         }
       } catch (error) {
@@ -390,7 +348,7 @@ export default function MemeCoinsTerminal() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [inputAmount, selectedToken, swapMode, slippage]);
+  }, [inputAmount, selectedToken, swapMode, slippage, getMintDecimals]);
 
   // Execute swap
   const handleSwap = useCallback(async () => {
@@ -757,7 +715,7 @@ export default function MemeCoinsTerminal() {
           {selectedToken && (
             <div className="flex flex-col h-full">
               {/* Sheet Header */}
-              <SheetHeader className="p-4 sm:p-6 border-b border-border bg-muted/30">
+              <SheetHeader className="p-4 sm:p-6 pr-14 border-b border-border bg-muted/30">
                 <SheetTitle className="flex items-center gap-3">
                   {selectedToken.imageUrl ? (
                     <img
@@ -776,16 +734,6 @@ export default function MemeCoinsTerminal() {
                       {selectedToken.name}
                     </div>
                   </div>
-                  {selectedToken.dexUrl && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => window.open(selectedToken.dexUrl, '_blank')}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  )}
                 </SheetTitle>
               </SheetHeader>
 
@@ -825,17 +773,54 @@ export default function MemeCoinsTerminal() {
                       {formatVolume(selectedToken.liquidity)}
                     </div>
                   </Card>
+                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
+                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">Market Cap (FDV)</div>
+                    <div className="text-base sm:text-lg font-bold font-mono">
+                      {formatVolume(selectedToken.marketCap)}
+                    </div>
+                  </Card>
+                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
+                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">24h Txns</div>
+                    <div className="text-base sm:text-lg font-bold font-mono">
+                      {(selectedToken.txns24h?.buys || 0) + (selectedToken.txns24h?.sells || 0)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Buys: {selectedToken.txns24h?.buys || 0} · Sells: {selectedToken.txns24h?.sells || 0}
+                    </div>
+                  </Card>
                 </div>
 
                 {/* Chart */}
                 <Card className="bg-muted/30 border-border p-3 sm:p-4">
                   <div className="text-sm font-medium mb-3 flex items-center justify-between">
-                    <span>Price Chart (24h)</span>
-                    <Badge variant="outline" className="text-xs">
-                      Demo Data
-                    </Badge>
+                    <span>Price Chart</span>
+                    {selectedToken.dexUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-2"
+                        onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        DexScreener
+                      </Button>
+                    )}
                   </div>
-                  <div ref={chartContainerRef} className="w-full h-[200px] sm:h-[250px] rounded-lg overflow-hidden" />
+                  {getDexScreenerEmbedUrl(selectedToken) ? (
+                    <div className="w-full h-[260px] sm:h-[320px] rounded-lg overflow-hidden bg-background">
+                      <iframe
+                        title={`${selectedToken.symbol} chart`}
+                        src={getDexScreenerEmbedUrl(selectedToken)}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allow="clipboard-write"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-[200px] sm:h-[250px] rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+                      Chart unavailable
+                    </div>
+                  )}
                 </Card>
 
                 {/* Swap Panel */}
@@ -861,7 +846,7 @@ export default function MemeCoinsTerminal() {
                         {/* Input Amount */}
                         <div className="space-y-2">
                           <Label className="text-muted-foreground text-sm">
-                            {swapMode === 'buy' ? 'Pay (USDC)' : 'Pay (' + selectedToken.symbol + ')'}
+                            {swapMode === 'buy' ? 'Pay (SOL)' : 'Pay (' + selectedToken.symbol + ')'}
                           </Label>
                           <div className="relative">
                             <Input
@@ -872,7 +857,7 @@ export default function MemeCoinsTerminal() {
                               className="bg-background border-border text-lg h-12 pr-16"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              {swapMode === 'buy' ? 'USDC' : selectedToken.symbol}
+                              {swapMode === 'buy' ? 'SOL' : selectedToken.symbol}
                             </span>
                           </div>
                         </div>
@@ -880,7 +865,7 @@ export default function MemeCoinsTerminal() {
                         {/* Output Amount */}
                         <div className="space-y-2">
                           <Label className="text-muted-foreground text-sm">
-                            {swapMode === 'buy' ? 'Receive (' + selectedToken.symbol + ')' : 'Receive (USDC)'}
+                            {swapMode === 'buy' ? 'Receive (' + selectedToken.symbol + ')' : 'Receive (SOL)'}
                           </Label>
                           <div className="relative">
                             <Input
@@ -891,7 +876,7 @@ export default function MemeCoinsTerminal() {
                               className="bg-muted border-border text-lg h-12 pr-16"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              {swapMode === 'buy' ? selectedToken.symbol : 'USDC'}
+                              {swapMode === 'buy' ? selectedToken.symbol : 'SOL'}
                             </span>
                           </div>
                           {quoteLoading && (
@@ -944,7 +929,7 @@ export default function MemeCoinsTerminal() {
                             ' text-white'
                           }
                           onClick={handleSwap}
-                          disabled={swapping || quoteLoading || (!wallet.connected && !inputAmount)}
+                          disabled={swapping || quoteLoading || !inputAmount}
                         >
                           {!wallet.connected ? (
                             <>

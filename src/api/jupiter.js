@@ -1,7 +1,36 @@
 import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
 
 // Jupiter API v6 configuration
-const JUPITER_API_BASE = 'https://quote-api.jup.ag/v6';
+// NOTE: Some hosted preview environments intermittently fail DNS for `quote-api.jup.ag`.
+// We keep v6 as the primary, but retry against the newer `api.jup.ag` swap endpoint.
+const JUPITER_API_BASES = ['https://quote-api.jup.ag/v6', 'https://api.jup.ag/swap/v1'];
+
+function assertValidMint(label, mint) {
+  if (typeof mint !== 'string' || !mint.trim()) {
+    throw new Error(`${label} is required`);
+  }
+  if (mint === 'undefined' || mint === 'null') {
+    throw new Error(`${label} is invalid`);
+  }
+}
+
+async function fetchWithFallback(path, options) {
+  /** @type {Error | null} */
+  let lastError = null;
+
+  for (const base of JUPITER_API_BASES) {
+    try {
+      // `path` must start with '/'
+      const url = `${base}${path}`;
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError || new Error('Failed to fetch Jupiter API');
+}
 const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
 
 // Common token addresses on Solana
@@ -20,6 +49,12 @@ export const TOKENS = {
  */
 export async function getQuote(inputMint, outputMint, amount, slippageBps = 50) {
   try {
+    assertValidMint('inputMint', inputMint);
+    assertValidMint('outputMint', outputMint);
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+      throw new Error('amount must be a positive number');
+    }
+
     const params = new URLSearchParams({
       inputMint,
       outputMint,
@@ -27,7 +62,7 @@ export async function getQuote(inputMint, outputMint, amount, slippageBps = 50) 
       slippageBps: slippageBps.toString(),
     });
 
-    const response = await fetch(`${JUPITER_API_BASE}/quote?${params}`);
+    const response = await fetchWithFallback(`/quote?${params}`);
     if (!response.ok) {
       throw new Error(`Jupiter quote failed: ${response.statusText}`);
     }
@@ -50,6 +85,7 @@ export async function getQuote(inputMint, outputMint, amount, slippageBps = 50) 
  */
 export async function getSwapTransaction(quote, userPublicKey, feeBps = 0, feeAccount = null) {
   try {
+    assertValidMint('userPublicKey', userPublicKey);
     const body = {
       quoteResponse: quote,
       userPublicKey,
@@ -63,7 +99,7 @@ export async function getSwapTransaction(quote, userPublicKey, feeBps = 0, feeAc
       body.feeAccount = feeAccount;
     }
 
-    const response = await fetch(`${JUPITER_API_BASE}/swap`, {
+    const response = await fetchWithFallback('/swap', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -125,7 +161,8 @@ export async function executeSwap(swapTransaction, wallet) {
  */
 export async function getTokenPrice(mintAddress) {
   try {
-    const response = await fetch(`${JUPITER_API_BASE}/price?ids=${mintAddress}`);
+    // Price API is on a separate domain from swap/quote.
+    const response = await fetch(`https://price.jup.ag/v6/price?ids=${mintAddress}`);
     if (!response.ok) {
       throw new Error(`Jupiter price failed: ${response.statusText}`);
     }
