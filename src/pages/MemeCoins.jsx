@@ -14,11 +14,11 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
 } from '@/components/ui/sheet';
 
 import * as jupiterApi from '@/api/jupiter';
@@ -34,6 +34,37 @@ const CACHE_TTL = 30000;
 
 const SOL_MINT = jupiterApi.TOKENS.SOL;
 const SOL_DECIMALS = 9;
+
+function SolanaMark({ className }) {
+  return (
+    <svg
+      viewBox="0 0 397 311"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <linearGradient id="solg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#00FFA3" />
+          <stop offset="1" stopColor="#DC1FFF" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M64.6 236.9c2.5-2.5 5.9-3.9 9.5-3.9h306.3c6 0 9 7.3 4.7 11.6l-60.4 60.4c-2.5 2.5-5.9 3.9-9.5 3.9H8.9c-6 0-9-7.3-4.7-11.6l60.4-60.4z"
+        fill="url(#solg)"
+      />
+      <path
+        d="M64.6 3.9C67.1 1.4 70.5 0 74.1 0h306.3c6 0 9 7.3 4.7 11.6L324.7 72c-2.5 2.5-5.9 3.9-9.5 3.9H8.9c-6 0-9-7.3-4.7-11.6L64.6 3.9z"
+        fill="url(#solg)"
+      />
+      <path
+        d="M332.4 120.4c-2.5-2.5-5.9-3.9-9.5-3.9H16.6c-6 0-9 7.3-4.7 11.6l60.4 60.4c2.5 2.5 5.9 3.9 9.5 3.9h306.3c6 0 9-7.3 4.7-11.6l-60.4-60.4z"
+        fill="url(#solg)"
+      />
+    </svg>
+  );
+}
 
 function formatAgeMs(ms) {
   if (!ms || !Number.isFinite(ms)) return '—';
@@ -79,6 +110,17 @@ export default function MemeCoinsTerminal() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'volume24h', direction: 'desc' });
+  const [timeframe, setTimeframe] = useState('24h');
+  const [mobilePreset, setMobilePreset] = useState('hot');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    minLiquidity: '',
+    minMarketCap: '',
+    minVolume: '',
+    maxAgeHours: '',
+    onlyGreen: false,
+    onlyWithImage: false,
+  });
   
   // Swap state
   const [swapMode, setSwapMode] = useState('buy');
@@ -201,32 +243,152 @@ export default function MemeCoinsTerminal() {
   }, [fetchTokens]);
 
   // Filter tokens when search changes
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredTokens(tokens);
-      return;
+  const getVolumeKey = useCallback((tf) => {
+    switch (tf) {
+      case '5m':
+        return 'volume5m';
+      case '1h':
+        return 'volume1h';
+      case '6h':
+        return 'volume6h';
+      default:
+        return 'volume24h';
     }
-    const query = searchQuery.toLowerCase();
-    const filtered = tokens.filter(token =>
-      token.symbol?.toLowerCase().includes(query) ||
-      token.name?.toLowerCase().includes(query)
+  }, []);
+
+  const getChangeKey = useCallback((tf) => {
+    switch (tf) {
+      case '5m':
+        return 'change5m';
+      case '1h':
+        return 'change1h';
+      case '6h':
+        return 'change6h';
+      default:
+        return 'change24h';
+    }
+  }, []);
+
+  const getTokenChange = useCallback((token) => {
+    const key = getChangeKey(timeframe);
+    return toNumber(token?.[key]);
+  }, [getChangeKey, timeframe]);
+
+  const getTokenVolume = useCallback((token) => {
+    const key = getVolumeKey(timeframe);
+    return toNumber(token?.[key]);
+  }, [getVolumeKey, timeframe]);
+
+  const countActiveFilters = useCallback(() => {
+    const n = (v) => (String(v || '').trim() ? 1 : 0);
+    return (
+      n(filters.minLiquidity) +
+      n(filters.minMarketCap) +
+      n(filters.minVolume) +
+      n(filters.maxAgeHours) +
+      (filters.onlyGreen ? 1 : 0) +
+      (filters.onlyWithImage ? 1 : 0)
     );
-    setFilteredTokens(filtered);
-  }, [searchQuery, tokens]);
+  }, [filters]);
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      minLiquidity: '',
+      minMarketCap: '',
+      minVolume: '',
+      maxAgeHours: '',
+      onlyGreen: false,
+      onlyWithImage: false,
+    });
+  }, []);
+
+  useEffect(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const base = query
+      ? tokens.filter((token) => token.symbol?.toLowerCase().includes(query) || token.name?.toLowerCase().includes(query))
+      : tokens;
+
+    // Hard filters
+    const minLiquidity = toNumber(filters.minLiquidity);
+    const minMarketCap = toNumber(filters.minMarketCap);
+    const minVolume = toNumber(filters.minVolume);
+    const maxAgeHours = toNumber(filters.maxAgeHours);
+
+    const filtered = base.filter((token) => {
+      if (minLiquidity > 0 && toNumber(token.liquidity) < minLiquidity) return false;
+      if (minMarketCap > 0 && toNumber(token.marketCap) < minMarketCap) return false;
+      if (minVolume > 0 && getTokenVolume(token) < minVolume) return false;
+      if (filters.onlyWithImage && !token.imageUrl) return false;
+      if (filters.onlyGreen && getTokenChange(token) <= 0) return false;
+
+      if (maxAgeHours > 0) {
+        const created = Number(token.pairCreatedAt || 0);
+        if (!created) return false;
+        const ageHours = (Date.now() - created) / 36e5;
+        if (!Number.isFinite(ageHours) || ageHours > maxAgeHours) return false;
+      }
+
+      return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const key = sortConfig.key;
+
+      if (key === 'pairCreatedAt') {
+        const aVal = Number(a.pairCreatedAt || 0);
+        const bVal = Number(b.pairCreatedAt || 0);
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const aVal = toNumber(a[key]);
+      const bVal = toNumber(b[key]);
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    setFilteredTokens(sorted);
+  }, [filters, getTokenChange, getTokenVolume, searchQuery, sortConfig, tokens]);
 
   // Sort tokens
   const handleSort = useCallback((key) => {
     const direction = sortConfig.key === key && sortConfig.direction === 'desc' ? 'asc' : 'desc';
     setSortConfig({ key, direction });
+  }, [sortConfig.key, sortConfig.direction]);
 
-    const sorted = [...filteredTokens].sort((a, b) => {
-      const aVal = a[key] || 0;
-      const bVal = b[key] || 0;
-      return direction === 'asc' ? aVal - bVal : bVal - aVal;
-    });
+  const applyMobilePreset = useCallback(
+    (preset) => {
+      setMobilePreset(preset);
+      if (preset === 'new') {
+        setSortConfig({ key: 'pairCreatedAt', direction: 'desc' });
+        return;
+      }
+      if (preset === 'mc') {
+        setSortConfig({ key: 'marketCap', direction: 'desc' });
+        return;
+      }
+      if (preset === 'liq') {
+        setSortConfig({ key: 'liquidity', direction: 'desc' });
+        return;
+      }
+      // hot
+      setSortConfig({ key: getVolumeKey(timeframe), direction: 'desc' });
+    },
+    [getVolumeKey, timeframe]
+  );
 
-    setFilteredTokens(sorted);
-  }, [sortConfig, filteredTokens]);
+  useEffect(() => {
+    // Keep preset sort aligned when timeframe changes.
+    if (mobilePreset === 'hot') {
+      setSortConfig({ key: getVolumeKey(timeframe), direction: 'desc' });
+    }
+  }, [getVolumeKey, mobilePreset, timeframe]);
+
+  const switchSwapMode = useCallback((mode) => {
+    setSwapMode(mode);
+    setInputAmount('');
+    setOutputAmount('');
+    setCurrentQuote(null);
+    setQuoteSource('');
+  }, []);
 
   // Select token
   const selectToken = useCallback((token) => {
@@ -234,6 +396,7 @@ export default function MemeCoinsTerminal() {
     setInputAmount('');
     setOutputAmount('');
     setCurrentQuote(null);
+    setQuoteSource('');
   }, []);
 
   const getDexScreenerEmbedUrl = useCallback((token) => {
@@ -390,8 +553,9 @@ export default function MemeCoinsTerminal() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <h1 className="text-lg sm:text-xl font-bold truncate">Meme Coin Terminal</h1>
-            <Badge className="bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20 hover:bg-violet-500/20">
-              Solana
+            <Badge className="bg-muted/50 text-foreground border-border hover:bg-muted/60 gap-2">
+              <SolanaMark className="h-4 w-4" />
+              <span>Solana</span>
             </Badge>
             <Button
               variant="outline"
@@ -420,6 +584,149 @@ export default function MemeCoinsTerminal() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-card border-border"
               />
+            </div>
+
+            {/* Mobile Filters */}
+            <div className="sm:hidden space-y-2">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={mobilePreset === 'hot' ? 'default' : 'outline'}
+                  className="h-8 shrink-0"
+                  onClick={() => applyMobilePreset('hot')}
+                >
+                  Hot
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={mobilePreset === 'new' ? 'default' : 'outline'}
+                  className="h-8 shrink-0"
+                  onClick={() => applyMobilePreset('new')}
+                >
+                  New
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={mobilePreset === 'mc' ? 'default' : 'outline'}
+                  className="h-8 shrink-0"
+                  onClick={() => applyMobilePreset('mc')}
+                >
+                  MC
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={mobilePreset === 'liq' ? 'default' : 'outline'}
+                  className="h-8 shrink-0"
+                  onClick={() => applyMobilePreset('liq')}
+                >
+                  Liquidity
+                </Button>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {['5m', '1h', '6h', '24h'].map((tf) => (
+                  <Button
+                    key={tf}
+                    type="button"
+                    size="sm"
+                    variant={timeframe === tf ? 'default' : 'outline'}
+                    className="h-8 shrink-0"
+                    onClick={() => setTimeframe(tf)}
+                  >
+                    {tf}
+                  </Button>
+                ))}
+                <div className="ml-auto shrink-0 flex items-center gap-2">
+                  <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+                    <CollapsibleTrigger asChild>
+                      <Button type="button" size="sm" variant="outline" className="h-8">
+                        Filters
+                        {countActiveFilters() > 0 ? (
+                          <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">
+                            {countActiveFilters()}
+                          </span>
+                        ) : null}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2">
+                      <Card className="bg-card border-border p-3 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Min Liquidity ($)</Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="e.g. 10000"
+                              value={filters.minLiquidity}
+                              onChange={(e) => setFilters((p) => ({ ...p, minLiquidity: e.target.value }))}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Min MC ($)</Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="e.g. 50000"
+                              value={filters.minMarketCap}
+                              onChange={(e) => setFilters((p) => ({ ...p, minMarketCap: e.target.value }))}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Min Vol ({timeframe})</Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="e.g. 5000"
+                              value={filters.minVolume}
+                              onChange={(e) => setFilters((p) => ({ ...p, minVolume: e.target.value }))}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Max Age (hours)</Label>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="e.g. 24"
+                              value={filters.maxAgeHours}
+                              onChange={(e) => setFilters((p) => ({ ...p, maxAgeHours: e.target.value }))}
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={filters.onlyGreen}
+                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyGreen: !!checked }))}
+                            />
+                            <div className="text-xs">Green only</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={filters.onlyWithImage}
+                              onCheckedChange={(checked) => setFilters((p) => ({ ...p, onlyWithImage: !!checked }))}
+                            />
+                            <div className="text-xs">Has logo</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <Button type="button" size="sm" variant="outline" className="h-8" onClick={resetFilters}>
+                            Reset
+                          </Button>
+                          <div className="text-xs text-muted-foreground">
+                            {filteredTokens.length} tokens
+                          </div>
+                        </div>
+                      </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              </div>
             </div>
 
             {/* Token Table - Desktop */}
@@ -619,12 +926,12 @@ export default function MemeCoinsTerminal() {
                       </div>
                       <div className="text-right">
                         <div
-                          className={'text-sm font-medium ' + (token.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500')}
+                          className={'text-sm font-medium ' + (getTokenChange(token) >= 0 ? 'text-emerald-500' : 'text-rose-500')}
                         >
-                          {formatChange(token.change24h)}
+                          {formatChange(getTokenChange(token))}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Vol: {formatVolume(token.volume24h)}
+                          Vol: {formatVolume(getTokenVolume(token))}
                         </div>
                       </div>
                     </div>
@@ -809,120 +1116,123 @@ export default function MemeCoinsTerminal() {
         >
           {selectedToken && (
             <div className="flex flex-col h-full">
-              <SheetHeader className="p-4 sm:p-6 pr-14 border-b border-border bg-muted/30">
-                <SheetTitle className="flex items-start gap-3">
-                  {selectedToken.imageUrl ? (
-                    <img
-                      src={selectedToken.imageUrl}
-                      alt={selectedToken.symbol}
-                      className="w-12 h-12 rounded-full bg-muted"
+              {/* Chart-first layout */}
+              <div className="relative">
+                <div className="h-[48vh] min-h-[320px] w-full bg-background">
+                  {getDexScreenerEmbedUrl(selectedToken) ? (
+                    <iframe
+                      title={`${selectedToken.symbol} chart`}
+                      src={getDexScreenerEmbedUrl(selectedToken)}
+                      className="w-full h-full"
+                      frameBorder="0"
+                      allow="clipboard-write"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-lg font-bold text-white">
-                      {selectedToken.symbol?.charAt(0) || '?'}
+                    <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                      Chart unavailable
                     </div>
                   )}
+                </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xl font-bold leading-tight">{selectedToken.symbol}</div>
-                    <div className="text-sm text-muted-foreground font-normal truncate">{selectedToken.name}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-normal">
-                      <span className="font-mono">{formatAddress(selectedToken.address)}</span>
-                      {selectedToken.pairCreatedAt ? (
-                        <span>Age: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}</span>
-                      ) : null}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(selectedToken.address);
-                            toast.success('Token mint copied');
-                          } catch {
-                            // ignore
-                          }
-                        }}
-                      >
-                        Copy mint
-                      </Button>
-                      {selectedToken.dexUrl ? (
+                {/* Compact overlay header */}
+                <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-background/90 to-transparent">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {selectedToken.imageUrl ? (
+                          <img
+                            src={selectedToken.imageUrl}
+                            alt={selectedToken.symbol}
+                            className="w-8 h-8 rounded-full bg-muted"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
+                            {selectedToken.symbol?.charAt(0) || '?'}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-base font-bold leading-tight truncate">{selectedToken.symbol}</div>
+                          <div className="text-xs text-muted-foreground truncate">{selectedToken.name}</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-xs">
+                        <span className="font-mono text-muted-foreground">{formatAddress(selectedToken.address)}</span>
+                        {selectedToken.pairCreatedAt ? (
+                          <span className="text-muted-foreground">• {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}</span>
+                        ) : null}
                         <Button
-                          variant="ghost"
+                          variant="secondary"
                           size="sm"
                           className="h-6 px-2 text-xs"
-                          onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(selectedToken.address);
+                              toast.success('Token mint copied');
+                            } catch {
+                              // ignore
+                            }
+                          }}
                         >
-                          DexScreener
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {selectedToken.dexUrl ? (
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                          aria-label="Open chart"
+                          title="Open chart"
+                        >
+                          <ExternalLink className="w-4 h-4" />
                         </Button>
                       ) : null}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-9"
+                        onClick={() => setSelectedToken(null)}
+                      >
+                        Close
+                      </Button>
                     </div>
                   </div>
-                </SheetTitle>
-              </SheetHeader>
+                </div>
+              </div>
 
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Price</div>
-                        <div className="text-base font-bold font-mono">{formatPrice(selectedToken.price)}</div>
-                        <div className="text-xs text-muted-foreground mt-1">1h: {formatChange(selectedToken.change1h || 0)}</div>
-                      </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Market Cap</div>
-                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
-                        <div className="text-xs text-muted-foreground mt-1">FDV</div>
-                      </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Liquidity</div>
-                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
-                        <div className="text-xs text-muted-foreground mt-1">24h vol: {formatVolume(selectedToken.volume24h)}</div>
-                      </Card>
-                      <Card className="bg-muted/30 border-border p-3">
-                        <div className="text-xs text-muted-foreground mb-1">Txns (24h)</div>
-                        <div className="text-base font-bold font-mono">
-                          {(selectedToken.txns24h?.buys || 0) + (selectedToken.txns24h?.sells || 0)}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          B/S: {selectedToken.txns24h?.buys || 0}/{selectedToken.txns24h?.sells || 0}
-                        </div>
-                      </Card>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Compact stats row */}
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">Price</div>
+                    <div className="text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                  </Card>
+                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">{timeframe} %</div>
+                    <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
+                      {formatChange(getTokenChange(selectedToken))}
                     </div>
+                  </Card>
+                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">Vol {timeframe}</div>
+                    <div className="text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
+                  </Card>
+                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">MC</div>
+                    <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                  </Card>
+                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
+                    <div className="text-[11px] text-muted-foreground">Liq</div>
+                    <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                  </Card>
+                </div>
 
-                    <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                      <div className="text-sm font-medium mb-3 flex items-center justify-between">
-                        <span>Chart</span>
-                        {selectedToken.dexUrl && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 gap-2"
-                            onClick={() => window.open(selectedToken.dexUrl, '_blank')}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Open
-                          </Button>
-                        )}
-                      </div>
-                      {getDexScreenerEmbedUrl(selectedToken) ? (
-                        <div className="w-full h-[340px] lg:h-[520px] rounded-lg overflow-hidden bg-background">
-                          <iframe
-                            title={`${selectedToken.symbol} chart`}
-                            src={getDexScreenerEmbedUrl(selectedToken)}
-                            className="w-full h-full"
-                            frameBorder="0"
-                            allow="clipboard-write"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-full h-[300px] rounded-lg flex items-center justify-center text-sm text-muted-foreground">
-                          Chart unavailable
-                        </div>
-                      )}
-                    </Card>
-
-                    <Card className="bg-muted/30 border-border p-3 sm:p-4">
+                {/* Trade panel */}
+                <Card className="bg-card border-border p-3">
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-sm font-medium">Trade</div>
                         {quoteSource === 'estimate' ? (
@@ -944,7 +1254,7 @@ export default function MemeCoinsTerminal() {
                           <TabsTrigger value="sell" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white">Sell</TabsTrigger>
                         </TabsList>
                         <TabsContent value={swapMode} className="mt-0">
-                          <div className="space-y-4">
+                          <div className="space-y-3">
                             <div className="space-y-2">
                               <Label className="text-muted-foreground text-sm">
                                 {swapMode === 'buy' ? 'Pay (SOL)' : `Pay (${selectedToken.symbol})`}
@@ -954,12 +1264,12 @@ export default function MemeCoinsTerminal() {
                                 placeholder="0.00"
                                 value={inputAmount}
                                 onChange={(e) => setInputAmount(e.target.value)}
-                                className="bg-background border-border text-lg h-12"
+                                className="bg-background border-border text-lg h-11"
                               />
                               {swapMode === 'buy' ? (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 overflow-x-auto pb-1">
                                   {[0.1, 0.25, 0.5, 1].map((v) => (
-                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8" onClick={() => setQuickSolAmount(v)}>
+                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => setQuickSolAmount(v)}>
                                       {v} SOL
                                     </Button>
                                   ))}
@@ -976,7 +1286,7 @@ export default function MemeCoinsTerminal() {
                                 placeholder="0.00"
                                 value={quoteLoading ? '...' : outputAmount}
                                 readOnly
-                                className="bg-muted border-border text-lg h-12"
+                                className="bg-muted border-border text-lg h-11"
                               />
                               {quoteLoading ? (
                                 <div className="text-xs text-muted-foreground flex items-center gap-2">
@@ -1016,28 +1326,88 @@ export default function MemeCoinsTerminal() {
                                 />
                               </div>
                             </div>
-
-                            <Button
-                              size="lg"
-                              className={'w-full text-base h-12 ' +
-                                (swapMode === 'buy' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700') +
-                                ' text-white'
-                              }
-                              onClick={handleSwap}
-                              disabled={!wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote}
-                            >
-                              {swapping ? (
-                                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Swapping...</>
-                              ) : quoteSource === 'estimate' ? (
-                                'Live quote required'
-                              ) : (
-                                <><Zap className="w-4 h-4 mr-2" />{swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}</>
-                              )}
-                            </Button>
                           </div>
                         </TabsContent>
                       </Tabs>
-                    </Card>
+                </Card>
+
+                {/* Sticky action bar (terminal-style) */}
+                <div className="sticky bottom-0 left-0 right-0 -mx-4 mt-3 border-t border-border bg-background/95 backdrop-blur px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      size="lg"
+                      className={
+                        (swapMode === 'buy'
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-muted text-foreground hover:bg-muted/80') +
+                        ' h-12 w-full'
+                      }
+                      onClick={() => {
+                        if (swapMode !== 'buy') {
+                          switchSwapMode('buy');
+                          return;
+                        }
+                        handleSwap();
+                      }}
+                      disabled={
+                        swapMode === 'buy'
+                          ? !wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote
+                          : swapping
+                      }
+                    >
+                      {swapMode === 'buy' ? (
+                        swapping ? (
+                          <><Loader2 className="w-4 h-4 animate-spin mr-2" />Buying...</>
+                        ) : quoteSource === 'estimate' ? (
+                          'BUY (live quote required)'
+                        ) : (
+                          `BUY ${inputAmount || '0'} SOL`
+                        )
+                      ) : (
+                        'BUY'
+                      )}
+                    </Button>
+
+                    <Button
+                      size="lg"
+                      className={
+                        (swapMode === 'sell'
+                          ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                          : 'bg-muted text-foreground hover:bg-muted/80') +
+                        ' h-12 w-full'
+                      }
+                      onClick={() => {
+                        if (swapMode !== 'sell') {
+                          switchSwapMode('sell');
+                          return;
+                        }
+                        handleSwap();
+                      }}
+                      disabled={
+                        swapMode === 'sell'
+                          ? !wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote
+                          : swapping
+                      }
+                    >
+                      {swapMode === 'sell' ? (
+                        swapping ? (
+                          <><Loader2 className="w-4 h-4 animate-spin mr-2" />Selling...</>
+                        ) : quoteSource === 'estimate' ? (
+                          'SELL (live quote required)'
+                        ) : (
+                          `SELL ${inputAmount || '0'} ${selectedToken.symbol}`
+                        )
+                      ) : (
+                        'SELL'
+                      )}
+                    </Button>
+                  </div>
+
+                  {!wallet.connected ? (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Connect your Solana wallet from the navbar to trade.
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
