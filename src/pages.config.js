@@ -10,6 +10,7 @@ import Profile from './pages/Profile';
 import Rewards from './pages/Rewards';
 import Futures from './pages/Futures';
 import Trading from './pages/Trading';
+import MemeCoins from './pages/MemeCoins';
 import index from './pages/index';
 import __Layout from './Layout.jsx';
 
@@ -23,6 +24,7 @@ export const PAGES = {
     "Home": Home,
     "Investing": Investing,
     "LearnEarn": LearnEarn,
+    "MemeCoins": MemeCoins,
     "OnChainDeposit": OnChainDeposit,
     "Profile": Profile,
     "Rewards": Rewards,
