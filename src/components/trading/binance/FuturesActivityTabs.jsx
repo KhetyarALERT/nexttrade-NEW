@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert } from "lucide-react";
 
 function formatNum(v, digits = 2) {
   const n = Number(v);
@@ -21,17 +21,26 @@ function formatPrice(v) {
   return formatNum(n, digits);
 }
 
+function formatCompactPrice(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 1000) return `$${(n/1000).toFixed(2)}K`;
+  if (n < 1) return `$${n.toFixed(6)}`;
+  return `$${n.toFixed(2)}`;
+}
+
 function normalizeSymbol(sym) {
   return String(sym || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
 }
 
-function EmptyState({ title, subtitle }) {
+function EmptyState({ title, subtitle, icon: Icon }) {
   return (
-    <div className="p-6 text-center">
+    <div className="p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
+      {Icon && <Icon className="h-12 w-12 text-slate-600 mb-4" />}
       <div className="text-sm font-semibold text-slate-200">{title}</div>
-      <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
+      <div className="mt-2 text-xs text-slate-500 max-w-[280px]">{subtitle}</div>
     </div>
   );
 }
@@ -39,6 +48,279 @@ function EmptyState({ title, subtitle }) {
 EmptyState.propTypes = {
   title: PropTypes.string.isRequired,
   subtitle: PropTypes.string.isRequired,
+  icon: PropTypes.elementType,
+};
+
+// Mobile Position Card Component
+function PositionCard({ pos, mark, labels, onSelect, onClose, onEditTpSl, isSelected }) {
+  const sym = normalizeSymbol(pos?.symbol);
+  const entry = Number(pos?.entry_price);
+  const qty = Number(pos?.quantity);
+  const margin = Number(pos?.margin);
+  const side = String(pos?.side || "LONG").toUpperCase();
+  const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
+  
+  const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
+    ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
+    : NaN;
+  const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
+  const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
+  const liq = Number(pos?.liquidation_price);
+  const liqDistPct = Number.isFinite(mark) && mark > 0 && Number.isFinite(liq) && liq > 0
+    ? (Math.abs(mark - liq) / mark) * 100
+    : NaN;
+  
+  const isProfit = Number(pnl) >= 0;
+  const SideIcon = side === "LONG" ? TrendingUp : TrendingDown;
+
+  return (
+    <div
+      onClick={() => onSelect?.(pos)}
+      className={`relative rounded-2xl border transition-all duration-200 overflow-hidden ${
+        isSelected 
+          ? "border-blue-500/50 bg-blue-500/5 shadow-lg shadow-blue-500/10" 
+          : "border-slate-800/80 bg-gradient-to-br from-slate-900/60 to-slate-950/60 hover:border-slate-700/80"
+      }`}
+    >
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-800/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg ${side === "LONG" ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+              <SideIcon className={`h-4 w-4 ${side === "LONG" ? "text-emerald-400" : "text-rose-400"}`} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-100">{sym}</span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                  side === "LONG" 
+                    ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" 
+                    : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
+                }`}>
+                  {side}
+                </span>
+                {pos?.leverage && (
+                  <span className="text-[10px] font-medium text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                    {pos.leverage}x
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-slate-600" />
+        </div>
+      </div>
+      
+      {/* PnL Banner */}
+      <div className={`px-4 py-2.5 ${isProfit ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Unrealized PnL</span>
+          <div className="text-right">
+            <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
+              {isProfit ? "+" : ""}{formatNum(pnl, 2)} <span className="text-xs">USDT</span>
+            </div>
+            {Number.isFinite(pnlPct) && (
+              <div className={`text-xs font-mono ${isProfit ? "text-emerald-400/80" : "text-rose-400/80"}`}>
+                {isProfit ? "+" : ""}{pnlPct.toFixed(2)}%
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="p-4 grid grid-cols-2 gap-3">
+        <div className="space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">Entry</div>
+          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(entry)}</div>
+        </div>
+        <div className="space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">Mark</div>
+          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(mark)}</div>
+        </div>
+        <div className="space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">Size</div>
+          <div className="font-mono text-sm text-slate-200">{formatNum(qty, 4)} {baseAsset}</div>
+        </div>
+        <div className="space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500">Margin</div>
+          <div className="font-mono text-sm text-slate-200">{formatNum(margin, 2)} USDT</div>
+        </div>
+      </div>
+
+      {/* TP/SL Row */}
+      <div className="px-4 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEditTpSl?.(pos); }}
+            className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-colors ${
+              pos?.take_profit 
+                ? "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20" 
+                : "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <Target className={`h-3.5 w-3.5 ${pos?.take_profit ? "text-emerald-400" : "text-slate-500"}`} />
+              <span className={`text-[10px] font-medium ${pos?.take_profit ? "text-emerald-300" : "text-slate-500"}`}>TP</span>
+            </div>
+            <span className={`font-mono text-xs ${pos?.take_profit ? "text-emerald-300" : "text-slate-500"}`}>
+              {pos?.take_profit ? formatCompactPrice(pos.take_profit) : "—"}
+            </span>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEditTpSl?.(pos); }}
+            className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl border transition-colors ${
+              pos?.stop_loss 
+                ? "bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20" 
+                : "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/60"
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <ShieldAlert className={`h-3.5 w-3.5 ${pos?.stop_loss ? "text-rose-400" : "text-slate-500"}`} />
+              <span className={`text-[10px] font-medium ${pos?.stop_loss ? "text-rose-300" : "text-slate-500"}`}>SL</span>
+            </div>
+            <span className={`font-mono text-xs ${pos?.stop_loss ? "text-rose-300" : "text-slate-500"}`}>
+              {pos?.stop_loss ? formatCompactPrice(pos.stop_loss) : "—"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Liquidation Warning */}
+      {Number.isFinite(liqDistPct) && liqDistPct < 10 && (
+        <div className={`px-4 py-2 border-t ${liqDistPct < 3 ? "bg-rose-500/15 border-rose-500/30" : "bg-amber-500/10 border-amber-500/20"}`}>
+          <div className="flex items-center justify-between">
+            <span className={`text-[10px] font-medium ${liqDistPct < 3 ? "text-rose-400" : "text-amber-400"}`}>
+              ⚠️ Liq. at {formatCompactPrice(liq)}
+            </span>
+            <span className={`text-[10px] font-mono ${liqDistPct < 3 ? "text-rose-400" : "text-amber-400"}`}>
+              {liqDistPct.toFixed(1)}% away
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="p-3 border-t border-slate-800/50 flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="flex-1 h-10 rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white"
+          onClick={(e) => { e.stopPropagation(); onEditTpSl?.(pos); }}
+        >
+          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+          TP/SL
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          className="flex-1 h-10 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30"
+          onClick={(e) => { e.stopPropagation(); onClose?.(pos); }}
+        >
+          <X className="h-3.5 w-3.5 mr-1.5" />
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+PositionCard.propTypes = {
+  pos: PropTypes.object.isRequired,
+  mark: PropTypes.number,
+  labels: PropTypes.object.isRequired,
+  onSelect: PropTypes.func,
+  onClose: PropTypes.func,
+  onEditTpSl: PropTypes.func,
+  isSelected: PropTypes.bool,
+};
+
+// Mobile Order Card
+function OrderCard({ order, onCancel, isBusy, labels }) {
+  const sym = normalizeSymbol(order?.symbol);
+  const isConditional = order?.kind === "TP" || order?.kind === "SL";
+  
+  return (
+    <div className="rounded-xl border border-slate-800/80 bg-slate-900/50 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-200">{sym}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+            order?.kind === "TP" ? "bg-emerald-500/15 text-emerald-300" :
+            order?.kind === "SL" ? "bg-rose-500/15 text-rose-300" :
+            "bg-blue-500/15 text-blue-300"
+          }`}>
+            {order?.type || order?.kind}
+          </span>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-8 px-3 text-xs text-slate-400 hover:text-white"
+          onClick={() => onCancel?.(order)}
+          disabled={isBusy}
+        >
+          {isBusy ? "..." : labels.common.cancel}
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase">Price</div>
+          <div className="font-mono text-sm text-slate-200">{formatCompactPrice(order?.price)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase">Qty</div>
+          <div className="font-mono text-sm text-slate-200">{order?.qty ? formatNum(order.qty, 4) : "—"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+OrderCard.propTypes = {
+  order: PropTypes.object.isRequired,
+  onCancel: PropTypes.func,
+  isBusy: PropTypes.bool,
+  labels: PropTypes.object.isRequired,
+};
+
+// History Card for Mobile
+function HistoryCard({ trade, type }) {
+  const sym = normalizeSymbol(trade?.symbol);
+  const pnl = trade?.pnl;
+  const isProfit = Number(pnl) >= 0;
+  
+  return (
+    <div className="rounded-xl border border-slate-800/60 bg-slate-900/30 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-200">{sym}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            trade?.side === "LONG" ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
+          }`}>
+            {trade?.side}
+          </span>
+        </div>
+        {type === "position" && pnl !== undefined && (
+          <span className={`font-mono font-semibold ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
+            {isProfit ? "+" : ""}{formatNum(pnl, 2)}
+          </span>
+        )}
+      </div>
+      <div className="text-[10px] text-slate-500">
+        {trade?.closed_at ? new Date(trade.closed_at).toLocaleString() : 
+         trade?.created_at ? new Date(trade.created_at).toLocaleString() : "—"}
+      </div>
+    </div>
+  );
+}
+
+HistoryCard.propTypes = {
+  trade: PropTypes.object.isRequired,
+  type: PropTypes.string,
 };
 
 export default function FuturesActivityTabs({
@@ -137,7 +419,6 @@ export default function FuturesActivityTabs({
       }),
     );
 
-    // seed from existing tickers
     setMarkBySymbol((prev) => {
       const next = { ...prev };
       symbols.forEach((s) => {
@@ -161,27 +442,18 @@ export default function FuturesActivityTabs({
     return {
       tabs: {
         positions: isAr ? "المراكز" : "Positions",
-        openOrders: isAr ? "الأوامر المفتوحة" : "Open Orders",
-        orderHistory: isAr ? "سجل الأوامر" : "Order History",
-        tradeHistory: isAr ? "سجل التداول" : "Trade History",
-        positionHistory: isAr ? "سجل المراكز" : "Position History",
-        transactions: isAr ? "المعاملات" : "Transactions",
+        openOrders: isAr ? "الأوامر" : "Orders",
+        history: isAr ? "السجل" : "History",
       },
       empty: {
-        noPositionsTitle: isAr ? "لا توجد مراكز مفتوحة" : "No open positions",
+        noPositionsTitle: isAr ? "لا توجد مراكز مفتوحة" : "No Open Positions",
         noPositionsSubtitle: isAr
-          ? `ستظهر مراكز ${symbol} هنا عند تفعيل التداول.`
-          : `Positions for ${symbol} will appear here once trading is enabled.`,
-        noOpenOrdersTitle: isAr ? "لا توجد أوامر مفتوحة" : "No open orders",
-        noOpenOrdersSubtitle: isAr ? "ستظهر الأوامر المفتوحة هنا." : "Open orders will appear here.",
-        noOrderHistoryTitle: isAr ? "لا يوجد سجل أوامر" : "No order history",
-        noOrderHistorySubtitle: isAr ? "ستظهر أوامرك المكتملة/الملغاة هنا." : "Your filled/canceled orders will appear here.",
-        noTradesTitle: isAr ? "لا توجد صفقات بعد" : "No trades yet",
-        noTradesSubtitle: isAr ? "ستظهر الصفقات المنفذة هنا." : "Executed trades will appear here.",
-        noPositionHistoryTitle: isAr ? "لا يوجد سجل مراكز" : "No position history",
-        noPositionHistorySubtitle: isAr ? "ستظهر المراكز المغلقة هنا." : "Closed positions will appear here.",
-        noTransactionsTitle: isAr ? "لا توجد معاملات" : "No transactions",
-        noTransactionsSubtitle: isAr ? "ستظهر الإيداعات/السحوبات/الرسوم والتمويل هنا." : "Deposits, withdrawals, fees, and funding will appear here.",
+          ? "ابدأ التداول لرؤية مراكزك هنا"
+          : "Start trading to see your positions here",
+        noOpenOrdersTitle: isAr ? "لا توجد أوامر مفتوحة" : "No Open Orders",
+        noOpenOrdersSubtitle: isAr ? "ستظهر الأوامر المعلقة و TP/SL هنا" : "Pending orders and TP/SL will appear here",
+        noHistoryTitle: isAr ? "لا يوجد سجل" : "No History Yet",
+        noHistorySubtitle: isAr ? "ستظهر الصفقات المغلقة هنا" : "Closed trades will appear here",
       },
       positions: {
         futures: isAr ? "العقود" : "Futures",
@@ -302,7 +574,6 @@ export default function FuturesActivityTabs({
       const hasTp = Number.isFinite(tp) && tp > 0;
       const hasSl = Number.isFinite(sl) && sl > 0;
 
-      // Prefer SL if both are crossed at once.
       if (hasSl) {
         const slHit = side === "SHORT" ? mark >= sl : mark <= sl;
         if (slHit) {
@@ -335,7 +606,6 @@ export default function FuturesActivityTabs({
             reason: item.reason,
           });
         } catch {
-          // If it fails, allow retry later.
           autoTriggeredRef.current.delete(item.tradeId);
         }
       }
@@ -365,7 +635,6 @@ export default function FuturesActivityTabs({
         raw: t,
       }));
 
-    // Treat TP/SL as conditional open orders for visibility.
     const conditionals = (list
       .filter((t) => String(t?.status || "").toUpperCase() === "OPEN")
       .flatMap((t) => {
@@ -429,28 +698,46 @@ export default function FuturesActivityTabs({
     }
   };
 
-  const orderHistory = useMemo(
-    () => (trades || []).filter((t) => ["CANCELLED", "REJECTED", "EXPIRED"].includes(String(t?.status || "").toUpperCase())),
-    [trades],
-  );
-
   const tradeHistory = useMemo(
     () => (trades || []).filter((t) => String(t?.status || "").toUpperCase() === "CLOSED"),
     [trades],
   );
 
   return (
-    <div className="bg-background border-t border-border">
-      <Tabs value={tab} onValueChange={setTab}>
-        <div className="p-2 border-b border-border flex items-center gap-2 bg-card">
-          <div className="flex-1 overflow-x-auto">
-            <TabsList className="bg-muted h-9">
-              <TabsTrigger value="positions" className="data-[state=active]:bg-background">{labels.tabs.positions}</TabsTrigger>
-              <TabsTrigger value="openOrders" className="data-[state=active]:bg-background">{labels.tabs.openOrders}</TabsTrigger>
-              <TabsTrigger value="orderHistory" className="data-[state=active]:bg-background">{labels.tabs.orderHistory}</TabsTrigger>
-              <TabsTrigger value="tradeHistory" className="data-[state=active]:bg-background">{labels.tabs.tradeHistory}</TabsTrigger>
-              <TabsTrigger value="positionHistory" className="data-[state=active]:bg-background">{labels.tabs.positionHistory}</TabsTrigger>
-              <TabsTrigger value="transactions" className="data-[state=active]:bg-background">{labels.tabs.transactions}</TabsTrigger>
+    <div className="h-full flex flex-col bg-background border-t border-border">
+      <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
+        {/* Simplified Tab Header */}
+        <div className="px-3 py-2 border-b border-border flex items-center gap-2 bg-card/50 shrink-0">
+          <div className="flex-1 overflow-x-auto scrollbar-hide">
+            <TabsList className="bg-muted/50 h-9 p-1 rounded-xl">
+              <TabsTrigger 
+                value="positions" 
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+              >
+                {labels.tabs.positions}
+                {openPositions.length > 0 && (
+                  <span className="ml-1.5 bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                    {openPositions.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="openOrders" 
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+              >
+                {labels.tabs.openOrders}
+                {openOrders.length > 0 && (
+                  <span className="ml-1.5 bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                    {openOrders.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history" 
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-4"
+              >
+                {labels.tabs.history}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -458,528 +745,342 @@ export default function FuturesActivityTabs({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-9 text-muted-foreground hover:text-foreground"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground shrink-0"
             onClick={() => onRefresh?.()}
             disabled={!onRefresh}
           >
-            {labels.common.refresh}
+            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
 
-        <TabsContent value="positions" className="m-0">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1320px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-slate-500">{labels.positions.futures}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.positionValue}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.unrealized}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.realized}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.breakeven}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.entry}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.mark}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.liq}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.risk}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.margin}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.tpSl}</TableHead>
-                  <TableHead className="text-slate-500">{labels.positions.actions}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {openPositions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={12} className="p-0">
-                      <EmptyState title={labels.empty.noPositionsTitle} subtitle={labels.empty.noPositionsSubtitle} />
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  openPositions.map((pos) => {
-                    const sym = normalizeSymbol(pos?.symbol);
-                    const mark = markBySymbol[sym];
-                    const entry = Number(pos?.entry_price);
-                    const qty = Number(pos?.quantity);
-                    const margin = Number(pos?.margin);
-                    const side = String(pos?.side || "LONG").toUpperCase();
+        {/* Positions Tab - Mobile First */}
+        <TabsContent value="positions" className="m-0 flex-1 overflow-y-auto">
+          {openPositions.length === 0 ? (
+            <EmptyState 
+              title={labels.empty.noPositionsTitle} 
+              subtitle={labels.empty.noPositionsSubtitle}
+              icon={TrendingUp}
+            />
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="lg:hidden p-3 space-y-3">
+                {openPositions.map((pos) => (
+                  <PositionCard
+                    key={pos?.id || `${normalizeSymbol(pos?.symbol)}_${pos?.entry_price}`}
+                    pos={pos}
+                    mark={markBySymbol[normalizeSymbol(pos?.symbol)]}
+                    labels={labels}
+                    onSelect={onSelectTrade}
+                    onClose={onCloseTrade}
+                    onEditTpSl={openTpSlDialog}
+                    isSelected={pos?.id === selectedTradeId}
+                  />
+                ))}
+              </div>
 
-                    const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
-                    const breakevenRaw = Number(
-                      pos?.breakeven_price ??
-                        pos?.break_even_price ??
-                        pos?.breakeven ??
-                        pos?.breakevenPrice ??
-                        pos?.breakEvenPrice,
-                    );
-                    const breakeven = Number.isFinite(breakevenRaw) && breakevenRaw > 0 ? breakevenRaw : entry;
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table className="min-w-[1200px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-slate-500">{labels.positions.futures}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.positionValue}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.unrealized}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.entry}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.mark}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.liq}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.margin}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.tpSl}</TableHead>
+                      <TableHead className="text-slate-500">{labels.positions.actions}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {openPositions.map((pos) => {
+                      const sym = normalizeSymbol(pos?.symbol);
+                      const mark = markBySymbol[sym];
+                      const entry = Number(pos?.entry_price);
+                      const qty = Number(pos?.quantity);
+                      const margin = Number(pos?.margin);
+                      const side = String(pos?.side || "LONG").toUpperCase();
+                      const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
 
-                    const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
-                      ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
-                      : NaN;
-                    const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
-                    const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
-                    const liq = Number(pos?.liquidation_price);
-                    const liqDistPct =
-                      Number.isFinite(mark) && mark > 0 && Number.isFinite(liq) && liq > 0
-                        ? (Math.abs(mark - liq) / mark) * 100
+                      const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
+                        ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
                         : NaN;
-                    const riskTone =
-                      Number.isFinite(liqDistPct)
-                        ? liqDistPct < 1
-                          ? "text-rose-300"
-                          : liqDistPct < 3
-                            ? "text-amber-300"
-                            : "text-emerald-300"
-                        : "text-slate-400";
+                      const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
+                      const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
 
-                    return (
-                      <TableRow
-                        key={pos?.id || `${sym}_${entry}_${qty}`}
-                        className={`hover:bg-slate-900/20 ${pos?.id && selectedTradeId === pos.id ? "bg-slate-900/30" : ""}`}
-                        onClick={() => onSelectTrade?.(pos)}
-                        role={onSelectTrade ? "button" : undefined}
-                        tabIndex={onSelectTrade ? 0 : undefined}
-                      >
-                        <TableCell className="text-slate-200 font-medium">
-                          <div className="flex items-center gap-2">
-                            <span>{sym}</span>
-                            <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                      return (
+                        <TableRow
+                          key={pos?.id || `${sym}_${entry}_${qty}`}
+                          className={`hover:bg-slate-900/20 ${pos?.id && selectedTradeId === pos.id ? "bg-slate-900/30" : ""}`}
+                          onClick={() => onSelectTrade?.(pos)}
+                          role={onSelectTrade ? "button" : undefined}
+                          tabIndex={onSelectTrade ? 0 : undefined}
+                        >
+                          <TableCell className="text-slate-200 font-medium">
+                            <div className="flex items-center gap-2">
+                              <span>{sym}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
                                 side === "LONG"
                                   ? "bg-emerald-500/15 text-emerald-200 border-emerald-500/20"
                                   : "bg-rose-500/15 text-rose-200 border-rose-500/20"
-                              }`}
-                            >
-                              {side}
-                            </span>
-                          </div>
-
-                          <div className="mt-1 text-[10px] text-slate-500">
-                            {side === "LONG" ? "Long" : "Short"}
-                            {pos?.mode ? ` · ${String(pos.mode).toUpperCase()}` : ""}
-                            {pos?.leverage ? ` · ${pos.leverage}X` : ""}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-slate-200">
-                          {Number.isFinite(qty) && Number.isFinite(positionValue) ? (
+                              }`}>
+                                {side}
+                              </span>
+                              {pos?.leverage && <span className="text-[10px] text-amber-400">{pos.leverage}x</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-slate-200">
                             <div className="leading-tight">
-                              <div className="font-mono text-slate-200">{formatNum(qty, 6)} {baseAsset}</div>
+                              <div className="font-mono">{formatNum(qty, 4)} {baseAsset}</div>
                               <div className="font-mono text-[11px] text-slate-400">{formatNum(positionValue, 2)} USDT</div>
                             </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                          {Number.isFinite(pnl) ? (
+                          </TableCell>
+                          <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                             <div className="leading-tight">
                               <div className="font-mono">{formatNum(pnl, 2)} USDT</div>
                               <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `${pnlPct.toFixed(2)}%` : "—"}</div>
                             </div>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-400">
-                          {pos?.realized_pnl !== undefined && pos?.realized_pnl !== null ? (
-                            <span className="font-mono">{formatNum(pos.realized_pnl, 2)} USDT</span>
-                          ) : "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-200">{formatPrice(breakeven)}</TableCell>
-                        <TableCell className="text-slate-200">{formatPrice(entry)}</TableCell>
-                        <TableCell className="text-slate-200">{formatPrice(mark)}</TableCell>
-                        <TableCell className="text-amber-300">{formatPrice(pos?.liquidation_price)}</TableCell>
-                        <TableCell className={riskTone}>
-                          {Number.isFinite(liqDistPct) ? `${liqDistPct.toFixed(2)}%` : "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-200">{Number.isFinite(margin) ? <span className="font-mono">{formatNum(margin, 2)} USDT</span> : "—"}</TableCell>
-                        <TableCell className="text-slate-200">
-                          <div className="flex items-center gap-2 text-[11px]">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] ${pos?.take_profit ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
-                              TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}
-                            </span>
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] ${pos?.stop_loss ? "bg-rose-500/10 border-rose-500/20 text-rose-200" : "bg-slate-800/40 border-slate-700/60 text-slate-400"}`}>
-                              SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
-                            </span>
+                          </TableCell>
+                          <TableCell className="text-slate-200 font-mono">{formatPrice(entry)}</TableCell>
+                          <TableCell className="text-slate-200 font-mono">{formatPrice(mark)}</TableCell>
+                          <TableCell className="text-amber-300 font-mono">{formatPrice(pos?.liquidation_price)}</TableCell>
+                          <TableCell className="text-slate-200 font-mono">{formatNum(margin, 2)} USDT</TableCell>
+                          <TableCell className="text-slate-200">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.take_profit ? "bg-emerald-500/10 text-emerald-200" : "text-slate-500"}`}>
+                                TP {pos?.take_profit ? formatPrice(pos.take_profit) : "—"}
+                              </span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${pos?.stop_loss ? "bg-rose-500/10 text-rose-200" : "text-slate-500"}`}>
+                                SL {pos?.stop_loss ? formatPrice(pos.stop_loss) : "—"}
+                              </span>
+                              <button
+                                type="button"
+                                className="p-1 rounded hover:bg-slate-800"
+                                onClick={(e) => { e.stopPropagation(); openTpSlDialog(pos); }}
+                              >
+                                {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                              </button>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSelectTrade?.(pos); }}>
+                                {labels.common.view}
+                              </Button>
+                              <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onCloseTrade?.(pos); }}>
+                                {labels.common.close}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </TabsContent>
 
-                            <button
-                              type="button"
-                              className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700/70 bg-slate-900/40 text-slate-200 hover:bg-slate-800/60 text-[10px]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectTrade?.(pos);
-                                openTpSlDialog(pos);
-                              }}
-                              title={pos?.take_profit || pos?.stop_loss ? labels.common.edit : labels.common.add}
-                            >
-                              {pos?.take_profit || pos?.stop_loss ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                            </button>
-                          </div>
-                        </TableCell>
+        {/* Orders Tab */}
+        <TabsContent value="openOrders" className="m-0 flex-1 overflow-y-auto">
+          {openOrders.length === 0 ? (
+            <EmptyState 
+              title={labels.empty.noOpenOrdersTitle} 
+              subtitle={labels.empty.noOpenOrdersSubtitle}
+              icon={Target}
+            />
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="lg:hidden p-3 space-y-3">
+                {openOrders.map((o) => (
+                  <OrderCard
+                    key={o?.id}
+                    order={o}
+                    onCancel={cancelOpenOrder}
+                    isBusy={cancelBusyId === o?.id}
+                    labels={labels}
+                  />
+                ))}
+              </div>
 
-                        <TableCell className="text-slate-200">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={pos?.id && selectedTradeId === pos.id ? "secondary" : "ghost"}
-                              className="h-7 px-2 text-xs rounded-full"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectTrade?.(pos);
-                              }}
-                            >
-                              {labels.common.view}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2 text-xs rounded-full"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onCloseTrade?.(pos);
-                              }}
-                            >
-                              {labels.common.close}
-                            </Button>
-                          </div>
+              {/* Desktop Table */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
+                      <TableHead className="text-slate-500">{labels.common.type}</TableHead>
+                      <TableHead className="text-slate-500">{labels.common.side}</TableHead>
+                      <TableHead className="text-slate-500 text-right">{labels.common.price}</TableHead>
+                      <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
+                      <TableHead className="text-slate-500 text-right">{labels.common.action}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {openOrders.map((o) => (
+                      <TableRow key={o?.id}>
+                        <TableCell className="text-slate-200">{normalizeSymbol(o?.symbol)}</TableCell>
+                        <TableCell className="text-slate-200">{o?.type}</TableCell>
+                        <TableCell className="text-slate-200">{o?.side}</TableCell>
+                        <TableCell className="text-slate-200 text-right font-mono">{formatPrice(o?.price)}</TableCell>
+                        <TableCell className="text-slate-200 text-right font-mono">{o?.qty ? formatNum(o.qty, 4) : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => cancelOpenOrder(o)} disabled={cancelBusyId === o?.id}>
+                            {cancelBusyId === o?.id ? labels.common.updating : labels.common.cancel}
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </TabsContent>
 
-        <TabsContent value="openOrders" className="m-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.type}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.side}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.price}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.action}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {openOrders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="p-0">
-                    <EmptyState title={labels.empty.noOpenOrdersTitle} subtitle={labels.empty.noOpenOrdersSubtitle} />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                openOrders.map((o) => (
-                  <TableRow key={o?.id || String(Math.random())}>
-                    <TableCell className="text-slate-200">{normalizeSymbol(o?.symbol)}</TableCell>
-                    <TableCell className="text-slate-200">{String(o?.type || "—")}</TableCell>
-                    <TableCell className="text-slate-200">{String(o?.side || "—")}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{formatPrice(o?.price)}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{o?.qty ? formatNum(o.qty, 6) : "—"}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 px-2 text-xs rounded-full text-slate-200"
-                        onClick={() => cancelOpenOrder(o)}
-                        disabled={!onRefresh || cancelBusyId === o?.id}
-                      >
-                        {cancelBusyId === o?.id ? labels.common.updating : labels.common.cancel}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
+        {/* History Tab */}
+        <TabsContent value="history" className="m-0 flex-1 overflow-y-auto">
+          {tradeHistory.length === 0 ? (
+            <EmptyState 
+              title={labels.empty.noHistoryTitle} 
+              subtitle={labels.empty.noHistorySubtitle}
+              icon={TrendingUp}
+            />
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="lg:hidden p-3 space-y-2">
+                {tradeHistory.slice(0, 50).map((t) => (
+                  <HistoryCard key={t?.id} trade={t} type="position" />
+                ))}
+              </div>
 
-        <TabsContent value="orderHistory" className="m-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-slate-500">{labels.common.time}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.type}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.status}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orderHistory.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="p-0">
-                    <EmptyState title={labels.empty.noOrderHistoryTitle} subtitle={labels.empty.noOrderHistorySubtitle} />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orderHistory.slice(0, 100).map((o) => (
-                  <TableRow key={o?.id || String(Math.random())}>
-                    <TableCell className="text-slate-200">{o?.created_at ? new Date(o.created_at).toLocaleString() : "—"}</TableCell>
-                    <TableCell className="text-slate-200">{normalizeSymbol(o?.symbol)}</TableCell>
-                    <TableCell className="text-slate-200">{String(o?.order_type || "—")}</TableCell>
-                    <TableCell className="text-slate-200">{String(o?.status || "—")}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{o?.quantity ? formatNum(o.quantity, 6) : "—"}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="tradeHistory" className="m-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-slate-500">{labels.common.time}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.side}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.price}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.qty}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tradeHistory.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="p-0">
-                    <EmptyState title={labels.empty.noTradesTitle} subtitle={labels.empty.noTradesSubtitle} />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tradeHistory.slice(0, 100).map((t) => (
-                  <TableRow key={t?.id || String(Math.random())}>
-                    <TableCell className="text-slate-200">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
-                    <TableCell className="text-slate-200">{normalizeSymbol(t?.symbol)}</TableCell>
-                    <TableCell className="text-slate-200">{String(t?.side || "—")}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{formatPrice(t?.avg_exit_price ?? t?.exit_price ?? t?.entry_price)}</TableCell>
-                    <TableCell className="text-slate-200 text-right">{t?.quantity ? formatNum(t.quantity, 6) : "—"}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="positionHistory" className="m-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-slate-500">{labels.common.time}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.action}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.pnl}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tradeHistory.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="p-0">
-                    <EmptyState title={labels.empty.noPositionHistoryTitle} subtitle={labels.empty.noPositionHistorySubtitle} />
-                  </TableCell>
-                </TableRow>
-              ) : (
-                tradeHistory.slice(0, 100).map((t) => (
-                  <TableRow key={t?.id || String(Math.random())}>
-                    <TableCell className="text-slate-200">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
-                    <TableCell className="text-slate-200">{normalizeSymbol(t?.symbol)}</TableCell>
-                    <TableCell className="text-slate-200">{String(t?.close_reason || "closed")}</TableCell>
-                    <TableCell className={`text-right ${Number(t?.pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                      {t?.pnl !== undefined && t?.pnl !== null ? <span className="font-mono">{formatNum(t.pnl, 2)} USDT</span> : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TabsContent>
-
-        <TabsContent value="transactions" className="m-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-slate-500">{labels.common.time}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.type}</TableHead>
-                <TableHead className="text-slate-500 text-right">{labels.common.amount}</TableHead>
-                <TableHead className="text-slate-500">{labels.common.asset}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell colSpan={4} className="p-0">
-                  <EmptyState title={labels.empty.noTransactionsTitle} subtitle={labels.empty.noTransactionsSubtitle} />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+              {/* Desktop Table */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-slate-500">{labels.common.time}</TableHead>
+                      <TableHead className="text-slate-500">{labels.common.symbol}</TableHead>
+                      <TableHead className="text-slate-500">{labels.common.side}</TableHead>
+                      <TableHead className="text-slate-500 text-right">{labels.common.pnl}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tradeHistory.slice(0, 50).map((t) => (
+                      <TableRow key={t?.id}>
+                        <TableCell className="text-slate-200">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
+                        <TableCell className="text-slate-200">{normalizeSymbol(t?.symbol)}</TableCell>
+                        <TableCell className="text-slate-200">{t?.side}</TableCell>
+                        <TableCell className={`text-right font-mono ${Number(t?.pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                          {t?.pnl !== undefined ? `${Number(t.pnl) >= 0 ? "+" : ""}${formatNum(t.pnl, 2)} USDT` : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
-      <Dialog open={tpSlOpen} onOpenChange={(v) => {
-        setTpSlOpen(v);
-        if (!v) {
-          setTpSlTrade(null);
-          setTpSlError("");
-          setTpSlBusy(false);
-        }
-      }}>
-        <DialogContent className="max-w-[560px] bg-background border border-border text-foreground">
+      {/* TP/SL Dialog */}
+      <Dialog open={tpSlOpen} onOpenChange={(v) => { setTpSlOpen(v); if (!v) { setTpSlTrade(null); setTpSlError(""); setTpSlBusy(false); } }}>
+        <DialogContent className="max-w-[400px] bg-background border border-border text-foreground rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">{labels.common.tpSl}</DialogTitle>
           </DialogHeader>
 
           {tpSlTrade ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-border bg-muted p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-foreground truncate">
-                      {normalizeSymbol(tpSlTrade?.symbol)} {String(tpSlTrade?.side || "LONG").toUpperCase()} {tpSlTrade?.leverage ? `${tpSlTrade.leverage}X` : ""}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">{String(tpSlTrade?.order_type || "").toUpperCase()}</div>
-                  </div>
+              {/* Trade Info */}
+              <div className="rounded-xl border border-border bg-muted/50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-bold text-foreground">{normalizeSymbol(tpSlTrade?.symbol)}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                    tpSlTrade?.side === "LONG" ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
+                  }`}>
+                    {tpSlTrade?.side}
+                  </span>
+                  {tpSlTrade?.leverage && <span className="text-[10px] text-amber-400">{tpSlTrade.leverage}x</span>}
                 </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <div className="text-[11px] text-muted-foreground">{labels.common.entry}</div>
+                    <div className="text-[10px] text-muted-foreground">{labels.common.entry}</div>
                     <div className="font-mono text-foreground">{formatPrice(tpSlTrade?.avg_entry_price ?? tpSlTrade?.entry_price)}</div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-muted-foreground">{labels.common.last}</div>
+                    <div className="text-[10px] text-muted-foreground">{labels.common.last}</div>
                     <div className="font-mono text-foreground">{formatPrice(markBySymbol[normalizeSymbol(tpSlTrade?.symbol)])}</div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-muted-foreground">{labels.common.liq}</div>
-                    <div className="font-mono text-amber-300">{formatPrice(tpSlTrade?.liquidation_price)}</div>
                   </div>
                 </div>
               </div>
 
+              {/* Take Profit */}
               <div className="rounded-xl border border-border bg-card p-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-emerald-500"
-                    checked={tpEnabled}
-                    onChange={(e) => setTpEnabled(e.target.checked)}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-100">{labels.common.takeProfit}</div>
-                  </div>
+                <label className="flex items-center gap-3 mb-3">
+                  <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={tpEnabled} onChange={(e) => setTpEnabled(e.target.checked)} />
+                  <span className="font-medium text-slate-100">{labels.common.takeProfit}</span>
                 </label>
-
-                {tpEnabled ? (
-                  <div className="mt-3">
-                    <div className="grid grid-cols-[1fr,auto] gap-2">
-                      <input
-                        value={tpValue}
-                        onChange={(e) => setTpValue(e.target.value)}
-                        onWheelCapture={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const step = stepForPrice(parseNum(tpValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
-                          setTpValue((v) => wheelAdjust(v, e.deltaY, step));
-                        }}
-                        placeholder="—"
-                        className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
-                        inputMode="decimal"
-                      />
-                      <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
-                        USDT
-                      </div>
-                    </div>
-
+                {tpEnabled && (
+                  <div>
+                    <input
+                      value={tpValue}
+                      onChange={(e) => setTpValue(e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded-xl bg-slate-950/30 border border-slate-800 px-4 py-3 text-sm text-slate-100 outline-none"
+                      inputMode="decimal"
+                    />
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {[10, 20, 50, 100].map((p) => (
-                        <button
-                          key={`tp_${p}`}
-                          type="button"
-                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                          onClick={() => {
-                            if (!tpSlTrade) return;
-                            setTpEnabled(true);
-                            setTpValue(calcPresetPrice(tpSlTrade, "tp", p));
-                          }}
-                        >
-                          {p}%
+                      {[10, 25, 50, 100].map((p) => (
+                        <button key={`tp_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs" onClick={() => { setTpEnabled(true); setTpValue(calcPresetPrice(tpSlTrade, "tp", p)); }}>
+                          +{p}%
                         </button>
                       ))}
                     </div>
                   </div>
-                ) : null}
+                )}
               </div>
 
+              {/* Stop Loss */}
               <div className="rounded-xl border border-slate-800 bg-slate-900/20 p-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-emerald-500"
-                    checked={slEnabled}
-                    onChange={(e) => setSlEnabled(e.target.checked)}
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-100">{labels.common.stopLoss}</div>
-                  </div>
+                <label className="flex items-center gap-3 mb-3">
+                  <input type="checkbox" className="h-4 w-4 accent-rose-500" checked={slEnabled} onChange={(e) => setSlEnabled(e.target.checked)} />
+                  <span className="font-medium text-slate-100">{labels.common.stopLoss}</span>
                 </label>
-
-                {slEnabled ? (
-                  <div className="mt-3">
-                    <div className="grid grid-cols-[1fr,auto] gap-2">
-                      <input
-                        value={slValue}
-                        onChange={(e) => setSlValue(e.target.value)}
-                        onWheelCapture={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          const step = stepForPrice(parseNum(slValue) || markBySymbol[normalizeSymbol(tpSlTrade?.symbol)]);
-                          setSlValue((v) => wheelAdjust(v, e.deltaY, step));
-                        }}
-                        placeholder="—"
-                        className="w-full rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-sm text-slate-100 outline-none"
-                        inputMode="decimal"
-                      />
-                      <div className="rounded-lg bg-slate-950/30 border border-slate-800 px-3 py-2 text-xs text-slate-300 flex items-center">
-                        USDT
-                      </div>
-                    </div>
-
+                {slEnabled && (
+                  <div>
+                    <input
+                      value={slValue}
+                      onChange={(e) => setSlValue(e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded-xl bg-slate-950/30 border border-slate-800 px-4 py-3 text-sm text-slate-100 outline-none"
+                      inputMode="decimal"
+                    />
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {[10, 20, 50, 100].map((p) => (
-                        <button
-                          key={`sl_${p}`}
-                          type="button"
-                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 text-[11px]"
-                          onClick={() => {
-                            if (!tpSlTrade) return;
-                            setSlEnabled(true);
-                            setSlValue(calcPresetPrice(tpSlTrade, "sl", p));
-                          }}
-                        >
-                          {p}%
+                      {[5, 10, 25, 50].map((p) => (
+                        <button key={`sl_${p}`} type="button" className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs" onClick={() => { setSlEnabled(true); setSlValue(calcPresetPrice(tpSlTrade, "sl", p)); }}>
+                          -{p}%
                         </button>
                       ))}
                     </div>
                   </div>
-                ) : null}
+                )}
               </div>
 
-              {tpSlError ? <div className="text-[11px] text-rose-300">{tpSlError}</div> : null}
+              {tpSlError && <div className="text-xs text-rose-400">{tpSlError}</div>}
 
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setTpSlOpen(false)}
-                  disabled={tpSlBusy}
-                >
+              <div className="flex gap-2">
+                <Button type="button" variant="secondary" className="flex-1 h-11 rounded-xl" onClick={() => setTpSlOpen(false)} disabled={tpSlBusy}>
                   {labels.common.cancel}
                 </Button>
-                <Button
-                  type="button"
-                  onClick={submitTpSl}
-                  disabled={tpSlBusy}
-                  className="bg-blue-600 hover:bg-blue-500"
-                >
+                <Button type="button" className="flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-500" onClick={submitTpSl} disabled={tpSlBusy}>
                   {tpSlBusy ? labels.common.updating : labels.common.confirm}
                 </Button>
               </div>
