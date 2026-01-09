@@ -31,7 +31,6 @@ import {
 
 import * as jupiterApi from '@/api/jupiter';
 import { fetchTrendingSolanaTokens } from '@/api/dexscreener';
-import { getMemeSwapQuote, getMemeSwapTransaction } from '@/api/functions';
 
 // Constants
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
@@ -42,6 +41,23 @@ const CACHE_TTL = 30000;
 
 const SOL_MINT = jupiterApi.TOKENS.SOL;
 const SOL_DECIMALS = 9;
+
+function formatAgeMs(ms) {
+  if (!ms || !Number.isFinite(ms)) return '—';
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -152,15 +168,21 @@ export default function MemeCoinsTerminal() {
           pairAddress: t.pairAddress || t.id || '',
           symbol: t.symbol || 'UNKNOWN',
           name: t.name || 'Unknown Token',
-          price: Number(t.price) || 0,
-          priceNative: Number(t.priceNative) || 0,
-          change24h: Number(t.priceChange24h) || 0,
-          change1h: Number(t.priceChange1h) || 0,
-          volume24h: Number(t.volume24h) || 0,
-          volume1h: Number(t.volume1h) || 0,
-          liquidity: Number(t.liquidity) || 0,
-          marketCap: Number(t.marketCap) || 0,
+          price: toNumber(t.price),
+          priceNative: toNumber(t.priceNative),
+          change24h: toNumber(t.priceChange24h),
+          change1h: toNumber(t.priceChange1h),
+          change5m: toNumber(t.priceChange5m),
+          change6h: toNumber(t.priceChange6h),
+          volume24h: toNumber(t.volume24h),
+          volume6h: toNumber(t.volume6h),
+          volume1h: toNumber(t.volume1h),
+          volume5m: toNumber(t.volume5m),
+          liquidity: toNumber(t.liquidity),
+          marketCap: toNumber(t.marketCap),
           txns24h: t.txns24h || { buys: 0, sells: 0 },
+          txns1h: t.txns1h || { buys: 0, sells: 0 },
+          txns5m: t.txns5m || { buys: 0, sells: 0 },
           imageUrl: t.imageUrl || null,
           dexUrl: t.dexUrl || null,
           pairCreatedAt: t.pairCreatedAt || null,
@@ -266,15 +288,7 @@ export default function MemeCoinsTerminal() {
         const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
         const slippageBps = slippage * 100;
 
-        // Prefer calling through Base44 Functions (avoids browser DNS/CORS issues in hosted previews)
-        let quote = null;
-        try {
-          const result = await getMemeSwapQuote(inputMint, outputMint, rawAmount, slippageBps);
-          quote = result?.data?.success ? result.data.data : result?.data?.data || result?.data;
-        } catch {
-          // fallback to direct Jupiter call (useful in local dev)
-          quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
-        }
+        const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
         
         if (quote) {
           const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount, 10), outputDecimals);
@@ -286,6 +300,12 @@ export default function MemeCoinsTerminal() {
         console.error('Quote error:', error);
         setOutputAmount('');
         setCurrentQuote(null);
+
+        // Helpful UX hint for hosted previews where Jupiter DNS is blocked.
+        const msg = String(error?.message || 'Failed to fetch quote');
+        if (msg.includes('Failed to fetch') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
+          toast.error('Quotes blocked by network/DNS in this environment. Try local dev or add a proxy for quote-api.jup.ag.');
+        }
       } finally {
         setQuoteLoading(false);
       }
@@ -309,14 +329,7 @@ export default function MemeCoinsTerminal() {
     try {
       setSwapping(true);
 
-      let swapTransaction = null;
-      try {
-        const result = await getMemeSwapTransaction(currentQuote, wallet.publicKey.toString());
-        const data = result?.data?.success ? result.data.data : result?.data?.data || result?.data;
-        swapTransaction = data?.swapTransaction || data;
-      } catch {
-        swapTransaction = await jupiterApi.getSwapTransaction(currentQuote, wallet.publicKey.toString());
-      }
+      const swapTransaction = await jupiterApi.getSwapTransaction(currentQuote, wallet.publicKey.toString());
 
       const signature = await jupiterApi.executeSwap(swapTransaction, wallet);
       
@@ -410,7 +423,7 @@ export default function MemeCoinsTerminal() {
     return (
       <Button 
         onClick={() => setWalletModalVisible(true)}
-        className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/25"
+        className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-4 hover:from-blue-700 hover:to-cyan-700 gap-2"
       >
         <Wallet className="w-4 h-4" />
         Connect Wallet
@@ -500,12 +513,28 @@ export default function MemeCoinsTerminal() {
                       Volume <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground hidden lg:table-cell">
+                    <button
+                      onClick={() => handleSort('marketCap')}
+                      className="flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors"
+                    >
+                      MC <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground hidden xl:table-cell">
                     <button
                       onClick={() => handleSort('liquidity')}
                       className="flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors"
                     >
                       Liquidity <ArrowUpDown className="w-3 h-3" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground hidden xl:table-cell">
+                    <button
+                      onClick={() => handleSort('pairCreatedAt')}
+                      className="flex items-center gap-1.5 ml-auto hover:text-foreground transition-colors"
+                    >
+                      Age <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
@@ -516,14 +545,14 @@ export default function MemeCoinsTerminal() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center">
+                    <td colSpan={8} className="px-4 py-16 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
                       <p className="text-muted-foreground">Loading meme coins...</p>
                     </td>
                   </tr>
                 ) : filteredTokens.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                       {searchQuery ? 'No tokens match your search' : 'No tokens found'}
                     </td>
                   </tr>
@@ -573,8 +602,14 @@ export default function MemeCoinsTerminal() {
                       <td className="px-4 py-3 text-right font-mono text-sm hidden lg:table-cell">
                         {formatVolume(token.volume24h)}
                       </td>
+                      <td className="px-4 py-3 text-right font-mono text-sm hidden lg:table-cell">
+                        {formatVolume(token.marketCap)}
+                      </td>
                       <td className="px-4 py-3 text-right font-mono text-sm hidden xl:table-cell">
                         {formatVolume(token.liquidity)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-sm hidden xl:table-cell">
+                        {token.pairCreatedAt ? formatAgeMs(Date.now() - Number(token.pairCreatedAt)) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Button
@@ -658,13 +693,12 @@ export default function MemeCoinsTerminal() {
       <Sheet open={!!selectedToken} onOpenChange={(open) => !open && setSelectedToken(null)}>
         <SheetContent 
           side="right" 
-          className="w-full sm:max-w-[500px] bg-background border-border overflow-y-auto p-0"
+          className="w-full sm:max-w-[920px] bg-background border-border overflow-y-auto p-0"
         >
           {selectedToken && (
             <div className="flex flex-col h-full">
-              {/* Sheet Header */}
               <SheetHeader className="p-4 sm:p-6 pr-14 border-b border-border bg-muted/30">
-                <SheetTitle className="flex items-center gap-3">
+                <SheetTitle className="flex items-start gap-3">
                   {selectedToken.imageUrl ? (
                     <img
                       src={selectedToken.imageUrl}
@@ -676,241 +710,246 @@ export default function MemeCoinsTerminal() {
                       {selectedToken.symbol?.charAt(0) || '?'}
                     </div>
                   )}
-                  <div className="flex-1">
-                    <div className="text-xl font-bold">{selectedToken.symbol}</div>
-                    <div className="text-sm text-muted-foreground font-normal">
-                      {selectedToken.name}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xl font-bold leading-tight">{selectedToken.symbol}</div>
+                    <div className="text-sm text-muted-foreground font-normal truncate">{selectedToken.name}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-normal">
+                      <span className="font-mono">{formatAddress(selectedToken.address)}</span>
+                      {selectedToken.pairCreatedAt ? (
+                        <span>Age: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}</span>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(selectedToken.address);
+                            toast.success('Token mint copied');
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        Copy mint
+                      </Button>
+                      {selectedToken.dexUrl ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                        >
+                          DexScreener
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </SheetTitle>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* Price Stats */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">Price</div>
-                    <div className="text-base sm:text-lg font-bold font-mono">
-                      {formatPrice(selectedToken.price)}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Price</div>
+                        <div className="text-base font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                        <div className="text-xs text-muted-foreground mt-1">1h: {formatChange(selectedToken.change1h || 0)}</div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Market Cap</div>
+                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                        <div className="text-xs text-muted-foreground mt-1">FDV</div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Liquidity</div>
+                        <div className="text-base font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                        <div className="text-xs text-muted-foreground mt-1">24h vol: {formatVolume(selectedToken.volume24h)}</div>
+                      </Card>
+                      <Card className="bg-muted/30 border-border p-3">
+                        <div className="text-xs text-muted-foreground mb-1">Txns (24h)</div>
+                        <div className="text-base font-bold font-mono">
+                          {(selectedToken.txns24h?.buys || 0) + (selectedToken.txns24h?.sells || 0)}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          B/S: {selectedToken.txns24h?.buys || 0}/{selectedToken.txns24h?.sells || 0}
+                        </div>
+                      </Card>
                     </div>
-                  </Card>
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">24h Change</div>
-                    <div
-                      className={'text-base sm:text-lg font-bold flex items-center gap-1.5 ' + 
-                        (selectedToken.change24h >= 0 ? 'text-emerald-500' : 'text-rose-500')
-                      }
-                    >
-                      {selectedToken.change24h >= 0 ? (
-                        <TrendingUp className="w-4 h-4" />
+
+                    <Card className="bg-muted/30 border-border p-3 sm:p-4">
+                      <div className="text-sm font-medium mb-3 flex items-center justify-between">
+                        <span>Chart</span>
+                        {selectedToken.dexUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-2"
+                            onClick={() => window.open(selectedToken.dexUrl, '_blank')}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Open
+                          </Button>
+                        )}
+                      </div>
+                      {getDexScreenerEmbedUrl(selectedToken) ? (
+                        <div className="w-full h-[340px] lg:h-[520px] rounded-lg overflow-hidden bg-background">
+                          <iframe
+                            title={`${selectedToken.symbol} chart`}
+                            src={getDexScreenerEmbedUrl(selectedToken)}
+                            className="w-full h-full"
+                            frameBorder="0"
+                            allow="clipboard-write"
+                          />
+                        </div>
                       ) : (
-                        <TrendingDown className="w-4 h-4" />
+                        <div className="w-full h-[300px] rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+                          Chart unavailable
+                        </div>
                       )}
-                      {formatChange(selectedToken.change24h)}
-                    </div>
-                  </Card>
+                    </Card>
+                  </div>
+
                   <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">24h Volume</div>
-                    <div className="text-base sm:text-lg font-bold font-mono">
-                      {formatVolume(selectedToken.volume24h)}
-                    </div>
-                  </Card>
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">Liquidity</div>
-                    <div className="text-base sm:text-lg font-bold font-mono">
-                      {formatVolume(selectedToken.liquidity)}
-                    </div>
-                  </Card>
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">Market Cap (FDV)</div>
-                    <div className="text-base sm:text-lg font-bold font-mono">
-                      {formatVolume(selectedToken.marketCap)}
-                    </div>
-                  </Card>
-                  <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-muted-foreground mb-1">24h Txns</div>
-                    <div className="text-base sm:text-lg font-bold font-mono">
-                      {(selectedToken.txns24h?.buys || 0) + (selectedToken.txns24h?.sells || 0)}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Buys: {selectedToken.txns24h?.buys || 0} · Sells: {selectedToken.txns24h?.sells || 0}
+                    {!wallet.connected && (
+                      <Button
+                        onClick={() => setWalletModalVisible(true)}
+                        className="w-full glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl hover:from-blue-700 hover:to-cyan-700"
+                      >
+                        <Wallet className="w-4 h-4 mr-2" />
+                        Connect Solana Wallet
+                      </Button>
+                    )}
+
+                    <div className={wallet.connected ? '' : 'mt-3'}>
+                      <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted">
+                          <TabsTrigger value="buy" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
+                            Buy
+                          </TabsTrigger>
+                          <TabsTrigger value="sell" className="data-[state=active]:bg-rose-600 data-[state=active]:text-white">
+                            Sell
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value={swapMode} className="mt-0">
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-sm">
+                                {swapMode === 'buy' ? 'Pay (SOL)' : `Pay (${selectedToken.symbol})`}
+                              </Label>
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  placeholder="0.00"
+                                  value={inputAmount}
+                                  onChange={(e) => setInputAmount(e.target.value)}
+                                  className="bg-background border-border text-lg h-12 pr-16"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  {swapMode === 'buy' ? 'SOL' : selectedToken.symbol}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-sm">
+                                {swapMode === 'buy' ? `Receive (${selectedToken.symbol})` : 'Receive (SOL)'}
+                              </Label>
+                              <div className="relative">
+                                <Input
+                                  type="text"
+                                  placeholder="0.00"
+                                  value={quoteLoading ? '...' : outputAmount}
+                                  readOnly
+                                  className="bg-muted border-border text-lg h-12 pr-16"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  {swapMode === 'buy' ? selectedToken.symbol : 'SOL'}
+                                </span>
+                              </div>
+                              {quoteLoading && (
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Getting quote...
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-muted-foreground text-sm">Slippage</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {SLIPPAGE_OPTIONS.map((option) => (
+                                  <Button
+                                    key={option}
+                                    size="sm"
+                                    variant={slippage === option ? 'default' : 'outline'}
+                                    onClick={() => {
+                                      setSlippage(option);
+                                      setCustomSlippage('');
+                                    }}
+                                    className={'h-8 ' + (slippage === option ? 'bg-primary' : '')}
+                                  >
+                                    {option}%
+                                  </Button>
+                                ))}
+                                <Input
+                                  type="number"
+                                  placeholder="Cust"
+                                  value={customSlippage}
+                                  onChange={(e) => {
+                                    setCustomSlippage(e.target.value);
+                                    const val = parseFloat(e.target.value);
+                                    if (val > 0 && val <= 50) setSlippage(val);
+                                  }}
+                                  className="w-20 h-8 bg-background border-border text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <Button
+                              size="lg"
+                              className={'w-full text-base h-12 ' +
+                                (swapMode === 'buy'
+                                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                                  : 'bg-rose-600 hover:bg-rose-700') +
+                                ' text-white'
+                              }
+                              onClick={handleSwap}
+                              disabled={!wallet.connected || swapping || quoteLoading || !inputAmount || !currentQuote}
+                            >
+                              {swapping ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  Swapping...
+                                </>
+                              ) : !wallet.connected ? (
+                                'Connect wallet'
+                              ) : !inputAmount ? (
+                                'Enter amount'
+                              ) : quoteLoading ? (
+                                'Getting quote...'
+                              ) : (
+                                <>
+                                  <Zap className="w-4 h-4 mr-2" />
+                                  {swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}
+                                </>
+                              )}
+                            </Button>
+
+                            {currentQuote && currentQuote.priceImpactPct > 1 && (
+                              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 dark:text-amber-400">
+                                Price impact: {parseFloat(currentQuote.priceImpactPct).toFixed(2)}%
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </Card>
                 </div>
-
-                {/* Chart */}
-                <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                  <div className="text-sm font-medium mb-3 flex items-center justify-between">
-                    <span>Price Chart</span>
-                    {selectedToken.dexUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 gap-2"
-                        onClick={() => window.open(selectedToken.dexUrl, '_blank')}
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        DexScreener
-                      </Button>
-                    )}
-                  </div>
-                  {getDexScreenerEmbedUrl(selectedToken) ? (
-                    <div className="w-full h-[260px] sm:h-[320px] rounded-lg overflow-hidden bg-background">
-                      <iframe
-                        title={`${selectedToken.symbol} chart`}
-                        src={getDexScreenerEmbedUrl(selectedToken)}
-                        className="w-full h-full"
-                        frameBorder="0"
-                        allow="clipboard-write"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-[200px] sm:h-[250px] rounded-lg flex items-center justify-center text-sm text-muted-foreground">
-                      Chart unavailable
-                    </div>
-                  )}
-                </Card>
-
-                {/* Swap Panel */}
-                <Card className="bg-muted/30 border-border p-3 sm:p-4">
-                  <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted">
-                      <TabsTrigger 
-                        value="buy" 
-                        className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white"
-                      >
-                        Buy
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="sell" 
-                        className="data-[state=active]:bg-rose-600 data-[state=active]:text-white"
-                      >
-                        Sell
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value={swapMode} className="mt-0">
-                      <div className="space-y-4">
-                        {/* Input Amount */}
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-sm">
-                            {swapMode === 'buy' ? 'Pay (SOL)' : 'Pay (' + selectedToken.symbol + ')'}
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={inputAmount}
-                              onChange={(e) => setInputAmount(e.target.value)}
-                              className="bg-background border-border text-lg h-12 pr-16"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              {swapMode === 'buy' ? 'SOL' : selectedToken.symbol}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Output Amount */}
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-sm">
-                            {swapMode === 'buy' ? 'Receive (' + selectedToken.symbol + ')' : 'Receive (SOL)'}
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              type="text"
-                              placeholder="0.00"
-                              value={quoteLoading ? '...' : outputAmount}
-                              readOnly
-                              className="bg-muted border-border text-lg h-12 pr-16"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                              {swapMode === 'buy' ? selectedToken.symbol : 'SOL'}
-                            </span>
-                          </div>
-                          {quoteLoading && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-2">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Getting best price...
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Slippage */}
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-sm">Slippage Tolerance</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {SLIPPAGE_OPTIONS.map((option) => (
-                              <Button
-                                key={option}
-                                size="sm"
-                                variant={slippage === option ? 'default' : 'outline'}
-                                onClick={() => {
-                                  setSlippage(option);
-                                  setCustomSlippage('');
-                                }}
-                                className={'h-8 ' + (slippage === option ? 'bg-primary' : '')}
-                              >
-                                {option}%
-                              </Button>
-                            ))}
-                            <Input
-                              type="number"
-                              placeholder="Custom"
-                              value={customSlippage}
-                              onChange={(e) => {
-                                setCustomSlippage(e.target.value);
-                                const val = parseFloat(e.target.value);
-                                if (val > 0 && val <= 50) setSlippage(val);
-                              }}
-                              className="w-20 h-8 bg-background border-border text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Swap Button */}
-                        <Button
-                          size="lg"
-                          className={'w-full text-base h-12 ' + 
-                            (swapMode === 'buy' 
-                              ? 'bg-emerald-600 hover:bg-emerald-700' 
-                              : 'bg-rose-600 hover:bg-rose-700') +
-                            ' text-white'
-                          }
-                          onClick={handleSwap}
-                          disabled={swapping || quoteLoading || !inputAmount}
-                        >
-                          {!wallet.connected ? (
-                            <>
-                              <Wallet className="w-4 h-4 mr-2" />
-                              Connect Wallet
-                            </>
-                          ) : swapping ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              Swapping...
-                            </>
-                          ) : !inputAmount ? (
-                            'Enter Amount'
-                          ) : quoteLoading ? (
-                            'Getting Quote...'
-                          ) : (
-                            <>
-                              <Zap className="w-4 h-4 mr-2" />
-                              {swapMode === 'buy' ? 'Buy' : 'Sell'} {selectedToken.symbol}
-                            </>
-                          )}
-                        </Button>
-
-                        {/* Price Impact Warning */}
-                        {currentQuote && currentQuote.priceImpactPct > 1 && (
-                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 dark:text-amber-400">
-                            ⚠️ Price impact: {parseFloat(currentQuote.priceImpactPct).toFixed(2)}%
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </Card>
               </div>
             </div>
           )}
