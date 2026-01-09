@@ -5,6 +5,7 @@ import { createPageUrl } from "@/utils";
 import {
   Wallet,
   TrendingUp,
+  TrendingDown,
   Activity,
   Clock,
   Gift,
@@ -13,7 +14,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Copy,
-  CheckCircle
+  CheckCircle,
+  ChevronRight,
+  Zap
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,14 +41,19 @@ const translations = {
     monthlyPnl: "Monthly PnL",
     totalPnl: "Total PnL",
     positions: "Open Positions",
-    orders: "Recent Orders",
+    orders: "Pending Orders",
     referrals: "Referral Program",
     vouchers: "Available Vouchers",
     noPositions: "No open positions",
-    noOrders: "No recent orders",
+    noOrders: "No pending orders",
     refresh: "Refresh",
-    trade: "Start Trading",
-    viewAll: "View All"
+    trade: "Trade",
+    viewAll: "View All",
+    size: "Size",
+    entry: "Entry",
+    pnlLabel: "PnL",
+    price: "Price",
+    qty: "Qty"
   },
   ar: {
     title: "لوحة التداول",
@@ -60,58 +68,135 @@ const translations = {
     monthlyPnl: "الربح الشهري",
     totalPnl: "إجمالي الربح",
     positions: "المراكز المفتوحة",
-    orders: "الأوامر الأخيرة",
+    orders: "الأوامر المعلقة",
     referrals: "برنامج الإحالة",
     vouchers: "القسائم المتاحة",
     noPositions: "لا توجد مراكز مفتوحة",
-    noOrders: "لا توجد أوامر حديثة",
+    noOrders: "لا توجد أوامر معلقة",
     refresh: "تحديث",
-    trade: "ابدأ التداول",
-    viewAll: "عرض الكل"
+    trade: "تداول",
+    viewAll: "عرض الكل",
+    size: "الحجم",
+    entry: "الدخول",
+    pnlLabel: "الربح",
+    price: "السعر",
+    qty: "الكمية"
   }
 };
 
-// Activity Logger
 const logActivity = (action, details) => {
   const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    action,
-    details,
-    userId: 'current-user'
-  };
+  const logEntry = { timestamp, action, details, userId: 'current-user' };
   console.log(`[${timestamp}] [DASHBOARD] ${action}:`, details);
-  
-  // Store in localStorage for persistence
   const logs = JSON.parse(localStorage.getItem('dashboardLogs') || '[]');
   logs.push(logEntry);
   if (logs.length > 1000) logs.shift();
   localStorage.setItem('dashboardLogs', JSON.stringify(logs));
-  
   return logEntry;
 };
 
-const StatCard = ({ title, value, change = undefined, icon: Icon, color }) => (
-  <Card className="border-border shadow-sm">
-    <CardContent className="p-5">
+// Enhanced Stat Card with gradient backgrounds
+const StatCard = ({ title, value, change = undefined, icon: Icon, gradient }) => (
+  <div className={`relative overflow-hidden rounded-2xl ${gradient} p-5 shadow-lg`}>
+    <div className="relative z-10">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+          <p className="text-xs font-medium text-white/70 uppercase tracking-wider">{title}</p>
+          <p className="text-2xl font-bold text-white mt-1">{value}</p>
           {change !== undefined && (
-            <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`flex items-center gap-1 mt-1.5 text-sm font-medium ${change >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
               {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
               {change >= 0 ? '+' : ''}{change.toFixed(2)}%
             </div>
           )}
         </div>
-        <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center`}>
+        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
           <Icon className="h-6 w-6 text-white" />
         </div>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+    {/* Decorative elements */}
+    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+  </div>
 );
+
+// Mobile-friendly Position Card
+const PositionCard = ({ position, language }) => {
+  const pnl = safeNumber(position.unrealized_pnl ?? position.pnl);
+  const isProfit = pnl >= 0;
+  const SideIcon = position.side === 'LONG' ? TrendingUp : TrendingDown;
+  
+  return (
+    <div className="rounded-xl border border-border bg-card/50 p-4 hover:bg-card/80 transition-colors">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className={`p-1.5 rounded-lg ${position.side === 'LONG' ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}>
+            <SideIcon className={`h-4 w-4 ${position.side === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}`} />
+          </div>
+          <div>
+            <span className="font-bold text-foreground">{position.symbol}</span>
+            <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+              position.side === 'LONG' 
+                ? 'bg-emerald-500/15 text-emerald-400' 
+                : 'bg-rose-500/15 text-rose-400'
+            }`}>
+              {position.side}
+            </span>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الحجم' : 'Size'}</div>
+          <div className="font-mono text-sm text-foreground">{formatNum(position.quantity, 4)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الدخول' : 'Entry'}</div>
+          <div className="font-mono text-sm text-foreground">${formatNum(position.entry_price, 2)}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الربح' : 'PnL'}</div>
+          <div className={`font-mono text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {isProfit ? '+' : ''}{formatNum(pnl, 2)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Mobile-friendly Order Card
+const OrderCard = ({ order, language }) => {
+  return (
+    <div className="rounded-xl border border-border bg-card/50 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-foreground">{order.symbol}</span>
+          <Badge variant="outline" className="text-[10px]">{order.order_type || 'LIMIT'}</Badge>
+        </div>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          order.side === 'LONG' || order.side === 'BUY'
+            ? 'bg-emerald-500/15 text-emerald-400'
+            : 'bg-rose-500/15 text-rose-400'
+        }`}>
+          {order.side}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <div className="text-muted-foreground">
+          {order.quantity && <span className="font-mono">{formatNum(order.quantity, 4)}</span>}
+          {order.limit_price && <span className="font-mono ml-2">@ ${formatNum(order.limit_price, 2)}</span>}
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 const safeNumber = (v) => {
   const n = Number(v);
@@ -125,22 +210,21 @@ const formatMoney = (v) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const formatNum = (v, digits = 2) => {
+  const n = safeNumber(v);
+  return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+};
+
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { user } = useAuth();
   const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  const [balanceData, setBalanceData] = useState({
-    total: 0,
-    available: 0,
-    inPositions: 0
-  });
-  
+  const [balanceData, setBalanceData] = useState({ total: 0, available: 0, inPositions: 0 });
   const [pnlData, setPnlData] = useState({ daily: 0, weekly: 0, monthly: 0, total: 0 });
-  
-  const [positions, setPositions] = useState([]); // tradingAccount OPEN
-  const [orders, setOrders] = useState([]); // tradingAccount PENDING
+  const [positions, setPositions] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [, setWallets] = useState([]);
   const [, setStakingPositions] = useState([]);
   const [, setLiveAccount] = useState(null);
@@ -152,7 +236,6 @@ export default function Dashboard({ language = "en" }) {
     setLoading(true);
     
     try {
-      // Use the same sources as Profile: tradingAccount + wallet + staking.
       const [liveRes, walletsRes, tradesRes, stakingRes] = await Promise.all([
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
         base44.functions.invoke('wallet', { action: 'list' }),
@@ -170,8 +253,6 @@ export default function Dashboard({ language = "en" }) {
       const locked = sum(usdtWallets.map((w) => w.locked_balance || 0));
       const staked = sum(usdtWallets.map((w) => w.staked_balance || 0));
 
-      // Backend semantics: staking reduces `balance` and increases `staked_balance`.
-      // So available is balance minus locked only (NOT minus staked).
       setBalanceData({
         total: spot + locked + staked,
         available: Math.max(0, spot - locked),
@@ -216,7 +297,6 @@ export default function Dashboard({ language = "en" }) {
   useEffect(() => {
     loadDashboardData();
     logActivity('DASHBOARD_MOUNTED', { timestamp: new Date().toISOString() });
-    
     return () => {
       logActivity('DASHBOARD_UNMOUNTED', { timestamp: new Date().toISOString() });
     };
@@ -241,254 +321,278 @@ export default function Dashboard({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
-            <p className="text-muted-foreground mt-1">{t.subtitle}</p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              {t.refresh}
+    <div className="min-h-screen bg-background text-foreground pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header - Mobile Optimized */}
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{t.title}</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">{t.subtitle}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-xl"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                <Link to={createPageUrl("Futures")}>
-                <Activity className="h-4 w-4 mr-2" />
-                {t.trade}
-              </Link>
-            </Button>
           </div>
+          
+          {/* Quick Trade Button - Mobile Prominent */}
+          <Button asChild className="w-full sm:w-auto h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-500/25">
+            <Link to={createPageUrl("Futures")} className="flex items-center justify-center gap-2">
+              <Zap className="h-5 w-5" />
+              <span className="font-semibold">{t.trade}</span>
+            </Link>
+          </Button>
         </div>
 
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Balance Cards - Mobile Scroll */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <StatCard 
             title={t.totalBalance} 
             value={`$${formatMoney(balanceData.total)}`}
             icon={Wallet}
-            color="bg-gradient-to-br from-blue-600 to-blue-700"
+            gradient="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800"
           />
           <StatCard 
             title={t.available} 
             value={`$${formatMoney(balanceData.available)}`}
             icon={CheckCircle}
-            color="bg-gradient-to-br from-green-500 to-green-600"
+            gradient="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700"
           />
           <StatCard 
             title={t.inPositions} 
             value={`$${formatMoney(balanceData.inPositions)}`}
             icon={Activity}
-            color="bg-gradient-to-br from-purple-500 to-purple-600"
+            gradient="bg-gradient-to-br from-purple-500 via-purple-600 to-violet-700"
           />
           <StatCard 
             title={t.dailyPnl} 
             value={`$${formatMoney(pnlData.daily)}`}
+            change={pnlData.daily !== 0 ? (pnlData.daily / Math.max(1, balanceData.total)) * 100 : undefined}
             icon={TrendingUp}
-            color="bg-gradient-to-br from-cyan-500 to-cyan-600"
+            gradient="bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700"
           />
         </div>
 
-        {/* PnL Statistics */}
-        <Card className="mb-8 border-border shadow-sm">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-lg">{t.pnl}</CardTitle>
+        {/* PnL Statistics - Compact Mobile */}
+        <Card className="mb-6 border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <CardHeader className="border-b border-border/50 py-4">
+            <CardTitle className="text-base font-semibold">{t.pnl}</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1">{t.dailyPnl}</p>
-                <p className={`text-xl font-bold ${pnlData.daily >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.daily >= 0 ? '+' : ''}${formatMoney(pnlData.daily)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1">{t.weeklyPnl}</p>
-                <p className={`text-xl font-bold ${pnlData.weekly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.weekly >= 0 ? '+' : ''}${formatMoney(pnlData.weekly)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1">{t.monthlyPnl}</p>
-                <p className={`text-xl font-bold ${pnlData.monthly >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.monthly >= 0 ? '+' : ''}${formatMoney(pnlData.monthly)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1">{t.totalPnl}</p>
-                <p className={`text-xl font-bold ${pnlData.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {pnlData.total >= 0 ? '+' : ''}${formatMoney(pnlData.total)}
-                </p>
-              </div>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: t.dailyPnl, value: pnlData.daily },
+                { label: t.weeklyPnl, value: pnlData.weekly },
+                { label: t.monthlyPnl, value: pnlData.monthly },
+                { label: t.totalPnl, value: pnlData.total }
+              ].map((item, i) => (
+                <div key={i} className="text-center p-3 rounded-xl bg-muted/30">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{item.label}</p>
+                  <p className={`text-lg sm:text-xl font-bold font-mono ${item.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {item.value >= 0 ? '+' : ''}{formatMoney(item.value)}
+                  </p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Positions & Orders */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        {/* Positions & Orders - Mobile Cards */}
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
           {/* Open Positions */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
+          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{t.positions}</CardTitle>
-                <Badge variant="outline">{positions.length} Active</Badge>
+                <CardTitle className="text-base font-semibold">{t.positions}</CardTitle>
+                <Badge variant="secondary" className="rounded-full px-2.5">
+                  {positions.length}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-3 sm:p-4">
               {positions.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p>{t.noPositions}</p>
+                <div className="py-8 text-center">
+                  <Activity className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">{t.noPositions}</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Symbol</TableHead>
-                      <TableHead>Side</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>PnL</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {positions.map((pos, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-bold">{pos.symbol}</TableCell>
-                        <TableCell>
-                          <Badge className={pos.side === 'LONG' ? 'bg-green-500' : 'bg-red-500'}>
-                            {pos.side}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{safeNumber(pos.quantity).toLocaleString()}</TableCell>
-                        <TableCell className={safeNumber(pos.unrealized_pnl) >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {safeNumber(pos.unrealized_pnl).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
+                <>
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden space-y-3">
+                    {positions.slice(0, 5).map((pos, i) => (
+                      <PositionCard key={i} position={pos} language={language} />
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                  
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Symbol</TableHead>
+                          <TableHead>Side</TableHead>
+                          <TableHead>{t.size}</TableHead>
+                          <TableHead>{t.pnlLabel}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {positions.slice(0, 5).map((pos, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-bold">{pos.symbol}</TableCell>
+                            <TableCell>
+                              <Badge className={pos.side === 'LONG' ? 'bg-emerald-500' : 'bg-rose-500'}>
+                                {pos.side}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono">{formatNum(pos.quantity, 4)}</TableCell>
+                            <TableCell className={`font-mono ${safeNumber(pos.unrealized_pnl) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {safeNumber(pos.unrealized_pnl) >= 0 ? '+' : ''}{formatNum(pos.unrealized_pnl, 2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
 
-          {/* Recent Orders */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
+          {/* Pending Orders */}
+          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{t.orders}</CardTitle>
-                <Button variant="ghost" size="sm" className="text-blue-600">
-                  {t.viewAll}
-                </Button>
+                <CardTitle className="text-base font-semibold">{t.orders}</CardTitle>
+                <Badge variant="secondary" className="rounded-full px-2.5">
+                  {orders.length}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-3 sm:p-4">
               {orders.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p>{t.noOrders}</p>
+                <div className="py-8 text-center">
+                  <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
+                  <p className="text-muted-foreground text-sm">{t.noOrders}</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Symbol</TableHead>
-                      <TableHead>Side</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-xs text-muted-foreground">{order.created_at ? new Date(order.created_at).toLocaleString() : '—'}</TableCell>
-                        <TableCell className="font-bold">{order.symbol}</TableCell>
-                        <TableCell>{order.side}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{order.status}</Badge>
-                        </TableCell>
-                      </TableRow>
+                <>
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden space-y-3">
+                    {orders.slice(0, 5).map((order, i) => (
+                      <OrderCard key={i} order={order} language={language} />
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+                  
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Symbol</TableHead>
+                          <TableHead>Side</TableHead>
+                          <TableHead>{t.price}</TableHead>
+                          <TableHead>{t.qty}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.slice(0, 5).map((order, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-bold">{order.symbol}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{order.side}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono">{formatNum(order.limit_price, 2)}</TableCell>
+                            <TableCell className="font-mono">{formatNum(order.quantity, 4)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
         </div>
 
         {/* Referrals & Vouchers */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Referral Program */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
+          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-blue-500" />
+                </div>
                 {t.referrals}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">0</p>
-                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'الإجمالي' : 'Total'}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">0</p>
-                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'نشط' : 'Active'}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">$0.00</p>
-                  <p className="text-xs text-muted-foreground">{language === 'ar' ? 'العمولة' : 'Commission'}</p>
-                </div>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[
+                  { value: '0', label: language === 'ar' ? 'الإجمالي' : 'Total', color: 'text-foreground' },
+                  { value: '0', label: language === 'ar' ? 'نشط' : 'Active', color: 'text-emerald-400' },
+                  { value: '$0', label: language === 'ar' ? 'العمولة' : 'Earned', color: 'text-blue-400' }
+                ].map((stat, i) => (
+                  <div key={i} className="text-center p-3 rounded-xl bg-muted/30">
+                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">{stat.label}</p>
+                  </div>
+                ))}
               </div>
               
-              <div className="bg-muted/30 rounded-lg p-4">
-                <p className="text-xs text-muted-foreground mb-2">{language === 'ar' ? 'كود الإحالة' : 'Your Referral Code'}</p>
+              <div className="rounded-xl bg-muted/30 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-background border border-border rounded px-3 py-2 font-mono font-bold">
+                  <code className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 font-mono font-bold text-sm">
                     {referralCode || '—'}
                   </code>
-                  <Button variant="outline" size="icon" onClick={copyReferralCode} disabled={!referralCode}>
+                  <Button 
+                    variant="secondary" 
+                    size="icon" 
+                    className="h-10 w-10 rounded-lg shrink-0"
+                    onClick={copyReferralCode} 
+                    disabled={!referralCode}
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
-                {referralLink ? (
-                  <p className="text-[11px] text-muted-foreground mt-2 break-all">{referralLink}</p>
-                ) : null}
               </div>
             </CardContent>
           </Card>
 
           {/* Vouchers */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Gift className="h-5 w-5 text-purple-600" />
+          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
+                  <Gift className="h-4 w-4 text-purple-500" />
+                </div>
                 {t.vouchers}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4">
-              {vouchers.map(voucher => (
-                <div key={voucher.id} className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg mb-3 last:mb-0">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                    <Gift className="h-6 w-6 text-white" />
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                {vouchers.map(voucher => (
+                  <div key={voucher.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
+                      <Gift className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">{pickLang(language, voucher.title)}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{pickLang(language, voucher.condition)}</p>
+                    </div>
+                    <Badge className={`shrink-0 ${voucher.status === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                      {voucher.status}
+                    </Badge>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-foreground">{pickLang(language, voucher.title)}</p>
-                    <p className="text-xs text-muted-foreground">{pickLang(language, voucher.condition)}</p>
-                    {voucher.expiry ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{language === "ar" ? "ينتهي:" : "Expires:"} {voucher.expiry}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <Badge className={voucher.status === 'New' ? 'bg-green-500' : 'bg-blue-500'}>
-                    {voucher.status}
-                  </Badge>
-                </div>
-              ))}
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
