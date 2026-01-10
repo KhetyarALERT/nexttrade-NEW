@@ -770,6 +770,17 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Gradient animation */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes gradient-shift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient-shift 3s ease infinite;
+        }
+      `}} />
+
       <div className="sticky top-0 z-10 border-b border-border/50 bg-card/90 backdrop-blur-xl shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -1032,9 +1043,9 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       ) : null}
                     </Button>
                     <SheetContent side="bottom" className="w-full bg-background border-border p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pr-8">
                         <div className="text-sm font-semibold">{t.filters}</div>
-                        <Button type="button" variant="outline" size="sm" className="h-8" onClick={resetFilters}>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground" onClick={resetFilters}>
                           {t.reset}
                         </Button>
                       </div>
@@ -1202,10 +1213,10 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                             <img
                               src={token.imageUrl}
                               alt={token.symbol}
-                              className="w-8 h-8 rounded-full bg-muted"
+                              className="w-7 h-7 rounded-full bg-muted"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-sm ring-1 ring-white/10">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white ring-1 ring-white/10">
                               {token.symbol?.charAt(0) || '?'}
                             </div>
                           )}
@@ -1317,7 +1328,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               {loading ? (
                 <Card className="bg-card border-border p-8 text-center">
                   <Loader2 className="w-7 h-7 animate-spin mx-auto mb-3 text-primary drop-shadow-glow" />
-                  <p className="text-muted-foreground text-sm">{t.loadingMemeCoins}</p>
+                  <p className="text-muted-foreground/80 text-[11px]">{t.loadingMemeCoins}</p>
                 </Card>
               ) : filteredTokens.length === 0 ? (
                 <Card className="bg-card border-border p-8 text-center text-muted-foreground text-sm">
@@ -1467,31 +1478,31 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                   <div className="p-4 space-y-4">
                     {/* Compact stats */}
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.price}</div>
-                        <div className="text-xs sm:text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                        <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
+                        <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
                       </Card>
-                      <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{timeframe} %</div>
+                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                        <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                         <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                           {formatChange(getTokenChange(selectedToken))}
                         </div>
                       </Card>
-                      <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
-                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
+                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                        <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
+                        <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
                       </Card>
-                      <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.marketCap}</div>
-                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                        <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
+                        <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
                       </Card>
-                      <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.liquidity}</div>
-                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                        <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
+                        <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
                       </Card>
                     </div>
 
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                       {selectedToken.pairCreatedAt ? (
                         <Badge variant="outline" className="shrink-0 text-[11px]">
                           {t.launched}: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}
@@ -1501,17 +1512,15 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         const url = typeof w === 'string' ? w : w?.url;
                         if (!url) return null;
                         return (
-                          <Button
+                          <button
                             key={url}
                             type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 shrink-0 gap-2"
+                            className="shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition-all"
                             onClick={() => window.open(url, '_blank')}
+                            title={t.website}
                           >
-                            <Globe className="h-3.5 w-3.5" />
-                            {t.website}
-                          </Button>
+                            <Globe className="w-3.5 h-3.5" />
+                          </button>
                         );
                       })}
                       {(Array.isArray(selectedToken.socials) ? selectedToken.socials : []).slice(0, 3).map((s) => {
@@ -1519,19 +1528,38 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         if (!url) return null;
                         const type = typeof s === 'string' ? 'Link' : (s?.type || 'Link');
                         const lower = String(type).toLowerCase();
-                        const Icon = lower.includes('telegram') ? Send : Link2;
+                        const urlLower = url.toLowerCase();
+                        // Detect platform from URL or type
+                        const isTwitter = lower.includes('twitter') || lower.includes('x') || urlLower.includes('twitter.com') || urlLower.includes('x.com');
+                        const isTelegram = lower.includes('telegram') || urlLower.includes('t.me') || urlLower.includes('telegram');
+                        const isDiscord = lower.includes('discord') || urlLower.includes('discord');
+                        
+                        // Use proper icons with brand colors
+                        let iconEl, bgClass;
+                        if (isTwitter) {
+                          iconEl = <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>;
+                          bgClass = 'bg-black dark:bg-white/10 text-white dark:text-white hover:bg-gray-800';
+                        } else if (isTelegram) {
+                          iconEl = <Send className="w-3.5 h-3.5" />;
+                          bgClass = 'bg-[#0088cc] text-white hover:bg-[#0077b5]';
+                        } else if (isDiscord) {
+                          iconEl = <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>;
+                          bgClass = 'bg-[#5865F2] text-white hover:bg-[#4752c4]';
+                        } else {
+                          iconEl = <Link2 className="w-3.5 h-3.5" />;
+                          bgClass = 'bg-muted hover:bg-muted/80';
+                        }
+                        
                         return (
-                          <Button
+                          <button
                             key={url}
                             type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 shrink-0 gap-2"
+                            className={'shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ' + bgClass}
                             onClick={() => window.open(url, '_blank')}
+                            title={type}
                           >
-                            <Icon className="h-3.5 w-3.5" />
-                            {type}
-                          </Button>
+                            {iconEl}
+                          </button>
                         );
                       })}
                       {rugcheckStatus[selectedToken.address]?.lockedPct != null ? (
@@ -1551,7 +1579,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       ) : null}
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="text-sm font-medium flex items-center gap-2">
                           <SolanaMark className="w-4 h-4" />
@@ -1564,9 +1592,9 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         ) : null}
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-xs">
+                      <div className="space-y-1.5">
+                        <div className="space-y-1.5">
+                          <Label className="text-muted-foreground/80 text-[11px]">
                             {swapMode === 'buy' ? (
                               <span className="inline-flex items-center gap-2">
                                 {t.pay}
@@ -1597,8 +1625,8 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           ) : null}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-xs">
+                        <div className="space-y-1.5">
+                          <Label className="text-muted-foreground/80 text-[11px]">
                             {swapMode === 'buy' ? `${t.receive} (${selectedToken.symbol})` : `${t.receive} (SOL)`}
                           </Label>
                           <Input
@@ -1616,8 +1644,8 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           ) : null}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-muted-foreground text-xs">{t.slippage}</Label>
+                        <div className="space-y-1.5">
+                          <Label className="text-muted-foreground/80 text-[11px]">{t.slippage}</Label>
                           <div className="flex flex-wrap gap-2">
                             {SLIPPAGE_OPTIONS.map((option) => (
                               <Button
@@ -1628,7 +1656,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                   setSlippage(option);
                                   setCustomSlippage('');
                                 }}
-                                className={'h-8 rounded-lg font-medium ' + (slippage === option ? 'bg-primary shadow-md' : 'hover:bg-muted/60')}
+                                className={'h-7 px-2 text-xs rounded-md font-medium ' + (slippage === option ? 'bg-primary shadow-sm' : 'hover:bg-muted/60')}
                               >
                                 {option}%
                               </Button>
@@ -1642,7 +1670,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                 const val = parseFloat(e.target.value);
                                 if (val > 0 && val <= 50) setSlippage(val);
                               }}
-                              className="w-20 h-8 bg-background border-border text-sm"
+                              className="w-16 h-7 bg-background border-border text-xs rounded-md"
                             />
                           </div>
                         </div>
@@ -1738,7 +1766,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             <div className="flex flex-col h-full">
               {/* Chart-first layout */}
               <div className="relative">
-                <div className="relative h-[42vh] min-h-[260px] max-h-[340px] w-full bg-background overflow-hidden">
+                <div className="relative h-[35vh] min-h-[200px] max-h-[280px] w-full bg-background overflow-hidden rounded-b-xl">
                   {getDexScreenerEmbedUrl(selectedToken) ? (
                     <iframe
                       title={`${selectedToken.symbol} chart`}
@@ -1755,7 +1783,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                 </div>
 
                 {/* Compact overlay header */}
-                <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-background/60 dark:from-background/80 to-transparent">
+                <div className="absolute top-0 left-0 right-0 p-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -1763,10 +1791,10 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           <img
                             src={selectedToken.imageUrl}
                             alt={selectedToken.symbol}
-                            className="w-8 h-8 rounded-full bg-muted"
+                            className="w-7 h-7 rounded-full bg-muted"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white shadow-sm ring-1 ring-white/10">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white ring-1 ring-white/10">
                             {selectedToken.symbol?.charAt(0) || '?'}
                           </div>
                         )}
@@ -1811,12 +1839,12 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         </Button>
                       ) : null}
                       <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-9"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full bg-black/30 dark:bg-white/10 backdrop-blur-sm hover:bg-black/50 dark:hover:bg-white/20"
                         onClick={() => setSelectedToken(null)}
                       >
-                        {t.close}
+                        <X className="w-4 h-4 text-white" />
                       </Button>
                     </div>
                   </div>
@@ -1824,34 +1852,34 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {/* Compact stats row */}
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.price}</div>
-                    <div className="text-xs sm:text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                {/* Ultra-compact stats strip */}
+                <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1">
+                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                    <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
+                    <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
                   </Card>
-                  <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{timeframe} %</div>
+                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                    <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                     <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                       {formatChange(getTokenChange(selectedToken))}
                     </div>
                   </Card>
-                  <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
-                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
+                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                    <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
+                    <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
                   </Card>
-                  <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.marketCap}</div>
-                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                    <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
+                    <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
                   </Card>
-                  <Card className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 border-border/50 backdrop-blur-sm px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.liquidity}</div>
-                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                    <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
+                    <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
                   </Card>
                 </div>
 
                 {/* Socials / launch */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                   {selectedToken.pairCreatedAt ? (
                     <Badge variant="outline" className="shrink-0 text-[11px]">
                       {t.launched}: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}
@@ -1905,14 +1933,54 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                     </Badge>
                   ) : null}
                   {rugcheckStatus[selectedToken.address]?.lpSecured ? (
-                    <Badge className="shrink-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[11px]">
-                      {t.lpSecured}
-                    </Badge>
+                    <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px] font-medium">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Safe
+                    </span>
+                  ) : rugcheckStatus[selectedToken.address]?.risks?.length > 0 ? (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 text-[10px] font-medium">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                      Caution
+                    </span>
                   ) : null}
                 </div>
 
+                {/* Quick Trade - Instant buy/sell with preset amounts */}
+                <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-rose-500/5 border border-border/40 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">{t.quickTrade || 'Quick Trade'}</span>
+                    {wallet.connected && (
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {(solBalance || 0).toFixed(2)} SOL
+                      </span>
+                    )}
+                  </div>
+                  {wallet.connected ? (
+                    <div className="flex gap-1.5">
+                      {[0.05, 0.1, 0.25, 0.5].map((amount) => (
+                        <button
+                          key={`buy-${amount}`}
+                          onClick={() => {
+                            setInputAmount(String(amount));
+                            setSwapMode('buy');
+                            setTimeout(() => handleSwap(), 100);
+                          }}
+                          disabled={swapping || !selectedToken}
+                          className="flex-1 h-8 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {swapping ? '...' : `${amount}`}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-center text-muted-foreground py-1">
+                      {t.connectToQuickTrade || 'Connect wallet to quick trade'}
+                    </div>
+                  )}
+                </div>
+
                 {/* Trade panel */}
-                <Card className="bg-card/80 border-border/50 p-4 rounded-xl backdrop-blur-sm">
+                <Card className="bg-card/80 border-border/50 p-3 rounded-xl backdrop-blur-sm">
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-sm font-medium">{t.trade}</div>
                         {quoteSource === 'estimate' ? (
@@ -1922,9 +1990,9 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         ) : null}
                       </div>
 
-                      <div className="space-y-3">
-                            <div className="space-y-2">
-                              <Label className="text-muted-foreground text-sm">
+                      <div className="space-y-1.5">
+                            <div className="space-y-1.5">
+                              <Label className="text-muted-foreground/80 text-[11px]">
                                 {swapMode === 'buy' ? `${t.pay} (SOL)` : `${t.pay} (${selectedToken.symbol})`}
                               </Label>
                               <Input
@@ -1932,21 +2000,28 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                 placeholder="0.00"
                                 value={inputAmount}
                                 onChange={(e) => setInputAmount(e.target.value)}
-                                className="bg-background border-border text-lg h-11"
+                                className="bg-background border-border text-base h-9 rounded-lg"
                               />
                               {swapMode === 'buy' ? (
                                 <div className="flex gap-2 overflow-x-auto pb-1">
                                   {[0.1, 0.25, 0.5, 1].map((v) => (
-                                    <Button key={v} type="button" variant="outline" size="sm" className="h-8 shrink-0 rounded-lg hover:bg-muted/60 hover:border-primary/50 transition-colors" onClick={() => setQuickSolAmount(v)}>
-                                      {v} SOL
+                                    <Button 
+                                      key={v} 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-7 px-2 text-xs shrink-0 rounded-md bg-muted/50 hover:bg-primary/10 hover:border-primary/50 hover:text-primary font-medium transition-all" 
+                                      onClick={() => setQuickSolAmount(v)}
+                                    >
+                                      {v}
                                     </Button>
                                   ))}
                                 </div>
                               ) : null}
                             </div>
 
-                            <div className="space-y-2">
-                              <Label className="text-muted-foreground text-sm">
+                            <div className="space-y-1.5">
+                              <Label className="text-muted-foreground/80 text-[11px]">
                                 {swapMode === 'buy'
                                   ? `${t.receive} (${selectedToken.symbol})`
                                   : `${t.receive} (SOL)`}
@@ -1956,7 +2031,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                 placeholder="0.00"
                                 value={quoteLoading ? '...' : outputAmount}
                                 readOnly
-                                className="bg-muted/50 border-border/50 text-lg h-12 rounded-xl font-mono focus:ring-2 focus:ring-primary/20"
+                                className="bg-muted/40 border-border/40 text-base h-9 rounded-lg font-mono"
                               />
                               {quoteLoading ? (
                                 <div className="text-xs text-muted-foreground flex items-center gap-2">
@@ -1966,8 +2041,8 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                               ) : null}
                             </div>
 
-                            <div className="space-y-2">
-                              <Label className="text-muted-foreground text-sm">{t.slippage}</Label>
+                            <div className="space-y-1.5">
+                              <Label className="text-muted-foreground/80 text-[11px]">{t.slippage}</Label>
                               <div className="flex flex-wrap gap-2">
                                 {SLIPPAGE_OPTIONS.map((option) => (
                                   <Button
@@ -1978,7 +2053,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                       setSlippage(option);
                                       setCustomSlippage('');
                                     }}
-                                    className={'h-8 rounded-lg font-medium ' + (slippage === option ? 'bg-primary shadow-md' : 'hover:bg-muted/60')}
+                                    className={'h-7 px-2 text-xs rounded-md font-medium ' + (slippage === option ? 'bg-primary shadow-sm' : 'hover:bg-muted/60')}
                                   >
                                     {option}%
                                   </Button>
@@ -1992,7 +2067,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                                     const val = parseFloat(e.target.value);
                                     if (val > 0 && val <= 50) setSlippage(val);
                                   }}
-                                  className="w-20 h-8 bg-background border-border text-sm"
+                                  className="w-16 h-7 bg-background border-border text-xs rounded-md"
                                 />
                               </div>
                             </div>
@@ -2000,27 +2075,28 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                 </Card>
 
                 {/* Sticky action bar (terminal-style) */}
-                <div className="sticky bottom-0 left-0 right-0 -mx-4 mt-4 border-t border-border/50 bg-background/98 backdrop-blur-xl px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)]">
+                <div className="sticky bottom-0 left-0 right-0 -mx-4 mt-3 border-t border-border/30 bg-background/95 backdrop-blur-lg px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
                   {!wallet.connected ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Button
                         size="lg"
-                        className="w-full h-11 sm:h-12 bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 hover:from-violet-600 hover:via-purple-600 hover:to-indigo-600 text-white font-semibold shadow-lg shadow-purple-500/25 rounded-xl transition-all"
+                        className="w-full h-11 bg-gradient-to-r from-[#9945FF] via-[#14F195] to-[#9945FF] bg-[length:200%_100%] animate-gradient hover:shadow-xl hover:scale-[1.02] text-white font-bold shadow-lg rounded-xl transition-all duration-300 flex items-center justify-center gap-2"
                         onClick={() => setWalletModalVisible(true)}
                       >
+                        <SolanaMark className="w-5 h-5" />
                         {t.connectWallet}
                       </Button>
                       <div className="text-xs text-muted-foreground">{t.connectFromNavbar}</div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         size="lg"
                         className={
                           (swapMode === 'buy'
                             ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/25 font-semibold'
                             : 'bg-muted/60 text-foreground/80 hover:bg-muted/90 border border-border/50') +
-                          ' h-10 sm:h-12 w-full'
+                          ' h-9 w-full rounded-lg text-sm'
                         }
                         onClick={() => {
                           if (swapMode !== 'buy') {
@@ -2050,7 +2126,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           (swapMode === 'sell'
                             ? 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white shadow-lg shadow-rose-500/25 font-semibold'
                             : 'bg-muted/60 text-foreground/80 hover:bg-muted/90 border border-border/50') +
-                          ' h-10 sm:h-12 w-full'
+                          ' h-9 w-full rounded-lg text-sm'
                         }
                         onClick={() => {
                           if (swapMode !== 'sell') {
