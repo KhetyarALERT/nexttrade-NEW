@@ -1089,8 +1089,8 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             </div>
 
             {/* Token Table - Desktop */}
-            <Card className="hidden sm:block bg-card border-border overflow-hidden">
-              <div className="overflow-x-auto">
+            <Card className="hidden sm:block bg-card border-border overflow-hidden max-h-[calc(100vh-280px)]">
+              <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
@@ -1293,7 +1293,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             </Card>
 
             {/* Token List - Mobile */}
-            <div className="sm:hidden space-y-2">
+            <div className="sm:hidden space-y-2 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
               {loading ? (
                 <Card className="bg-card border-border p-8 text-center">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
@@ -1325,7 +1325,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         )}
                         <div>
                           <div className="font-semibold">{token.symbol}</div>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] text-muted-foreground">
                             <span className="font-mono">{formatPrice(token.price)}</span>
                             {token.pairCreatedAt ? (
                               <span className="inline-flex items-center gap-1">
@@ -1447,27 +1447,27 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                   <div className="p-4 space-y-4">
                     {/* Compact stats */}
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{t.price}</div>
-                        <div className="text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.price}</div>
+                        <div className="text-xs sm:text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
                       </Card>
-                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{timeframe} %</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{timeframe} %</div>
                         <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                           {formatChange(getTokenChange(selectedToken))}
                         </div>
                       </Card>
-                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
-                        <div className="text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
+                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
                       </Card>
-                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{t.marketCap}</div>
-                        <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.marketCap}</div>
+                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
                       </Card>
-                      <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                        <div className="text-[11px] text-muted-foreground">{t.liquidity}</div>
-                        <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                      <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                        <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.liquidity}</div>
+                        <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
                       </Card>
                     </div>
 
@@ -1718,7 +1718,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             <div className="flex flex-col h-full">
               {/* Chart-first layout */}
               <div className="relative">
-                <div className="relative h-[56vh] min-h-[360px] max-h-[520px] w-full bg-background overflow-hidden">
+                <div className="relative h-[45vh] min-h-[280px] max-h-[380px] w-full bg-background overflow-hidden">
                   {getDexScreenerEmbedUrl(selectedToken) ? (
                     <iframe
                       title={`${selectedToken.symbol} chart`}
@@ -1735,7 +1735,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                 </div>
 
                 {/* Compact overlay header */}
-                <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-background/90 to-transparent">
+                <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-background/60 dark:from-background/80 to-transparent">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -1807,27 +1807,27 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {/* Compact stats row */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{t.price}</div>
-                    <div className="text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
+                  <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.price}</div>
+                    <div className="text-xs sm:text-sm font-bold font-mono">{formatPrice(selectedToken.price)}</div>
                   </Card>
-                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{timeframe} %</div>
+                  <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{timeframe} %</div>
                     <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                       {formatChange(getTokenChange(selectedToken))}
                     </div>
                   </Card>
-                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
-                    <div className="text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
+                  <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.volume} {timeframe}</div>
+                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(getTokenVolume(selectedToken))}</div>
                   </Card>
-                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{t.marketCap}</div>
-                    <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
+                  <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.marketCap}</div>
+                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.marketCap)}</div>
                   </Card>
-                  <Card className="shrink-0 bg-muted/30 border-border px-3 py-2">
-                    <div className="text-[11px] text-muted-foreground">{t.liquidity}</div>
-                    <div className="text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
+                  <Card className="shrink-0 bg-muted/30 border-border px-2 py-1.5 sm:px-3 sm:py-2">
+                    <div className="text-[10px] sm:text-[11px] text-muted-foreground">{t.liquidity}</div>
+                    <div className="text-xs sm:text-sm font-bold font-mono">{formatVolume(selectedToken.liquidity)}</div>
                   </Card>
                 </div>
 
@@ -1986,7 +1986,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                     <div className="space-y-2">
                       <Button
                         size="lg"
-                        className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="w-full h-10 sm:h-12 bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={() => setWalletModalVisible(true)}
                       >
                         {t.connectWallet}
@@ -2001,7 +2001,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           (swapMode === 'buy'
                             ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                             : 'bg-muted text-foreground hover:bg-muted/80') +
-                          ' h-12 w-full'
+                          ' h-10 sm:h-12 w-full'
                         }
                         onClick={() => {
                           if (swapMode !== 'buy') {
@@ -2031,7 +2031,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                           (swapMode === 'sell'
                             ? 'bg-rose-600 hover:bg-rose-700 text-white'
                             : 'bg-muted text-foreground hover:bg-muted/80') +
-                          ' h-12 w-full'
+                          ' h-10 sm:h-12 w-full'
                         }
                         onClick={() => {
                           if (swapMode !== 'sell') {
