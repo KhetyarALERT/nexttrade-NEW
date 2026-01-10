@@ -1481,25 +1481,25 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
-                      </Card>
+                      </div>
                       <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                         <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                           {formatChange(getTokenChange(selectedToken))}
                         </div>
-                      </Card>
+                      </div>
                       <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
-                      </Card>
+                      </div>
                       <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
-                      </Card>
+                      </div>
                       <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
-                      </Card>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
@@ -1766,7 +1766,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             <div className="flex flex-col h-full">
               {/* Chart-first layout */}
               <div className="relative">
-                <div className="relative h-[35vh] min-h-[200px] max-h-[280px] w-full bg-background overflow-hidden rounded-b-xl">
+                <div className="relative h-[50vh] min-h-[300px] max-h-[400px] w-full bg-background overflow-hidden rounded-b-xl">
                   {getDexScreenerEmbedUrl(selectedToken) ? (
                     <iframe
                       title={`${selectedToken.symbol} chart`}
@@ -1857,25 +1857,25 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                   <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
-                  </Card>
+                  </div>
                   <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                     <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                       {formatChange(getTokenChange(selectedToken))}
                     </div>
-                  </Card>
+                  </div>
                   <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
-                  </Card>
+                  </div>
                   <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
-                  </Card>
+                  </div>
                   <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
-                  </Card>
+                  </div>
                 </div>
 
                 {/* Socials / launch */}
