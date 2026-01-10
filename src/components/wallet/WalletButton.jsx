@@ -27,12 +27,6 @@ const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
-const isPWA = () => {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(display-mode: standalone)').matches ||
-         window.navigator.standalone === true;
-};
-
 // Deep link URLs for mobile wallets
 const getPhantomDeepLink = () => {
   const currentUrl = encodeURIComponent(window.location.href);
@@ -208,7 +202,7 @@ export function WalletButton({ language = 'en', className = '' }) {
   const handleConnectSolflare = async () => {
     setShowConnectDialog(false);
     
-    const solflareAvailable = window.solflare && window.solflare.isSolflare;
+    const solflareAvailable = Boolean(window.solflare && /** @type {any} */ (window.solflare).isSolflare);
     
     if (solflareAvailable) {
       try {
@@ -323,7 +317,7 @@ export function WalletButton({ language = 'en', className = '' }) {
           src={icon} 
           alt={name}
           className="w-7 h-7 object-contain"
-          onError={(e) => { e.target.style.display = 'none'; }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
       </div>
       <div className="flex-1 text-left">

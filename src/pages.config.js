@@ -12,6 +12,8 @@ import Futures from './pages/Futures';
 import Trading from './pages/Trading';
 import MemeCoins from './pages/MemeCoins';
 import index from './pages/index';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import __Layout from './Layout.jsx';
 
 
@@ -28,6 +30,8 @@ export const PAGES = {
     "OnChainDeposit": OnChainDeposit,
     "Profile": Profile,
     "Rewards": Rewards,
+    "privacy-policy": PrivacyPolicy,
+    "terms-of-service": TermsOfService,
     // Backward compatible route (older links may still point to /Trading)
     "Trading": Futures,
     "index": index,

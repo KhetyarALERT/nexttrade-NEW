@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -338,7 +337,7 @@ const getMetricColor = (value, type) => {
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export default function MemeCoins() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey: _publicKey } = useWallet();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -377,7 +376,7 @@ export default function MemeCoins() {
       if (storedLang === 'ar' || storedLang === 'en') {
         setLanguage(storedLang);
       }
-    } catch (e) {
+    } catch {
       // Ignore
     }
 
@@ -459,7 +458,7 @@ export default function MemeCoins() {
               allPairs.push(...data.pairs);
             }
           }
-        } catch (e) {
+        } catch {
           console.log(`Failed to fetch ${term}`);
         }
       }
