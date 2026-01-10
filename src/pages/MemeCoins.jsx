@@ -71,6 +71,13 @@ const GlobeIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+// Zap icon for Quick Buy
+const ZapIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+  </svg>
+);
+
 // === UI ICONS ===
 const Icons = {
   Search: ({ className = "w-4 h-4" }) => (
@@ -179,11 +186,14 @@ const Icons = {
       <path d="M12 17h.01"/>
     </svg>
   ),
-  ExternalLink: ({ className = "w-4 h-4" }) => (
+  GripVertical: ({ className = "w-4 h-4" }) => (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-      <polyline points="15 3 21 3 21 9"/>
-      <line x1="10" x2="21" y1="14" y2="3"/>
+      <circle cx="9" cy="5" r="1"/>
+      <circle cx="9" cy="12" r="1"/>
+      <circle cx="9" cy="19" r="1"/>
+      <circle cx="15" cy="5" r="1"/>
+      <circle cx="15" cy="12" r="1"/>
+      <circle cx="15" cy="19" r="1"/>
     </svg>
   ),
 };
@@ -199,7 +209,7 @@ const translations = {
     buy: 'Buy',
     sell: 'Sell',
     enterAmount: 'Enter amount',
-    connectWallet: 'Connect Wallet',
+    connectWallet: 'Connect wallet to trade',
     mcap: 'MCap',
     liq: 'Liq',
     vol: 'Vol',
@@ -224,6 +234,9 @@ const translations = {
     minVolume: 'Min Volume',
     maxAge: 'Max Age',
     any: 'Any',
+    youGet: 'You get',
+    fetching: 'Fetching quote...',
+    quickBuy: 'Quick Buy',
   },
   ar: {
     title: 'عملات سولانا الميم',
@@ -234,7 +247,7 @@ const translations = {
     buy: 'شراء',
     sell: 'بيع',
     enterAmount: 'أدخل المبلغ',
-    connectWallet: 'ربط المحفظة',
+    connectWallet: 'اربط محفظتك للتداول',
     mcap: 'القيمة',
     liq: 'السيولة',
     vol: 'الحجم',
@@ -259,6 +272,9 @@ const translations = {
     minVolume: 'الحد الأدنى للحجم',
     maxAge: 'الحد الأقصى للعمر',
     any: 'الكل',
+    youGet: 'ستحصل على',
+    fetching: 'جاري جلب السعر...',
+    quickBuy: 'شراء سريع',
   },
 };
 
@@ -288,25 +304,38 @@ const formatTimeAgo = (timestamp) => {
   return `${Math.floor(seconds / 86400)}d`;
 };
 
+const formatTokenAmount = (amount, decimals = 6) => {
+  if (!amount) return '0';
+  const num = parseFloat(amount) / Math.pow(10, decimals);
+  if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+  if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+  if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+  if (num < 0.001) return num.toFixed(6);
+  return num.toFixed(4);
+};
+
 // Get color based on value tier
 const getMetricColor = (value, type) => {
   if (type === 'mcap') {
-    if (value >= 1e6) return 'text-emerald-500'; // Green: $1M+
-    if (value >= 100000) return 'text-amber-500'; // Yellow: $100K+
-    return 'text-rose-500'; // Red: <$100K
+    if (value >= 1e6) return 'text-emerald-500';
+    if (value >= 100000) return 'text-amber-500';
+    return 'text-rose-500';
   }
   if (type === 'liq') {
-    if (value >= 100000) return 'text-emerald-500'; // Green: $100K+
-    if (value >= 10000) return 'text-amber-500'; // Yellow: $10K+
-    return 'text-rose-500'; // Red: <$10K
+    if (value >= 100000) return 'text-emerald-500';
+    if (value >= 10000) return 'text-amber-500';
+    return 'text-rose-500';
   }
   if (type === 'vol') {
-    if (value >= 100000) return 'text-emerald-500'; // Green: $100K+
-    if (value >= 10000) return 'text-amber-500'; // Yellow: $10K+
-    return 'text-rose-500'; // Red: <$10K
+    if (value >= 100000) return 'text-emerald-500';
+    if (value >= 10000) return 'text-amber-500';
+    return 'text-rose-500';
   }
   return 'text-foreground';
 };
+
+// SOL mint address (native SOL wrapped)
+const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
 export default function MemeCoins() {
   const { connected, publicKey } = useWallet();
@@ -330,7 +359,13 @@ export default function MemeCoins() {
   });
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [language, setLanguage] = useState('en');
+  const [panelWidth, setPanelWidth] = useState(30); // Token list width percentage
+  const [isDragging, setIsDragging] = useState(false);
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const refreshIntervalRef = useRef(null);
+  const quoteTimeoutRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Get translations
   const t = translations[language] || translations.en;
@@ -346,7 +381,6 @@ export default function MemeCoins() {
       // Ignore
     }
 
-    // Listen for language changes
     const handleStorage = (e) => {
       if (e.key === 'app_language') {
         setLanguage(e.newValue === 'ar' ? 'ar' : 'en');
@@ -354,6 +388,59 @@ export default function MemeCoins() {
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Fetch Jupiter quote
+  const fetchQuote = useCallback(async (inputAmount, outputMint) => {
+    if (!inputAmount || parseFloat(inputAmount) <= 0 || !outputMint) {
+      setQuote(null);
+      return;
+    }
+
+    // Clear previous timeout
+    if (quoteTimeoutRef.current) {
+      clearTimeout(quoteTimeoutRef.current);
+    }
+
+    // Debounce quote fetching
+    quoteTimeoutRef.current = setTimeout(async () => {
+      setQuoteLoading(true);
+      try {
+        const inputAmountLamports = Math.floor(parseFloat(inputAmount) * 1e9); // SOL has 9 decimals
+        const response = await fetch(
+          `https://quote-api.jup.ag/v6/quote?inputMint=${SOL_MINT}&outputMint=${outputMint}&amount=${inputAmountLamports}&slippageBps=50`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setQuote(data);
+        } else {
+          setQuote(null);
+        }
+      } catch (err) {
+        console.error('Quote error:', err);
+        setQuote(null);
+      } finally {
+        setQuoteLoading(false);
+      }
+    }, 500);
+  }, []);
+
+  // Fetch quote when amount or token changes
+  useEffect(() => {
+    if (selectedToken && amount && tradeMode === 'buy') {
+      fetchQuote(amount, selectedToken.address);
+    } else {
+      setQuote(null);
+    }
+  }, [amount, selectedToken, tradeMode, fetchQuote]);
+
+  // Cleanup quote timeout
+  useEffect(() => {
+    return () => {
+      if (quoteTimeoutRef.current) {
+        clearTimeout(quoteTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Fetch tokens from DexScreener
@@ -431,6 +518,34 @@ export default function MemeCoins() {
     };
   }, [fetchTokens]);
 
+  // Panel resize handlers
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || !containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    setPanelWidth(Math.min(Math.max(newWidth, 20), 50)); // Min 20%, max 50%
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
   const getVolumePressure = (token) => {
     const buys = token.txns?.[timeframe]?.buys || 0;
     const sells = token.txns?.[timeframe]?.sells || 0;
@@ -499,7 +614,15 @@ export default function MemeCoins() {
     setTimeout(() => setCopiedAddress(false), 2000);
   };
 
-  // Token Card Component
+  // Quick buy handler
+  const handleQuickBuy = (token, e) => {
+    e.stopPropagation();
+    setSelectedToken(token);
+    setAmount('0.1'); // Preset amount
+    setTradeMode('buy');
+  };
+
+  // Compact Token Card Component
   const TokenCard = ({ token }) => {
     const pressure = getVolumePressure(token);
     const change = token.priceChange?.[timeframe] || 0;
@@ -508,122 +631,83 @@ export default function MemeCoins() {
     const volValue = token.volume?.[timeframe] || 0;
 
     return (
-      <Card
-        className={`cursor-pointer transition-all duration-200 border ${
+      <div
+        className={`cursor-pointer transition-all duration-150 rounded-lg border p-2 ${
           selectedToken?.id === token.id
             ? 'ring-2 ring-primary/50 border-primary/30 bg-primary/5'
-            : 'hover:border-border/80 hover:bg-muted/30'
+            : 'border-border/50 hover:border-border hover:bg-muted/20'
         }`}
         onClick={() => setSelectedToken(token)}
       >
-        <CardContent className="p-3">
-          {/* Header */}
-          <div className="flex items-center gap-2.5 mb-2.5">
-            {token.imageUrl ? (
-              <img src={token.imageUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0 ring-2 ring-border/30" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ring-2 ring-border/30">
-                {token.symbol?.charAt(0)}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold truncate text-foreground">{token.symbol}</span>
-                {isNew && (
-                  <Badge className="text-[9px] px-1.5 py-0 bg-emerald-500/90 text-white border-0">NEW</Badge>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground truncate">{token.name}</div>
+        {/* Row 1: Token info + Price + Quick Buy */}
+        <div className="flex items-center gap-2">
+          {token.imageUrl ? (
+            <img src={token.imageUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {token.symbol?.charAt(0)}
             </div>
-            <div className="text-right flex-shrink-0">
-              <div className="font-mono font-semibold text-foreground">{formatPrice(token.price)}</div>
-              <div className={`text-xs font-medium flex items-center justify-end gap-0.5 ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {isPositive ? <Icons.ArrowUp /> : <Icons.ArrowDown />}
-                {Math.abs(change).toFixed(2)}%
-              </div>
-            </div>
-          </div>
-
-          {/* Stats with colors */}
-          <div className="grid grid-cols-4 gap-1.5 text-[10px] mb-2.5">
-            <div className="text-center p-1.5 bg-muted/50 rounded-md">
-              <div className="text-muted-foreground">{t.mcap}</div>
-              <div className={`font-semibold ${getMetricColor(token.marketCap, 'mcap')}`}>
-                ${formatNumber(token.marketCap)}
-              </div>
-            </div>
-            <div className="text-center p-1.5 bg-muted/50 rounded-md">
-              <div className="text-muted-foreground">{t.liq}</div>
-              <div className={`font-semibold ${getMetricColor(token.liquidity, 'liq')}`}>
-                ${formatNumber(token.liquidity)}
-              </div>
-            </div>
-            <div className="text-center p-1.5 bg-muted/50 rounded-md">
-              <div className="text-muted-foreground">{t.vol}</div>
-              <div className={`font-semibold ${getMetricColor(volValue, 'vol')}`}>
-                ${formatNumber(volValue)}
-              </div>
-            </div>
-            <div className="text-center p-1.5 bg-muted/50 rounded-md">
-              <div className="text-muted-foreground">{t.age}</div>
-              <div className="font-semibold text-foreground">{formatTimeAgo(token.pairCreatedAt)}</div>
-            </div>
-          </div>
-
-          {/* Volume Pressure */}
-          <div className="mb-2.5">
-            <div className="flex justify-between text-[10px] mb-1 font-medium">
-              <span className="text-emerald-500">{t.buy} {pressure.buyPercent}%</span>
-              <span className="text-rose-500">{t.sell} {pressure.sellPercent}%</span>
-            </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden flex">
-              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pressure.buyPercent}%` }} />
-              <div className="h-full bg-rose-500 transition-all" style={{ width: `${pressure.sellPercent}%` }} />
-            </div>
-          </div>
-
-          {/* Social Links with Official Logos */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1">
-              {token.websites?.length > 0 && (
-                <a
-                  href={token.websites[0].url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                  title="Website"
-                >
-                  <GlobeIcon className="w-4 h-4" />
-                </a>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-sm truncate text-foreground">{token.symbol}</span>
+              {isNew && (
+                <Badge className="text-[8px] px-1 py-0 bg-emerald-500/90 text-white border-0 h-4">NEW</Badge>
               )}
-              {token.socials?.map((social, i) => (
-                <a
-                  key={i}
-                  href={social.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                  title={social.type === 'twitter' ? 'X (Twitter)' : social.type === 'telegram' ? 'Telegram' : social.type}
-                >
-                  {social.type === 'twitter' ? <XLogo className="w-4 h-4" /> : <TelegramLogo className="w-4 h-4" />}
-                </a>
-              ))}
             </div>
-            <a
-              href={token.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-              title="DexScreener"
-            >
-              <DexScreenerLogo className="w-4 h-4" />
-            </a>
+            <div className="text-[10px] text-muted-foreground truncate">{token.name}</div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="text-right flex-shrink-0">
+            <div className="font-mono font-semibold text-sm text-foreground">{formatPrice(token.price)}</div>
+            <div className={`text-[10px] font-medium flex items-center justify-end gap-0.5 ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {isPositive ? <Icons.ArrowUp className="w-2.5 h-2.5" /> : <Icons.ArrowDown className="w-2.5 h-2.5" />}
+              {Math.abs(change).toFixed(1)}%
+            </div>
+          </div>
+          {/* Quick Buy Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => handleQuickBuy(token, e)}
+                className="flex-shrink-0 p-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors"
+              >
+                <div className="flex items-center gap-0.5">
+                  <SolanaLogo className="w-3.5 h-3.5" />
+                  <ZapIcon className="w-3 h-3" />
+                </div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{t.quickBuy} 0.1 SOL</TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Row 2: Stats */}
+        <div className="flex items-center gap-2 mt-1.5 text-[10px]">
+          <span className={`${getMetricColor(token.marketCap, 'mcap')}`}>
+            {t.mcap}: ${formatNumber(token.marketCap)}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className={`${getMetricColor(token.liquidity, 'liq')}`}>
+            {t.liq}: ${formatNumber(token.liquidity)}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className={`${getMetricColor(volValue, 'vol')}`}>
+            {t.vol}: ${formatNumber(volValue)}
+          </span>
+          <span className="text-muted-foreground">•</span>
+          <span className="text-foreground">
+            {formatTimeAgo(token.pairCreatedAt)}
+          </span>
+        </div>
+
+        {/* Row 3: Volume Pressure Bar */}
+        <div className="mt-1.5">
+          <div className="h-1 rounded-full bg-muted overflow-hidden flex">
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pressure.buyPercent}%` }} />
+            <div className="h-full bg-rose-500 transition-all" style={{ width: `${pressure.sellPercent}%` }} />
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -635,154 +719,113 @@ export default function MemeCoins() {
     const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
     const volValue = token.volume?.h24 || 0;
 
+    // Get token decimals from quote or default to 6
+    const tokenDecimals = quote?.outputMint === token.address ? (quote?.outputDecimals || 6) : 6;
+
     return (
       <div className="h-full flex flex-col bg-background">
-        {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
+        {/* Header - Compact */}
+        <div className="flex items-center justify-between p-2 border-b border-border flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
             {token.imageUrl ? (
-              <img src={token.imageUrl} alt="" className="w-9 h-9 rounded-full flex-shrink-0 ring-2 ring-border/30" />
+              <img src={token.imageUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {token.symbol?.charAt(0)}
               </div>
             )}
             <div className="min-w-0">
-              <div className="font-semibold truncate text-foreground">{token.symbol}</div>
-              <div className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-none">{token.name}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-right">
-              <div className="font-mono font-semibold text-foreground">{formatPrice(token.price)}</div>
-              <div className={`text-xs font-medium flex items-center justify-end gap-0.5 ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {isPositive ? <Icons.ArrowUp /> : <Icons.ArrowDown />}
-                {Math.abs(change).toFixed(2)}%
+              <div className="font-semibold text-sm truncate text-foreground max-w-[100px] sm:max-w-none">{token.symbol}</div>
+              <div className={`text-xs font-medium flex items-center gap-0.5 ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {formatPrice(token.price)}
+                <span className="ml-1">{isPositive ? '+' : ''}{change.toFixed(1)}%</span>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg lg:hidden transition-colors"
-            >
-              <Icons.X />
+          </div>
+          <div className="flex items-center gap-1">
+            {/* Social Links Compact */}
+            {token.websites?.slice(0, 1).map((site, i) => (
+              <a key={i} href={site.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+                <GlobeIcon className="w-4 h-4" />
+              </a>
+            ))}
+            {token.socials?.slice(0, 2).map((social, i) => (
+              <a key={i} href={social.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+                {social.type === 'twitter' ? <XLogo className="w-4 h-4" /> : <TelegramLogo className="w-4 h-4" />}
+              </a>
+            ))}
+            <a href={token.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+              <DexScreenerLogo className="w-4 h-4" />
+            </a>
+            <button onClick={onClose} className="p-1.5 hover:bg-muted rounded lg:hidden transition-colors">
+              <Icons.X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Chart - Large with minimal info overlay */}
-        <div className="flex-1 min-h-[350px] md:min-h-[400px]" style={{ colorScheme: 'normal' }}>
+        {/* Chart - Large */}
+        <div className="flex-1 min-h-[300px] sm:min-h-[350px]" style={{ colorScheme: 'normal' }}>
           <iframe
             src={`https://dexscreener.com/solana/${token.address}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=${isDark ? 'dark' : 'light'}&theme=${isDark ? 'dark' : 'light'}&chartStyle=1&chartType=usd&interval=15`}
             className="w-full h-full border-0"
-            style={{ colorScheme: 'normal', minHeight: '350px' }}
+            style={{ colorScheme: 'normal', minHeight: '300px' }}
             title="Price Chart"
           />
         </div>
 
-        {/* Token Info - Compact */}
-        <div className="p-3 border-t border-border flex-shrink-0">
-          {/* Stats with colors */}
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            <div className="text-center p-2 bg-muted/50 rounded-lg">
-              <div className="text-[10px] text-muted-foreground">{t.mcap}</div>
-              <div className={`text-sm font-semibold ${getMetricColor(token.marketCap, 'mcap')}`}>
-                ${formatNumber(token.marketCap)}
-              </div>
+        {/* Stats Row */}
+        <div className="p-2 border-t border-border flex-shrink-0">
+          <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+            <div className="p-1.5 bg-muted/40 rounded">
+              <div className="text-muted-foreground">{t.mcap}</div>
+              <div className={`font-semibold ${getMetricColor(token.marketCap, 'mcap')}`}>${formatNumber(token.marketCap)}</div>
             </div>
-            <div className="text-center p-2 bg-muted/50 rounded-lg">
-              <div className="text-[10px] text-muted-foreground">{t.liq}</div>
-              <div className={`text-sm font-semibold ${getMetricColor(token.liquidity, 'liq')}`}>
-                ${formatNumber(token.liquidity)}
-              </div>
+            <div className="p-1.5 bg-muted/40 rounded">
+              <div className="text-muted-foreground">{t.liq}</div>
+              <div className={`font-semibold ${getMetricColor(token.liquidity, 'liq')}`}>${formatNumber(token.liquidity)}</div>
             </div>
-            <div className="text-center p-2 bg-muted/50 rounded-lg">
-              <div className="text-[10px] text-muted-foreground">{t.vol} 24h</div>
-              <div className={`text-sm font-semibold ${getMetricColor(volValue, 'vol')}`}>
-                ${formatNumber(volValue)}
-              </div>
+            <div className="p-1.5 bg-muted/40 rounded">
+              <div className="text-muted-foreground">{t.vol} 24h</div>
+              <div className={`font-semibold ${getMetricColor(volValue, 'vol')}`}>${formatNumber(volValue)}</div>
             </div>
-            <div className="text-center p-2 bg-muted/50 rounded-lg">
-              <div className="text-[10px] text-muted-foreground">{t.created}</div>
-              <div className="text-sm font-semibold text-foreground">{formatTimeAgo(token.pairCreatedAt)}</div>
+            <div className="p-1.5 bg-muted/40 rounded">
+              <div className="text-muted-foreground">{t.created}</div>
+              <div className="font-semibold text-foreground">{formatTimeAgo(token.pairCreatedAt)}</div>
             </div>
           </div>
 
           {/* Volume Pressure */}
-          <div className="mb-3">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-emerald-500 font-medium">{t.buys}: {pressure.buys}</span>
-              <span className={`font-semibold ${
-                pressure.pressure === 'bullish' ? 'text-emerald-500' :
-                pressure.pressure === 'bearish' ? 'text-rose-500' : 'text-muted-foreground'
-              }`}>
-                {pressure.pressure === 'bullish' ? t.bullish : pressure.pressure === 'bearish' ? t.bearish : t.neutral}
-              </span>
-              <span className="text-rose-500 font-medium">{t.sells}: {pressure.sells}</span>
+          <div className="mt-2">
+            <div className="flex justify-between text-[10px] mb-0.5">
+              <span className="text-emerald-500">{t.buys}: {pressure.buys} ({pressure.buyPercent}%)</span>
+              <span className="text-rose-500">{t.sells}: {pressure.sells} ({pressure.sellPercent}%)</span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden flex">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden flex">
               <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pressure.buyPercent}%` }} />
               <div className="h-full bg-rose-500 transition-all" style={{ width: `${pressure.sellPercent}%` }} />
             </div>
           </div>
 
-          {/* Contract + Links */}
-          <div className="flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg mb-3">
-            <span className="text-xs text-muted-foreground flex-shrink-0">CA:</span>
-            <span className="font-mono text-xs truncate flex-1 text-foreground">{token.address}</span>
-            <button
-              onClick={() => copyAddress(token.address)}
-              className="p-1.5 hover:bg-muted rounded-md flex-shrink-0 transition-colors"
-            >
-              {copiedAddress ? <Icons.Check className="w-4 h-4 text-emerald-500" /> : <Icons.Copy className="w-4 h-4 text-muted-foreground" />}
+          {/* Contract */}
+          <div className="flex items-center gap-1.5 mt-2 p-1.5 bg-muted/40 rounded text-[10px]">
+            <span className="text-muted-foreground">CA:</span>
+            <span className="font-mono truncate flex-1 text-foreground">{token.address}</span>
+            <button onClick={() => copyAddress(token.address)} className="p-1 hover:bg-muted rounded flex-shrink-0">
+              {copiedAddress ? <Icons.Check className="w-3 h-3 text-emerald-500" /> : <Icons.Copy className="w-3 h-3 text-muted-foreground" />}
             </button>
-          </div>
-
-          {/* Social Links with Official Logos */}
-          <div className="flex flex-wrap gap-2 mb-3">
-            {token.websites?.slice(0, 1).map((site, i) => (
-              <a
-                key={i}
-                href={site.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 bg-muted/70 hover:bg-muted rounded-lg text-xs font-medium transition-colors text-foreground"
-              >
-                <GlobeIcon className="w-4 h-4" /> {t.website}
-              </a>
-            ))}
-            {token.socials?.map((social, i) => (
-              <a
-                key={i}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 bg-muted/70 hover:bg-muted rounded-lg text-xs font-medium transition-colors text-foreground"
-              >
-                {social.type === 'twitter' ? (
-                  <><XLogo className="w-4 h-4" /> X</>
-                ) : (
-                  <><TelegramLogo className="w-4 h-4" /> Telegram</>
-                )}
-              </a>
-            ))}
-            <a
-              href={token.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 bg-muted/70 hover:bg-muted rounded-lg text-xs font-medium transition-colors text-foreground"
-            >
-              <DexScreenerLogo className="w-4 h-4" /> DEX
-            </a>
           </div>
         </div>
 
         {/* Trade Section */}
-        <div className="p-3 border-t border-border flex-shrink-0">
+        <div className="p-2 border-t border-border flex-shrink-0">
           {/* Buy/Sell Toggle */}
-          <div className="flex mb-3 p-1 bg-muted rounded-lg">
+          <div className="flex mb-2 p-0.5 bg-muted rounded-lg">
             <button
               onClick={() => setTradeMode('buy')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-all ${
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
                 tradeMode === 'buy'
                   ? 'bg-emerald-500 text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -792,7 +835,7 @@ export default function MemeCoins() {
             </button>
             <button
               onClick={() => setTradeMode('sell')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition-all ${
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${
                 tradeMode === 'sell'
                   ? 'bg-rose-500 text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -803,15 +846,15 @@ export default function MemeCoins() {
           </div>
 
           {/* Amount Buttons */}
-          <div className="grid grid-cols-5 gap-1.5 mb-3">
+          <div className="grid grid-cols-5 gap-1 mb-2">
             {['0.1', '0.5', '1', '2', '5'].map((val) => (
               <button
                 key={val}
                 onClick={() => setAmount(val)}
-                className={`py-2.5 text-xs font-semibold rounded-lg transition-all ${
+                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                   amount === val
                     ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted/70 hover:bg-muted text-foreground'
+                    : 'bg-muted/60 hover:bg-muted text-foreground'
                 }`}
               >
                 {val}
@@ -820,24 +863,51 @@ export default function MemeCoins() {
           </div>
 
           {/* Amount Input */}
-          <div className="relative mb-3">
+          <div className="relative mb-2">
             <Input
               type="number"
               placeholder={t.enterAmount}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="pr-16 h-12 text-base"
+              className="pr-16 h-11 text-base"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-sm text-muted-foreground font-medium">
               <SolanaLogo className="w-4 h-4" />
               SOL
             </span>
           </div>
 
-          {/* Trade Button - Uses main wallet connection */}
+          {/* Quote Display */}
+          {tradeMode === 'buy' && amount && parseFloat(amount) > 0 && (
+            <div className="mb-2 p-2 bg-muted/40 rounded-lg text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.youGet}:</span>
+                {quoteLoading ? (
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Icons.Loader className="w-3 h-3" />
+                    {t.fetching}
+                  </span>
+                ) : quote?.outAmount ? (
+                  <span className="font-semibold text-foreground flex items-center gap-1">
+                    {formatTokenAmount(quote.outAmount, tokenDecimals)} {token.symbol}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+              {quote?.priceImpactPct && parseFloat(quote.priceImpactPct) > 1 && (
+                <div className="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                  <Icons.AlertTriangle className="w-3 h-3" />
+                  Price impact: {parseFloat(quote.priceImpactPct).toFixed(2)}%
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Trade Button */}
           {connected ? (
             <Button
-              className={`w-full h-12 font-semibold text-base transition-all ${
+              className={`w-full h-11 font-semibold text-base transition-all ${
                 tradeMode === 'buy'
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
                   : 'bg-rose-500 hover:bg-rose-600 text-white'
@@ -847,7 +917,7 @@ export default function MemeCoins() {
               {tradeMode === 'buy' ? t.buy : t.sell} {token.symbol}
             </Button>
           ) : (
-            <div className="text-center py-3 text-sm text-muted-foreground">
+            <div className="text-center py-2.5 text-sm text-muted-foreground bg-muted/40 rounded-lg">
               {t.connectWallet}
             </div>
           )}
@@ -860,13 +930,13 @@ export default function MemeCoins() {
     <TooltipProvider>
       <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden" dir="ltr">
         {/* Header */}
-        <div className="flex-shrink-0 p-3 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
+        <div className="flex-shrink-0 p-2 border-b border-border">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <SolanaLogo className="w-6 h-6" />
-              <h1 className="text-lg font-bold text-foreground">{t.title}</h1>
+              <SolanaLogo className="w-5 h-5" />
+              <h1 className="text-base font-bold text-foreground">{t.title}</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {lastUpdated && (
                 <span className="text-[10px] text-muted-foreground hidden sm:block">
                   {formatTimeAgo(lastUpdated.getTime())}
@@ -879,7 +949,7 @@ export default function MemeCoins() {
                     size="sm"
                     onClick={() => { setLoading(true); fetchTokens(); }}
                     disabled={loading}
-                    className="h-9 w-9 p-0 border-border/60"
+                    className="h-8 w-8 p-0 border-border/60"
                   >
                     {loading ? <Icons.Loader className="w-4 h-4" /> : <Icons.RefreshCw className="w-4 h-4" />}
                   </Button>
@@ -891,20 +961,20 @@ export default function MemeCoins() {
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              <Icons.Search />
+          <div className="relative mb-2">
+            <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Icons.Search className="w-4 h-4" />
             </div>
             <Input
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11"
+              className="pl-9 h-9 text-sm"
             />
           </div>
 
           {/* Sort & Filters */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             {[
               { id: 'volume', icon: Icons.BarChart3, label: 'Vol', tooltip: t.sortByVolume },
               { id: 'new', icon: Icons.Sparkles, label: 'New', tooltip: t.sortByNew },
@@ -917,19 +987,17 @@ export default function MemeCoins() {
                     variant={sortBy === sort.id ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSortBy(sort.id)}
-                    className={`h-9 px-2.5 text-xs font-medium ${
-                      sortBy !== sort.id ? 'border-border/60' : ''
-                    }`}
+                    className={`h-8 px-2 text-xs font-medium ${sortBy !== sort.id ? 'border-border/60' : ''}`}
                   >
                     <sort.icon className="w-3.5 h-3.5" />
-                    <span className="ml-1.5 hidden xs:inline">{sort.label}</span>
+                    <span className="ml-1 hidden xs:inline">{sort.label}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>{sort.tooltip}</TooltipContent>
               </Tooltip>
             ))}
 
-            <div className="w-px h-6 bg-border mx-1" />
+            <div className="w-px h-5 bg-border mx-0.5" />
 
             {[
               { id: 'm5', label: '5m', tooltip: t.timeframe5m },
@@ -942,9 +1010,7 @@ export default function MemeCoins() {
                     variant={timeframe === tf.id ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setTimeframe(tf.id)}
-                    className={`h-9 px-2.5 text-xs font-medium ${
-                      timeframe !== tf.id ? 'border-border/60' : ''
-                    }`}
+                    className={`h-8 px-2 text-xs font-medium ${timeframe !== tf.id ? 'border-border/60' : ''}`}
                   >
                     {tf.label}
                   </Button>
@@ -953,7 +1019,7 @@ export default function MemeCoins() {
               </Tooltip>
             ))}
 
-            <div className="w-px h-6 bg-border mx-1" />
+            <div className="w-px h-5 bg-border mx-0.5" />
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -961,9 +1027,7 @@ export default function MemeCoins() {
                   variant={showFilters ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`h-9 px-2.5 text-xs font-medium ${
-                    !showFilters ? 'border-border/60' : ''
-                  }`}
+                  className={`h-8 px-2 text-xs font-medium ${!showFilters ? 'border-border/60' : ''}`}
                 >
                   <Icons.Filter className="w-3.5 h-3.5" />
                 </Button>
@@ -974,14 +1038,14 @@ export default function MemeCoins() {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="mt-3 p-3 bg-muted/30 border border-border rounded-lg">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+            <div className="mt-2 p-2 bg-muted/30 border border-border rounded-lg">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
                 <div>
-                  <label className="block text-muted-foreground mb-1.5 font-medium">{t.minLiquidity}</label>
+                  <label className="block text-muted-foreground mb-1 font-medium">{t.minLiquidity}</label>
                   <select
                     value={filters.minLiquidity}
                     onChange={(e) => setFilters({ ...filters, minLiquidity: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-lg border border-border bg-background text-foreground font-medium"
+                    className="w-full p-2 rounded-lg border border-border bg-background text-foreground text-xs"
                   >
                     <option value={0}>{t.any}</option>
                     <option value={10000}>$10K+</option>
@@ -990,11 +1054,11 @@ export default function MemeCoins() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-muted-foreground mb-1.5 font-medium">{t.minVolume}</label>
+                  <label className="block text-muted-foreground mb-1 font-medium">{t.minVolume}</label>
                   <select
                     value={filters.minVolume}
                     onChange={(e) => setFilters({ ...filters, minVolume: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-lg border border-border bg-background text-foreground font-medium"
+                    className="w-full p-2 rounded-lg border border-border bg-background text-foreground text-xs"
                   >
                     <option value={0}>{t.any}</option>
                     <option value={10000}>$10K+</option>
@@ -1003,11 +1067,11 @@ export default function MemeCoins() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-muted-foreground mb-1.5 font-medium">{t.maxAge}</label>
+                  <label className="block text-muted-foreground mb-1 font-medium">{t.maxAge}</label>
                   <select
                     value={filters.maxAge}
                     onChange={(e) => setFilters({ ...filters, maxAge: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-lg border border-border bg-background text-foreground font-medium"
+                    className="w-full p-2 rounded-lg border border-border bg-background text-foreground text-xs"
                   >
                     <option value={0}>{t.any}</option>
                     <option value={1}>1h</option>
@@ -1016,7 +1080,7 @@ export default function MemeCoins() {
                     <option value={168}>7d</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-2 pt-5">
+                <div className="flex items-center gap-2 pt-4">
                   <input
                     type="checkbox"
                     id="hasWebsite"
@@ -1024,11 +1088,11 @@ export default function MemeCoins() {
                     onChange={(e) => setFilters({ ...filters, hasWebsite: e.target.checked })}
                     className="rounded border-border"
                   />
-                  <label htmlFor="hasWebsite" className="flex items-center gap-1.5 text-foreground font-medium">
-                    <GlobeIcon className="w-3.5 h-3.5" /> {t.website}
+                  <label htmlFor="hasWebsite" className="flex items-center gap-1 text-foreground font-medium">
+                    <GlobeIcon className="w-3 h-3" /> {t.website}
                   </label>
                 </div>
-                <div className="flex items-center gap-2 pt-5">
+                <div className="flex items-center gap-2 pt-4">
                   <input
                     type="checkbox"
                     id="hasSocials"
@@ -1036,8 +1100,8 @@ export default function MemeCoins() {
                     onChange={(e) => setFilters({ ...filters, hasSocials: e.target.checked })}
                     className="rounded border-border"
                   />
-                  <label htmlFor="hasSocials" className="flex items-center gap-1.5 text-foreground font-medium">
-                    <XLogo className="w-3.5 h-3.5" /> Socials
+                  <label htmlFor="hasSocials" className="flex items-center gap-1 text-foreground font-medium">
+                    <XLogo className="w-3 h-3" /> Socials
                   </label>
                 </div>
               </div>
@@ -1046,31 +1110,32 @@ export default function MemeCoins() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
           {/* Token List */}
           <div
             className={`${
-              selectedToken ? 'hidden lg:block lg:w-1/3 xl:w-1/4' : 'w-full'
-            } overflow-y-auto p-3 border-r border-border`}
+              selectedToken ? 'hidden lg:block' : 'w-full'
+            } overflow-y-auto p-2`}
+            style={{ width: selectedToken ? `${panelWidth}%` : '100%' }}
           >
             {loading && tokens.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-                <Icons.Loader className="w-8 h-8 mb-2" />
-                <span className="font-medium">{t.loading}</span>
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+                <Icons.Loader className="w-6 h-6 mb-2" />
+                <span className="text-sm font-medium">{t.loading}</span>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center text-rose-500 p-4">
-                <Icons.AlertTriangle className="w-8 h-8 mb-2" />
-                <p className="mb-3 text-center font-medium">{error}</p>
+                <Icons.AlertTriangle className="w-6 h-6 mb-2" />
+                <p className="mb-2 text-center text-sm font-medium">{error}</p>
                 <Button onClick={fetchTokens} size="sm" variant="outline">{t.retry}</Button>
               </div>
             ) : filteredTokens.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-muted-foreground p-8">
-                <Icons.Search className="w-8 h-8 mb-2" />
-                <p className="font-medium">{t.noTokens}</p>
+              <div className="flex flex-col items-center justify-center text-muted-foreground p-6">
+                <Icons.Search className="w-6 h-6 mb-2" />
+                <p className="text-sm font-medium">{t.noTokens}</p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="space-y-1.5">
                 {filteredTokens.map((token) => (
                   <TokenCard key={token.id} token={token} />
                 ))}
@@ -1078,18 +1143,30 @@ export default function MemeCoins() {
             )}
           </div>
 
+          {/* Resizable Divider - Desktop Only */}
+          {selectedToken && (
+            <div
+              className="hidden lg:flex w-1 bg-border hover:bg-primary/50 cursor-col-resize items-center justify-center group"
+              onMouseDown={handleMouseDown}
+            >
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <Icons.GripVertical className="w-3 h-3 text-muted-foreground" />
+              </div>
+            </div>
+          )}
+
           {/* Trade Panel */}
           <div
             className={`${
-              selectedToken ? 'w-full lg:w-2/3 xl:w-3/4' : 'hidden lg:flex lg:w-2/3 xl:w-3/4'
+              selectedToken ? 'w-full lg:flex-1' : 'hidden lg:flex lg:flex-1'
             } overflow-y-auto`}
           >
             {selectedToken ? (
               <TradePanel token={selectedToken} onClose={() => setSelectedToken(null)} />
             ) : (
               <div className="hidden lg:flex flex-col items-center justify-center h-full text-muted-foreground">
-                <Icons.ChartLine className="w-16 h-16 mb-3 opacity-40" />
-                <p className="text-lg font-medium">{t.selectToken}</p>
+                <Icons.ChartLine className="w-12 h-12 mb-2 opacity-40" />
+                <p className="text-sm font-medium">{t.selectToken}</p>
               </div>
             )}
           </div>
