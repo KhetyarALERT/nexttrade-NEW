@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,37 @@ import { useWallet } from '@/lib/web3/WalletContext';
 import { Wallet, ChevronDown, Copy, ExternalLink, LogOut, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export function WalletButton({ language = 'en' }) {
+// Detect mobile/PWA environment
+const isMobile = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+const isPWA = () => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+};
+
+// Deep link URLs for mobile wallets
+const getPhantomDeepLink = () => {
+  const currentUrl = encodeURIComponent(window.location.href);
+  if (isMobile()) {
+    // Universal link that works on both iOS and Android
+    return `https://phantom.app/ul/browse/${currentUrl}`;
+  }
+  return null;
+};
+
+const getSolflareDeepLink = () => {
+  const currentUrl = encodeURIComponent(window.location.href);
+  if (isMobile()) {
+    return `https://solflare.com/ul/v1/browse/${currentUrl}`;
+  }
+  return null;
+};
+
+export function WalletButton({ language = 'en', className = '' }) {
   const {
     account,
     chainId,
@@ -39,6 +69,11 @@ export function WalletButton({ language = 'en' }) {
 
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
+  useEffect(() => {
+    setIsMobileDevice(isMobile());
+  }, []);
 
   const t = language === 'ar' ? {
     connect: 'ربط المحفظة',
@@ -66,6 +101,7 @@ export function WalletButton({ language = 'en' }) {
     trustWalletDesc: 'محفظة الهاتف المحمول',
     copied: 'تم النسخ!',
     network: 'الشبكة',
+    openInApp: 'افتح في التطبيق',
     ethereum: 'إيثيريوم',
     polygon: 'بوليجون',
     bsc: 'BSC',
@@ -98,6 +134,7 @@ export function WalletButton({ language = 'en' }) {
     trustWalletDesc: 'Mobile wallet',
     copied: 'Copied!',
     network: 'Network',
+    openInApp: 'Open in App',
     ethereum: 'Ethereum',
     polygon: 'Polygon',
     bsc: 'BSC',
@@ -121,7 +158,6 @@ export function WalletButton({ language = 'en' }) {
     } else if (walletType === 'tron') {
       return `https://tronscan.org/#/address/${addr}`;
     } else {
-      // Ethereum-based
       switch (chainId) {
         case 1: return `https://etherscan.io/address/${addr}`;
         case 137: return `https://polygonscan.com/address/${addr}`;
@@ -140,40 +176,71 @@ export function WalletButton({ language = 'en' }) {
     }
   };
 
+  // Handle Phantom connection with mobile deep link support
+  const handleConnectPhantom = async () => {
+    setShowConnectDialog(false);
+    
+    // Check if Phantom is available as extension/provider
+    const phantomAvailable = window.solana && window.solana.isPhantom;
+    
+    if (phantomAvailable) {
+      // Extension available - connect directly
+      try {
+        await connectWallet('solana', 'phantom');
+      } catch (err) {
+        toast.error(err.message || 'Failed to connect');
+      }
+    } else if (isMobileDevice) {
+      // Mobile without extension - use deep link
+      const deepLink = getPhantomDeepLink();
+      if (deepLink) {
+        window.location.href = deepLink;
+      } else {
+        window.open('https://phantom.app/', '_blank');
+      }
+    } else {
+      // Desktop without extension - open download page
+      window.open('https://phantom.app/', '_blank');
+    }
+  };
+
+  // Handle Solflare connection with mobile deep link support
+  const handleConnectSolflare = async () => {
+    setShowConnectDialog(false);
+    
+    const solflareAvailable = window.solflare && window.solflare.isSolflare;
+    
+    if (solflareAvailable) {
+      try {
+        await connectWallet('solana', 'solflare');
+      } catch (err) {
+        toast.error(err.message || 'Failed to connect');
+      }
+    } else if (isMobileDevice) {
+      const deepLink = getSolflareDeepLink();
+      if (deepLink) {
+        window.location.href = deepLink;
+      } else {
+        window.open('https://solflare.com/', '_blank');
+      }
+    } else {
+      window.open('https://solflare.com/', '_blank');
+    }
+  };
+
   const handleConnectMetaMask = async () => {
     setShowConnectDialog(false);
     try {
       if (!window.ethereum) {
-        window.open('https://metamask.io/download/', '_blank');
+        if (isMobileDevice) {
+          // MetaMask mobile deep link
+          window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+        } else {
+          window.open('https://metamask.io/download/', '_blank');
+        }
         return;
       }
       await connectWallet('ethereum', 'metamask');
-    } catch (err) {
-      toast.error(err.message || 'Failed to connect');
-    }
-  };
-
-  const handleConnectPhantom = async () => {
-    setShowConnectDialog(false);
-    try {
-      if (!window.solana || !window.solana.isPhantom) {
-        window.open('https://phantom.app/', '_blank');
-        return;
-      }
-      await connectWallet('solana', 'phantom');
-    } catch (err) {
-      toast.error(err.message || 'Failed to connect');
-    }
-  };
-
-  const handleConnectSolflare = async () => {
-    setShowConnectDialog(false);
-    try {
-      if (!window.solflare) {
-        window.open('https://solflare.com/', '_blank');
-        return;
-      }
-      await connectWallet('solana', 'solflare');
     } catch (err) {
       toast.error(err.message || 'Failed to connect');
     }
@@ -209,7 +276,11 @@ export function WalletButton({ language = 'en' }) {
     setShowConnectDialog(false);
     try {
       if (!window.ethereum) {
-        window.open('https://www.coinbase.com/wallet', '_blank');
+        if (isMobileDevice) {
+          window.location.href = `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(window.location.href)}`;
+        } else {
+          window.open('https://www.coinbase.com/wallet', '_blank');
+        }
         return;
       }
       await connectWallet('ethereum', 'coinbase');
@@ -222,7 +293,11 @@ export function WalletButton({ language = 'en' }) {
     setShowConnectDialog(false);
     try {
       if (!window.ethereum) {
-        window.open('https://trustwallet.com/', '_blank');
+        if (isMobileDevice) {
+          window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(window.location.href)}`;
+        } else {
+          window.open('https://trustwallet.com/', '_blank');
+        }
         return;
       }
       await connectWallet('ethereum', 'trust');
@@ -231,12 +306,35 @@ export function WalletButton({ language = 'en' }) {
     }
   };
 
-  // Get currency symbol based on wallet type
   const getCurrencySymbol = () => {
     if (walletType === 'solana') return 'SOL';
     if (walletType === 'tron') return 'TRX';
     return 'ETH';
   };
+
+  // Wallet option component for cleaner rendering
+  const WalletOption = ({ onClick, icon, name, desc, showMobileHint = false }) => (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-4 p-4 rounded-xl border border-border/50 hover:bg-muted/50 transition-all hover:border-foreground/20 group w-full"
+    >
+      <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center flex-shrink-0 shadow-sm border border-border/30 overflow-hidden">
+        <img 
+          src={icon} 
+          alt={name}
+          className="w-7 h-7 object-contain"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      </div>
+      <div className="flex-1 text-left">
+        <div className="font-semibold text-foreground group-hover:text-foreground/90">{name}</div>
+        <div className="text-xs text-muted-foreground">
+          {showMobileHint && isMobileDevice ? t.openInApp : desc}
+        </div>
+      </div>
+      <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
+    </button>
+  );
 
   if (!isConnected) {
     return (
@@ -244,7 +342,8 @@ export function WalletButton({ language = 'en' }) {
         <Button
           onClick={() => setShowConnectDialog(true)}
           disabled={isConnecting}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg"
+          variant="outline"
+          className={`border-border/60 bg-background hover:bg-muted/50 text-foreground font-medium shadow-sm hover:shadow transition-all ${className}`}
         >
           {isConnecting ? (
             <>
@@ -260,158 +359,77 @@ export function WalletButton({ language = 'en' }) {
         </Button>
 
         <Dialog open={showConnectDialog} onOpenChange={setShowConnectDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">{t.selectWallet}</DialogTitle>
-              <DialogDescription>{t.selectWalletDesc}</DialogDescription>
+          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden">
+            <DialogHeader className="p-6 pb-4">
+              <DialogTitle className="text-xl font-bold">{t.selectWallet}</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                {t.selectWalletDesc}
+              </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-3 py-4">
-              {/* MetaMask */}
-              <button
-                onClick={handleConnectMetaMask}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center flex-shrink-0 shadow-lg p-2">
-                  <img 
-                    src="/wallets/metamask.svg" 
-                    alt="MetaMask"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.metamask}</div>
-                  <div className="text-xs text-muted-foreground">{t.metamaskDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
-
-              {/* Phantom */}
-              <button
+            
+            <div className="px-6 pb-6 space-y-2 max-h-[60vh] overflow-y-auto">
+              {/* Solana Wallets - Priority */}
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 mt-2">Solana</div>
+              
+              <WalletOption
                 onClick={handleConnectPhantom}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/phantom.svg" 
-                    alt="Phantom"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.phantom}</div>
-                  <div className="text-xs text-muted-foreground">{t.phantomDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+                icon="/wallets/phantom.svg"
+                name={t.phantom}
+                desc={t.phantomDesc}
+                showMobileHint
+              />
 
-              {/* Solflare */}
-              <button
+              <WalletOption
                 onClick={handleConnectSolflare}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/solflare.svg" 
-                    alt="Solflare"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.solflare}</div>
-                  <div className="text-xs text-muted-foreground">{t.solflareDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+                icon="/wallets/solflare.svg"
+                name={t.solflare}
+                desc={t.solflareDesc}
+                showMobileHint
+              />
 
-              {/* TronLink */}
-              <button
-                onClick={handleConnectTronLink}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/tronlink.svg" 
-                    alt="TronLink"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.tronlink}</div>
-                  <div className="text-xs text-muted-foreground">{t.tronlinkDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+              {/* Ethereum Wallets */}
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 mt-4">Ethereum</div>
 
-              {/* WalletConnect */}
-              <button
+              <WalletOption
+                onClick={handleConnectMetaMask}
+                icon="/wallets/metamask.svg"
+                name={t.metamask}
+                desc={t.metamaskDesc}
+                showMobileHint
+              />
+
+              <WalletOption
                 onClick={handleConnectWalletConnect}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/walletconnect.svg" 
-                    alt="WalletConnect"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.walletConnect}</div>
-                  <div className="text-xs text-muted-foreground">{t.walletConnectDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+                icon="/wallets/walletconnect.svg"
+                name={t.walletConnect}
+                desc={t.walletConnectDesc}
+              />
 
-              {/* Coinbase Wallet */}
-              <button
+              <WalletOption
                 onClick={handleConnectCoinbase}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/coinbase.svg" 
-                    alt="Coinbase"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.coinbase}</div>
-                  <div className="text-xs text-muted-foreground">{t.coinbaseDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+                icon="/wallets/coinbase.svg"
+                name={t.coinbase}
+                desc={t.coinbaseDesc}
+                showMobileHint
+              />
 
-              {/* Trust Wallet */}
-              <button
+              <WalletOption
                 onClick={handleConnectTrust}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted transition-all hover:border-primary group"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <img 
-                    src="/wallets/trust.svg" 
-                    alt="Trust Wallet"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground group-hover:text-primary">{t.trustWallet}</div>
-                  <div className="text-xs text-muted-foreground">{t.trustWalletDesc}</div>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground rotate-[-90deg]" />
-              </button>
+                icon="/wallets/trust.svg"
+                name={t.trustWallet}
+                desc={t.trustWalletDesc}
+                showMobileHint
+              />
+
+              {/* Tron */}
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 mt-4">Tron</div>
+
+              <WalletOption
+                onClick={handleConnectTronLink}
+                icon="/wallets/tronlink.svg"
+                name={t.tronlink}
+                desc={t.tronlinkDesc}
+              />
             </div>
           </DialogContent>
         </Dialog>
@@ -426,19 +444,22 @@ export function WalletButton({ language = 'en' }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2 font-semibold border-primary/20 hover:border-primary hover:bg-primary/5">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="hidden sm:inline font-mono">{formatAddress(account)}</span>
-          <Badge variant="secondary" className="hidden md:inline-flex">
+        <Button 
+          variant="outline" 
+          className={`gap-2 font-medium border-border/60 hover:border-foreground/20 hover:bg-muted/50 bg-background shadow-sm ${className}`}
+        >
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="hidden sm:inline font-mono text-sm">{formatAddress(account)}</span>
+          <Badge variant="secondary" className="hidden md:inline-flex text-xs bg-muted">
             {formatBalance(balance)} {getCurrencySymbol()}
           </Badge>
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>{t.connectedTo}</span>
-          <Badge variant="outline" className="text-xs">
+          <span className="text-muted-foreground">{t.connectedTo}</span>
+          <Badge variant="outline" className="text-xs font-medium">
             {networkName || getNetworkName(chainId)}
           </Badge>
         </DropdownMenuLabel>
@@ -446,7 +467,7 @@ export function WalletButton({ language = 'en' }) {
         <div className="px-2 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">{t.balance}</span>
-            <span className="text-sm font-mono font-bold">{formatBalance(balance)} {getCurrencySymbol()}</span>
+            <span className="text-sm font-mono font-semibold">{formatBalance(balance)} {getCurrencySymbol()}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Address</span>
@@ -472,7 +493,7 @@ export function WalletButton({ language = 'en' }) {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={disconnectWallet} className="cursor-pointer text-destructive">
+        <DropdownMenuItem onClick={disconnectWallet} className="cursor-pointer text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           {t.disconnect}
         </DropdownMenuItem>
@@ -482,5 +503,9 @@ export function WalletButton({ language = 'en' }) {
 }
 
 WalletButton.propTypes = {
-  language: PropTypes.oneOf(['en', 'ar'])
+  language: PropTypes.oneOf(['en', 'ar']),
+  className: PropTypes.string
 };
+
+// Default export for compatibility
+export default WalletButton;
