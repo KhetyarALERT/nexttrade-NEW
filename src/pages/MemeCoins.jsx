@@ -769,7 +769,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       {/* Gradient animation */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes gradient-shift {
@@ -1338,7 +1338,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                 filteredTokens.map((token) => (
                   <Card
                     key={token.pairAddress || token.address}
-                    className="bg-gradient-to-br from-card to-card/80 border-border/50 p-3.5 cursor-pointer hover:bg-muted/40 hover:border-border transition-all duration-200 rounded-xl shadow-sm hover:shadow-md active:scale-[0.99]"
+                    className="bg-gradient-to-br from-card via-card to-card/90 border border-border/60 hover:border-primary/40 p-3.5 cursor-pointer hover:bg-accent/30 transition-all duration-300 rounded-2xl shadow-sm hover:shadow-lg hover:shadow-primary/5 active:scale-[0.98] ring-1 ring-transparent hover:ring-primary/20"
                     onClick={() => selectToken(token)}
                   >
                     <div className="flex items-center justify-between">
@@ -1478,25 +1478,25 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                   <div className="p-4 space-y-4">
                     {/* Compact stats */}
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                      <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
                       </div>
-                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                      <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                         <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                           {formatChange(getTokenChange(selectedToken))}
                         </div>
                       </div>
-                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                      <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
                       </div>
-                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                      <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
                       </div>
-                      <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                      <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                         <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
                         <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
                       </div>
@@ -1504,7 +1504,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
 
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                       {selectedToken.pairCreatedAt ? (
-                        <Badge variant="outline" className="shrink-0 text-[11px]">
+                        <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                           {t.launched}: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}
                         </Badge>
                       ) : null}
@@ -1563,12 +1563,12 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                         );
                       })}
                       {rugcheckStatus[selectedToken.address]?.lockedPct != null ? (
-                        <Badge variant="outline" className="shrink-0 text-[11px]">
+                        <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                           {t.lpLocked} {Math.round(Number(rugcheckStatus[selectedToken.address]?.lockedPct))}%
                         </Badge>
                       ) : null}
                       {rugcheckStatus[selectedToken.address]?.burnedPct != null ? (
-                        <Badge variant="outline" className="shrink-0 text-[11px]">
+                        <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                           {t.lpBurned} {Math.round(Number(rugcheckStatus[selectedToken.address]?.burnedPct))}%
                         </Badge>
                       ) : null}
@@ -1766,7 +1766,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
             <div className="flex flex-col h-full">
               {/* Chart-first layout */}
               <div className="relative">
-                <div className="relative h-[50vh] min-h-[300px] max-h-[400px] w-full bg-background overflow-hidden rounded-b-xl">
+                <div className="relative h-[60vh] min-h-[350px] max-h-[500px] w-full bg-background overflow-hidden rounded-b-xl">
                   {getDexScreenerEmbedUrl(selectedToken) ? (
                     <iframe
                       title={`${selectedToken.symbol} chart`}
@@ -1854,25 +1854,25 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {/* Ultra-compact stats strip */}
                 <div className="flex gap-1 overflow-x-auto pb-0.5 -mx-1 px-1">
-                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                  <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.price}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatPrice(selectedToken.price)}</div>
                   </div>
-                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                  <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{timeframe} %</div>
                     <div className={(getTokenChange(selectedToken) >= 0 ? 'text-emerald-500' : 'text-rose-500') + ' text-sm font-bold'}>
                       {formatChange(getTokenChange(selectedToken))}
                     </div>
                   </div>
-                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                  <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.volume} {timeframe}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(getTokenVolume(selectedToken))}</div>
                   </div>
-                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                  <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.marketCap}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.marketCap)}</div>
                   </div>
-                  <div className="shrink-0 bg-muted/30 dark:bg-muted/20 border border-border/40 px-2 py-1.5 rounded-lg">
+                  <div className="shrink-0 bg-gradient-to-br from-muted/40 to-muted/20 dark:from-muted/30 dark:to-muted/10 border border-border/30 px-2.5 py-1 rounded-xl backdrop-blur-sm">
                     <div className="text-[9px] text-muted-foreground/80 leading-tight">{t.liquidity}</div>
                     <div className="text-[11px] font-semibold font-mono leading-tight">{formatVolume(selectedToken.liquidity)}</div>
                   </div>
@@ -1881,7 +1881,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                 {/* Socials / launch */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
                   {selectedToken.pairCreatedAt ? (
-                    <Badge variant="outline" className="shrink-0 text-[11px]">
+                    <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                       {t.launched}: {formatAgeMs(Date.now() - Number(selectedToken.pairCreatedAt))}
                     </Badge>
                   ) : null}
@@ -1923,12 +1923,12 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                     );
                   })}
                   {rugcheckStatus[selectedToken.address]?.lockedPct != null ? (
-                    <Badge variant="outline" className="shrink-0 text-[11px]">
+                    <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                       {t.lpLocked} {Math.round(Number(rugcheckStatus[selectedToken.address]?.lockedPct))}%
                     </Badge>
                   ) : null}
                   {rugcheckStatus[selectedToken.address]?.burnedPct != null ? (
-                    <Badge variant="outline" className="shrink-0 text-[11px]">
+                    <Badge variant="outline" className="shrink-0 text-[11px] bg-muted/50 backdrop-blur-sm">
                       {t.lpBurned} {Math.round(Number(rugcheckStatus[selectedToken.address]?.burnedPct))}%
                     </Badge>
                   ) : null}
@@ -2109,7 +2109,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       >
                         {swapMode === 'buy' ? (
                           swapping ? (
-                            <><Loader2 className="w-4 h-4 animate-spin mr-2" />{t.buy}...</>
+                            <><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" />{t.buy}...</>
                           ) : quoteSource === 'estimate' ? (
                             t.buyLiveRequired
                           ) : (
@@ -2139,7 +2139,7 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
                       >
                         {swapMode === 'sell' ? (
                           swapping ? (
-                            <><Loader2 className="w-4 h-4 animate-spin mr-2" />{t.sell}...</>
+                            <><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" />{t.sell}...</>
                           ) : quoteSource === 'estimate' ? (
                             t.sellLiveRequired
                           ) : (
