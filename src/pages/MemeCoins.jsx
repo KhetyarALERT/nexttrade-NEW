@@ -1,521 +1,594 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PublicKey } from '@solana/web3.js';
-import { 
-  TrendingUp, TrendingDown, Search, Loader2, 
-  ExternalLink, RefreshCw, X, ChevronDown,
-  Globe, Send, Clock, Users, Shield, Flame,
-  ArrowUpRight, ArrowDownRight, Zap
+import { useNavigate } from 'react-router-dom';
+import {
+  Search, RefreshCw, TrendingUp, TrendingDown, Clock, Droplets,
+  Flame, Star, ArrowUpRight, ArrowDownRight, ExternalLink, Copy,
+  X, ChevronDown, Filter, BarChart3, Users, Shield, ShieldCheck,
+  ShieldAlert, Globe, Twitter, MessageCircle, Zap, Activity,
+  ArrowUp, ArrowDown, Sparkles, Timer, DollarSign, Percent,
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle,
+  TrendingUp as VolumeIn, TrendingDown as VolumeOut, Layers
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-import * as jupiterApi from '@/api/jupiter';
-import { fetchTrendingSolanaTokens, searchTokens } from '@/api/dexscreener';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { tMemeCoins } from '@/lib/i18n/memecoins';
+const DEXSCREENER_API = 'https://api.dexscreener.com';
+const REFRESH_INTERVAL = 30000; // 30 seconds
 
-// Constants
-const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
-const SOL_MINT = jupiterApi.TOKENS.SOL;
-const SOL_DECIMALS = 9;
+const TIMEFRAMES = [
+  { id: 'm5', label: '5m', minutes: 5 },
+  { id: 'h1', label: '1H', minutes: 60 },
+  { id: 'h6', label: '6H', minutes: 360 },
+  { id: 'h24', label: '24H', minutes: 1440 },
+];
 
-// Solana Logo SVG
-function SolanaLogo({ className }) {
-  return (
-    <svg viewBox="0 0 397 311" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="sol-gradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#00FFA3" />
-          <stop offset="100%" stopColor="#DC1FFF" />
-        </linearGradient>
-      </defs>
-      <path d="M64.6 236.9c2.5-2.5 5.9-3.9 9.5-3.9h306.3c6 0 9 7.3 4.7 11.6l-60.4 60.4c-2.5 2.5-5.9 3.9-9.5 3.9H8.9c-6 0-9-7.3-4.7-11.6l60.4-60.4z" fill="url(#sol-gradient)"/>
-      <path d="M64.6 3.9C67.1 1.4 70.5 0 74.1 0h306.3c6 0 9 7.3 4.7 11.6L324.7 72c-2.5 2.5-5.9 3.9-9.5 3.9H8.9c-6 0-9-7.3-4.7-11.6L64.6 3.9z" fill="url(#sol-gradient)"/>
-      <path d="M332.4 120.4c-2.5-2.5-5.9-3.9-9.5-3.9H16.6c-6 0-9 7.3-4.7 11.6l60.4 60.4c2.5 2.5 5.9 3.9 9.5 3.9h306.3c6 0 9-7.3 4.7-11.6l-60.4-60.4z" fill="url(#sol-gradient)"/>
-    </svg>
-  );
-}
+const SORT_OPTIONS = [
+  { id: 'trending', label: 'Trending', icon: Flame },
+  { id: 'newest', label: 'New', icon: Sparkles },
+  { id: 'volume', label: 'Volume', icon: BarChart3 },
+  { id: 'gainers', label: 'Gainers', icon: TrendingUp },
+  { id: 'liquidity', label: 'Liquidity', icon: Droplets },
+];
 
-// Utility functions
-const toNumber = (val) => {
-  const n = Number(val);
-  return Number.isFinite(n) ? n : 0;
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+const formatNumber = (num, decimals = 2) => {
+  if (!num || isNaN(num)) return '0';
+  const n = parseFloat(num);
+  if (n >= 1e9) return (n / 1e9).toFixed(decimals) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(decimals) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(decimals) + 'K';
+  return n.toFixed(decimals);
 };
 
 const formatPrice = (price) => {
-  const n = toNumber(price);
-  if (!n) return '$0.00';
-  if (n >= 1) return `$${n.toFixed(2)}`;
-  if (n >= 0.01) return `$${n.toFixed(4)}`;
-  if (n >= 0.0001) return `$${n.toFixed(6)}`;
-  return `$${n.toPrecision(3)}`;
+  if (!price) return '$0';
+  const p = parseFloat(price);
+  if (p < 0.00001) return '$' + p.toExponential(2);
+  if (p < 0.01) return '$' + p.toFixed(6);
+  if (p < 1) return '$' + p.toFixed(4);
+  return '$' + p.toFixed(2);
 };
 
-const formatCompact = (num) => {
-  const n = toNumber(num);
-  if (!n) return '—';
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return n.toFixed(0);
+const formatTimeAgo = (timestamp) => {
+  if (!timestamp) return 'Unknown';
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
 };
 
-const formatChange = (change) => {
-  const n = toNumber(change);
-  const sign = n > 0 ? '+' : '';
-  return `${sign}${n.toFixed(1)}%`;
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text);
 };
 
-const formatAge = (timestamp) => {
-  if (!timestamp) return '—';
-  const ms = Date.now() - Number(timestamp);
-  const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+// Calculate volume pressure (buy vs sell)
+const calculateVolumePressure = (txns) => {
+  if (!txns) return { pressure: 50, buys: 0, sells: 0 };
+  const buys = txns.buys || 0;
+  const sells = txns.sells || 0;
+  const total = buys + sells;
+  if (total === 0) return { pressure: 50, buys: 0, sells: 0 };
+  return {
+    pressure: Math.round((buys / total) * 100),
+    buys,
+    sells
+  };
 };
 
-const formatAddress = (addr) => addr ? `${addr.slice(0, 4)}...${addr.slice(-4)}` : '';
+// Detect token safety
+const getTokenSafety = (token) => {
+  const issues = [];
+  let score = 100;
+  
+  // Check liquidity
+  const liq = parseFloat(token.liquidity?.usd || 0);
+  if (liq < 10000) {
+    issues.push('Low liquidity');
+    score -= 30;
+  } else if (liq < 50000) {
+    score -= 10;
+  }
+  
+  // Check if LP is burned (heuristic based on info)
+  const hasLpBurned = token.info?.socials?.some(s => 
+    s.type === 'telegram' || s.type === 'twitter'
+  );
+  
+  // Check age
+  const ageMs = Date.now() - (token.pairCreatedAt || 0);
+  const ageHours = ageMs / 3600000;
+  if (ageHours < 1) {
+    issues.push('Very new');
+    score -= 20;
+  }
+  
+  // Volume to liquidity ratio (potential rug indicator)
+  const vol = parseFloat(token.volume?.h24 || 0);
+  if (liq > 0 && vol / liq > 10) {
+    issues.push('High vol/liq ratio');
+    score -= 15;
+  }
+  
+  return {
+    score: Math.max(0, score),
+    issues,
+    level: score >= 70 ? 'safe' : score >= 40 ? 'caution' : 'danger'
+  };
+};
 
-// Token Card Component - Compact and clean
-function TokenCard({ token, selected, onClick, timeframe }) {
-  const change = toNumber(token[`change${timeframe}`] || token.change24h);
-  const volume = toNumber(token[`volume${timeframe}`] || token.volume24h);
-  const isUp = change >= 0;
+// =============================================================================
+// COMPONENTS
+// =============================================================================
+
+// Volume Pressure Bar
+const VolumePressureBar = ({ txns, timeframe }) => {
+  const { pressure, buys, sells } = calculateVolumePressure(txns);
+  const isBullish = pressure > 50;
   
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full text-left p-3 rounded-xl border transition-all duration-200",
-        "hover:bg-accent/50 active:scale-[0.98]",
-        selected 
-          ? "bg-primary/10 border-primary/30 shadow-sm" 
-          : "bg-card/50 border-border/50 hover:border-border"
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="text-green-500 flex items-center gap-0.5">
+          <ArrowUp className="w-3 h-3" />
+          {buys}
+        </span>
+        <span className="text-muted-foreground">{timeframe}</span>
+        <span className="text-red-500 flex items-center gap-0.5">
+          {sells}
+          <ArrowDown className="w-3 h-3" />
+        </span>
+      </div>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden flex">
+        <div 
+          className="h-full bg-green-500 transition-all duration-300"
+          style={{ width: `${pressure}%` }}
+        />
+        <div 
+          className="h-full bg-red-500 transition-all duration-300"
+          style={{ width: `${100 - pressure}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Safety Badge
+const SafetyBadge = ({ safety }) => {
+  const config = {
+    safe: { icon: ShieldCheck, color: 'text-green-500', bg: 'bg-green-500/10' },
+    caution: { icon: ShieldAlert, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+    danger: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10' }
+  };
+  const { icon: Icon, color, bg } = config[safety.level];
+  
+  return (
+    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${bg}`}>
+      <Icon className={`w-3 h-3 ${color}`} />
+      <span className={`text-[10px] font-medium ${color}`}>{safety.score}</span>
+    </div>
+  );
+};
+
+// Social Links
+const SocialLinks = ({ info }) => {
+  const socials = info?.socials || [];
+  const websites = info?.websites || [];
+  
+  return (
+    <div className="flex items-center gap-1">
+      {websites.length > 0 && (
+        <a 
+          href={websites[0].url} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="p-1 rounded hover:bg-muted transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Globe className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+        </a>
       )}
+      {socials.map((s, i) => {
+        const Icon = s.type === 'twitter' ? Twitter : MessageCircle;
+        return (
+          <a 
+            key={i}
+            href={s.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-1 rounded hover:bg-muted transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Icon className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+          </a>
+        );
+      })}
+    </div>
+  );
+};
+
+// Token Card Component
+const TokenCard = ({ token, isSelected, onClick, timeframe }) => {
+  const priceChange = parseFloat(token.priceChange?.[timeframe] || 0);
+  const isPositive = priceChange >= 0;
+  const safety = getTokenSafety(token);
+  const isNew = (Date.now() - (token.pairCreatedAt || 0)) < 86400000; // 24h
+  const txns = token.txns?.[timeframe] || token.txns?.h24;
+  
+  return (
+    <div
+      onClick={onClick}
+      className={`
+        group relative p-3 rounded-xl border cursor-pointer transition-all duration-200
+        ${isSelected 
+          ? 'bg-primary/5 border-primary ring-1 ring-primary/20' 
+          : 'bg-card hover:bg-muted/50 border-border hover:border-primary/30'
+        }
+      `}
     >
-      <div className="flex items-center gap-3">
-        {/* Token Image */}
-        {token.imageUrl ? (
-          <img src={token.imageUrl} alt="" className="w-10 h-10 rounded-full bg-muted flex-shrink-0" />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {token.symbol?.charAt(0) || '?'}
-          </div>
-        )}
-        
-        {/* Token Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm truncate">{token.symbol}</span>
-            {token.pairCreatedAt && (Date.now() - Number(token.pairCreatedAt)) < 86400000 && (
-              <Badge variant="secondary" className="h-4 px-1 text-[9px] bg-amber-500/20 text-amber-600">
-                <Flame className="w-2.5 h-2.5 mr-0.5" /> NEW
-              </Badge>
+      {/* Header Row */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {/* Token Image */}
+          <div className="relative flex-shrink-0">
+            {token.info?.imageUrl ? (
+              <img 
+                src={token.info.imageUrl} 
+                alt=""
+                className="w-9 h-9 rounded-lg object-cover bg-muted"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                <span className="text-sm font-bold text-primary">
+                  {token.baseToken?.symbol?.[0] || '?'}
+                </span>
+              </div>
+            )}
+            {isNew && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                <Sparkles className="w-2.5 h-2.5 text-white" />
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-            <span className="font-mono">{formatPrice(token.price)}</span>
-            <span className="opacity-60">•</span>
-            <span>MC {formatCompact(token.marketCap)}</span>
+          
+          {/* Token Info */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-sm truncate">
+                {token.baseToken?.symbol || 'Unknown'}
+              </span>
+              <SafetyBadge safety={safety} />
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Timer className="w-3 h-3" />
+              <span>{formatTimeAgo(token.pairCreatedAt)}</span>
+              <span className="text-muted-foreground/50">|</span>
+              <span className="truncate">{token.dexId}</span>
+            </div>
           </div>
         </div>
         
-        {/* Price Change */}
+        {/* Price & Change */}
         <div className="text-right flex-shrink-0">
-          <div className={cn(
-            "text-sm font-semibold flex items-center gap-1 justify-end",
-            isUp ? "text-emerald-500" : "text-rose-500"
-          )}>
-            {isUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-            {formatChange(change)}
+          <div className="font-mono font-semibold text-sm">
+            {formatPrice(token.priceUsd)}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            Vol {formatCompact(volume)}
+          <div className={`flex items-center justify-end gap-0.5 text-xs font-medium
+            ${isPositive ? 'text-green-500' : 'text-red-500'}
+          `}>
+            {isPositive ? (
+              <ArrowUpRight className="w-3 h-3" />
+            ) : (
+              <ArrowDownRight className="w-3 h-3" />
+            )}
+            {Math.abs(priceChange).toFixed(2)}%
           </div>
         </div>
       </div>
-    </button>
+      
+      {/* Stats Row */}
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        <div className="text-center">
+          <div className="text-[10px] text-muted-foreground">MCap</div>
+          <div className="text-xs font-medium">${formatNumber(token.marketCap || token.fdv)}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-[10px] text-muted-foreground">Liq</div>
+          <div className="text-xs font-medium">${formatNumber(token.liquidity?.usd)}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-[10px] text-muted-foreground">Vol</div>
+          <div className="text-xs font-medium">${formatNumber(token.volume?.h24)}</div>
+        </div>
+        <div className="text-center">
+          <div className="text-[10px] text-muted-foreground">Txns</div>
+          <div className="text-xs font-medium">{formatNumber((txns?.buys || 0) + (txns?.sells || 0), 0)}</div>
+        </div>
+      </div>
+      
+      {/* Volume Pressure */}
+      <VolumePressureBar txns={txns} timeframe={timeframe} />
+      
+      {/* Socials Row */}
+      {(token.info?.socials?.length > 0 || token.info?.websites?.length > 0) && (
+        <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
+          <SocialLinks info={token.info} />
+          <a
+            href={token.url || `https://dexscreener.com/solana/${token.pairAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Chart <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+    </div>
   );
-}
+};
 
 // Trade Panel Component
-function TradePanel({ token, onClose, isMobile }) {
-  const { connection } = useConnection();
-  const wallet = useWallet();
-  const { setVisible: setWalletModalVisible } = useWalletModal();
-  
+const TradePanel = ({ token, onClose, isDark }) => {
   const [mode, setMode] = useState('buy');
-  const [inputAmount, setInputAmount] = useState('');
-  const [outputAmount, setOutputAmount] = useState('');
-  const [slippage, setSlippage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [quote, setQuote] = useState(null);
-
-  // Get mint decimals
-  const getMintDecimals = useCallback(async (mint) => {
-    if (!mint || mint === SOL_MINT) return SOL_DECIMALS;
-    try {
-      const info = await connection.getParsedAccountInfo(new PublicKey(mint));
-      return info?.value?.data?.parsed?.info?.decimals || 9;
-    } catch {
-      return 9;
-    }
-  }, [connection]);
-
-  // Fetch quote when input changes
-  useEffect(() => {
-    if (!token || !inputAmount || parseFloat(inputAmount) <= 0) {
-      setOutputAmount('');
-      setQuote(null);
-      return;
-    }
-
-    const fetchQuote = async () => {
-      setQuoteLoading(true);
-      try {
-        const inputMint = mode === 'buy' ? SOL_MINT : token.address;
-        const outputMint = mode === 'buy' ? token.address : SOL_MINT;
-        const inputDecimals = await getMintDecimals(inputMint);
-        const outputDecimals = await getMintDecimals(outputMint);
-        const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
-        
-        const q = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippage * 100);
-        if (q) {
-          const out = jupiterApi.fromRawAmount(parseInt(q.outAmount, 10), outputDecimals);
-          setOutputAmount(out.toFixed(mode === 'buy' ? 2 : 6));
-          setQuote(q);
-        }
-      } catch (e) {
-        // Fallback to estimate
-        const priceNative = toNumber(token.priceNative);
-        if (priceNative > 0) {
-          if (mode === 'buy') {
-            setOutputAmount((parseFloat(inputAmount) / priceNative).toFixed(2));
-          } else {
-            setOutputAmount((parseFloat(inputAmount) * priceNative).toFixed(6));
-          }
-        }
-        setQuote(null);
-      } finally {
-        setQuoteLoading(false);
-      }
-    };
-
-    const timer = setTimeout(fetchQuote, 400);
-    return () => clearTimeout(timer);
-  }, [inputAmount, token, mode, slippage, getMintDecimals]);
-
-  // Execute swap
-  const handleSwap = async () => {
-    if (!wallet.connected) {
-      setWalletModalVisible(true);
-      return;
-    }
-    if (!quote) {
-      toast.error('Unable to get quote');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const tx = await jupiterApi.getSwapTransaction(quote, wallet.publicKey.toString());
-      const sig = await jupiterApi.executeSwap(tx, wallet);
-      toast.success(`Swap successful! ${sig.slice(0, 8)}...`);
-      setInputAmount('');
-      setOutputAmount('');
-      setQuote(null);
-    } catch (e) {
-      toast.error(`Swap failed: ${e.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get chart URL with proper theme
-  const getChartUrl = () => {
-    if (!token?.pairAddress) return null;
-    const isDark = document.documentElement.classList.contains('dark');
-    return `https://dexscreener.com/solana/${token.pairAddress}?embed=1&theme=${isDark ? 'dark' : 'light'}&trades=0&info=0`;
-  };
-
+  const [amount, setAmount] = useState('');
+  const safety = getTokenSafety(token);
+  const priceChange = parseFloat(token.priceChange?.h24 || 0);
+  const isPositive = priceChange >= 0;
+  
+  const quickAmounts = [0.1, 0.5, 1, 2, 5];
+  
   return (
-    <div className={cn(
-      "flex flex-col bg-background",
-      isMobile ? "h-full" : "h-full"
-    )}>
-      {/* Header - Minimal on mobile since chart shows token */}
-      <div className="flex items-center justify-between p-3 border-b border-border/50">
-        <div className="flex items-center gap-2 min-w-0">
-          {token.imageUrl ? (
-            <img src={token.imageUrl} alt="" className="w-8 h-8 rounded-full" />
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          {token.info?.imageUrl ? (
+            <img src={token.info.imageUrl} alt="" className="w-8 h-8 rounded-lg" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
-              {token.symbol?.charAt(0)}
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <span className="font-bold text-primary">{token.baseToken?.symbol?.[0]}</span>
             </div>
           )}
-          <div className="min-w-0">
-            <div className="font-semibold text-sm truncate">{token.symbol}</div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="font-mono">{formatAddress(token.address)}</span>
-              {token.pairCreatedAt && (
-                <><span>•</span><Clock className="w-3 h-3" /><span>{formatAge(token.pairCreatedAt)}</span></>
-              )}
-            </div>
+          <div>
+            <div className="font-semibold">{token.baseToken?.symbol}</div>
+            <div className="text-xs text-muted-foreground">{token.baseToken?.name}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {token.dexUrl && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(token.dexUrl, '_blank')}>
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
+        <button 
+          onClick={onClose}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      
+      {/* Price Header */}
+      <div className="p-3 border-b border-border">
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold font-mono">{formatPrice(token.priceUsd)}</span>
+          <span className={`flex items-center text-sm font-medium ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            {isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            {Math.abs(priceChange).toFixed(2)}%
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+          <span>MCap: ${formatNumber(token.marketCap || token.fdv)}</span>
+          <span>Liq: ${formatNumber(token.liquidity?.usd)}</span>
+          <SafetyBadge safety={safety} />
         </div>
       </div>
-
-      {/* Chart - Takes most space */}
-      <div className={cn(
-        "relative bg-card",
-        isMobile ? "h-[45vh] min-h-[280px]" : "h-[350px]"
-      )}>
-        {getChartUrl() ? (
-          <iframe
-            title="Chart"
-            src={getChartUrl()}
-            className="absolute inset-0 w-full h-full border-0"
-            allow="clipboard-write"
-            style={{ colorScheme: 'normal' }}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Chart unavailable
+      
+      {/* Chart */}
+      <div className="flex-1 min-h-0 relative" style={{ minHeight: '300px' }}>
+        <iframe
+          src={`https://dexscreener.com/solana/${token.pairAddress}?embed=1&theme=${isDark ? 'dark' : 'light'}&info=0&trades=0`}
+          className="absolute inset-0 w-full h-full"
+          style={{ 
+            border: 'none',
+            colorScheme: 'normal'
+          }}
+          title="Chart"
+          loading="lazy"
+        />
+      </div>
+      
+      {/* Token Details */}
+      <div className="p-3 border-t border-border space-y-2">
+        {/* Volume Pressure */}
+        <div className="bg-muted/50 rounded-lg p-2">
+          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+            <Activity className="w-3 h-3" /> Volume Pressure (24h)
+          </div>
+          <VolumePressureBar txns={token.txns?.h24} timeframe="24h" />
+        </div>
+        
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-muted/50 rounded-lg p-2">
+            <div className="text-[10px] text-muted-foreground">24h Vol</div>
+            <div className="text-sm font-semibold">${formatNumber(token.volume?.h24)}</div>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-2">
+            <div className="text-[10px] text-muted-foreground">Created</div>
+            <div className="text-sm font-semibold">{formatTimeAgo(token.pairCreatedAt)}</div>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-2">
+            <div className="text-[10px] text-muted-foreground">DEX</div>
+            <div className="text-sm font-semibold capitalize">{token.dexId}</div>
+          </div>
+        </div>
+        
+        {/* Contract */}
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+          <div className="text-xs text-muted-foreground">Contract</div>
+          <div className="flex items-center gap-2">
+            <code className="text-xs">
+              {token.baseToken?.address?.slice(0, 6)}...{token.baseToken?.address?.slice(-4)}
+            </code>
+            <button 
+              onClick={() => copyToClipboard(token.baseToken?.address)}
+              className="p-1 hover:bg-muted rounded"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Safety Warnings */}
+        {safety.issues.length > 0 && (
+          <div className={`rounded-lg p-2 text-xs ${
+            safety.level === 'danger' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'
+          }`}>
+            <div className="flex items-center gap-1 font-medium mb-1">
+              <AlertTriangle className="w-3 h-3" /> Warnings
+            </div>
+            <div>{safety.issues.join(' • ')}</div>
           </div>
         )}
       </div>
-
-      {/* Stats Strip - Ultra compact */}
-      <div className="flex gap-1 p-2 overflow-x-auto border-b border-border/50 bg-muted/30">
-        {[
-          { label: 'Price', value: formatPrice(token.price) },
-          { label: 'MC', value: formatCompact(token.marketCap) },
-          { label: 'Liq', value: formatCompact(token.liquidity) },
-          { label: '24h Vol', value: formatCompact(token.volume24h) },
-          { label: '24h', value: formatChange(token.change24h), color: toNumber(token.change24h) >= 0 ? 'text-emerald-500' : 'text-rose-500' },
-        ].map((stat, i) => (
-          <div key={i} className="flex-shrink-0 px-2 py-1 rounded-lg bg-background/50">
-            <div className="text-[9px] text-muted-foreground">{stat.label}</div>
-            <div className={cn("text-xs font-semibold font-mono", stat.color)}>{stat.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Trade Form - Compact */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Mode Toggle */}
-        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
+      
+      {/* Trade Section */}
+      <div className="p-3 border-t border-border space-y-3">
+        {/* Buy/Sell Toggle */}
+        <div className="flex rounded-lg bg-muted p-1">
           <button
-            onClick={() => { setMode('buy'); setInputAmount(''); setOutputAmount(''); }}
-            className={cn(
-              "flex-1 py-2 rounded-md text-sm font-medium transition-all",
+            onClick={() => setMode('buy')}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
               mode === 'buy' 
-                ? "bg-emerald-500 text-white shadow-sm" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
+                ? 'bg-green-500 text-white shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
             Buy
           </button>
           <button
-            onClick={() => { setMode('sell'); setInputAmount(''); setOutputAmount(''); }}
-            className={cn(
-              "flex-1 py-2 rounded-md text-sm font-medium transition-all",
+            onClick={() => setMode('sell')}
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
               mode === 'sell' 
-                ? "bg-rose-500 text-white shadow-sm" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
+                ? 'bg-red-500 text-white shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
             Sell
           </button>
         </div>
-
-        {/* Input */}
-        <div className="space-y-1.5">
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
-            {mode === 'buy' ? (
-              <><span>Pay</span><SolanaLogo className="w-3 h-3" /><span>SOL</span></>
-            ) : (
-              <span>Sell {token.symbol}</span>
-            )}
-          </div>
-          <Input
+        
+        {/* Quick Amounts */}
+        <div className="flex gap-2">
+          {quickAmounts.map((amt) => (
+            <button
+              key={amt}
+              onClick={() => setAmount(amt.toString())}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                amount === amt.toString()
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {amt} SOL
+            </button>
+          ))}
+        </div>
+        
+        {/* Custom Amount */}
+        <div className="relative">
+          <input
             type="number"
-            placeholder="0.00"
-            value={inputAmount}
-            onChange={(e) => setInputAmount(e.target.value)}
-            className="h-11 text-base font-mono bg-muted/30 border-border/50"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Enter amount"
+            className="w-full px-4 py-3 rounded-lg bg-muted border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm"
           />
-          {mode === 'buy' && (
-            <div className="flex gap-1.5">
-              {[0.1, 0.25, 0.5, 1].map((amt) => (
-                <button
-                  key={amt}
-                  onClick={() => setInputAmount(String(amt))}
-                  className="flex-1 h-7 text-xs font-medium rounded-md bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  {amt}
-                </button>
-              ))}
-            </div>
-          )}
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            SOL
+          </span>
         </div>
-
-        {/* Output */}
-        <div className="space-y-1.5">
-          <div className="text-xs text-muted-foreground">
-            {mode === 'buy' ? `Receive ${token.symbol}` : 'Receive SOL'}
-          </div>
-          <div className="h-11 px-3 flex items-center bg-muted/30 rounded-lg border border-border/50">
-            <span className="text-base font-mono text-muted-foreground">
-              {quoteLoading ? '...' : outputAmount || '0.00'}
-            </span>
-          </div>
-        </div>
-
-        {/* Slippage */}
-        <div className="space-y-1.5">
-          <div className="text-xs text-muted-foreground">Slippage</div>
-          <div className="flex gap-1.5">
-            {SLIPPAGE_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setSlippage(opt)}
-                className={cn(
-                  "flex-1 h-7 text-xs font-medium rounded-md transition-colors",
-                  slippage === opt 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-muted/50 hover:bg-muted"
-                )}
-              >
-                {opt}%
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Button */}
-        {!wallet.connected ? (
-          <Button 
-            onClick={() => setWalletModalVisible(true)} 
-            className="w-full h-11 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold"
-          >
-            Connect Wallet
-          </Button>
-        ) : (
-          <Button
-            onClick={handleSwap}
-            disabled={loading || quoteLoading || !inputAmount || !quote}
-            className={cn(
-              "w-full h-11 font-semibold transition-all",
-              mode === 'buy'
-                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white"
-                : "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white"
-            )}
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : quoteLoading ? (
-              'Getting quote...'
-            ) : !quote ? (
-              'Enter amount'
-            ) : mode === 'buy' ? (
-              `Buy ${token.symbol}`
-            ) : (
-              `Sell ${token.symbol}`
-            )}
-          </Button>
-        )}
+        
+        {/* Trade Button */}
+        <button
+          className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
+            mode === 'buy'
+              ? 'bg-green-500 hover:bg-green-600 active:bg-green-700'
+              : 'bg-red-500 hover:bg-red-600 active:bg-red-700'
+          }`}
+        >
+          {mode === 'buy' ? 'Buy' : 'Sell'} {token.baseToken?.symbol}
+        </button>
       </div>
     </div>
   );
-}
+};
 
-// Main Component
-export default function MemeCoinsTerminal({ language = 'en' }) {
-  const isMobile = useIsMobile();
-  const t = tMemeCoins(language);
-  
-  // State
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
+export default function MemeCoins() {
   const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedToken, setSelectedToken] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [sortBy, setSortBy] = useState('trending');
+  const [timeframe, setTimeframe] = useState('h24');
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [sortBy, setSortBy] = useState('volume');
-  const [timeframe, setTimeframe] = useState('24h');
-
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    minLiquidity: 0,
+    minVolume: 0,
+    maxAge: 0, // hours, 0 = any
+    safeOnly: false,
+    hasWebsite: false,
+    hasSocials: false,
+  });
+  
+  // Detect dark mode
+  const isDark = document.documentElement.classList.contains('dark');
+  
   // Fetch tokens
   const fetchTokens = useCallback(async () => {
     try {
-      const data = await fetchTrendingSolanaTokens(50);
-      if (data && data.length > 0) {
-        setTokens(data.map(t => ({
-          address: t.mint || '',
-          pairAddress: t.pairAddress || t.id || '',
-          symbol: t.symbol || 'UNKNOWN',
-          name: t.name || 'Unknown',
-          price: toNumber(t.price),
-          priceNative: toNumber(t.priceNative),
-          change5m: toNumber(t.priceChange5m),
-          change1h: toNumber(t.priceChange1h),
-          change6h: toNumber(t.priceChange6h),
-          change24h: toNumber(t.priceChange24h),
-          volume5m: toNumber(t.volume5m),
-          volume1h: toNumber(t.volume1h),
-          volume6h: toNumber(t.volume6h),
-          volume24h: toNumber(t.volume24h),
-          liquidity: toNumber(t.liquidity),
-          marketCap: toNumber(t.marketCap),
-          imageUrl: t.imageUrl,
-          dexUrl: t.dexUrl,
-          pairCreatedAt: t.pairCreatedAt,
-          websites: t.websites || [],
-          socials: t.socials || [],
-        })));
-        setLastUpdated(new Date());
-      }
-    } catch (e) {
-      console.error('Failed to fetch tokens:', e);
-      toast.error('Failed to load tokens');
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${DEXSCREENER_API}/latest/dex/tokens/SOL`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      
+      const data = await response.json();
+      const pairs = data.pairs || [];
+      
+      // Filter Solana pairs only
+      const solanaPairs = pairs.filter(p => p.chainId === 'solana');
+      setTokens(solanaPairs);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
-
+  
+  // Initial fetch and refresh
   useEffect(() => {
     fetchTokens();
-    // Auto refresh every 60s
-    const interval = setInterval(fetchTokens, 60000);
+    const interval = setInterval(fetchTokens, REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchTokens]);
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchTokens();
-  };
-
+  
   // Filter and sort tokens
   const filteredTokens = useMemo(() => {
     let result = [...tokens];
@@ -524,180 +597,292 @@ export default function MemeCoinsTerminal({ language = 'en' }) {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(t => 
-        t.symbol?.toLowerCase().includes(q) || 
-        t.name?.toLowerCase().includes(q)
+        t.baseToken?.symbol?.toLowerCase().includes(q) ||
+        t.baseToken?.name?.toLowerCase().includes(q) ||
+        t.baseToken?.address?.toLowerCase().includes(q)
       );
     }
     
-    // Sort
-    const volKey = timeframe === '5m' ? 'volume5m' : timeframe === '1h' ? 'volume1h' : timeframe === '6h' ? 'volume6h' : 'volume24h';
-    const changeKey = timeframe === '5m' ? 'change5m' : timeframe === '1h' ? 'change1h' : timeframe === '6h' ? 'change6h' : 'change24h';
+    // Advanced filters
+    if (filters.minLiquidity > 0) {
+      result = result.filter(t => parseFloat(t.liquidity?.usd || 0) >= filters.minLiquidity);
+    }
+    if (filters.minVolume > 0) {
+      result = result.filter(t => parseFloat(t.volume?.h24 || 0) >= filters.minVolume);
+    }
+    if (filters.maxAge > 0) {
+      const maxAgeMs = filters.maxAge * 3600000;
+      result = result.filter(t => (Date.now() - (t.pairCreatedAt || 0)) <= maxAgeMs);
+    }
+    if (filters.safeOnly) {
+      result = result.filter(t => getTokenSafety(t).level === 'safe');
+    }
+    if (filters.hasWebsite) {
+      result = result.filter(t => t.info?.websites?.length > 0);
+    }
+    if (filters.hasSocials) {
+      result = result.filter(t => t.info?.socials?.length > 0);
+    }
     
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'volume': return toNumber(b[volKey]) - toNumber(a[volKey]);
-        case 'marketCap': return toNumber(b.marketCap) - toNumber(a.marketCap);
-        case 'change': return toNumber(b[changeKey]) - toNumber(a[changeKey]);
-        case 'new': return toNumber(b.pairCreatedAt) - toNumber(a.pairCreatedAt);
-        default: return 0;
-      }
-    });
+    // Sort
+    switch (sortBy) {
+      case 'newest':
+        result.sort((a, b) => (b.pairCreatedAt || 0) - (a.pairCreatedAt || 0));
+        break;
+      case 'volume':
+        result.sort((a, b) => parseFloat(b.volume?.h24 || 0) - parseFloat(a.volume?.h24 || 0));
+        break;
+      case 'gainers':
+        result.sort((a, b) => parseFloat(b.priceChange?.[timeframe] || 0) - parseFloat(a.priceChange?.[timeframe] || 0));
+        break;
+      case 'liquidity':
+        result.sort((a, b) => parseFloat(b.liquidity?.usd || 0) - parseFloat(a.liquidity?.usd || 0));
+        break;
+      case 'trending':
+      default:
+        // Already sorted by DexScreener
+        break;
+    }
     
     return result;
-  }, [tokens, searchQuery, sortBy, timeframe]);
-
+  }, [tokens, searchQuery, sortBy, timeframe, filters]);
+  
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="h-14 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold">{t.title || 'Meme Coins'}</h1>
-              <Badge variant="secondary" className="hidden sm:flex gap-1 h-6">
-                <SolanaLogo className="w-3.5 h-3.5" />
-                Solana
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              {lastUpdated && (
-                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {Math.floor((Date.now() - lastUpdated) / 1000)}s ago
-                </span>
-              )}
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={refreshing} className="h-8 w-8">
-                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-              </Button>
-            </div>
+      <div className="flex-shrink-0 px-3 py-2 border-b border-border">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-lg font-bold">Meme Coins</h1>
+          <div className="flex items-center gap-2">
+            {lastUpdated && (
+              <span className="text-[10px] text-muted-foreground">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              onClick={fetchTokens}
+              disabled={loading}
+              className="p-2 rounded-lg hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
-        <div className={cn(
-          "grid gap-4",
-          !isMobile && "lg:grid-cols-[1fr_400px]"
-        )}>
-          {/* Token List Section */}
-          <div className="space-y-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={t.searchPlaceholder || 'Search tokens...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 bg-muted/30 border-border/50"
-              />
-            </div>
-
-            {/* Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {/* Sort Buttons */}
-              {[
-                { key: 'volume', label: '🔥 Hot', icon: Flame },
-                { key: 'new', label: '✨ New', icon: Zap },
-                { key: 'marketCap', label: 'MC' },
-                { key: 'change', label: '📈 Gainers' },
-              ].map((s) => (
-                <button
-                  key={s.key}
-                  onClick={() => setSortBy(s.key)}
-                  className={cn(
-                    "h-8 px-3 text-xs font-medium rounded-lg whitespace-nowrap transition-all flex-shrink-0",
-                    sortBy === s.key
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  {s.label}
-                </button>
-              ))}
-              
-              <div className="w-px h-8 bg-border/50 flex-shrink-0" />
-              
-              {/* Timeframe Buttons */}
-              {['5m', '1h', '6h', '24h'].map((tf) => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeframe(tf)}
-                  className={cn(
-                    "h-8 px-2 text-xs font-medium rounded-lg transition-all flex-shrink-0",
-                    timeframe === tf
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {tf}
-                </button>
-              ))}
-            </div>
-
-            {/* Token List with Fixed Height */}
-            <div className={cn(
-              "space-y-2 overflow-y-auto pr-1",
-              isMobile ? "max-h-[calc(100vh-200px)]" : "max-h-[calc(100vh-220px)]"
-            )}>
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
-                  <p className="text-sm text-muted-foreground">Loading meme coins...</p>
-                </div>
-              ) : filteredTokens.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                  <Search className="w-8 h-8 mb-3 opacity-50" />
-                  <p className="text-sm">No tokens found</p>
-                </div>
-              ) : (
-                filteredTokens.map((token) => (
-                  <TokenCard
-                    key={token.pairAddress || token.address}
-                    token={token}
-                    selected={selectedToken?.address === token.address}
-                    onClick={() => setSelectedToken(token)}
-                    timeframe={timeframe}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Trade Panel - Desktop */}
-          {!isMobile && (
-            <div className="hidden lg:block">
-              <div className="sticky top-20">
-                {selectedToken ? (
-                  <div className="border border-border/50 rounded-xl overflow-hidden bg-card h-[calc(100vh-120px)]">
-                    <TradePanel 
-                      token={selectedToken} 
-                      onClose={() => setSelectedToken(null)} 
-                      isMobile={false}
-                    />
-                  </div>
-                ) : (
-                  <div className="border border-dashed border-border/50 rounded-xl p-8 text-center text-muted-foreground">
-                    <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm">Select a token to trade</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Mobile Trade Sheet */}
-      {isMobile && selectedToken && (
-        <div className="fixed inset-0 z-50 bg-background">
-          <TradePanel 
-            token={selectedToken} 
-            onClose={() => setSelectedToken(null)} 
-            isMobile={true}
+        
+        {/* Search */}
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, symbol or address..."
+            className="w-full pl-9 pr-4 py-2 rounded-lg bg-muted border border-transparent focus:border-primary outline-none text-sm"
           />
         </div>
-      )}
+        
+        {/* Sort & Timeframe */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {/* Sort Options */}
+          <div className="flex gap-1 flex-shrink-0">
+            {SORT_OPTIONS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setSortBy(id)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+                  sortBy === id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-3 h-3" />
+                {label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="w-px h-5 bg-border flex-shrink-0" />
+          
+          {/* Timeframes */}
+          <div className="flex gap-1 flex-shrink-0">
+            {TIMEFRAMES.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setTimeframe(id)}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  timeframe === id
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="w-px h-5 bg-border flex-shrink-0" />
+          
+          {/* Filter Button */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              showFilters ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <Filter className="w-3 h-3" />
+            Filters
+          </button>
+        </div>
+        
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mt-2 p-3 bg-muted/50 rounded-lg space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Min Liquidity</label>
+                <select
+                  value={filters.minLiquidity}
+                  onChange={(e) => setFilters(f => ({ ...f, minLiquidity: Number(e.target.value) }))}
+                  className="w-full px-2 py-1.5 rounded bg-background border border-border text-xs"
+                >
+                  <option value={0}>Any</option>
+                  <option value={10000}>$10K+</option>
+                  <option value={50000}>$50K+</option>
+                  <option value={100000}>$100K+</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Min Volume</label>
+                <select
+                  value={filters.minVolume}
+                  onChange={(e) => setFilters(f => ({ ...f, minVolume: Number(e.target.value) }))}
+                  className="w-full px-2 py-1.5 rounded bg-background border border-border text-xs"
+                >
+                  <option value={0}>Any</option>
+                  <option value={10000}>$10K+</option>
+                  <option value={50000}>$50K+</option>
+                  <option value={100000}>$100K+</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Max Age</label>
+                <select
+                  value={filters.maxAge}
+                  onChange={(e) => setFilters(f => ({ ...f, maxAge: Number(e.target.value) }))}
+                  className="w-full px-2 py-1.5 rounded bg-background border border-border text-xs"
+                >
+                  <option value={0}>Any</option>
+                  <option value={1}>1h</option>
+                  <option value={6}>6h</option>
+                  <option value={24}>24h</option>
+                  <option value={168}>7d</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.safeOnly}
+                  onChange={(e) => setFilters(f => ({ ...f, safeOnly: e.target.checked }))}
+                  className="rounded"
+                />
+                <ShieldCheck className="w-3 h-3 text-green-500" />
+                Safe only
+              </label>
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.hasWebsite}
+                  onChange={(e) => setFilters(f => ({ ...f, hasWebsite: e.target.checked }))}
+                  className="rounded"
+                />
+                <Globe className="w-3 h-3" />
+                Has website
+              </label>
+              <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.hasSocials}
+                  onChange={(e) => setFilters(f => ({ ...f, hasSocials: e.target.checked }))}
+                  className="rounded"
+                />
+                <Twitter className="w-3 h-3" />
+                Has socials
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Token List */}
+        <div className={`${
+          selectedToken ? 'hidden lg:block lg:w-[400px]' : 'w-full'
+        } border-r border-border overflow-hidden flex flex-col`}>
+          {/* Results Count */}
+          <div className="flex-shrink-0 px-3 py-2 text-xs text-muted-foreground border-b border-border">
+            {filteredTokens.length} tokens found
+          </div>
+          
+          {/* Token List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {loading && tokens.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-red-500">
+                <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">{error}</p>
+                <button 
+                  onClick={fetchTokens}
+                  className="mt-2 text-xs text-primary hover:underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredTokens.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No tokens found</p>
+              </div>
+            ) : (
+              filteredTokens.map((token) => (
+                <TokenCard
+                  key={token.pairAddress}
+                  token={token}
+                  isSelected={selectedToken?.pairAddress === token.pairAddress}
+                  onClick={() => setSelectedToken(token)}
+                  timeframe={timeframe}
+                />
+              ))
+            )}
+          </div>
+        </div>
+        
+        {/* Trade Panel */}
+        {selectedToken && (
+          <div className="flex-1 min-w-0">
+            <TradePanel 
+              token={selectedToken} 
+              onClose={() => setSelectedToken(null)}
+              isDark={isDark}
+            />
+          </div>
+        )}
+        
+        {/* Empty State (Desktop) */}
+        {!selectedToken && (
+          <div className="hidden lg:flex flex-1 items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <Layers className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Select a token to trade</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
