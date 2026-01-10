@@ -60,6 +60,10 @@ export const memeCoinsI18n = {
     launched: "Launched",
     socials: "Socials",
     website: "Website",
+    quickTrade: "Quick Trade",
+    connectToQuickTrade: "Connect wallet to quick trade",
+    safe: "Safe",
+    caution: "Caution",
   },
   ar: {
     title: "محطة عملات الميم",
@@ -122,6 +126,10 @@ export const memeCoinsI18n = {
     launched: "وقت الإطلاق",
     socials: "الروابط",
     website: "الموقع",
+    quickTrade: "تداول سريع",
+    connectToQuickTrade: "اربط المحفظة للتداول السريع",
+    safe: "آمن",
+    caution: "تنبيه",
   },
 };
 
