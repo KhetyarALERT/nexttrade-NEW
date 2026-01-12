@@ -19,42 +19,52 @@ import NotificationSettings from "@/components/notifications/NotificationSetting
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
-import { WalletProvider, useWallet } from "@/lib/web3/WalletContext";
+import { WalletProvider } from "@/lib/web3/WalletContext";
 import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal as useSolanaWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useAccount } from "wagmi";
 
-// Component to display Web3 wallet info in dropdown
-function Web3WalletDropdownItem({ language }) {
-  const { account, balance, networkName, isConnected, formatAddress, formatBalance } = useWallet();
-  
-  if (!isConnected) return null;
-  
+const formatShortAddress = (address, start = 6, end = 4) => {
+  if (!address) return "";
+  const str = address.toString();
+  return `${str.slice(0, start)}...${str.slice(-end)}`;
+};
+
+// Component to display connected wallet info in Accounts section
+function ConnectedWalletAccountsItem({ language }) {
+  const { address, isConnected, chain } = useAccount();
+  const solWallet = useSolanaWallet();
+  const hasEvm = Boolean(isConnected && address);
+  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
+
+  if (!hasEvm && !hasSolana) return null;
+
   return (
     <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
       <div className="flex items-center gap-2 w-full">
         <WalletIcon className="h-4 w-4 text-primary" />
-        <span className="font-medium">{language === "ar" ? "محفظة Web3" : "Web3 Wallet"}</span>
+        <span className="font-medium">{language === "ar" ? "المحفظة المتصلة" : "Connected Wallet"}</span>
       </div>
-      <div className="flex flex-col gap-0.5 w-full pl-6 text-xs">
-        <div className="flex items-center justify-between w-full">
-          <span className="text-muted-foreground">{language === "ar" ? "العنوان" : "Address"}:</span>
-          <span className="font-mono">{formatAddress(account)}</span>
-        </div>
-        <div className="flex items-center justify-between w-full">
-          <span className="text-muted-foreground">{language === "ar" ? "الشبكة" : "Network"}:</span>
-          <span>{networkName || "—"}</span>
-        </div>
-        <div className="flex items-center justify-between w-full">
-          <span className="text-muted-foreground">{language === "ar" ? "الرصيد" : "Balance"}:</span>
-          <span className="font-semibold text-primary">{formatBalance(balance)} {networkName === 'Ethereum' ? 'ETH' : networkName === 'Solana' ? 'SOL' : networkName === 'Tron' ? 'TRX' : ''}</span>
-        </div>
+      <div className="flex flex-col gap-1 w-full pl-6 text-xs">
+        {hasEvm ? (
+          <div className="flex items-center justify-between w-full">
+            <span className="text-muted-foreground">{chain?.name || "EVM"}:</span>
+            <span className="font-mono">{formatShortAddress(address)}</span>
+          </div>
+        ) : null}
+        {hasSolana ? (
+          <div className="flex items-center justify-between w-full">
+            <span className="text-muted-foreground">Solana:</span>
+            <span className="font-mono">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
+          </div>
+        ) : null}
       </div>
     </DropdownMenuItem>
   );
 }
 
-Web3WalletDropdownItem.propTypes = {
+ConnectedWalletAccountsItem.propTypes = {
   language: PropTypes.string.isRequired
 };
 
@@ -132,12 +142,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const memeCoinsPath = String(createPageUrl('MemeCoins')).split('?')[0];
   const isMemeCoinsPage = location.pathname === memeCoinsPath;
 
-  const formatSolAddress = (address) => {
-    if (!address) return '';
-    const str = address.toString();
-    return str.slice(0, 4) + '...' + str.slice(-4);
-  };
-
   const SolanaNavWalletButton = () => {
     if (solWallet?.connected && solWallet?.publicKey) {
       return (
@@ -145,14 +149,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2 bg-card border-border hover:bg-accent min-w-[140px]">
               <Wallet className="w-4 h-4" />
-              <span className="font-mono text-sm">{formatSolAddress(solWallet.publicKey)}</span>
+              <span className="font-mono text-sm">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
               <ChevronDown className="w-4 h-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-3 py-2 border-b border-border">
               <p className="text-xs text-muted-foreground mb-1">Solana wallet</p>
-              <p className="font-mono text-sm">{formatSolAddress(solWallet.publicKey)}</p>
+              <p className="font-mono text-sm">{formatShortAddress(solWallet.publicKey, 4, 4)}</p>
             </div>
             <DropdownMenuItem
               onSelect={async (e) => {
@@ -519,6 +523,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <DropdownMenuSeparator />
 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحسابات" : "Accounts"}</div>
+                    <ConnectedWalletAccountsItem language={language} />
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>
                         <div className="flex w-full items-center justify-between gap-3">
@@ -571,7 +576,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <DropdownMenuSeparator />
 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحساب" : "Account"}</div>
-                    <Web3WalletDropdownItem language={language} />
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile") + "?tab=personal"}>
                         <User className="h-4 w-4" />

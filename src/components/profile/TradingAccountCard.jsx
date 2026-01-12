@@ -42,7 +42,11 @@ export default function TradingAccountCard({ account, language = "en", onRefresh
   const [refreshing, setRefreshing] = useState(false);
 
   const isDemo = Boolean(account?.is_demo) || String(account?.account_type || "").toLowerCase() === "demo";
-  const displayBalance = Number(isDemo ? (account?.demo_balance ?? account?.balance) : account?.balance) || 0;
+  const displayBalance = Number(
+    isDemo
+      ? (account?.demo_balance ?? account?.balance ?? account?.equity)
+      : (account?.balance ?? account?.equity)
+  ) || 0;
   const marginUsed = Number(account?.margin_used) || 0;
   const unrealized = Number(account?.unrealized_pnl) || 0;
   // Equity should reflect what the user actually has right now.

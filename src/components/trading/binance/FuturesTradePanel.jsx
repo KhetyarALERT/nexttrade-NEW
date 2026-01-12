@@ -127,7 +127,7 @@ export default function FuturesTradePanel({
     const isAr = language === "ar";
     return {
       trade: isAr ? "تداول" : "Trade",
-      bots: isAr ? "بوتات" : "Bots",
+      bots: isAr ? "بوتات (تجريبي)" : "Bots (Demo)",
       cross: isAr ? "مشترك" : "Cross",
       isolated: isAr ? "معزول" : "Isolated",
       demo: isAr ? "واجهة تجريبية (بدون تنفيذ)" : "Demo UI (no trading)",
@@ -200,7 +200,7 @@ export default function FuturesTradePanel({
     // Our backend debits `balance`/`demo_balance` by (margin + fees) on open.
     // `margin_used` is tracked separately, but should NOT be subtracted again
     // when computing available funds.
-    const balance = Number(account.demo_balance ?? account.balance ?? 0);
+    const balance = Number(account.demo_balance ?? account.balance ?? account.equity ?? 0);
     const marginUsed = Number(account.margin_used ?? 0);
     const equity = Number(account.equity ?? (Number.isFinite(balance) ? balance : 0));
     const availableMargin = Number.isFinite(balance) ? Math.max(0, balance) : 0;
