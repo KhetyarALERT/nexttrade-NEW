@@ -28,15 +28,15 @@ import { base44 } from "@/api/base44Client";
 
 // Keep frontend lock periods aligned with backend (functions/wallet.ts)
 const stakingPlans = [
-  { days: 30, apy: 24, label: "1M", helper: "30D" },
-  { days: 45, apy: 32, label: "45D", helper: "45D" },
-  { days: 60, apy: 40, label: "2M", helper: "60D", highlight: "200%" },
-  { days: 90, apy: 55, label: "3M", helper: "90D" },
-  { days: 120, apy: 70, label: "4M", helper: "120D" },
+  { days: 14, apy: 18, label: "2W", helper: "14D" },
+  { days: 30, apy: 28, label: "1M", helper: "30D" },
+  { days: 49, apy: 40, label: "7W", helper: "49D", highlight: "200%" },
+  { days: 75, apy: 58, label: "2.5M", helper: "75D" },
+  { days: 120, apy: 75, label: "4M", helper: "120D" },
 ];
 
 const MIN_STAKE_USDT = 50;
-const MIN_LOCK_DAYS = 30;
+const MIN_LOCK_DAYS = 14;
 const DEMO_TIMER_STORAGE_KEY = "stakingDemoUnlockAt";
 
 function fmtMoney(n) {
@@ -107,8 +107,8 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     earnedLabel: "الأرباح",
     countdownTitle: "العد التنازلي لفك القفل",
     timeToUnlock: "باقي حتى فك القفل",
-    timerStarts: "يبدأ المؤقت بعد التأكيد",
-    demoTimer: "بدء مؤقت تجريبي",
+    timerStarts: "يبدأ فور الاشتراك (وضع العرض)",
+    demoTimer: "إعادة ضبط مؤقت العرض",
     timelineTitle: "الجدول الزمني",
     tSubscribe: "وقت الاشتراك",
     tStart: "بدء احتساب الأرباح",
@@ -150,8 +150,8 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     earnedLabel: "Earned",
     countdownTitle: "Countdown to unlock",
     timeToUnlock: "Time to unlock",
-    timerStarts: "Timer starts after confirmation",
-    demoTimer: "Start demo timer",
+    timerStarts: "Starts immediately after you subscribe (demo)",
+    demoTimer: "Reset demo timer",
     timelineTitle: "Timeline",
     tSubscribe: "Subscription time",
     tStart: "Rewards start",
@@ -219,6 +219,7 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
       return;
     }
 
+    if (demoEnabled) startDemoTimer();
     setProcessing(true);
     try {
       const result = await base44.functions.invoke('wallet', {

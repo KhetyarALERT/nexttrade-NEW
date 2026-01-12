@@ -651,7 +651,7 @@ Deno.serve(async (req) => {
 
     // STAKE USDT
     if (action === 'stake') {
-      const { walletId, amount, lockPeriodDays = 30 } = params;
+      const { walletId, amount, lockPeriodDays = 14 } = params;
       
       if (!walletId || !amount) {
         return Response.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -663,8 +663,8 @@ Deno.serve(async (req) => {
       }
 
       const lockDays = Number(lockPeriodDays);
-      if (!Number.isFinite(lockDays) || lockDays < 30) {
-        return Response.json({ success: false, error: 'Minimum lock period is 30 days' }, { status: 400 });
+      if (!Number.isFinite(lockDays) || lockDays < 14) {
+        return Response.json({ success: false, error: 'Minimum lock period is 14 days' }, { status: 400 });
       }
       
       const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
@@ -685,8 +685,8 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       
-      const apyRates = { 30: 24, 45: 32, 60: 40, 90: 55, 120: 70 };
-      const apy = apyRates[lockDays] || 24;
+      const apyRates = { 14: 18, 30: 28, 49: 40, 75: 58, 120: 75 };
+      const apy = apyRates[lockDays] || 18;
       
       const startDate = new Date();
       const unlockDate = new Date(startDate.getTime() + lockDays * 24 * 60 * 60 * 1000);
