@@ -23,6 +23,10 @@ export default function Investing({ language = "en" }) {
   filter((v) => Number.isFinite(v));
   const pctMin = pctValues.length ? Math.min(...pctValues) : null;
   const pctMax = pctValues.length ? Math.max(...pctValues) : null;
+  const promoBonus = {
+    newUser: true,
+    fiveK: { amount: 5000, duration: 60 }
+  };
 
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,14 @@ export default function Investing({ language = "en" }) {
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 <p className="text-xs text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    {t.promoNewUser}
+                  </Badge>
+                  <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    {t.promoFiveK}
+                  </Badge>
+                </div>
 
                 {/* Enhanced Mobile-First USDT Staking Card */}
                 <Card className="bg-card border-border text-foreground shadow-sm">
@@ -129,12 +141,21 @@ export default function Investing({ language = "en" }) {
                               <tbody className="divide-y divide-border">
                                 {stakeTiers?.amounts?.map((amt) =>
                                 <tr key={amt}>
-                                    <td className="py-2 pr-2 sm:pr-4 pl-3 sm:pl-0 font-semibold text-foreground">{Number(amt).toLocaleString()}</td>
+                                    <td className="py-2 pr-2 sm:pr-4 pl-3 sm:pl-0 font-semibold text-foreground">
+                                      <div className="flex items-center gap-2">
+                                        <CryptoIcon currency="USDT" size="xs" className="ring-1 ring-border" />
+                                        <span>{Number(amt).toLocaleString()}</span>
+                                      </div>
+                                    </td>
                                     {stakeTiers?.durations?.map((d) => {
                                     const pct = stakeTiers?.percentByDuration?.[d];
+                                    const showFiveKBonus = promoBonus.fiveK && Number(amt) === promoBonus.fiveK.amount && Number(d) === promoBonus.fiveK.duration;
                                     return (
                                       <td key={d} className="py-2 px-1 sm:pl-4 text-right font-mono text-muted-foreground text-xs sm:text-sm">
-                                          {Number.isFinite(Number(pct)) ? `${pct}%` : "—"}
+                                          <div className="flex flex-col items-end gap-1">
+                                            <span>{Number.isFinite(Number(pct)) ? `${pct}%` : "—"}</span>
+                                            {showFiveKBonus ? <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px]">200% bonus</Badge> : null}
+                                          </div>
                                         </td>);
 
                                   })}
@@ -159,6 +180,20 @@ export default function Investing({ language = "en" }) {
               <p>{t.howItWorksP1}</p>
               <p>{t.howItWorksP2}</p>
               <p className="text-xs text-muted-foreground">{t.howItWorksNote}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border shadow-sm">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-lg">{t.whatIsTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-3 text-sm text-muted-foreground">
+              <p>{t.whatIsP1}</p>
+              <p>{t.whatIsP2}</p>
+              <p className="text-xs text-muted-foreground">{t.whatIsHint}</p>
+              <div className="rounded-lg border border-border bg-muted p-3">
+                <div className="text-[11px] text-muted-foreground">{t.countdownLabel}</div>
+                <div className="text-sm font-semibold text-foreground">{t.countdownStarts}</div>
+              </div>
             </CardContent>
           </Card>
         </div>

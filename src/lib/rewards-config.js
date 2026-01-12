@@ -59,14 +59,16 @@ export const POSITION_VOUCHERS = {
   // Staking voucher tiers (reward % issued as position vouchers)
   stakeTiers: {
     amounts: [100, 200, 500, 1000, 2500, 5000, 10000],
-    durations: [7, 30, 90],
+    durations: [30, 45, 60, 90, 120],
 
     // Increased reward percentages (requested: “increase the % rewards”).
     // These are voucher reward percentages, not APY.
     percentByDuration: {
-      7: 15,
-      30: 22,
-      90: 40,
+      30: 24,
+      45: 32,
+      60: 40,
+      90: 55,
+      120: 70,
     },
   },
 };

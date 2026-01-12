@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,17 +28,16 @@ import { base44 } from "@/api/base44Client";
 
 // Keep frontend lock periods aligned with backend (functions/wallet.ts)
 const stakingPlans = [
-{ days: 24, apy: 11, label: "24D" },
-{ days: 30, apy: 29, label: "30D" },
-{ days: 45, apy: 73, label: "45D" },
-{ days: 60, apy: 150, label: "60D" },
-{ days: 90, apy: 220, label: "90D" },
-{ days: 120, apy: 350, label: "120D" },
-{ days: 365, apy: 999, label: "365D" }];
-
+  { days: 30, apy: 24, label: "1M", helper: "30D" },
+  { days: 45, apy: 32, label: "45D", helper: "45D" },
+  { days: 60, apy: 40, label: "2M", helper: "60D", highlight: "200%" },
+  { days: 90, apy: 55, label: "3M", helper: "90D" },
+  { days: 120, apy: 70, label: "4M", helper: "120D" },
+];
 
 const MIN_STAKE_USDT = 50;
-const MIN_LOCK_DAYS = 24;
+const MIN_LOCK_DAYS = 30;
+const DEMO_TIMER_STORAGE_KEY = "stakingDemoUnlockAt";
 
 function fmtMoney(n) {
   const v = Number(n);
@@ -69,6 +68,9 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
   const [stakeAmount, setStakeAmount] = useState("");
   const [lockPeriod, setLockPeriod] = useState(String(MIN_LOCK_DAYS));
   const [processing, setProcessing] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [demoUnlockAt, setDemoUnlockAt] = useState(null);
+  const [demoEnabled, setDemoEnabled] = useState(false);
 
   const t = language === "ar" ? {
     title: "استثمار USDT",
@@ -101,6 +103,12 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     estRewards: "الأرباح التقديرية",
     estTotal: "الإجمالي عند الاستحقاق",
     estDaily: "ربح/يوم",
+    stakedLabel: "مستثمر",
+    earnedLabel: "الأرباح",
+    countdownTitle: "العد التنازلي لفك القفل",
+    timeToUnlock: "باقي حتى فك القفل",
+    timerStarts: "يبدأ المؤقت بعد التأكيد",
+    demoTimer: "بدء مؤقت تجريبي",
     timelineTitle: "الجدول الزمني",
     tSubscribe: "وقت الاشتراك",
     tStart: "بدء احتساب الأرباح",
@@ -138,6 +146,12 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     estRewards: "Est. rewards",
     estTotal: "Total at maturity",
     estDaily: "Per day",
+    stakedLabel: "Staked",
+    earnedLabel: "Earned",
+    countdownTitle: "Countdown to unlock",
+    timeToUnlock: "Time to unlock",
+    timerStarts: "Timer starts after confirmation",
+    demoTimer: "Start demo timer",
     timelineTitle: "Timeline",
     tSubscribe: "Subscription time",
     tStart: "Rewards start",
@@ -147,6 +161,21 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
   };
 
   const usdtWallets = wallets.filter((w) => w.currency === 'USDT');
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(DEMO_TIMER_STORAGE_KEY);
+    if (stored) {
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed)) setDemoUnlockAt(parsed);
+    }
+    setDemoEnabled(import.meta.env?.DEV || window.localStorage.getItem("stakingAdmin") === "true");
+  }, []);
 
   const loadPositions = async () => {
     setLoading(true);
@@ -215,6 +244,16 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
     }
   };
 
+  const startDemoTimer = () => {
+    const lockDays = parseInt(lockPeriod);
+    if (!Number.isFinite(lockDays)) return;
+    const unlockAt = Date.now() + lockDays * 24 * 60 * 60 * 1000;
+    setDemoUnlockAt(unlockAt);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DEMO_TIMER_STORAGE_KEY, String(unlockAt));
+    }
+  };
+
   const calculateProgress = (startDate, unlockDate) => {
     const start = new Date(startDate).getTime();
     const end = new Date(unlockDate).getTime();
@@ -246,6 +285,28 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
   const available = selectedWalletObj ?
   Number(selectedWalletObj.balance - (selectedWalletObj.locked_balance || 0)) :
   0;
+
+  const activePositions = positions.filter((p) => p.status === "active");
+
+  const nextUnlock = useMemo(() => {
+    const unlockTimes = activePositions.map((p) => new Date(p.unlock_date).getTime()).filter(Number.isFinite);
+    if (demoUnlockAt) unlockTimes.push(demoUnlockAt);
+    if (!unlockTimes.length) return null;
+    return Math.min(...unlockTimes);
+  }, [activePositions, demoUnlockAt]);
+
+  const formatCountdown = (targetMs) => {
+    if (!targetMs) return "--";
+    const diff = Math.max(0, targetMs - now);
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days}d ${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  };
+
+  const countdownLabel = nextUnlock ? formatCountdown(nextUnlock) : null;
 
   const setPercentAmount = (pct) => {
     const a = Number(available);
@@ -287,26 +348,30 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
 
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="p-3 bg-muted border border-border rounded-xl">
-            <p className="text-[10px] text-muted-foreground">Staked</p>
+            <p className="text-[10px] text-muted-foreground">{t.stakedLabel}</p>
             <p className="text-sm font-bold text-foreground">{fmtMoney(totalStaked)} USDT</p>
           </div>
           <div className="p-3 bg-muted border border-border rounded-xl">
-            <p className="text-[10px] text-muted-foreground">Earned</p>
+            <p className="text-[10px] text-muted-foreground">{t.earnedLabel}</p>
             <p className="text-green-600 text-sm font-bold">{fmtMoney(totalEarned)} USDT</p>
           </div>
+        </div>
+        <div className="rounded-xl border border-border bg-muted px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+          <span>{t.countdownTitle}</span>
+          <span className="font-mono text-foreground">{countdownLabel || "--"}</span>
         </div>
         
         {loading ?
         <div className="flex justify-center py-4">
             <RefreshCw className="w-4 h-4 animate-spin text-muted-foreground" />
           </div> :
-        positions.filter((p) => p.status === 'active').length === 0 ?
+        activePositions.length === 0 ?
         <div className="bg-transparent text-muted-foreground py-4 text-xs text-center">
             {t.noStakes}
           </div> :
 
         <div className="space-y-2">
-                    {positions.filter((p) => p.status === 'active').slice(0, 3).map((pos) => {
+                    {activePositions.slice(0, 3).map((pos) => {
             const progress = calculateProgress(pos.start_date, pos.unlock_date);
             return (
               <div key={pos.id} className="p-3 bg-muted border border-border rounded-xl">
@@ -315,6 +380,10 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                             <span className="text-emerald-300 text-xs">{pos.apy}% APY</span>
                   </div>
                   <Progress value={progress} className="h-1" />
+                  <div className="text-[10px] text-muted-foreground mt-2">
+                    {t.timeToUnlock}:{" "}
+                    <span className="font-mono text-foreground">{formatCountdown(new Date(pos.unlock_date).getTime())}</span>
+                  </div>
                 </div>);
 
           })}
@@ -337,6 +406,23 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
           <div id="stake-description" className="text-muted-foreground text-sm space-y-2 pb-4 border-b border-border">
             <p className="text-[13px] text-foreground/90">{t.internalNote}</p>
             <p className="text-xs text-muted-foreground">{t.minAmount} • {t.minPeriod} • {t.earlyPenalty}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">{t.timerStarts}</span>
+              {demoEnabled ? (
+                <button
+                  type="button"
+                  onClick={startDemoTimer}
+                  className="text-[11px] text-blue-500 hover:text-blue-400 underline"
+                >
+                  {t.demoTimer}
+                </button>
+              ) : null}
+            </div>
+            {demoUnlockAt ? (
+              <div className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground font-mono">
+                {formatCountdown(demoUnlockAt)}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-4">
@@ -410,8 +496,13 @@ export default function StakingPanel({ wallets = [], language = "en", onRefresh 
                     }>
 
                         <p className="font-bold text-foreground text-xs">{plan.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{plan.days}D</p>
+                        <p className="text-[10px] text-muted-foreground">{plan.helper}</p>
                         <p className="text-[10px] text-emerald-300">{plan.apy}%</p>
+                        {plan.highlight ? (
+                          <span className="mt-1 inline-flex items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[9px] px-1.5 py-0.5">
+                            {plan.highlight}
+                          </span>
+                        ) : null}
                       </button>
                   )}
                   </div>
