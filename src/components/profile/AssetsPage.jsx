@@ -75,7 +75,10 @@ const localizations = {
     available: "Available",
     internalTransferTitle: "Internal Transfer",
     internalTransferDesc: "Transfer between Funding, Spot, and Perpetual wallets (0 fees)",
-    comingSoon: "Coming soon - Transfer between wallet types"
+    comingSoon: "Coming soon - Transfer between wallet types",
+    totalWallets: "Wallets",
+    totalAssets: "Assets",
+    totalNetworks: "Networks"
   },
   ar: {
     totalBalance: "الرصيد الكلي",
@@ -103,7 +106,10 @@ const localizations = {
     available: "المتاح",
     internalTransferTitle: "تحويل داخلي",
     internalTransferDesc: "تحويل بين محافظ التمويل والسبوت والعقود الدائمة (بدون رسوم)",
-    comingSoon: "قريباً - تحويل بين أنواع المحافظ"
+    comingSoon: "قريباً - تحويل بين أنواع المحافظ",
+    totalWallets: "المحافظ",
+    totalAssets: "الأصول",
+    totalNetworks: "الشبكات"
   }
 };
 
@@ -209,6 +215,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
     if (hideSmallBalances && (w.balance || 0) < 1) return false;
     return true;
   });
+
+  const totalWallets = wallets.length;
+  const uniqueAssets = new Set(wallets.map((w) => (w.currency || "").toUpperCase())).size;
+  const uniqueNetworks = new Set(wallets.map((w) => w.network).filter(Boolean)).size;
 
   // Group by currency
   const groupedWallets = filteredWallets.reduce((acc, w) => {
@@ -355,27 +365,41 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+      <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-slate-600 text-sm">{t.totalBalance}</span>
-              <button onClick={() => setShowBalances(!showBalances)} className="text-slate-500 hover:text-slate-900">
+              <span className="text-muted-foreground text-sm uppercase tracking-[0.2em]">{t.totalBalance}</span>
+              <button onClick={() => setShowBalances(!showBalances)} className="text-muted-foreground hover:text-foreground">
                 {showBalances ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{formatUSD(calculateTotal())}</div>
+            <div className="text-2xl sm:text-3xl font-semibold text-foreground">{formatUSD(calculateTotal())}</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
               <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
             </Button>
-            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
               <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
             </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 rounded-xl flex-1 sm:flex-none">
+            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
               <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
             </Button>
+          </div>
+        </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: t.totalWallets, value: totalWallets },
+              { label: t.totalAssets, value: uniqueAssets },
+              { label: t.totalNetworks, value: uniqueNetworks }
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-border/40 bg-muted/30 p-3 text-center">
+                <div className="text-lg font-semibold text-foreground">{stat.value}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -389,21 +413,21 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         }}
         className="w-full"
       >
-        <TabsList className="w-full justify-start bg-white p-1 rounded-xl border border-slate-200 flex flex-wrap gap-1 overflow-x-hidden">
-          <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+        <TabsList className="w-full justify-start bg-card/70 p-1 rounded-xl border border-border/60 flex flex-wrap gap-1 overflow-x-hidden">
+          <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
             <Wallet className="w-4 h-4 mr-1.5" /> {t.funding}
           </TabsTrigger>
-          <TabsTrigger value="spot" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+          <TabsTrigger value="spot" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
             {t.spot}
           </TabsTrigger>
-          <TabsTrigger value="futures" className="text-sm rounded-lg data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-slate-600">
+          <TabsTrigger value="futures" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
             {t.perpetual}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="main" className="mt-4">
-          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
-            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+          <div className={`mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
             <span>{t.fundingHelp}</span>
           </div>
           <AssetsTable
@@ -423,8 +447,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="spot" className="mt-4">
-          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
-            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+          <div className={`mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
             <span>{t.spotHelp}</span>
           </div>
           <SpotWalletView
@@ -436,8 +460,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         </TabsContent>
 
         <TabsContent value="futures" className="mt-4">
-          <div className={`mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
-            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-400" />
+          <div className={`mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
             <span>{t.perpetualHelp}</span>
           </div>
           <FuturesWalletView
@@ -779,8 +803,8 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
   });
 
   return (
-    <div className="rounded-2xl overflow-hidden bg-white border border-slate-200">
-      <div className="p-4 border-b border-slate-100">
+    <div className="rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm">
+      <div className="p-4 border-b border-border/40 bg-muted/10">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
@@ -788,11 +812,11 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
               placeholder={t?.searchPlaceholder || 'Search coin'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`} />
+              className={`${language === 'ar' ? 'pr-9' : 'pl-9'} bg-background border-border text-foreground placeholder:text-muted-foreground`} />
 
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer whitespace-nowrap">
-            <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-slate-300" />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer whitespace-nowrap">
+            <Checkbox checked={hideSmallBalances} onCheckedChange={setHideSmallBalances} className="border-border" />
             {t?.hideSmallBalances || 'Hide small balances'}
           </label>
         </div>
@@ -801,7 +825,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
       <div className="overflow-x-hidden">
         <table className="w-full table-fixed">
           <thead>
-            <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-slate-500 border-b border-slate-100`}>
+            <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-muted-foreground border-b border-border/40`}>
               <th className="px-4 py-3 font-medium">{language === 'ar' ? 'العملة' : 'Coin'}</th>
               <th className="px-4 py-3 font-medium">{language === 'ar' ? 'الرصيد' : 'Balance'}</th>
               <th className="px-4 py-3 font-medium text-right">{language === 'ar' ? 'إجراءات' : 'Actions'}</th>
@@ -810,7 +834,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
           <tbody>
             {Object.entries(normalizedWallets).length === 0 ?
             <tr>
-                <td colSpan={3} className="px-4 py-10 text-center text-slate-500">
+                <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
                   {t?.noAssets || 'No assets. Click Deposit to add funds.'}
                 </td>
               </tr> :
@@ -820,26 +844,26 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
               const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
 
               return (
-                <tr key={currency} className="border-b border-slate-100 hover:bg-slate-50">
+                <tr key={currency} className="border-b border-border/30 hover:bg-muted/20">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <CryptoIcon currency={currency} size="md" />
                         <div>
-                          <div className="text-slate-900 font-medium">{currency}</div>
-                          <div className="text-slate-500 text-xs">{CURRENCY_NAMES[currency] || currency}</div>
+                          <div className="text-foreground font-medium">{currency}</div>
+                          <div className="text-muted-foreground text-xs">{CURRENCY_NAMES[currency] || currency}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-slate-900 break-words">{formatBalance(totalAmount)}</div>
-                      <div className="text-slate-500 text-xs break-words">{formatUSD(usdValue)}</div>
+                      <div className="text-foreground break-words">{formatBalance(totalAmount)}</div>
+                      <div className="text-muted-foreground text-xs break-words">{formatUSD(usdValue)}</div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                        <button onClick={() => onDeposit(currency)} className="text-indigo-600 hover:text-indigo-700 text-sm">
+                        <button onClick={() => onDeposit(currency)} className="text-blue-600 hover:text-blue-700 text-sm">
                           {t?.deposit || 'Deposit'}
                         </button>
-                        <button onClick={() => onWithdraw(currency)} className="text-indigo-600 hover:text-indigo-700 text-sm">
+                        <button onClick={() => onWithdraw(currency)} className="text-blue-600 hover:text-blue-700 text-sm">
                           {t?.withdraw || 'Withdraw'}
                         </button>
                       </div>
