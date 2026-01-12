@@ -76,6 +76,14 @@ const localizations = {
     internalTransferTitle: "Internal Transfer",
     internalTransferDesc: "Transfer between Funding, Spot, and Perpetual wallets (0 fees)",
     comingSoon: "Coming soon - Transfer between wallet types",
+    gettingStartedTitle: "Getting started",
+    gettingStartedBody: "New to crypto? Follow these steps to set up your portfolio.",
+    stepDepositTitle: "Deposit funds",
+    stepDepositDesc: "Add USDT or your preferred assets to Funding.",
+    stepTransferTitle: "Move between wallets",
+    stepTransferDesc: "Transfer to Spot or Perpetual when you're ready to trade.",
+    stepTrackTitle: "Track performance",
+    stepTrackDesc: "Review balances, PnL, and open positions here.",
     totalWallets: "Wallets",
     totalAssets: "Assets",
     totalNetworks: "Networks"
@@ -107,6 +115,14 @@ const localizations = {
     internalTransferTitle: "تحويل داخلي",
     internalTransferDesc: "تحويل بين محافظ التمويل والسبوت والعقود الدائمة (بدون رسوم)",
     comingSoon: "قريباً - تحويل بين أنواع المحافظ",
+    gettingStartedTitle: "ابدأ بسهولة",
+    gettingStartedBody: "جديد في العملات الرقمية؟ اتبع هذه الخطوات لإعداد محفظتك.",
+    stepDepositTitle: "إيداع الأموال",
+    stepDepositDesc: "أضف USDT أو أصولك المفضلة إلى محفظة التمويل.",
+    stepTransferTitle: "تحويل بين المحافظ",
+    stepTransferDesc: "حوّل إلى السبوت أو العقود الدائمة عندما تكون جاهزاً للتداول.",
+    stepTrackTitle: "تتبع الأداء",
+    stepTrackDesc: "راجع الأرصدة والأرباح والمراكز المفتوحة هنا.",
     totalWallets: "المحافظ",
     totalAssets: "الأصول",
     totalNetworks: "الشبكات"
@@ -404,6 +420,31 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Getting Started */}
+      <div className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">{t.gettingStartedTitle}</h2>
+            <p className="text-xs text-muted-foreground">{t.gettingStartedBody}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {[
+            { title: t.stepDepositTitle, description: t.stepDepositDesc, icon: ArrowDownToLine },
+            { title: t.stepTransferTitle, description: t.stepTransferDesc, icon: ArrowLeftRight },
+            { title: t.stepTrackTitle, description: t.stepTrackDesc, icon: Eye },
+          ].map((step) => (
+            <div key={step.title} className="rounded-xl border border-border/40 bg-background/40 p-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <step.icon className="h-4 w-4 text-blue-600" />
+                {step.title}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
+            </div>
+          ))}
         </div>
       </div>
 

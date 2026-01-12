@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { WalletButton } from '@/components/wallet/WalletButton';
 import { useWallet } from '@solana/wallet-adapter-react';
 import {
   Tooltip,
@@ -955,7 +954,6 @@ export default function MemeCoins() {
                 </TooltipTrigger>
                 <TooltipContent>Refresh tokens</TooltipContent>
               </Tooltip>
-              <WalletButton />
             </div>
           </div>
 

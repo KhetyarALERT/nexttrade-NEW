@@ -49,8 +49,8 @@ export default function FuturesWalletView({
   // Calculate futures account metrics from trading account and trades
   const openTrades = trades.filter((t) => t.status === 'OPEN');
 
-  const accountAssets = account?.balance || account?.demo_balance || 0;
-  const accountBalance = account?.equity || account?.demo_balance || 0;
+  const accountAssets = account?.balance ?? account?.demo_balance ?? account?.equity ?? 0;
+  const accountBalance = account?.equity ?? account?.demo_balance ?? account?.balance ?? 0;
   const unrealizedPnl = account?.unrealized_pnl || 0;
   const marginUsed = account?.margin_used || 0;
   const availableMargin = accountBalance - marginUsed;
