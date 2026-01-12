@@ -95,29 +95,23 @@ const logActivity = (action, details) => {
   return logEntry;
 };
 
-// Enhanced Stat Card with gradient backgrounds
-const StatCard = ({ title, value, change = undefined, icon: Icon, gradient }) => (
-  <div className={`relative overflow-hidden rounded-2xl ${gradient} p-5 shadow-lg`}>
-    <div className="relative z-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-white/70 uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
-          {change !== undefined && (
-            <div className={`flex items-center gap-1 mt-1.5 text-sm font-medium ${change >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-              {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-            </div>
-          )}
-        </div>
-        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-          <Icon className="h-6 w-6 text-white" />
-        </div>
+const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg }) => (
+  <div className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
+        <p className="text-2xl font-semibold text-foreground mt-2">{value}</p>
+        {change !== undefined && (
+          <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+          </div>
+        )}
+      </div>
+      <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center`}>
+        <Icon className={`h-6 w-6 ${accent}`} />
       </div>
     </div>
-    {/* Decorative elements */}
-    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
   </div>
 );
 
@@ -321,67 +315,74 @@ export default function Dashboard({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 text-foreground pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Header - Mobile Optimized */}
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{t.title}</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{t.subtitle}</p>
+        <Card className="border-border/60 bg-card/70 shadow-sm">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{language === "ar" ? "نظرة عامة" : "Overview"}</p>
+                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-2">{t.title}</h1>
+                <p className="text-sm text-muted-foreground mt-1">{t.subtitle}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button asChild className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                  <Link to={createPageUrl("Futures")} className="flex items-center justify-center gap-2 px-4">
+                    <Zap className="h-5 w-5" />
+                    <span className="font-semibold">{t.trade}</span>
+                  </Link>
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-10 w-10 rounded-xl"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-          
-          {/* Quick Trade Button - Mobile Prominent */}
-          <Button asChild className="w-full sm:w-auto h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-lg shadow-blue-500/25">
-            <Link to={createPageUrl("Futures")} className="flex items-center justify-center gap-2">
-              <Zap className="h-5 w-5" />
-              <span className="font-semibold">{t.trade}</span>
-            </Link>
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Balance Cards - Mobile Scroll */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard 
             title={t.totalBalance} 
             value={`$${formatMoney(balanceData.total)}`}
             icon={Wallet}
-            gradient="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800"
+            accent="text-blue-600"
+            accentBg="bg-blue-500/10"
           />
           <StatCard 
             title={t.available} 
             value={`$${formatMoney(balanceData.available)}`}
             icon={CheckCircle}
-            gradient="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700"
+            accent="text-emerald-600"
+            accentBg="bg-emerald-500/10"
           />
           <StatCard 
             title={t.inPositions} 
             value={`$${formatMoney(balanceData.inPositions)}`}
             icon={Activity}
-            gradient="bg-gradient-to-br from-purple-500 via-purple-600 to-violet-700"
+            accent="text-purple-600"
+            accentBg="bg-purple-500/10"
           />
           <StatCard 
             title={t.dailyPnl} 
             value={`$${formatMoney(pnlData.daily)}`}
             change={pnlData.daily !== 0 ? (pnlData.daily / Math.max(1, balanceData.total)) * 100 : undefined}
             icon={TrendingUp}
-            gradient="bg-gradient-to-br from-cyan-500 via-cyan-600 to-blue-700"
+            accent="text-cyan-600"
+            accentBg="bg-cyan-500/10"
           />
         </div>
 
         {/* PnL Statistics - Compact Mobile */}
-        <Card className="mb-6 border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
-          <CardHeader className="border-b border-border/50 py-4">
+        <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
             <CardTitle className="text-base font-semibold">{t.pnl}</CardTitle>
           </CardHeader>
           <CardContent className="p-4">
@@ -392,7 +393,7 @@ export default function Dashboard({ language = "en" }) {
                 { label: t.monthlyPnl, value: pnlData.monthly },
                 { label: t.totalPnl, value: pnlData.total }
               ].map((item, i) => (
-                <div key={i} className="text-center p-3 rounded-xl bg-muted/30">
+                <div key={i} className="text-center p-3 rounded-xl bg-muted/30 border border-border/40">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{item.label}</p>
                   <p className={`text-lg sm:text-xl font-bold font-mono ${item.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {item.value >= 0 ? '+' : ''}{formatMoney(item.value)}
@@ -404,10 +405,10 @@ export default function Dashboard({ language = "en" }) {
         </Card>
 
         {/* Positions & Orders - Mobile Cards */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Open Positions */}
-          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4">
+          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">{t.positions}</CardTitle>
                 <Badge variant="secondary" className="rounded-full px-2.5">
@@ -465,8 +466,8 @@ export default function Dashboard({ language = "en" }) {
           </Card>
 
           {/* Pending Orders */}
-          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4">
+          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">{t.orders}</CardTitle>
                 <Badge variant="secondary" className="rounded-full px-2.5">
@@ -523,8 +524,8 @@ export default function Dashboard({ language = "en" }) {
         {/* Referrals & Vouchers */}
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Referral Program */}
-          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4">
+          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
                   <Users className="h-4 w-4 text-blue-500" />
@@ -539,14 +540,14 @@ export default function Dashboard({ language = "en" }) {
                   { value: '0', label: language === 'ar' ? 'نشط' : 'Active', color: 'text-emerald-400' },
                   { value: '$0', label: language === 'ar' ? 'العمولة' : 'Earned', color: 'text-blue-400' }
                 ].map((stat, i) => (
-                  <div key={i} className="text-center p-3 rounded-xl bg-muted/30">
+                  <div key={i} className="text-center p-3 rounded-xl bg-muted/30 border border-border/40">
                     <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">{stat.label}</p>
                   </div>
                 ))}
               </div>
               
-              <div className="rounded-xl bg-muted/30 p-3">
+              <div className="rounded-xl bg-muted/30 border border-border/40 p-3">
                 <p className="text-[10px] text-muted-foreground uppercase mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 font-mono font-bold text-sm">
@@ -567,8 +568,8 @@ export default function Dashboard({ language = "en" }) {
           </Card>
 
           {/* Vouchers */}
-          <Card className="border-border/50 shadow-sm bg-card/50 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4">
+          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
                   <Gift className="h-4 w-4 text-purple-500" />
@@ -579,7 +580,7 @@ export default function Dashboard({ language = "en" }) {
             <CardContent className="p-3">
               <div className="space-y-2">
                 {vouchers.map(voucher => (
-                  <div key={voucher.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <div key={voucher.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
                       <Gift className="h-5 w-5 text-white" />
                     </div>
