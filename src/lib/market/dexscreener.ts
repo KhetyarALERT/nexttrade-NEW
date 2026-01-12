@@ -132,6 +132,17 @@ export const fetchSearchTokens = async (query: string, signal?: AbortSignal): Pr
   return filterSolana(pairs.map(mapPairToTokenSummary));
 };
 
+export const fetchTokenProfile = async (tokenAddress: string, signal?: AbortSignal) => {
+  if (!tokenAddress) return null;
+  const data = await fetchJson<any[]>(`${API_BASE}/token-profiles/latest/v1`, signal);
+  const normalized = tokenAddress.toLowerCase();
+  return (data || []).find(
+    (token) =>
+      normalizeString(token?.tokenAddress || token?.address).toLowerCase() === normalized &&
+      normalizeString(token?.chainId || token?.chain || token?.network || SOLANA_CHAIN) === SOLANA_CHAIN
+  ) || null;
+};
+
 export const fetchTokenPairs = async (tokenAddress: string, signal?: AbortSignal): Promise<PairDetails[]> => {
   if (!tokenAddress) return [];
   const data = await fetchJson<any[]>(
@@ -169,3 +180,5 @@ export const mapPairDetailsToSummary = (pair: PairDetails): TokenSummary => ({
   socials: pair.info?.socials ?? [],
   txns24h: pair.txns24h ?? null,
 });
+
+export const mapProfileDetailsToSummary = (profile: any): TokenSummary => mapProfileToSummary(profile);
