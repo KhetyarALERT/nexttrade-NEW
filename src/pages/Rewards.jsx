@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { Gift, CalendarCheck2, CheckCircle2 } from "lucide-react";
+import { Gift, CalendarCheck2, CheckCircle2, Flame, Sparkles, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { POSITION_VOUCHERS } from "@/lib/rewards-config";
 import { pickLang } from "@/lib/rewards-config";
@@ -46,6 +47,8 @@ export default function Rewards({ language = "en" }) {
 
   const [voucherClaims, setVoucherClaims] = useState({});
   const [eligibility, setEligibility] = useState({});
+  const completedTasks = tasks.filter((task) => task.done).length;
+  const taskProgress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
 
   useEffect(() => {
     try {
@@ -198,9 +201,59 @@ export default function Rewards({ language = "en" }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="border-border shadow-sm lg:col-span-1 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10">
+            <CardHeader className="border-b border-border">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-blue-600" />
+                {language === "ar" ? "ملخص المكافآت" : "Rewards snapshot"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-600/10 flex items-center justify-center">
+                    <Flame className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t.streak}</p>
+                    <p className="text-lg font-semibold">{streak}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-border text-muted-foreground">
+                  {checkedInToday ? t.checkedIn : t.checkIn}
+                </Badge>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {language === "ar" ? "تقدم المهام" : "Tasks progress"}
+                  </span>
+                  <span className="text-foreground font-semibold">{taskProgress}%</span>
+                </div>
+                <Progress value={taskProgress} />
+                <div className="text-xs text-muted-foreground">
+                  {language === "ar"
+                    ? `أكملت ${completedTasks} من ${tasks.length} مهام.`
+                    : `You have completed ${completedTasks} of ${tasks.length} tasks.`}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  {language === "ar" ? "كيف تكسب أسرع" : "Earn faster"}
+                </div>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>{language === "ar" ? "قم بإيداع صغير لفتح قسيمة الترحيب." : "Make a small deposit to unlock the welcome voucher."}</li>
+                  <li>{language === "ar" ? "أكمل أول صفقة لإطلاق مكافأة التداول." : "Complete your first trade to activate a trading reward."}</li>
+                  <li>{language === "ar" ? "فعّل 2FA للحصول على نقطة أمان إضافية." : "Enable 2FA to gain a security bonus."}</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Daily */}
-          <Card className="border-border shadow-sm">
+          <Card className="border-border shadow-sm lg:col-span-1">
             <CardHeader className="border-b border-border">
               <CardTitle className="text-lg flex items-center gap-2">
                 <CalendarCheck2 className="h-5 w-5 text-blue-600" />
@@ -235,7 +288,7 @@ export default function Rewards({ language = "en" }) {
           </Card>
 
           {/* Tasks */}
-          <Card className="border-border shadow-sm">
+          <Card className="border-border shadow-sm lg:col-span-1">
             <CardHeader className="border-b border-border">
               <CardTitle className="text-lg">{t.tasks}</CardTitle>
             </CardHeader>

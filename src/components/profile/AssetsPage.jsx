@@ -363,33 +363,36 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
   }, [selectedCurrency, networks.length]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
       <div className="rounded-2xl border border-border/60 bg-card/70 p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-muted-foreground text-sm uppercase tracking-[0.2em]">{t.totalBalance}</span>
-              <button onClick={() => setShowBalances(!showBalances)} className="text-muted-foreground hover:text-foreground">
-                {showBalances ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-muted-foreground text-sm uppercase tracking-[0.2em]">{t.totalBalance}</span>
+                <button onClick={() => setShowBalances(!showBalances)} className="text-muted-foreground hover:text-foreground">
+                  {showBalances ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="text-2xl sm:text-3xl font-semibold text-foreground">{formatUSD(calculateTotal())}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {language === "ar" ? "لمحة سريعة عن إجمالي أموالك." : "Quick overview of all wallet balances."}
+              </p>
             </div>
-            <div className="text-2xl sm:text-3xl font-semibold text-foreground">{formatUSD(calculateTotal())}</div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
+                <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
+              </Button>
+              <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
+                <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
+              </Button>
+              <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
+                <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => {setActiveModal('deposit');resetForm();}} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex-1 sm:flex-none">
-              <ArrowDownToLine className="w-4 h-4 mr-1.5" /> {t.deposit}
-            </Button>
-            <Button onClick={() => {setActiveModal('withdraw');resetForm();}} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
-              <ArrowUpFromLine className="w-4 h-4 mr-1.5" /> {t.withdraw}
-            </Button>
-            <Button onClick={() => setActiveModal('transfer')} variant="outline" className="border-border bg-background text-foreground hover:bg-muted/20 rounded-xl flex-1 sm:flex-none">
-              <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
-            </Button>
-          </div>
-        </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: t.totalWallets, value: totalWallets },
               { label: t.totalAssets, value: uniqueAssets },
@@ -413,14 +416,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
         }}
         className="w-full"
       >
-        <TabsList className="w-full justify-start bg-card/70 p-1 rounded-xl border border-border/60 flex flex-wrap gap-1 overflow-x-hidden">
-          <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
+        <TabsList className="w-full justify-start bg-card/70 p-1 rounded-xl border border-border/60 flex gap-1 overflow-x-auto">
+          <TabsTrigger value="main" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground flex-none">
             <Wallet className="w-4 h-4 mr-1.5" /> {t.funding}
           </TabsTrigger>
-          <TabsTrigger value="spot" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
+          <TabsTrigger value="spot" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground flex-none">
             {t.spot}
           </TabsTrigger>
-          <TabsTrigger value="futures" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground">
+          <TabsTrigger value="futures" className="text-sm rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground flex-none">
             {t.perpetual}
           </TabsTrigger>
         </TabsList>
@@ -801,6 +804,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
     }
     normalizedWallets[normalizedCurrency].push(...currencyWallets);
   });
+  const assetEntries = Object.entries(normalizedWallets);
 
   return (
     <div className="rounded-2xl overflow-hidden bg-card/70 border border-border/60 shadow-sm">
@@ -822,7 +826,45 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
         </div>
       </div>
 
-      <div className="overflow-x-hidden">
+      <div className="sm:hidden space-y-3 p-4">
+        {assetEntries.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-muted-foreground text-sm">
+            {t?.noAssets || 'No assets. Click Deposit to add funds.'}
+          </div>
+        ) : (
+          assetEntries.map(([currency, currencyWallets]) => {
+            const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
+            const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
+            return (
+              <div key={currency} className="rounded-xl border border-border/50 bg-background p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <CryptoIcon currency={currency} size="md" />
+                    <div>
+                      <div className="text-foreground font-medium">{currency}</div>
+                      <div className="text-muted-foreground text-xs">{CURRENCY_NAMES[currency] || currency}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-foreground text-sm font-semibold">{formatBalance(totalAmount)}</div>
+                    <div className="text-muted-foreground text-xs">{formatUSD(usdValue)}</div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <button onClick={() => onDeposit(currency)} className="flex-1 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/40">
+                    {t?.deposit || 'Deposit'}
+                  </button>
+                  <button onClick={() => onWithdraw(currency)} className="flex-1 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted/40">
+                    {t?.withdraw || 'Withdraw'}
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="overflow-x-hidden hidden sm:block">
         <table className="w-full table-fixed">
           <thead>
             <tr className={`${language === 'ar' ? 'text-right' : 'text-left'} text-xs text-muted-foreground border-b border-border/40`}>
@@ -832,14 +874,14 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
             </tr>
           </thead>
           <tbody>
-            {Object.entries(normalizedWallets).length === 0 ?
+            {assetEntries.length === 0 ?
             <tr>
                 <td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">
                   {t?.noAssets || 'No assets. Click Deposit to add funds.'}
                 </td>
               </tr> :
 
-            Object.entries(normalizedWallets).map(([currency, currencyWallets]) => {
+            assetEntries.map(([currency, currencyWallets]) => {
               const totalAmount = currencyWallets.reduce((sum, w) => sum + (w.balance || 0), 0);
               const usdValue = currency === 'BTC' ? totalAmount * 95000 : currency === 'ETH' ? totalAmount * 3400 : totalAmount;
 
