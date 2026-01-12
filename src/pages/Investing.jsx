@@ -25,7 +25,7 @@ export default function Investing({ language = "en" }) {
   const pctMax = pctValues.length ? Math.max(...pctValues) : null;
   const promoBonus = {
     newUser: true,
-    fiveK: { amount: 5000, duration: 60 }
+    fiveK: { amount: 4999, duration: 49 }
   };
 
   const [wallets, setWallets] = useState([]);
@@ -84,14 +84,15 @@ export default function Investing({ language = "en" }) {
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 <p className="text-xs text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Badge className="rounded-full border-0 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-emerald-400/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-[11px] shadow-sm">
                     {t.promoNewUser}
                   </Badge>
-                  <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <Badge className="rounded-full border-0 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-yellow-300/30 text-amber-700 dark:text-amber-200 px-3 py-1 text-[11px] shadow-sm">
                     {t.promoFiveK}
                   </Badge>
                 </div>
+                <p className="text-[11px] text-muted-foreground mb-4">{t.minDepositNote}</p>
 
                 {/* Enhanced Mobile-First USDT Staking Card */}
                 <Card className="bg-card border-border text-foreground shadow-sm">
@@ -142,9 +143,14 @@ export default function Investing({ language = "en" }) {
                                 {stakeTiers?.amounts?.map((amt) =>
                                 <tr key={amt}>
                                     <td className="py-2 pr-2 sm:pr-4 pl-3 sm:pl-0 font-semibold text-foreground">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-wrap">
                                         <CryptoIcon currency="USDT" size="xs" className="ring-1 ring-border" />
                                         <span>{Number(amt).toLocaleString()}</span>
+                                        {Number(amt) === 50 ? (
+                                          <Badge className="rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[9px]">
+                                            {t.newUserMin}
+                                          </Badge>
+                                        ) : null}
                                       </div>
                                     </td>
                                     {stakeTiers?.durations?.map((d) => {
@@ -154,7 +160,7 @@ export default function Investing({ language = "en" }) {
                                       <td key={d} className="py-2 px-1 sm:pl-4 text-right font-mono text-muted-foreground text-xs sm:text-sm">
                                           <div className="flex flex-col items-end gap-1">
                                             <span>{Number.isFinite(Number(pct)) ? `${pct}%` : "—"}</span>
-                                            {showFiveKBonus ? <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px]">200% bonus</Badge> : null}
+                                            {showFiveKBonus ? <Badge className="rounded-full border-0 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-yellow-300/30 text-amber-700 dark:text-amber-200 text-[9px] px-2">200% bonus</Badge> : null}
                                           </div>
                                         </td>);
 
@@ -189,6 +195,7 @@ export default function Investing({ language = "en" }) {
             <CardContent className="p-6 space-y-3 text-sm text-muted-foreground">
               <p>{t.whatIsP1}</p>
               <p>{t.whatIsP2}</p>
+              <p>{t.whatIsP3}</p>
               <p className="text-xs text-muted-foreground">{t.whatIsHint}</p>
               <div className="rounded-lg border border-border bg-muted p-3">
                 <div className="text-[11px] text-muted-foreground">{t.countdownLabel}</div>
