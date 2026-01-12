@@ -3,16 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Check, Copy, Globe, Info, MessageCircle, Shield, Twitter } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import MemeChart from '@/components/meme/MemeChart';
 import { cn } from '@/lib/utils';
 import { tMemeCoins } from '@/lib/i18n/memecoins';
 import solanaLogo from '@/assets/solana-logo.svg';
@@ -25,6 +27,7 @@ import {
   mapProfileDetailsToSummary,
   mapPairDetailsToSummary,
 } from '@/lib/market/dexscreener';
+import { fetchGeckoPoolSearch, selectHighestLiquidityPool } from '@/lib/market/geckoterminal';
 import {
   formatAge,
   formatCompactNumber,
@@ -34,8 +37,8 @@ import {
   selectBestPair,
 } from '@/lib/market/selectors';
 
-const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const DEFAULT_SLIPPAGE_BPS = 50;
+const SOL_ICON = '/icons/solana.svg';
 
 const useDebouncedValue = (value, delay = 400) => {
   const [debounced, setDebounced] = useState(value);
@@ -46,11 +49,6 @@ const useDebouncedValue = (value, delay = 400) => {
   }, [value, delay]);
 
   return debounced;
-};
-
-const normalizeNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const getFeeConfig = () => {
@@ -426,10 +424,8 @@ const TokenListPanel = ({
   );
 };
 
-const ChartPanel = ({ pair, isLoading, error, t, isRtl }) => {
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-  const [timeframe, setTimeframe] = useState('1m');
-  const timeframes = ['1s', '1m', '5m', '15m', '1h', '4h', '1d'];
+const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl }) => {
+  const [copied, setCopied] = useState('');
 
   if (error) {
     return (
@@ -454,53 +450,92 @@ const ChartPanel = ({ pair, isLoading, error, t, isRtl }) => {
   const change = pair.priceChange24h ?? 0;
   const isPositive = change >= 0;
 
+  const handleCopy = async (value) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(value);
+      window.setTimeout(() => setCopied(''), 1500);
+    } catch {
+      setCopied('');
+    }
+  };
+
+  const fallbackUrl = pair.pairAddress
+    ? `https://dexscreener.com/solana/${pair.pairAddress}?embed=1&theme=${typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'}&info=0&txns=0`
+    : '';
+
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-background">
-      <div className={cn('flex flex-col gap-3 border-b border-border/50 px-3 py-3 md:px-4', isRtl && 'text-right')}>
-        <div className={cn('flex flex-wrap items-start justify-between gap-3', isRtl && 'flex-row-reverse')}>
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="rounded-xl border border-border/50 bg-background px-3 py-3 md:px-4">
+        <div className={cn('flex flex-wrap items-start justify-between gap-3', isRtl && 'flex-row-reverse text-right')}>
           <div>
-            <div className="text-sm font-semibold">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
-            <div className="text-xs text-muted-foreground">{pair.baseToken.name}</div>
+            <div className="text-base font-semibold">{pair.baseToken.name} ({pair.baseToken.symbol})</div>
+            <div className="text-xs text-muted-foreground">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
           </div>
           <div className={cn('text-right', isRtl && 'text-left')}>
-            <div className="text-sm font-semibold">{formatPrice(pair.priceUsd)}</div>
+            <div className="text-base font-semibold">{formatPrice(pair.priceUsd)}</div>
             <div className={cn('text-xs font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
               {formatPercent(change)}
             </div>
           </div>
         </div>
-        <div className={cn('grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
+        <div className={cn('mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
           <span>{t.marketCapShort}: ${formatCompactNumber(pair.marketCap)}</span>
           <span>{t.liquidityShort}: ${formatCompactNumber(pair.liquidityUsd)}</span>
           <span>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</span>
           <span>{t.ageShort}: {formatAge(pair.pairCreatedAt)}</span>
         </div>
-        <div className={cn('flex flex-wrap items-center gap-2', isRtl && 'flex-row-reverse')}>
-          <span className="text-xs text-muted-foreground">{t.timeframeLabel}</span>
-          {timeframes.map((value) => (
-            <Tooltip key={value}>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant={timeframe === value ? 'default' : 'outline'}
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setTimeframe(value)}
-                  title={t.timeframeHelp.replace('{timeframe}', value)}
-                  aria-label={t.timeframeHelp.replace('{timeframe}', value)}
-                >
-                  {value}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{t.timeframeHelp.replace('{timeframe}', value)}</TooltipContent>
-            </Tooltip>
-          ))}
+        <div className={cn('mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+          <span>{t.mintLabel}:</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 gap-2 px-2 text-[11px]"
+                onClick={() => handleCopy(pair.baseToken.address)}
+                title={t.copyMintHelp}
+                aria-label={t.copyMintHelp}
+              >
+                <Copy className="h-3 w-3" />
+                {copied === pair.baseToken.address ? t.copied : t.copy}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.copyMintHelp}</TooltipContent>
+          </Tooltip>
+          <span className="truncate max-w-[180px]">{pair.baseToken.address}</span>
+        </div>
+        <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+          <span>{t.poolLabel}:</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 gap-2 px-2 text-[11px]"
+                onClick={() => handleCopy(poolAddress)}
+                title={t.copyPoolHelp}
+                aria-label={t.copyPoolHelp}
+                disabled={!poolAddress}
+              >
+                <Copy className="h-3 w-3" />
+                {copied === poolAddress ? t.copied : t.copy}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.copyPoolHelp}</TooltipContent>
+          </Tooltip>
+          <span className="truncate max-w-[180px]">{poolAddress || t.notProvided}</span>
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <iframe
-          title={t.chartTitle}
-          className="h-full w-full border-0"
-          src={`https://dexscreener.com/solana/${pair.pairAddress}?embed=1&theme=${isDark ? 'dark' : 'light'}&info=0&txns=0`}
+      <div className="flex-1 min-h-0">
+        <MemeChart
+          poolAddress={poolAddress}
+          fallbackUrl={fallbackUrl}
+          t={t}
+          isRtl={isRtl}
         />
       </div>
     </div>
@@ -563,9 +598,10 @@ const TokenInfoPanel = ({ pair, profile, t, isRtl }) => {
             <div>{t.marketCapShort}: ${formatCompactNumber(pair.marketCap)}</div>
             <div>{t.liquidityShort}: ${formatCompactNumber(pair.liquidityUsd)}</div>
             <div>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</div>
-            <div>{t.txnsLabel}: {pair.txns24h ? `${pair.txns24h.buys}/${pair.txns24h.sells}` : '—'}</div>
+            <div>{t.fdvLabel}: {pair.marketCap ? `$${formatCompactNumber(pair.marketCap)}` : t.comingSoon}</div>
+            <div>{t.txnsLabel}: {pair.txns24h ? `${pair.txns24h.buys}/${pair.txns24h.sells}` : t.comingSoon}</div>
             <div>{t.pairAgeLabel}: {formatAge(pair.pairCreatedAt)}</div>
-            <div>{t.dexLabel}: {pair.dexId || '—'}</div>
+            <div>{t.dexLabel}: {pair.dexId || t.comingSoon}</div>
           </div>
           <div className={cn('mt-4 flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs', isRtl && 'flex-row-reverse')}>
             <div className="truncate text-muted-foreground">{t.contractLabel}: {pair.baseToken.address}</div>
@@ -611,15 +647,29 @@ const TokenInfoPanel = ({ pair, profile, t, isRtl }) => {
               ))}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">{t.noSocials}</div>
+            <div className="text-sm text-muted-foreground">{t.notProvided}</div>
           )}
         </TabsContent>
         <TabsContent value="safety" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className={cn('flex items-start gap-3 text-sm text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
             <Shield className="mt-0.5 h-4 w-4 text-amber-400" />
-            <div>
+            <div className="space-y-2">
               <p className="font-medium text-foreground">{t.safetyTitle}</p>
               <p className="text-xs">{t.safetyNote}</p>
+              <div className="grid gap-2 text-xs">
+                <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                  <span>{t.renouncedLabel}</span>
+                  <span className="text-muted-foreground">{t.comingSoon}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                  <span>{t.mintAuthorityLabel}</span>
+                  <span className="text-muted-foreground">{t.comingSoon}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                  <span>{t.freezeAuthorityLabel}</span>
+                  <span className="text-muted-foreground">{t.comingSoon}</span>
+                </div>
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -639,22 +689,17 @@ const TokenInfoPanel = ({ pair, profile, t, isRtl }) => {
   );
 };
 
-const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status, walletReady, onConnect, maxAmount, t, isRtl }) => {
+const TradePanel = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isRtl }) => {
   const [side, setSide] = useState('buy');
   const [amount, setAmount] = useState('');
   const [slippageMode, setSlippageMode] = useState('auto');
   const [manualSlippage, setManualSlippage] = useState(DEFAULT_SLIPPAGE_BPS.toString());
   const [priorityFee, setPriorityFee] = useState(false);
-  const feeConfig = getFeeConfig();
 
   useEffect(() => {
     if (!pair) return;
     setAmount('');
   }, [pair]);
-
-  useEffect(() => {
-    onQuoteRefresh({ amount, side, slippageMode, manualSlippage, priorityFee });
-  }, [amount, side, slippageMode, manualSlippage, priorityFee, onQuoteRefresh]);
 
   if (!pair) {
     return (
@@ -665,8 +710,6 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
   }
 
   const inputSymbol = side === 'buy' ? 'SOL' : pair.baseToken.symbol;
-  const outputSymbol = side === 'buy' ? pair.baseToken.symbol : 'SOL';
-  const outputDecimals = side === 'buy' ? pair.baseToken.decimals ?? 6 : 9;
   const warning = (pair.liquidityUsd ?? 0) < 5000;
 
   return (
@@ -707,7 +750,7 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
 
         <div className="space-y-2">
           <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-            <img src={solanaLogo} alt="" className="h-4 w-4" />
+            <img src={SOL_ICON} alt="" className="h-4 w-4" />
             <span>{t.amountLabel} ({inputSymbol})</span>
             <HelpTooltip text={t.amountHelp} />
           </div>
@@ -756,7 +799,7 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
                     aria-label={t.amountChipHelp}
                     className="flex items-center justify-center gap-1"
                   >
-                    <img src={solanaLogo} alt="" className="h-3 w-3" />
+                    <img src={SOL_ICON} alt="" className="h-3 w-3" />
                     {value}
                   </Button>
                 </TooltipTrigger>
@@ -838,14 +881,12 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
 
         <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{t.youGet}</span>
-            <span className="font-semibold">
-              {quoteLoading ? t.loadingQuote : quote?.outAmount ? `${formatTokenAmount(quote.outAmount, outputDecimals)} ${outputSymbol}` : '—'}
+            <span className="flex items-center gap-2 text-muted-foreground">
+              {t.youGet}
+              <HelpTooltip text={t.youGetHelp} />
             </span>
+            <span className="font-semibold">{t.estimatePlaceholder}</span>
           </div>
-          {feeConfig.enabled ? (
-            <div className="mt-1 text-[11px] text-muted-foreground">{t.feeLabel} {(feeConfig.bps / 100).toFixed(2)}%</div>
-          ) : null}
           {warning ? (
             <div className="mt-2 text-[11px] text-amber-500">
               {t.lowLiquidityWarning}
@@ -866,58 +907,36 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
             <TooltipTrigger asChild>
               <Button
                 className="w-full"
-                onClick={() => onSwap({ side, amount, slippageMode, manualSlippage, priorityFee })}
-                disabled={!amount || Number(amount) <= 0 || !quote}
+                onClick={() => onPreview({ side, amount, slippageMode, manualSlippage, priorityFee })}
+                disabled={!amount || Number(amount) <= 0}
                 title={t.tradeCtaHelp}
                 aria-label={t.tradeCtaHelp}
               >
-                {side === 'buy' ? t.buy : t.sell} {pair.baseToken.symbol}
+                {t.previewTrade}
               </Button>
             </TooltipTrigger>
             <TooltipContent>{t.tradeCtaHelp}</TooltipContent>
           </Tooltip>
         )}
-        {status ? (
-          <div className="rounded-lg border border-border/50 px-3 py-2 text-xs">
-            <div>{t.statusLabel}: {status.state}</div>
-            {status.message ? <div className="mt-1 text-muted-foreground">{status.message}</div> : null}
-            {status.signature ? (
-              <a
-                className="text-primary underline"
-                href={`https://solscan.io/tx/${status.signature}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t.viewOnExplorer}
-              </a>
-            ) : null}
-            {status.error ? <div className="text-rose-500">{status.error}</div> : null}
-          </div>
-        ) : null}
       </div>
     </div>
   );
 };
 
-const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, walletReady, onConnect, maxAmount, t, isRtl }) => {
+const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isRtl }) => {
   const [side, setSide] = useState('buy');
   const [amount, setAmount] = useState('');
   const [slippageMode, setSlippageMode] = useState('auto');
   const [manualSlippage, setManualSlippage] = useState(DEFAULT_SLIPPAGE_BPS.toString());
   const [priorityFee, setPriorityFee] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     if (!pair) return;
     setAmount('');
   }, [pair]);
 
-  useEffect(() => {
-    onQuoteRefresh({ amount, side, slippageMode, manualSlippage, priorityFee });
-  }, [amount, side, slippageMode, manualSlippage, priorityFee, onQuoteRefresh]);
-
   const inputSymbol = side === 'buy' ? 'SOL' : pair?.baseToken?.symbol || '—';
-  const outputSymbol = side === 'buy' ? pair?.baseToken?.symbol || '—' : 'SOL';
-  const outputDecimals = side === 'buy' ? pair?.baseToken?.decimals ?? 6 : 9;
   const ctaAmount = amount || '0';
 
   return (
@@ -957,7 +976,7 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
 
       <div className="space-y-2">
         <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-          <img src={solanaLogo} alt="" className="h-4 w-4" />
+          <img src={SOL_ICON} alt="" className="h-4 w-4" />
           <span>{t.amountLabel} ({inputSymbol})</span>
           <HelpTooltip text={t.amountHelp} />
         </div>
@@ -1006,7 +1025,7 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
                   aria-label={t.amountChipHelp}
                   className="flex items-center justify-center gap-1"
                 >
-                  <img src={solanaLogo} alt="" className="h-3 w-3" />
+                  <img src={SOL_ICON} alt="" className="h-3 w-3" />
                   {value}
                 </Button>
               </TooltipTrigger>
@@ -1017,80 +1036,75 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{t.youGet}</span>
-        <span className="font-semibold text-foreground">
-          {quoteLoading ? t.loadingQuote : quote?.outAmount ? `${formatTokenAmount(quote.outAmount, outputDecimals)} ${outputSymbol}` : '—'}
+        <span className="flex items-center gap-2">
+          {t.youGet}
+          <HelpTooltip text={t.youGetHelp} />
         </span>
+        <span className="font-semibold text-foreground">{t.estimatePlaceholder}</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-1" title={t.advancedHelp} aria-label={t.advancedHelp}>
-              {t.advanced}
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="space-y-4">
-            <div className={cn('flex items-center gap-2 text-sm', isRtl && 'flex-row-reverse text-right')}>
-              <span className="font-semibold">{t.advanced}</span>
-              <HelpTooltip text={t.advancedHelp} />
-            </div>
-            <div className="space-y-2">
-              <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
-                <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-                  <span>{t.slippage}</span>
-                  <HelpTooltip text={t.slippageHelp} />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={slippageMode === 'auto' ? 'default' : 'outline'}
-                    onClick={() => setSlippageMode('auto')}
-                    title={t.slippageAutoHelp}
-                    aria-label={t.slippageAutoHelp}
-                  >
-                    {t.slippageAuto}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={slippageMode === 'custom' ? 'default' : 'outline'}
-                    onClick={() => setSlippageMode('custom')}
-                    title={t.slippageManualHelp}
-                    aria-label={t.slippageManualHelp}
-                  >
-                    {t.slippageManual}
-                  </Button>
-                </div>
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="flex-1" title={t.advancedHelp} aria-label={t.advancedHelp}>
+            {t.advanced}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3 space-y-3">
+          <div className="space-y-2">
+            <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
+              <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+                <span>{t.slippage}</span>
+                <HelpTooltip text={t.slippageHelp} />
               </div>
-              {slippageMode === 'custom' ? (
-                <Input
-                  value={manualSlippage}
-                  onChange={(event) => setManualSlippage(event.target.value)}
-                  type="number"
-                  placeholder="50"
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={slippageMode === 'auto' ? 'default' : 'outline'}
+                  onClick={() => setSlippageMode('auto')}
+                  title={t.slippageAutoHelp}
+                  aria-label={t.slippageAutoHelp}
+                >
+                  {t.slippageAuto}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={slippageMode === 'custom' ? 'default' : 'outline'}
+                  onClick={() => setSlippageMode('custom')}
                   title={t.slippageManualHelp}
                   aria-label={t.slippageManualHelp}
-                />
-              ) : null}
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
-              <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-                <span>{t.priorityFee}</span>
-                <HelpTooltip text={t.priorityFeeHelp} />
+                >
+                  {t.slippageManual}
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant={priorityFee ? 'default' : 'outline'}
-                onClick={() => setPriorityFee(!priorityFee)}
-                title={t.priorityFeeHelp}
-                aria-label={t.priorityFeeHelp}
-              >
-                {priorityFee ? t.on : t.off}
-              </Button>
             </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+            {slippageMode === 'custom' ? (
+              <Input
+                value={manualSlippage}
+                onChange={(event) => setManualSlippage(event.target.value)}
+                type="number"
+                placeholder="50"
+                title={t.slippageManualHelp}
+                aria-label={t.slippageManualHelp}
+              />
+            ) : null}
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
+            <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+              <span>{t.priorityFee}</span>
+              <HelpTooltip text={t.priorityFeeHelp} />
+            </div>
+            <Button
+              size="sm"
+              variant={priorityFee ? 'default' : 'outline'}
+              onClick={() => setPriorityFee(!priorityFee)}
+              title={t.priorityFeeHelp}
+              aria-label={t.priorityFeeHelp}
+            >
+              {priorityFee ? t.on : t.off}
+            </Button>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="sticky bottom-0 z-20 mt-auto border-t border-border/40 bg-background/95 backdrop-blur-xl">
         <div className="flex items-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
@@ -1116,8 +1130,8 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
           ) : (
             <Button
               className="flex-1"
-              onClick={() => onSwap({ side, amount, slippageMode, manualSlippage, priorityFee })}
-              disabled={!amount || Number(amount) <= 0 || !quote || !pair}
+              onClick={() => onPreview({ side, amount, slippageMode, manualSlippage, priorityFee })}
+              disabled={!amount || Number(amount) <= 0 || !pair}
               title={t.tradeCtaHelp}
               aria-label={t.tradeCtaHelp}
             >
@@ -1142,11 +1156,10 @@ export default function MemeCoins({ language = 'en' }) {
   const [filters, setFilters] = useState({ minLiquidity: 0, minVolume: 0, maxAgeHours: 0 });
   const [selectedAddress, setSelectedAddress] = useState('');
   const [selectedPairId, setSelectedPairId] = useState('');
-  const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
-  const [swapStatus, setSwapStatus] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrade, setPendingTrade] = useState(null);
-  const [pendingQuoteParams, setPendingQuoteParams] = useState(null);
+  const [geckoPool, setGeckoPool] = useState(null);
+  const [geckoPoolError, setGeckoPoolError] = useState(null);
   const [watchlist, setWatchlist] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('meme_watchlist') || '[]');
@@ -1156,7 +1169,6 @@ export default function MemeCoins({ language = 'en' }) {
   });
 
   const debouncedSearch = useDebouncedValue(searchQuery, 400);
-  const debouncedQuoteParams = useDebouncedValue(pendingQuoteParams, 400);
   const feeConfig = getFeeConfig();
 
   useEffect(() => {
@@ -1242,50 +1254,51 @@ export default function MemeCoins({ language = 'en' }) {
     }
   }, [selectedPair]);
 
-  const quoteQuery = useQuery({
-    queryKey: ['jupQuote', debouncedQuoteParams, selectedPairId, selectedAddress],
-    queryFn: async ({ signal }) => {
-      if (!debouncedQuoteParams || !selectedPair) return null;
-      const { amount, side, slippageMode, manualSlippage } = debouncedQuoteParams;
-      const inputDecimals = side === 'buy' ? 9 : selectedPair.baseToken.decimals ?? 6;
-      const parsedAmount = normalizeNumber(amount);
-      if (!parsedAmount) return null;
-      const amountInSmallest = Math.floor(parsedAmount * Math.pow(10, inputDecimals));
-      const inputMint = side === 'buy' ? SOL_MINT : selectedPair.baseToken.address;
-      const outputMint = side === 'buy' ? selectedPair.baseToken.address : SOL_MINT;
-      const slippageBps = slippageMode === 'custom' ? normalizeNumber(manualSlippage) : DEFAULT_SLIPPAGE_BPS;
-      const params = new URLSearchParams({
-        inputMint,
-        outputMint,
-        amount: amountInSmallest.toString(),
-        slippageBps: slippageBps.toString(),
+  useEffect(() => {
+    let mounted = true;
+    setGeckoPool(null);
+    setGeckoPoolError(null);
+    if (!selectedPair) return undefined;
+    if (selectedPair.pairAddress) {
+      setGeckoPool({ address: selectedPair.pairAddress });
+      return undefined;
+    }
+    const query = selectedPair.baseToken.address || selectedPair.baseToken.symbol;
+    if (!query) return undefined;
+    fetchGeckoPoolSearch({
+      query,
+      onUpdate: (fresh) => {
+        if (!mounted) return;
+        const best = selectHighestLiquidityPool(fresh);
+        const address = best?.attributes?.address ?? best?.id;
+        setGeckoPool(address ? { address } : null);
+      },
+    })
+      .then((result) => {
+        if (!mounted) return;
+        const best = selectHighestLiquidityPool(result);
+        const address = best?.attributes?.address ?? best?.id;
+        setGeckoPool(address ? { address } : null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setGeckoPoolError(t.chartUnavailable);
       });
-      const response = await fetch(`https://quote-api.jup.ag/v6/quote?${params.toString()}`, { signal });
-      if (!response.ok) {
-        return null;
-      }
-      return response.json();
-    },
-    enabled: Boolean(debouncedQuoteParams && selectedPair),
-    staleTime: 2000,
-  });
+    return () => {
+      mounted = false;
+    };
+  }, [selectedPair, t.chartUnavailable]);
 
   const handleSelectToken = (token) => {
     setSelectedAddress(token.address);
     setSelectedPairId(token.pairAddress || '');
-    setSwapStatus(null);
     setPendingTrade(null);
-    setTradeSheetOpen(true);
   };
 
   const handleToggleWatchlist = (address) => {
     setWatchlist((prev) =>
       prev.includes(address) ? prev.filter((item) => item !== address) : [...prev, address]
     );
-  };
-
-  const handleQuoteRefresh = (params) => {
-    setPendingQuoteParams(params);
   };
 
   const handleSwap = (params) => {
@@ -1295,22 +1308,19 @@ export default function MemeCoins({ language = 'en' }) {
   };
 
   const handleConfirm = () => {
-    setSwapStatus({ state: t.executionSoonTitle, message: t.executionSoonDetail });
+    toast.message(t.executionSoonTitle, { description: t.executionSoonDetail });
     setConfirmOpen(false);
   };
 
   const listError = trendingQuery.error || searchQueryResult.error;
+  const chartPoolAddress = geckoPool?.address || selectedPair?.pairAddress || '';
   const confirmSide = pendingTrade?.side;
   const confirmAmount = pendingTrade?.amount;
   const confirmInputSymbol = confirmSide === 'buy' ? 'SOL' : selectedPair?.baseToken?.symbol || '—';
-  const confirmOutputSymbol = confirmSide === 'buy' ? selectedPair?.baseToken?.symbol || '—' : 'SOL';
-  const confirmOutputDecimals = confirmSide === 'buy' ? selectedPair?.baseToken?.decimals ?? 6 : 9;
-  const confirmOutAmount = quoteQuery.data?.outAmount
-    ? `${formatTokenAmount(quoteQuery.data.outAmount, confirmOutputDecimals)} ${confirmOutputSymbol}`
-    : '—';
+  const confirmOutAmount = t.estimatePlaceholder;
   const confirmSlippage = pendingTrade
-    ? `${pendingTrade.slippageMode === 'custom' ? normalizeNumber(pendingTrade.manualSlippage) : DEFAULT_SLIPPAGE_BPS} bps`
-    : '—';
+    ? `${pendingTrade.slippageMode === 'custom' ? pendingTrade.manualSlippage : DEFAULT_SLIPPAGE_BPS} bps`
+    : t.estimatePlaceholder;
   const feePercent = feeConfig.enabled ? (feeConfig.bps / 100).toFixed(2) : null;
 
   return (
@@ -1328,28 +1338,6 @@ export default function MemeCoins({ language = 'en' }) {
             {selectedToken ? (
               <Badge variant="secondary">{selectedToken.symbol}</Badge>
             ) : null}
-            <Sheet open={tradeSheetOpen} onOpenChange={setTradeSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="md:inline-flex lg:hidden" title={t.tradePanelHelp} aria-label={t.tradePanelHelp}>
-                  {t.trade}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-md">
-                <TradePanel
-                  pair={selectedPair}
-                  quote={quoteQuery.data}
-                  quoteLoading={quoteQuery.isFetching}
-                  onQuoteRefresh={handleQuoteRefresh}
-                  onSwap={handleSwap}
-                  status={swapStatus}
-                  walletReady={connected}
-                  onConnect={() => setVisible(true)}
-                  maxAmount={maxAmount}
-                  t={t}
-                  isRtl={isRtl}
-                />
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
 
@@ -1375,7 +1363,14 @@ export default function MemeCoins({ language = 'en' }) {
           />
           <div className="flex min-h-0 flex-col gap-4">
             <div className="flex-1 min-h-0">
-              <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+              <ChartPanel
+                pair={selectedPair}
+                poolAddress={chartPoolAddress}
+                isLoading={pairQuery.isLoading}
+                error={pairQuery.error || geckoPoolError}
+                t={t}
+                isRtl={isRtl}
+              />
             </div>
             <div className="h-[280px] min-h-[240px]">
               <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
@@ -1383,11 +1378,7 @@ export default function MemeCoins({ language = 'en' }) {
           </div>
           <TradePanel
             pair={selectedPair}
-            quote={quoteQuery.data}
-            quoteLoading={quoteQuery.isFetching}
-            onQuoteRefresh={handleQuoteRefresh}
-            onSwap={handleSwap}
-            status={swapStatus}
+            onPreview={handleSwap}
             walletReady={connected}
             onConnect={() => setVisible(true)}
             maxAmount={maxAmount}
@@ -1418,7 +1409,14 @@ export default function MemeCoins({ language = 'en' }) {
           />
           <div className="flex min-h-0 flex-col gap-4">
             <div className="flex-1 min-h-0">
-              <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+              <ChartPanel
+                pair={selectedPair}
+                poolAddress={chartPoolAddress}
+                isLoading={pairQuery.isLoading}
+                error={pairQuery.error || geckoPoolError}
+                t={t}
+                isRtl={isRtl}
+              />
             </div>
             <div className="h-[240px] min-h-[220px]">
               <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
@@ -1457,14 +1455,18 @@ export default function MemeCoins({ language = 'en' }) {
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
                   <div className="min-h-[48vh]">
-                    <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+                    <ChartPanel
+                      pair={selectedPair}
+                      poolAddress={chartPoolAddress}
+                      isLoading={pairQuery.isLoading}
+                      error={pairQuery.error || geckoPoolError}
+                      t={t}
+                      isRtl={isRtl}
+                    />
                   </div>
                   <MobileTradeBar
                     pair={selectedPair}
-                    quote={quoteQuery.data}
-                    quoteLoading={quoteQuery.isFetching}
-                    onQuoteRefresh={handleQuoteRefresh}
-                    onSwap={handleSwap}
+                    onPreview={handleSwap}
                     walletReady={connected}
                     onConnect={() => setVisible(true)}
                     maxAmount={maxAmount}
@@ -1499,18 +1501,16 @@ export default function MemeCoins({ language = 'en' }) {
                 <span className="text-muted-foreground">{t.slippage}</span>
                 <span className="font-semibold">{confirmSlippage}</span>
               </div>
-              {feePercent ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t.feeLabel}</span>
-                  <span className="font-semibold">{feePercent}%</span>
-                </div>
-              ) : null}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.feeLabel}</span>
+                <span className="font-semibold">{feePercent ? `${feePercent}%` : t.estimatePlaceholder}</span>
+              </div>
               <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
                 {t.executionSoonDetail}
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Button onClick={handleConfirm} disabled={!quoteQuery.data || !confirmAmount}>
+              <Button onClick={handleConfirm} disabled={!confirmAmount}>
                 {t.confirmTradeCta}
               </Button>
               <Button variant="outline" onClick={() => setConfirmOpen(false)}>
