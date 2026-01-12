@@ -1,9 +1,8 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { VersionedTransaction } from '@solana/web3.js';
-import { Info } from 'lucide-react';
+import { Check, Copy, Globe, Info, MessageCircle, Shield, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,14 +11,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { tMemeCoins } from '@/lib/i18n/memecoins';
+import solanaLogo from '@/assets/solana-logo.svg';
 import {
   fetchPairById,
+  fetchTokenProfile,
   fetchSearchTokens,
   fetchTokenPairs,
   fetchTrendingTokens,
+  mapProfileDetailsToSummary,
   mapPairDetailsToSummary,
 } from '@/lib/market/dexscreener';
 import {
@@ -51,9 +54,10 @@ const normalizeNumber = (value) => {
 };
 
 const getFeeConfig = () => {
-  const bps = Number(import.meta.env.NEXT_PUBLIC_JUP_PLATFORM_FEE_BPS || 0);
-  const feeAccount = import.meta.env.NEXT_PUBLIC_JUP_FEE_ACCOUNT || '';
-  if (!bps || !feeAccount) {
+  const enabled = String(import.meta.env.NEXT_PUBLIC_NEXTTRADE_ENABLE_FEES || '').toLowerCase() === 'true';
+  const bps = Number(import.meta.env.NEXT_PUBLIC_NEXTTRADE_SWAP_FEE_BPS || 0);
+  const feeAccount = import.meta.env.NEXT_PUBLIC_NEXTTRADE_FEE_WALLET || '';
+  if (!enabled || !bps || !feeAccount) {
     return { enabled: false, bps: 0, feeAccount: '' };
   }
   return { enabled: true, bps, feeAccount };
@@ -66,39 +70,6 @@ const calcPressure = (txns24h) => {
   if (!total) return { buys, sells, buyPercent: 50, sellPercent: 50 };
   const buyPercent = Math.round((buys / total) * 100);
   return { buys, sells, buyPercent, sellPercent: 100 - buyPercent };
-};
-
-const SolanaLogo = ({ className = '' }) => {
-  const gradientId = useId();
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 45.5L24.2 33.3C24.9 32.6 25.9 32.2 26.9 32.2H58.5C60 32.2 60.8 34 59.7 35.1L47.5 47.3C46.8 48 45.8 48.4 44.8 48.4H13.2C11.7 48.4 10.9 46.6 12 45.5Z"
-        fill={`url(#${gradientId})`}
-      />
-      <path
-        d="M12 28.9L24.2 16.7C24.9 16 25.9 15.6 26.9 15.6H58.5C60 15.6 60.8 17.4 59.7 18.5L47.5 30.7C46.8 31.4 45.8 31.8 44.8 31.8H13.2C11.7 31.8 10.9 30 12 28.9Z"
-        fill={`url(#${gradientId})`}
-      />
-      <path
-        d="M12 12.3L24.2 0.999999C24.9 0.299998 25.9 0 26.9 0H58.5C60 0 60.8 1.8 59.7 2.9L47.5 15.1C46.8 15.8 45.8 16.1 44.8 16.1H13.2C11.7 16.1 10.9 14.3 12 12.3Z"
-        fill={`url(#${gradientId})`}
-      />
-      <defs>
-        <linearGradient id={gradientId} x1="12" y1="0" x2="60" y2="48" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#00FFA3" />
-          <stop offset="0.5" stopColor="#14F195" />
-          <stop offset="1" stopColor="#9945FF" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
 };
 
 const HelpTooltip = ({ text, className = '' }) => (
@@ -237,6 +208,13 @@ const TokenListPanel = ({
     }
     if (mode === 'watchlist') {
       list = list.filter((token) => watchlist.includes(token.address));
+    }
+    if (filters.maxAgeHours) {
+      const maxAgeMs = filters.maxAgeHours * 60 * 60 * 1000;
+      list = list.filter((token) => {
+        if (!token.pairCreatedAt) return false;
+        return Date.now() - token.pairCreatedAt <= maxAgeMs;
+      });
     }
 
     switch (sortBy) {
@@ -388,6 +366,32 @@ const TokenListPanel = ({
           </Select>
         </div>
       </div>
+      <div className="space-y-1">
+        <div className={cn('flex items-center gap-2 text-[11px] text-muted-foreground', isRtl && 'flex-row-reverse')}>
+          <span>{t.maxAgeShort}</span>
+          <HelpTooltip text={t.maxAgeHelp} />
+        </div>
+        <Select
+          value={String(filters.maxAgeHours)}
+          onValueChange={(value) => onFiltersChange({ ...filters, maxAgeHours: Number(value) })}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SelectTrigger className="h-8" title={t.maxAgeHelp}>
+                <SelectValue placeholder={t.maxAgeShort} />
+              </SelectTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t.maxAgeHelp}</TooltipContent>
+          </Tooltip>
+          <SelectContent>
+            <SelectItem value="0">{t.maxAgeShort}</SelectItem>
+            <SelectItem value="1">1h</SelectItem>
+            <SelectItem value="6">6h</SelectItem>
+            <SelectItem value="24">24h</SelectItem>
+            <SelectItem value="168">7d</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
         {isLoading ? (
           <div className="space-y-2">
@@ -424,6 +428,8 @@ const TokenListPanel = ({
 
 const ChartPanel = ({ pair, isLoading, error, t, isRtl }) => {
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+  const [timeframe, setTimeframe] = useState('1m');
+  const timeframes = ['1s', '1m', '5m', '15m', '1h', '4h', '1d'];
 
   if (error) {
     return (
@@ -450,35 +456,190 @@ const ChartPanel = ({ pair, isLoading, error, t, isRtl }) => {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-background">
-      <div className={cn('flex flex-wrap items-center justify-between gap-2 border-b border-border/50 px-3 py-2 md:px-4 md:py-3', isRtl && 'flex-row-reverse text-right')}>
-        <div>
-          <div className="text-sm font-semibold">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
-          <div className="text-xs text-muted-foreground">{pair.baseToken.name}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-sm font-semibold">{formatPrice(pair.priceUsd)}</div>
-          <div className={cn('text-xs font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
-            {formatPercent(change)}
+      <div className={cn('flex flex-col gap-3 border-b border-border/50 px-3 py-3 md:px-4', isRtl && 'text-right')}>
+        <div className={cn('flex flex-wrap items-start justify-between gap-3', isRtl && 'flex-row-reverse')}>
+          <div>
+            <div className="text-sm font-semibold">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
+            <div className="text-xs text-muted-foreground">{pair.baseToken.name}</div>
+          </div>
+          <div className={cn('text-right', isRtl && 'text-left')}>
+            <div className="text-sm font-semibold">{formatPrice(pair.priceUsd)}</div>
+            <div className={cn('text-xs font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
+              {formatPercent(change)}
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <div className={cn('grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
+          <span>{t.marketCapShort}: ${formatCompactNumber(pair.marketCap)}</span>
           <span>{t.liquidityShort}: ${formatCompactNumber(pair.liquidityUsd)}</span>
           <span>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</span>
-          <span>{pair.dexId || 'DEX'}</span>
+          <span>{t.ageShort}: {formatAge(pair.pairCreatedAt)}</span>
+        </div>
+        <div className={cn('flex flex-wrap items-center gap-2', isRtl && 'flex-row-reverse')}>
+          <span className="text-xs text-muted-foreground">{t.timeframeLabel}</span>
+          {timeframes.map((value) => (
+            <Tooltip key={value}>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={timeframe === value ? 'default' : 'outline'}
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setTimeframe(value)}
+                  title={t.timeframeHelp.replace('{timeframe}', value)}
+                  aria-label={t.timeframeHelp.replace('{timeframe}', value)}
+                >
+                  {value}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t.timeframeHelp.replace('{timeframe}', value)}</TooltipContent>
+            </Tooltip>
+          ))}
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         <iframe
           title={t.chartTitle}
-          className="h-full w-full"
-          src={`https://dexscreener.com/solana/${pair.pairAddress}?embed=1&chartTheme=${isDark ? 'dark' : 'light'}&theme=${isDark ? 'dark' : 'light'}&trades=0&info=0&tabs=0`}
+          className="h-full w-full border-0"
+          src={`https://dexscreener.com/solana/${pair.pairAddress}?embed=1&theme=${isDark ? 'dark' : 'light'}&info=0&txns=0`}
         />
       </div>
     </div>
   );
 };
 
-const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status, walletReady, onConnect, t, isRtl }) => {
+const TokenInfoPanel = ({ pair, profile, t, isRtl }) => {
+  const [copied, setCopied] = useState(false);
+
+  if (!pair) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border/50 bg-background p-4 text-sm text-muted-foreground">
+        {t.selectTokenToOpenTerminal}
+      </div>
+    );
+  }
+
+  const socials = [...(profile?.socials || []), ...(pair.info?.socials || [])];
+  const websites = [...(profile?.websites || []), ...(pair.info?.websites || [])];
+  const links = [
+    ...websites.map((item) => ({ ...item, type: item?.type || 'website' })),
+    ...socials,
+  ].filter((item) => item?.url);
+
+  const handleCopy = async () => {
+    if (!pair?.baseToken?.address) return;
+    try {
+      await navigator.clipboard.writeText(pair.baseToken.address);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const iconForType = (type = '') => {
+    switch (type.toLowerCase()) {
+      case 'twitter':
+      case 'x':
+        return <Twitter className="h-4 w-4" />;
+      case 'telegram':
+        return <MessageCircle className="h-4 w-4" />;
+      default:
+        return <Globe className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-background">
+      <div className="border-b border-border/50 px-4 py-3 text-sm font-semibold">{t.tokenInfoTitle}</div>
+      <Tabs defaultValue="overview" className="flex h-full min-h-0 flex-col">
+        <TabsList className="grid grid-cols-4">
+          <TabsTrigger value="overview">{t.overviewTab}</TabsTrigger>
+          <TabsTrigger value="socials">{t.socialsTab}</TabsTrigger>
+          <TabsTrigger value="safety">{t.safetyTab}</TabsTrigger>
+          <TabsTrigger value="holders">{t.holdersTab}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className={cn('grid gap-3 text-sm text-muted-foreground md:grid-cols-2', isRtl && 'text-right')}>
+            <div>{t.marketCapShort}: ${formatCompactNumber(pair.marketCap)}</div>
+            <div>{t.liquidityShort}: ${formatCompactNumber(pair.liquidityUsd)}</div>
+            <div>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</div>
+            <div>{t.txnsLabel}: {pair.txns24h ? `${pair.txns24h.buys}/${pair.txns24h.sells}` : '—'}</div>
+            <div>{t.pairAgeLabel}: {formatAge(pair.pairCreatedAt)}</div>
+            <div>{t.dexLabel}: {pair.dexId || '—'}</div>
+          </div>
+          <div className={cn('mt-4 flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs', isRtl && 'flex-row-reverse')}>
+            <div className="truncate text-muted-foreground">{t.contractLabel}: {pair.baseToken.address}</div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopy}
+                  title={t.copyAddressHelp}
+                  aria-label={t.copyAddressHelp}
+                  className="gap-1"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? t.copied : t.copy}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t.copyAddressHelp}</TooltipContent>
+            </Tooltip>
+          </div>
+        </TabsContent>
+        <TabsContent value="socials" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {links.length ? (
+            <div className="flex flex-col gap-2">
+              {links.map((link, index) => (
+                <a
+                  key={`${link.url}-${index}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(
+                    'flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted/20',
+                    isRtl && 'flex-row-reverse text-right'
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    {iconForType(link.type)}
+                    {link.label || link.type || t.website}
+                  </span>
+                  <span className="text-xs">{t.openLink}</span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">{t.noSocials}</div>
+          )}
+        </TabsContent>
+        <TabsContent value="safety" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className={cn('flex items-start gap-3 text-sm text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+            <Shield className="mt-0.5 h-4 w-4 text-amber-400" />
+            <div>
+              <p className="font-medium text-foreground">{t.safetyTitle}</p>
+              <p className="text-xs">{t.safetyNote}</p>
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="holders" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <p className="text-sm text-muted-foreground">{t.holdersHelp}</p>
+          <a
+            href={`https://solscan.io/token/${pair.baseToken.address}#holders`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center rounded-lg border border-border/50 px-3 py-2 text-sm text-primary hover:bg-muted/20"
+          >
+            {t.viewHolders}
+          </a>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status, walletReady, onConnect, maxAmount, t, isRtl }) => {
   const [side, setSide] = useState('buy');
   const [amount, setAmount] = useState('');
   const [slippageMode, setSlippageMode] = useState('auto');
@@ -546,18 +707,43 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
 
         <div className="space-y-2">
           <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-            <SolanaLogo className="h-4 w-4" />
+            <img src={solanaLogo} alt="" className="h-4 w-4" />
             <span>{t.amountLabel} ({inputSymbol})</span>
             <HelpTooltip text={t.amountHelp} />
           </div>
-          <Input
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0.0"
-            type="number"
-            title={t.amountHelp}
-            aria-label={t.amountHelp}
-          />
+          <div className="relative">
+            <Input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="0.0"
+              type="number"
+              title={t.amountHelp}
+              aria-label={t.amountHelp}
+              className="pr-16"
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => maxAmount && setAmount(maxAmount)}
+                  title={t.maxHelp}
+                  aria-label={t.maxHelp}
+                  className="absolute right-2 top-1/2 h-7 -translate-y-1/2 px-2 text-[11px]"
+                  disabled={!maxAmount}
+                >
+                  {t.max}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t.maxHelp}</TooltipContent>
+            </Tooltip>
+          </div>
+          {maxAmount ? (
+            <div className="text-[11px] text-muted-foreground">
+              {t.balanceLabel}: {maxAmount} {t.solSymbol}
+            </div>
+          ) : null}
           <div className="grid grid-cols-5 gap-2">
             {['0.1', '0.5', '1', '2', '5'].map((value) => (
               <Tooltip key={value}>
@@ -570,7 +756,7 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
                     aria-label={t.amountChipHelp}
                     className="flex items-center justify-center gap-1"
                   >
-                    <SolanaLogo className="h-3 w-3" />
+                    <img src={solanaLogo} alt="" className="h-3 w-3" />
                     {value}
                   </Button>
                 </TooltipTrigger>
@@ -694,6 +880,7 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
         {status ? (
           <div className="rounded-lg border border-border/50 px-3 py-2 text-xs">
             <div>{t.statusLabel}: {status.state}</div>
+            {status.message ? <div className="mt-1 text-muted-foreground">{status.message}</div> : null}
             {status.signature ? (
               <a
                 className="text-primary underline"
@@ -712,7 +899,7 @@ const TradePanel = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, status,
   );
 };
 
-const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, walletReady, onConnect, t, isRtl }) => {
+const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, walletReady, onConnect, maxAmount, t, isRtl }) => {
   const [side, setSide] = useState('buy');
   const [amount, setAmount] = useState('');
   const [slippageMode, setSlippageMode] = useState('auto');
@@ -734,47 +921,47 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
   const ctaAmount = amount || '0';
 
   return (
-    <div className="sticky bottom-0 z-20 mt-auto border-t border-border/40 bg-background/95 backdrop-blur-xl">
-      <div className="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
-        <div className={cn('flex items-center gap-2', isRtl && 'flex-row-reverse')}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={side === 'buy' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSide('buy')}
-                className="flex-1"
-                title={t.buyHelp}
-                aria-label={t.buyHelp}
-              >
-                {t.buy}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t.buyHelp}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={side === 'sell' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSide('sell')}
-                className="flex-1"
-                title={t.sellHelp}
-                aria-label={t.sellHelp}
-              >
-                {t.sell}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t.sellHelp}</TooltipContent>
-          </Tooltip>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className={cn('flex items-center gap-2', isRtl && 'flex-row-reverse')}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={side === 'buy' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSide('buy')}
+              className="flex-1"
+              title={t.buyHelp}
+              aria-label={t.buyHelp}
+            >
+              {t.buy}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t.buyHelp}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={side === 'sell' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSide('sell')}
+              className="flex-1"
+              title={t.sellHelp}
+              aria-label={t.sellHelp}
+            >
+              {t.sell}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t.sellHelp}</TooltipContent>
+        </Tooltip>
+      </div>
 
-        <div className="space-y-2">
-          <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-            <SolanaLogo className="h-4 w-4" />
-            <span>{t.amountLabel} ({inputSymbol})</span>
-            <HelpTooltip text={t.amountHelp} />
-          </div>
+      <div className="space-y-2">
+        <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
+          <img src={solanaLogo} alt="" className="h-4 w-4" />
+          <span>{t.amountLabel} ({inputSymbol})</span>
+          <HelpTooltip text={t.amountHelp} />
+        </div>
+        <div className="relative">
           <Input
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
@@ -782,103 +969,146 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
             type="number"
             title={t.amountHelp}
             aria-label={t.amountHelp}
+            className="pr-16"
           />
-          <div className="grid grid-cols-5 gap-2">
-            {['0.1', '0.5', '1', '2', '5'].map((value) => (
-              <Tooltip key={value}>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setAmount(value)}
-                    title={t.amountChipHelp}
-                    aria-label={t.amountChipHelp}
-                    className="flex items-center justify-center gap-1"
-                  >
-                    <SolanaLogo className="h-3 w-3" />
-                    {value}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t.amountChipHelp}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{t.youGet}</span>
-          <span className="font-semibold text-foreground">
-            {quoteLoading ? t.loadingQuote : quote?.outAmount ? `${formatTokenAmount(quote.outAmount, outputDecimals)} ${outputSymbol}` : '—'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="flex-1" title={t.advancedHelp} aria-label={t.advancedHelp}>
-                {t.advanced}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => maxAmount && setAmount(maxAmount)}
+                title={t.maxHelp}
+                aria-label={t.maxHelp}
+                className="absolute right-2 top-1/2 h-7 -translate-y-1/2 px-2 text-[11px]"
+                disabled={!maxAmount}
+              >
+                {t.max}
               </Button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="space-y-4">
-              <div className={cn('flex items-center gap-2 text-sm', isRtl && 'flex-row-reverse text-right')}>
-                <span className="font-semibold">{t.advanced}</span>
-                <HelpTooltip text={t.advancedHelp} />
-              </div>
-              <div className="space-y-2">
-                <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
-                  <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-                    <span>{t.slippage}</span>
-                    <HelpTooltip text={t.slippageHelp} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant={slippageMode === 'auto' ? 'default' : 'outline'}
-                      onClick={() => setSlippageMode('auto')}
-                      title={t.slippageAutoHelp}
-                      aria-label={t.slippageAutoHelp}
-                    >
-                      {t.slippageAuto}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={slippageMode === 'custom' ? 'default' : 'outline'}
-                      onClick={() => setSlippageMode('custom')}
-                      title={t.slippageManualHelp}
-                      aria-label={t.slippageManualHelp}
-                    >
-                      {t.slippageManual}
-                    </Button>
-                  </div>
+            </TooltipTrigger>
+            <TooltipContent>{t.maxHelp}</TooltipContent>
+          </Tooltip>
+        </div>
+        {maxAmount ? (
+          <div className="text-[11px] text-muted-foreground">
+            {t.balanceLabel}: {maxAmount} {t.solSymbol}
+          </div>
+        ) : null}
+        <div className="grid grid-cols-5 gap-2">
+          {['0.1', '0.5', '1', '2', '5'].map((value) => (
+            <Tooltip key={value}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAmount(value)}
+                  title={t.amountChipHelp}
+                  aria-label={t.amountChipHelp}
+                  className="flex items-center justify-center gap-1"
+                >
+                  <img src={solanaLogo} alt="" className="h-3 w-3" />
+                  {value}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t.amountChipHelp}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{t.youGet}</span>
+        <span className="font-semibold text-foreground">
+          {quoteLoading ? t.loadingQuote : quote?.outAmount ? `${formatTokenAmount(quote.outAmount, outputDecimals)} ${outputSymbol}` : '—'}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="flex-1" title={t.advancedHelp} aria-label={t.advancedHelp}>
+              {t.advanced}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="space-y-4">
+            <div className={cn('flex items-center gap-2 text-sm', isRtl && 'flex-row-reverse text-right')}>
+              <span className="font-semibold">{t.advanced}</span>
+              <HelpTooltip text={t.advancedHelp} />
+            </div>
+            <div className="space-y-2">
+              <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
+                <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+                  <span>{t.slippage}</span>
+                  <HelpTooltip text={t.slippageHelp} />
                 </div>
-                {slippageMode === 'custom' ? (
-                  <Input
-                    value={manualSlippage}
-                    onChange={(event) => setManualSlippage(event.target.value)}
-                    type="number"
-                    placeholder="50"
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={slippageMode === 'auto' ? 'default' : 'outline'}
+                    onClick={() => setSlippageMode('auto')}
+                    title={t.slippageAutoHelp}
+                    aria-label={t.slippageAutoHelp}
+                  >
+                    {t.slippageAuto}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={slippageMode === 'custom' ? 'default' : 'outline'}
+                    onClick={() => setSlippageMode('custom')}
                     title={t.slippageManualHelp}
                     aria-label={t.slippageManualHelp}
-                  />
-                ) : null}
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
-                <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-                  <span>{t.priorityFee}</span>
-                  <HelpTooltip text={t.priorityFeeHelp} />
+                  >
+                    {t.slippageManual}
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  variant={priorityFee ? 'default' : 'outline'}
-                  onClick={() => setPriorityFee(!priorityFee)}
-                  title={t.priorityFeeHelp}
-                  aria-label={t.priorityFeeHelp}
-                >
-                  {priorityFee ? t.on : t.off}
-                </Button>
               </div>
-            </SheetContent>
-          </Sheet>
+              {slippageMode === 'custom' ? (
+                <Input
+                  value={manualSlippage}
+                  onChange={(event) => setManualSlippage(event.target.value)}
+                  type="number"
+                  placeholder="50"
+                  title={t.slippageManualHelp}
+                  aria-label={t.slippageManualHelp}
+                />
+              ) : null}
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
+              <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+                <span>{t.priorityFee}</span>
+                <HelpTooltip text={t.priorityFeeHelp} />
+              </div>
+              <Button
+                size="sm"
+                variant={priorityFee ? 'default' : 'outline'}
+                onClick={() => setPriorityFee(!priorityFee)}
+                title={t.priorityFeeHelp}
+                aria-label={t.priorityFeeHelp}
+              >
+                {priorityFee ? t.on : t.off}
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <div className="sticky bottom-0 z-20 mt-auto border-t border-border/40 bg-background/95 backdrop-blur-xl">
+        <div className="flex items-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSide(side === 'buy' ? 'sell' : 'buy')}
+                title={t.switchSideHelp}
+                aria-label={t.switchSideHelp}
+                className="w-24"
+              >
+                {t.switchSide}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t.switchSideHelp}</TooltipContent>
+          </Tooltip>
           {!walletReady ? (
             <Button className="flex-1" onClick={onConnect} title={t.connectWalletHelp} aria-label={t.connectWalletHelp}>
               {t.connectWallet}
@@ -902,18 +1132,20 @@ const MobileTradeBar = ({ pair, quote, quoteLoading, onQuoteRefresh, onSwap, wal
 
 export default function MemeCoins({ language = 'en' }) {
   const { connection } = useConnection();
-  const { publicKey, sendTransaction, connected } = useWallet();
+  const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const t = tMemeCoins(language);
   const isRtl = language === 'ar';
   const [mode, setMode] = useState('discover');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('trending');
-  const [filters, setFilters] = useState({ minLiquidity: 0, minVolume: 0 });
+  const [filters, setFilters] = useState({ minLiquidity: 0, minVolume: 0, maxAgeHours: 0 });
   const [selectedAddress, setSelectedAddress] = useState('');
   const [selectedPairId, setSelectedPairId] = useState('');
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
   const [swapStatus, setSwapStatus] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingTrade, setPendingTrade] = useState(null);
   const [pendingQuoteParams, setPendingQuoteParams] = useState(null);
   const [watchlist, setWatchlist] = useState(() => {
     try {
@@ -951,7 +1183,7 @@ export default function MemeCoins({ language = 'en' }) {
   const trendingQuery = useQuery({
     queryKey: ['memeTokens', mode],
     queryFn: ({ signal }) => fetchTrendingTokens(signal),
-    staleTime: 15000,
+    staleTime: 25000,
     refetchInterval: 25000,
   });
 
@@ -959,7 +1191,7 @@ export default function MemeCoins({ language = 'en' }) {
     queryKey: ['memeTokensSearch', debouncedSearch],
     queryFn: ({ signal }) => fetchSearchTokens(debouncedSearch, signal),
     enabled: debouncedSearch.length > 1,
-    staleTime: 15000,
+    staleTime: 20000,
   });
 
   const tokens = debouncedSearch.length > 1 ? searchQueryResult.data ?? [] : trendingQuery.data ?? [];
@@ -981,6 +1213,29 @@ export default function MemeCoins({ language = 'en' }) {
   const selectedPair = pairQuery.data ?? null;
   const selectedToken = selectedPair ? mapPairDetailsToSummary(selectedPair) : null;
 
+  const profileQuery = useQuery({
+    queryKey: ['tokenProfile', selectedPair?.baseToken?.address],
+    queryFn: ({ signal }) => fetchTokenProfile(selectedPair?.baseToken?.address, signal),
+    enabled: Boolean(selectedPair?.baseToken?.address),
+    staleTime: 600000,
+  });
+
+  const profileSummary = profileQuery.data ? mapProfileDetailsToSummary(profileQuery.data) : null;
+
+  const balanceQuery = useQuery({
+    queryKey: ['solBalance', publicKey?.toBase58()],
+    queryFn: async () => {
+      if (!publicKey) return null;
+      const balance = await connection.getBalance(publicKey);
+      return balance;
+    },
+    enabled: Boolean(publicKey),
+    staleTime: 15000,
+    refetchInterval: 30000,
+  });
+
+  const maxAmount = balanceQuery.data ? formatTokenAmount(balanceQuery.data, 9) : '';
+
   useEffect(() => {
     if (selectedPair?.baseToken?.address) {
       setSelectedAddress(selectedPair.baseToken.address);
@@ -988,7 +1243,7 @@ export default function MemeCoins({ language = 'en' }) {
   }, [selectedPair]);
 
   const quoteQuery = useQuery({
-    queryKey: ['jupQuote', debouncedQuoteParams, selectedPairId, selectedAddress, feeConfig.bps],
+    queryKey: ['jupQuote', debouncedQuoteParams, selectedPairId, selectedAddress],
     queryFn: async ({ signal }) => {
       if (!debouncedQuoteParams || !selectedPair) return null;
       const { amount, side, slippageMode, manualSlippage } = debouncedQuoteParams;
@@ -1005,9 +1260,6 @@ export default function MemeCoins({ language = 'en' }) {
         amount: amountInSmallest.toString(),
         slippageBps: slippageBps.toString(),
       });
-      if (feeConfig.enabled) {
-        params.set('platformFeeBps', feeConfig.bps.toString());
-      }
       const response = await fetch(`https://quote-api.jup.ag/v6/quote?${params.toString()}`, { signal });
       if (!response.ok) {
         return null;
@@ -1022,6 +1274,7 @@ export default function MemeCoins({ language = 'en' }) {
     setSelectedAddress(token.address);
     setSelectedPairId(token.pairAddress || '');
     setSwapStatus(null);
+    setPendingTrade(null);
     setTradeSheetOpen(true);
   };
 
@@ -1035,60 +1288,37 @@ export default function MemeCoins({ language = 'en' }) {
     setPendingQuoteParams(params);
   };
 
-  const handleSwap = async (params) => {
-    if (!selectedPair || !publicKey) return;
-    const quote = quoteQuery.data;
-    if (!quote) return;
+  const handleSwap = (params) => {
+    if (!selectedPair) return;
+    setPendingTrade(params);
+    setConfirmOpen(true);
+  };
 
-    const { side, slippageMode, manualSlippage, priorityFee, amount } = params;
-    const inputDecimals = side === 'buy' ? 9 : selectedPair.baseToken.decimals ?? 6;
-    const parsedAmount = normalizeNumber(amount);
-    if (!parsedAmount) return;
-
-    const slippageBps = slippageMode === 'custom' ? normalizeNumber(manualSlippage) : DEFAULT_SLIPPAGE_BPS;
-
-    try {
-      setSwapStatus({ state: 'signing' });
-      const response = await fetch('https://quote-api.jup.ag/v6/swap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quoteResponse: quote,
-          userPublicKey: publicKey.toBase58(),
-          wrapAndUnwrapSol: true,
-          feeAccount: feeConfig.enabled ? feeConfig.feeAccount : undefined,
-          prioritizationFeeLamports: priorityFee ? 5000 : undefined,
-          slippageBps,
-          dynamicComputeUnitLimit: true,
-        }),
-      });
-
-      if (!response.ok) {
-        setSwapStatus({ state: 'failed', error: 'Swap request failed.' });
-        return;
-      }
-
-      const swapData = await response.json();
-      const transaction = VersionedTransaction.deserialize(
-        Uint8Array.from(atob(swapData.swapTransaction), (char) => char.charCodeAt(0))
-      );
-      const signature = await sendTransaction(transaction, connection);
-      setSwapStatus({ state: 'sent', signature });
-      await connection.confirmTransaction(signature, 'confirmed');
-      setSwapStatus({ state: 'confirmed', signature });
-    } catch (error) {
-      setSwapStatus({ state: 'failed', error: error?.message || 'Swap failed.' });
-    }
+  const handleConfirm = () => {
+    setSwapStatus({ state: t.executionSoonTitle, message: t.executionSoonDetail });
+    setConfirmOpen(false);
   };
 
   const listError = trendingQuery.error || searchQueryResult.error;
+  const confirmSide = pendingTrade?.side;
+  const confirmAmount = pendingTrade?.amount;
+  const confirmInputSymbol = confirmSide === 'buy' ? 'SOL' : selectedPair?.baseToken?.symbol || '—';
+  const confirmOutputSymbol = confirmSide === 'buy' ? selectedPair?.baseToken?.symbol || '—' : 'SOL';
+  const confirmOutputDecimals = confirmSide === 'buy' ? selectedPair?.baseToken?.decimals ?? 6 : 9;
+  const confirmOutAmount = quoteQuery.data?.outAmount
+    ? `${formatTokenAmount(quoteQuery.data.outAmount, confirmOutputDecimals)} ${confirmOutputSymbol}`
+    : '—';
+  const confirmSlippage = pendingTrade
+    ? `${pendingTrade.slippageMode === 'custom' ? normalizeNumber(pendingTrade.manualSlippage) : DEFAULT_SLIPPAGE_BPS} bps`
+    : '—';
+  const feePercent = feeConfig.enabled ? (feeConfig.bps / 100).toFixed(2) : null;
 
   return (
     <TooltipProvider>
-      <div className="flex h-[calc(100vh-64px)] min-h-0 flex-col gap-4 overflow-hidden px-4 pb-4 pt-2 text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-4 overflow-hidden overflow-x-hidden px-4 pb-4 pt-2 text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
         <div className={cn('flex flex-wrap items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>
           <div className="flex items-center gap-3">
-            <SolanaLogo className="h-6 w-6" />
+            <img src={solanaLogo} alt={t.solana} className="h-6 w-6" />
             <div>
               <h1 className="text-lg font-semibold">{t.pageTitle}</h1>
               <p className="text-xs text-muted-foreground">{t.pageSubtitle}</p>
@@ -1114,6 +1344,7 @@ export default function MemeCoins({ language = 'en' }) {
                   status={swapStatus}
                   walletReady={connected}
                   onConnect={() => setVisible(true)}
+                  maxAmount={maxAmount}
                   t={t}
                   isRtl={isRtl}
                 />
@@ -1122,7 +1353,7 @@ export default function MemeCoins({ language = 'en' }) {
           </div>
         </div>
 
-        <div className="hidden min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)_360px] gap-4 lg:grid">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-[340px_minmax(0,1fr)_360px] gap-4 lg:grid">
           <TokenListPanel
             tokens={tokens}
             isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
@@ -1142,7 +1373,14 @@ export default function MemeCoins({ language = 'en' }) {
             t={t}
             isRtl={isRtl}
           />
-          <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+          <div className="flex min-h-0 flex-col gap-4">
+            <div className="flex-1 min-h-0">
+              <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+            </div>
+            <div className="h-[280px] min-h-[240px]">
+              <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+            </div>
+          </div>
           <TradePanel
             pair={selectedPair}
             quote={quoteQuery.data}
@@ -1152,12 +1390,13 @@ export default function MemeCoins({ language = 'en' }) {
             status={swapStatus}
             walletReady={connected}
             onConnect={() => setVisible(true)}
+            maxAmount={maxAmount}
             t={t}
             isRtl={isRtl}
           />
         </div>
 
-        <div className="hidden min-h-0 flex-1 grid-cols-2 gap-4 md:grid lg:hidden">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-2 gap-4 md:grid lg:hidden">
           <TokenListPanel
             tokens={tokens}
             isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
@@ -1177,15 +1416,21 @@ export default function MemeCoins({ language = 'en' }) {
             t={t}
             isRtl={isRtl}
           />
-          <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+          <div className="flex min-h-0 flex-col gap-4">
+            <div className="flex-1 min-h-0">
+              <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+            </div>
+            <div className="h-[240px] min-h-[220px]">
+              <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+            </div>
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col md:hidden">
           <Tabs defaultValue="list" className="flex h-full min-h-0 flex-col">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="list">{t.listTab}</TabsTrigger>
               <TabsTrigger value="chart">{t.chartTab}</TabsTrigger>
-              <TabsTrigger value="trade">{t.tradeTab}</TabsTrigger>
             </TabsList>
             <TabsContent value="list" className="mt-3 min-h-0 flex-1 overflow-hidden">
               <TokenListPanel
@@ -1209,39 +1454,71 @@ export default function MemeCoins({ language = 'en' }) {
               />
             </TabsContent>
             <TabsContent value="chart" className="mt-3 min-h-0 flex-1 overflow-hidden">
-              <div className="flex h-full min-h-0 flex-col gap-3">
-                <div className="min-h-[60vh] flex-1">
-                  <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
+                  <div className="min-h-[48vh]">
+                    <ChartPanel pair={selectedPair} isLoading={pairQuery.isLoading} error={pairQuery.error} t={t} isRtl={isRtl} />
+                  </div>
+                  <MobileTradeBar
+                    pair={selectedPair}
+                    quote={quoteQuery.data}
+                    quoteLoading={quoteQuery.isFetching}
+                    onQuoteRefresh={handleQuoteRefresh}
+                    onSwap={handleSwap}
+                    walletReady={connected}
+                    onConnect={() => setVisible(true)}
+                    maxAmount={maxAmount}
+                    t={t}
+                    isRtl={isRtl}
+                  />
+                  <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
                 </div>
-                <MobileTradeBar
-                  pair={selectedPair}
-                  quote={quoteQuery.data}
-                  quoteLoading={quoteQuery.isFetching}
-                  onQuoteRefresh={handleQuoteRefresh}
-                  onSwap={handleSwap}
-                  walletReady={connected}
-                  onConnect={() => setVisible(true)}
-                  t={t}
-                  isRtl={isRtl}
-                />
               </div>
-            </TabsContent>
-            <TabsContent value="trade" className="mt-3 min-h-0 flex-1 overflow-hidden">
-              <TradePanel
-                pair={selectedPair}
-                quote={quoteQuery.data}
-                quoteLoading={quoteQuery.isFetching}
-                onQuoteRefresh={handleQuoteRefresh}
-                onSwap={handleSwap}
-                status={swapStatus}
-                walletReady={connected}
-                onConnect={() => setVisible(true)}
-                t={t}
-                isRtl={isRtl}
-              />
             </TabsContent>
           </Tabs>
         </div>
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t.confirmTradeTitle}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.confirmSide}</span>
+                <span className="font-semibold">{confirmSide === 'sell' ? t.sell : t.buy}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.amountLabel}</span>
+                <span className="font-semibold">{confirmAmount || '0'} {confirmInputSymbol}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.youGet}</span>
+                <span className="font-semibold">{confirmOutAmount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t.slippage}</span>
+                <span className="font-semibold">{confirmSlippage}</span>
+              </div>
+              {feePercent ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">{t.feeLabel}</span>
+                  <span className="font-semibold">{feePercent}%</span>
+                </div>
+              ) : null}
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground">
+                {t.executionSoonDetail}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleConfirm} disabled={!quoteQuery.data || !confirmAmount}>
+                {t.confirmTradeCta}
+              </Button>
+              <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+                {t.close}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
