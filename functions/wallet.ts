@@ -663,8 +663,8 @@ Deno.serve(async (req) => {
       }
 
       const lockDays = Number(lockPeriodDays);
-      if (!Number.isFinite(lockDays) || lockDays < 24) {
-        return Response.json({ success: false, error: 'Minimum lock period is 24 days' }, { status: 400 });
+      if (!Number.isFinite(lockDays) || lockDays < 30) {
+        return Response.json({ success: false, error: 'Minimum lock period is 30 days' }, { status: 400 });
       }
       
       const wallets = await base44.entities.Wallet.filter({ id: walletId, user_id: user.id });
@@ -685,8 +685,8 @@ Deno.serve(async (req) => {
         }, { status: 400 });
       }
       
-      const apyRates = { 24: 11, 30: 29, 45: 73, 60: 150, 90: 220, 120: 350, 365: 999 };
-      const apy = apyRates[lockDays] || 29;
+      const apyRates = { 30: 24, 45: 32, 60: 40, 90: 55, 120: 70 };
+      const apy = apyRates[lockDays] || 24;
       
       const startDate = new Date();
       const unlockDate = new Date(startDate.getTime() + lockDays * 24 * 60 * 60 * 1000);
