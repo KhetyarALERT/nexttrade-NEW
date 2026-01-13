@@ -18,6 +18,7 @@ import MemeChart from '@/components/meme/MemeChart';
 import { cn } from '@/lib/utils';
 import { tMemeCoins } from '@/lib/i18n/memecoins';
 import solanaLogo from '@/assets/solana-logo.svg';
+import solanaIcon from '/icons/solana.svg';
 import {
   fetchPairById,
   fetchTokenProfile,
@@ -27,7 +28,6 @@ import {
   mapProfileDetailsToSummary,
   mapPairDetailsToSummary,
 } from '@/lib/market/dexscreener';
-import { fetchGeckoPoolSearch, selectHighestLiquidityPool } from '@/lib/market/geckoterminal';
 import {
   formatAge,
   formatCompactNumber,
@@ -38,8 +38,6 @@ import {
 } from '@/lib/market/selectors';
 
 const DEFAULT_SLIPPAGE_BPS = 50;
-const SOL_ICON = '/icons/solana.svg';
-
 const useDebouncedValue = (value, delay = 400) => {
   const [debounced, setDebounced] = useState(value);
 
@@ -167,6 +165,11 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
         <div>{t.liquidityShort}: ${formatCompactNumber(token.liquidityUsd)}</div>
         <div>{t.volumeShort}: ${formatCompactNumber(token.volume24h)}</div>
         <div>{t.ageShort}: {formatAge(token.pairCreatedAt)}</div>
+      </div>
+      <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground', isRtl && 'flex-row-reverse')}>
+        <Badge variant="secondary" className="text-[9px]">{t.lpBurned}</Badge>
+        <Badge variant="secondary" className="text-[9px]">{t.renouncedLabel}</Badge>
+        <Badge variant="secondary" className="text-[9px]">{t.mintAuthorityLabel}</Badge>
       </div>
       {pressure ? (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
@@ -424,7 +427,7 @@ const TokenListPanel = ({
   );
 };
 
-const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl }) => {
+const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = false }) => {
   const [copied, setCopied] = useState('');
 
   if (error) {
@@ -461,10 +464,6 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl }) => {
     }
   };
 
-  const fallbackUrl = pair.pairAddress
-    ? `https://dexscreener.com/solana/${pair.pairAddress}?embed=1&theme=${typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'}&info=0&txns=0`
-    : '';
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <div className="rounded-xl border border-border/50 bg-background px-3 py-3 md:px-4">
@@ -486,54 +485,57 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl }) => {
           <span>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</span>
           <span>{t.ageShort}: {formatAge(pair.pairCreatedAt)}</span>
         </div>
-        <div className={cn('mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
-          <span>{t.mintLabel}:</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 gap-2 px-2 text-[11px]"
-                onClick={() => handleCopy(pair.baseToken.address)}
-                title={t.copyMintHelp}
-                aria-label={t.copyMintHelp}
-              >
-                <Copy className="h-3 w-3" />
-                {copied === pair.baseToken.address ? t.copied : t.copy}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t.copyMintHelp}</TooltipContent>
-          </Tooltip>
-          <span className="truncate max-w-[180px]">{pair.baseToken.address}</span>
-        </div>
-        <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
-          <span>{t.poolLabel}:</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 gap-2 px-2 text-[11px]"
-                onClick={() => handleCopy(poolAddress)}
-                title={t.copyPoolHelp}
-                aria-label={t.copyPoolHelp}
-                disabled={!poolAddress}
-              >
-                <Copy className="h-3 w-3" />
-                {copied === poolAddress ? t.copied : t.copy}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t.copyPoolHelp}</TooltipContent>
-          </Tooltip>
-          <span className="truncate max-w-[180px]">{poolAddress || t.notProvided}</span>
-        </div>
+        {!compact ? (
+          <>
+            <div className={cn('mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+              <span>{t.mintLabel}:</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-2 px-2 text-[11px]"
+                    onClick={() => handleCopy(pair.baseToken.address)}
+                    title={t.copyMintHelp}
+                    aria-label={t.copyMintHelp}
+                  >
+                    <Copy className="h-3 w-3" />
+                    {copied === pair.baseToken.address ? t.copied : t.copy}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t.copyMintHelp}</TooltipContent>
+              </Tooltip>
+              <span className="truncate max-w-[180px]">{pair.baseToken.address}</span>
+            </div>
+            <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+              <span>{t.poolLabel}:</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-2 px-2 text-[11px]"
+                    onClick={() => handleCopy(poolAddress)}
+                    title={t.copyPoolHelp}
+                    aria-label={t.copyPoolHelp}
+                    disabled={!poolAddress}
+                  >
+                    <Copy className="h-3 w-3" />
+                    {copied === poolAddress ? t.copied : t.copy}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t.copyPoolHelp}</TooltipContent>
+              </Tooltip>
+              <span className="truncate max-w-[180px]">{poolAddress || t.notProvided}</span>
+            </div>
+          </>
+        ) : null}
       </div>
       <div className="flex-1 min-h-0">
         <MemeChart
           poolAddress={poolAddress}
-          fallbackUrl={fallbackUrl}
           t={t}
           isRtl={isRtl}
         />
@@ -750,7 +752,7 @@ const TradePanel = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isR
 
         <div className="space-y-2">
           <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-            <img src={SOL_ICON} alt="" className="h-4 w-4" />
+            <img src={solanaIcon} alt="" className="h-4 w-4" />
             <span>{t.amountLabel} ({inputSymbol})</span>
             <HelpTooltip text={t.amountHelp} />
           </div>
@@ -799,7 +801,7 @@ const TradePanel = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isR
                     aria-label={t.amountChipHelp}
                     className="flex items-center justify-center gap-1"
                   >
-                    <img src={SOL_ICON} alt="" className="h-3 w-3" />
+                    <img src={solanaIcon} alt="" className="h-3 w-3" />
                     {value}
                   </Button>
                 </TooltipTrigger>
@@ -976,7 +978,7 @@ const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t,
 
       <div className="space-y-2">
         <div className={cn('flex items-center gap-2 text-xs font-medium text-muted-foreground', isRtl && 'flex-row-reverse')}>
-          <img src={SOL_ICON} alt="" className="h-4 w-4" />
+          <img src={solanaIcon} alt="" className="h-4 w-4" />
           <span>{t.amountLabel} ({inputSymbol})</span>
           <HelpTooltip text={t.amountHelp} />
         </div>
@@ -1025,7 +1027,7 @@ const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t,
                   aria-label={t.amountChipHelp}
                   className="flex items-center justify-center gap-1"
                 >
-                  <img src={SOL_ICON} alt="" className="h-3 w-3" />
+                  <img src={solanaIcon} alt="" className="h-3 w-3" />
                   {value}
                 </Button>
               </TooltipTrigger>
@@ -1158,8 +1160,6 @@ export default function MemeCoins({ language = 'en' }) {
   const [selectedPairId, setSelectedPairId] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrade, setPendingTrade] = useState(null);
-  const [geckoPool, setGeckoPool] = useState(null);
-  const [geckoPoolError, setGeckoPoolError] = useState(null);
   const [watchlist, setWatchlist] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('meme_watchlist') || '[]');
@@ -1254,41 +1254,6 @@ export default function MemeCoins({ language = 'en' }) {
     }
   }, [selectedPair]);
 
-  useEffect(() => {
-    let mounted = true;
-    setGeckoPool(null);
-    setGeckoPoolError(null);
-    if (!selectedPair) return undefined;
-    if (selectedPair.pairAddress) {
-      setGeckoPool({ address: selectedPair.pairAddress });
-      return undefined;
-    }
-    const query = selectedPair.baseToken.address || selectedPair.baseToken.symbol;
-    if (!query) return undefined;
-    fetchGeckoPoolSearch({
-      query,
-      onUpdate: (fresh) => {
-        if (!mounted) return;
-        const best = selectHighestLiquidityPool(fresh);
-        const address = best?.attributes?.address ?? best?.id;
-        setGeckoPool(address ? { address } : null);
-      },
-    })
-      .then((result) => {
-        if (!mounted) return;
-        const best = selectHighestLiquidityPool(result);
-        const address = best?.attributes?.address ?? best?.id;
-        setGeckoPool(address ? { address } : null);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setGeckoPoolError(t.chartUnavailable);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [selectedPair, t.chartUnavailable]);
-
   const handleSelectToken = (token) => {
     setSelectedAddress(token.address);
     setSelectedPairId(token.pairAddress || '');
@@ -1313,7 +1278,7 @@ export default function MemeCoins({ language = 'en' }) {
   };
 
   const listError = trendingQuery.error || searchQueryResult.error;
-  const chartPoolAddress = geckoPool?.address || selectedPair?.pairAddress || '';
+  const chartPoolAddress = selectedPair?.pairAddress || selectedPair?.baseToken?.address || '';
   const confirmSide = pendingTrade?.side;
   const confirmAmount = pendingTrade?.amount;
   const confirmInputSymbol = confirmSide === 'buy' ? 'SOL' : selectedPair?.baseToken?.symbol || '—';
@@ -1367,7 +1332,7 @@ export default function MemeCoins({ language = 'en' }) {
                 pair={selectedPair}
                 poolAddress={chartPoolAddress}
                 isLoading={pairQuery.isLoading}
-                error={pairQuery.error || geckoPoolError}
+                error={pairQuery.error}
                 t={t}
                 isRtl={isRtl}
               />
@@ -1413,7 +1378,7 @@ export default function MemeCoins({ language = 'en' }) {
                 pair={selectedPair}
                 poolAddress={chartPoolAddress}
                 isLoading={pairQuery.isLoading}
-                error={pairQuery.error || geckoPoolError}
+                error={pairQuery.error}
                 t={t}
                 isRtl={isRtl}
               />
@@ -1454,14 +1419,15 @@ export default function MemeCoins({ language = 'en' }) {
             <TabsContent value="chart" className="mt-3 min-h-0 flex-1 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
-                  <div className="min-h-[48vh]">
+                  <div className="min-h-[60vh]">
                     <ChartPanel
                       pair={selectedPair}
                       poolAddress={chartPoolAddress}
                       isLoading={pairQuery.isLoading}
-                      error={pairQuery.error || geckoPoolError}
+                      error={pairQuery.error}
                       t={t}
                       isRtl={isRtl}
+                      compact
                     />
                   </div>
                   <MobileTradeBar
@@ -1473,7 +1439,16 @@ export default function MemeCoins({ language = 'en' }) {
                     t={t}
                     isRtl={isRtl}
                   />
-                  <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full">
+                        {t.tokenInfoTitle}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-3">
+                      <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
               </div>
             </TabsContent>
