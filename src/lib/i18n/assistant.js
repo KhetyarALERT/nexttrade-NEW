@@ -1,0 +1,56 @@
+const assistantI18n = {
+  en: {
+    support: "Support",
+    online: "Online",
+    unread: "Unread messages",
+    welcome: "Hi! I’m your NextTrade assistant. How can we help today?",
+    sampleQuestion: "Can you show me today’s top movers?",
+    cardTitle: "Quick market snapshot",
+    cardDescription: "Here are a few highlights to get you started.",
+    cardBulletOne: "BTC up 2.3% in the last 24h",
+    cardBulletTwo: "ETH steady with strong volume",
+    cardBulletThree: "SOL leading altcoin momentum",
+    cardActionPrimary: "View dashboard",
+    cardActionSecondary: "Create alert",
+    composerPlaceholder: "Type your message…",
+    attachLabel: "Attach file",
+    sendLabel: "Send message",
+    dropHint: "Drop files to attach",
+    attachmentsTitle: "Attachments",
+    closeLabel: "Close",
+    thinking: "Thinking…",
+    errorMessage: "Sorry, something went wrong. Please try again.",
+    fallbackMessage: "I’m here to help. Could you rephrase that?",
+    systemPrompt:
+      "You are the NextTrade assistant. Respond clearly and concisely. If useful, you may return JSON with keys: message (string) and cards (array). Each card can include title, description, bullets (array), and actions (array of { label, variant }).",
+  },
+  ar: {
+    support: "الدعم",
+    online: "متصل الآن",
+    unread: "رسائل غير مقروءة",
+    welcome: "مرحبًا! أنا مساعد نكست تريد. كيف يمكنني المساعدة اليوم؟",
+    sampleQuestion: "هل يمكنك عرض أفضل التحركات اليوم؟",
+    cardTitle: "لمحة سريعة عن السوق",
+    cardDescription: "إليك أبرز النقاط لتبدأ بسرعة.",
+    cardBulletOne: "بيتكوين ارتفعت 2.3% خلال 24 ساعة",
+    cardBulletTwo: "إيثيريوم مستقرة مع حجم تداول قوي",
+    cardBulletThree: "سولانا تقود زخم العملات البديلة",
+    cardActionPrimary: "عرض اللوحة",
+    cardActionSecondary: "إنشاء تنبيه",
+    composerPlaceholder: "اكتب رسالتك…",
+    attachLabel: "إرفاق ملف",
+    sendLabel: "إرسال الرسالة",
+    dropHint: "أفلت الملفات للإرفاق",
+    attachmentsTitle: "المرفقات",
+    closeLabel: "إغلاق",
+    thinking: "جارٍ التفكير…",
+    errorMessage: "عذرًا، حدث خطأ ما. حاول مرة أخرى.",
+    fallbackMessage: "أنا هنا للمساعدة. هل يمكنك توضيح طلبك؟",
+    systemPrompt:
+      "أنت مساعد NextTrade. أجب بوضوح وباختصار. إذا كان ذلك مفيدًا، يمكنك إعادة JSON يحتوي على المفاتيح: message (نص) و cards (مصفوفة). كل بطاقة يمكن أن تحتوي على title و description و bullets (مصفوفة) و actions (مصفوفة من { label, variant }).",
+  },
+};
+
+export function tAssistant(language) {
+  return assistantI18n[language] || assistantI18n.en;
+}
