@@ -12,12 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import MemeChart from '@/components/meme/MemeChart';
 import { cn } from '@/lib/utils';
 import { tMemeCoins } from '@/lib/i18n/memecoins';
-import solanaLogo from '@/assets/solana-logo.svg';
 import solanaIcon from '/icons/solana.svg';
 import {
   fetchPairById,
@@ -99,10 +98,53 @@ const HelpTooltip = ({ text, className = '' }) => (
   </span>
 );
 
+const getDisplayPrice = (value, placeholder) => {
+  if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return placeholder;
+  return formatPrice(value);
+};
+
+const getDisplayPercent = (value, placeholder) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return placeholder;
+  return formatPercent(value);
+};
+
+const SafetyBadges = ({ t, isRtl, size = 'xs' }) => {
+  const badges = [
+    { label: t.lpBurned, tooltip: t.lpBurnedHelp },
+    { label: t.renouncedLabel, tooltip: t.renouncedHelp },
+    { label: t.honeypotLabel, tooltip: t.honeypotHelp },
+    { label: t.mintableLabel, tooltip: t.mintableHelp },
+  ];
+
+  return (
+    <div className={cn('flex flex-wrap items-center gap-2 text-[10px]', isRtl && 'flex-row-reverse')}>
+      {badges.map((badge) => (
+        <Tooltip key={badge.label}>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="secondary"
+              className={cn('border border-border/60 bg-muted/40 px-2 py-0.5 text-[10px]', size === 'sm' && 'text-[11px]')}
+            >
+              {badge.label}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>{badge.tooltip}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  );
+};
+
 const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist, t, isRtl }) => {
   const change = token.priceChange24h ?? 0;
   const isPositive = change >= 0;
   const pressure = token.txns24h ? calcPressure(token.txns24h) : null;
+  const priceDisplay = getDisplayPrice(token.priceUsd, t.estimatePlaceholder);
+  const changeDisplay = getDisplayPercent(
+    token.priceChange24h,
+    t.estimatePlaceholder
+  );
+  const showChange = changeDisplay !== t.estimatePlaceholder;
 
   return (
     <div
@@ -135,9 +177,14 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
           <div className="truncate text-xs text-muted-foreground">{token.name || '—'}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-semibold">{formatPrice(token.priceUsd)}</div>
-          <div className={cn('text-xs font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
-            {formatPercent(change)}
+          <div className="text-sm font-semibold">{priceDisplay}</div>
+          <div
+            className={cn(
+              'text-xs font-medium',
+              showChange ? (isPositive ? 'text-emerald-500' : 'text-rose-500') : 'text-muted-foreground'
+            )}
+          >
+            {changeDisplay}
           </div>
         </div>
         <Tooltip>
@@ -166,10 +213,8 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
         <div>{t.volumeShort}: ${formatCompactNumber(token.volume24h)}</div>
         <div>{t.ageShort}: {formatAge(token.pairCreatedAt)}</div>
       </div>
-      <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground', isRtl && 'flex-row-reverse')}>
-        <Badge variant="secondary" className="text-[9px]">{t.lpBurned}</Badge>
-        <Badge variant="secondary" className="text-[9px]">{t.renouncedLabel}</Badge>
-        <Badge variant="secondary" className="text-[9px]">{t.mintAuthorityLabel}</Badge>
+      <div className="mt-2">
+        <SafetyBadges t={t} isRtl={isRtl} />
       </div>
       {pressure ? (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
@@ -452,6 +497,9 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = f
 
   const change = pair.priceChange24h ?? 0;
   const isPositive = change >= 0;
+  const priceDisplay = getDisplayPrice(pair.priceUsd, t.estimatePlaceholder);
+  const changeDisplay = getDisplayPercent(pair.priceChange24h, t.estimatePlaceholder);
+  const showChange = changeDisplay !== t.estimatePlaceholder;
 
   const handleCopy = async (value) => {
     if (!value) return;
@@ -466,28 +514,36 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = f
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className="rounded-xl border border-border/50 bg-background px-3 py-3 md:px-4">
+      <div className="rounded-xl border border-border/50 bg-background px-3 py-2 md:px-4 md:py-3">
         <div className={cn('flex flex-wrap items-start justify-between gap-3', isRtl && 'flex-row-reverse text-right')}>
           <div>
-            <div className="text-base font-semibold">{pair.baseToken.name} ({pair.baseToken.symbol})</div>
-            <div className="text-xs text-muted-foreground">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
+            <div className="text-sm font-semibold">{pair.baseToken.name} ({pair.baseToken.symbol})</div>
+            <div className="text-[11px] text-muted-foreground">{pair.baseToken.symbol} / {pair.quoteToken.symbol}</div>
           </div>
           <div className={cn('text-right', isRtl && 'text-left')}>
-            <div className="text-base font-semibold">{formatPrice(pair.priceUsd)}</div>
-            <div className={cn('text-xs font-medium', isPositive ? 'text-emerald-500' : 'text-rose-500')}>
-              {formatPercent(change)}
+            <div className="text-sm font-semibold">{priceDisplay}</div>
+            <div
+              className={cn(
+                'text-[11px] font-medium',
+                showChange ? (isPositive ? 'text-emerald-500' : 'text-rose-500') : 'text-muted-foreground'
+              )}
+            >
+              {changeDisplay}
             </div>
           </div>
         </div>
-        <div className={cn('mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
+        <div className={cn('mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
           <span>{t.marketCapShort}: ${formatCompactNumber(pair.marketCap)}</span>
           <span>{t.liquidityShort}: ${formatCompactNumber(pair.liquidityUsd)}</span>
           <span>{t.volumeShort}: ${formatCompactNumber(pair.volume24h)}</span>
           <span>{t.ageShort}: {formatAge(pair.pairCreatedAt)}</span>
         </div>
+        <div className="mt-2">
+          <SafetyBadges t={t} isRtl={isRtl} size="sm" />
+        </div>
         {!compact ? (
           <>
-            <div className={cn('mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
+            <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse text-right')}>
               <span>{t.mintLabel}:</span>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -533,7 +589,7 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = f
           </>
         ) : null}
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 min-h-[360px] overflow-hidden md:min-h-[520px]">
         <MemeChart
           poolAddress={poolAddress}
           t={t}
@@ -940,6 +996,8 @@ const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t,
 
   const inputSymbol = side === 'buy' ? 'SOL' : pair?.baseToken?.symbol || '—';
   const ctaAmount = amount || '0';
+  const canSubmit = Boolean(amount) && Number(amount) > 0 && pair;
+  const ctaLabel = canSubmit ? `${side === 'buy' ? t.buy : t.sell} ${ctaAmount} ${inputSymbol}` : t.enterAmount;
 
   return (
     <div className="flex flex-col gap-4">
@@ -1045,68 +1103,73 @@ const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t,
         <span className="font-semibold text-foreground">{t.estimatePlaceholder}</span>
       </div>
 
-      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-        <CollapsibleTrigger asChild>
+      <Dialog open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <DialogTrigger asChild>
           <Button variant="outline" size="sm" className="flex-1" title={t.advancedHelp} aria-label={t.advancedHelp}>
             {t.advanced}
           </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-3 space-y-3">
-          <div className="space-y-2">
-            <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
-              <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-                <span>{t.slippage}</span>
-                <HelpTooltip text={t.slippageHelp} />
+        </DialogTrigger>
+        <DialogContent className="bottom-0 top-auto left-0 right-0 w-full max-w-none translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none border-t border-border/60 p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base">{t.advancedTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <div className={cn('flex items-center justify-between text-xs', isRtl && 'flex-row-reverse')}>
+                <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+                  <span>{t.slippage}</span>
+                  <HelpTooltip text={t.slippageHelp} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={slippageMode === 'auto' ? 'default' : 'outline'}
+                    onClick={() => setSlippageMode('auto')}
+                    title={t.slippageAutoHelp}
+                    aria-label={t.slippageAutoHelp}
+                  >
+                    {t.slippageAuto}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={slippageMode === 'custom' ? 'default' : 'outline'}
+                    onClick={() => setSlippageMode('custom')}
+                    title={t.slippageManualHelp}
+                    aria-label={t.slippageManualHelp}
+                  >
+                    {t.slippageManual}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={slippageMode === 'auto' ? 'default' : 'outline'}
-                  onClick={() => setSlippageMode('auto')}
-                  title={t.slippageAutoHelp}
-                  aria-label={t.slippageAutoHelp}
-                >
-                  {t.slippageAuto}
-                </Button>
-                <Button
-                  size="sm"
-                  variant={slippageMode === 'custom' ? 'default' : 'outline'}
-                  onClick={() => setSlippageMode('custom')}
+              {slippageMode === 'custom' ? (
+                <Input
+                  value={manualSlippage}
+                  onChange={(event) => setManualSlippage(event.target.value)}
+                  type="number"
+                  placeholder="50"
                   title={t.slippageManualHelp}
                   aria-label={t.slippageManualHelp}
-                >
-                  {t.slippageManual}
-                </Button>
+                />
+              ) : null}
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
+              <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
+                <span>{t.priorityFee}</span>
+                <HelpTooltip text={t.priorityFeeHelp} />
               </div>
+              <Button
+                size="sm"
+                variant={priorityFee ? 'default' : 'outline'}
+                onClick={() => setPriorityFee(!priorityFee)}
+                title={t.priorityFeeHelp}
+                aria-label={t.priorityFeeHelp}
+              >
+                {priorityFee ? t.on : t.off}
+              </Button>
             </div>
-            {slippageMode === 'custom' ? (
-              <Input
-                value={manualSlippage}
-                onChange={(event) => setManualSlippage(event.target.value)}
-                type="number"
-                placeholder="50"
-                title={t.slippageManualHelp}
-                aria-label={t.slippageManualHelp}
-              />
-            ) : null}
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-xs">
-            <div className={cn('flex items-center gap-2 text-muted-foreground', isRtl && 'flex-row-reverse')}>
-              <span>{t.priorityFee}</span>
-              <HelpTooltip text={t.priorityFeeHelp} />
-            </div>
-            <Button
-              size="sm"
-              variant={priorityFee ? 'default' : 'outline'}
-              onClick={() => setPriorityFee(!priorityFee)}
-              title={t.priorityFeeHelp}
-              aria-label={t.priorityFeeHelp}
-            >
-              {priorityFee ? t.on : t.off}
-            </Button>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </DialogContent>
+      </Dialog>
 
       <div className="sticky bottom-0 z-20 mt-auto border-t border-border/40 bg-background/95 backdrop-blur-xl">
         <div className="flex items-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
@@ -1133,11 +1196,11 @@ const MobileTradeBar = ({ pair, onPreview, walletReady, onConnect, maxAmount, t,
             <Button
               className="flex-1"
               onClick={() => onPreview({ side, amount, slippageMode, manualSlippage, priorityFee })}
-              disabled={!amount || Number(amount) <= 0 || !pair}
+              disabled={!canSubmit}
               title={t.tradeCtaHelp}
               aria-label={t.tradeCtaHelp}
             >
-              {side === 'buy' ? t.buy : t.sell} {ctaAmount} {inputSymbol}
+              {ctaLabel}
             </Button>
           )}
         </div>
@@ -1160,6 +1223,7 @@ export default function MemeCoins({ language = 'en' }) {
   const [selectedPairId, setSelectedPairId] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTrade, setPendingTrade] = useState(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [watchlist, setWatchlist] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('meme_watchlist') || '[]');
@@ -1290,13 +1354,13 @@ export default function MemeCoins({ language = 'en' }) {
 
   return (
     <TooltipProvider>
-      <div className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-4 overflow-hidden overflow-x-hidden px-4 pb-4 pt-2 text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-3 overflow-hidden overflow-x-hidden px-3 pb-3 pt-2 text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
         <div className={cn('flex flex-wrap items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>
           <div className="flex items-center gap-3">
-            <img src={solanaLogo} alt={t.solana} className="h-6 w-6" />
+            <img src={solanaIcon} alt={t.solana} className="h-6 w-6" />
             <div>
-              <h1 className="text-lg font-semibold">{t.pageTitle}</h1>
-              <p className="text-xs text-muted-foreground">{t.pageSubtitle}</p>
+              <h1 className="text-base font-semibold">{t.pageTitle}</h1>
+              <p className="text-[11px] text-muted-foreground">{t.pageSubtitle}</p>
             </div>
           </div>
           <div className={cn('flex items-center gap-2', isRtl && 'flex-row-reverse')}>
@@ -1306,28 +1370,30 @@ export default function MemeCoins({ language = 'en' }) {
           </div>
         </div>
 
-        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-[340px_minmax(0,1fr)_360px] gap-4 lg:grid">
-          <TokenListPanel
-            tokens={tokens}
-            isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
-            error={listError}
-            selectedAddress={selectedAddress}
-            onSelect={handleSelectToken}
-            mode={mode}
-            onModeChange={setMode}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-            filters={filters}
-            onFiltersChange={setFilters}
-            watchlist={watchlist}
-            onToggleWatchlist={handleToggleWatchlist}
-            t={t}
-            isRtl={isRtl}
-          />
-          <div className="flex min-h-0 flex-col gap-4">
-            <div className="flex-1 min-h-0">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-[360px_minmax(0,1fr)_360px] gap-3 lg:grid">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+            <TokenListPanel
+              tokens={tokens}
+              isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
+              error={listError}
+              selectedAddress={selectedAddress}
+              onSelect={handleSelectToken}
+              mode={mode}
+              onModeChange={setMode}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              filters={filters}
+              onFiltersChange={setFilters}
+              watchlist={watchlist}
+              onToggleWatchlist={handleToggleWatchlist}
+              t={t}
+              isRtl={isRtl}
+            />
+          </div>
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ChartPanel
                 pair={selectedPair}
                 poolAddress={chartPoolAddress}
@@ -1337,43 +1403,54 @@ export default function MemeCoins({ language = 'en' }) {
                 isRtl={isRtl}
               />
             </div>
-            <div className="h-[280px] min-h-[240px]">
-              <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
-            </div>
+            <Collapsible open={infoOpen} onOpenChange={setInfoOpen} className="mt-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  {infoOpen ? t.hideInfo : t.showInfo}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 max-h-[35%] min-h-0 overflow-hidden">
+                <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
-          <TradePanel
-            pair={selectedPair}
-            onPreview={handleSwap}
-            walletReady={connected}
-            onConnect={() => setVisible(true)}
-            maxAmount={maxAmount}
-            t={t}
-            isRtl={isRtl}
-          />
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+            <TradePanel
+              pair={selectedPair}
+              onPreview={handleSwap}
+              walletReady={connected}
+              onConnect={() => setVisible(true)}
+              maxAmount={maxAmount}
+              t={t}
+              isRtl={isRtl}
+            />
+          </div>
         </div>
 
-        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-2 gap-4 md:grid lg:hidden">
-          <TokenListPanel
-            tokens={tokens}
-            isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
-            error={listError}
-            selectedAddress={selectedAddress}
-            onSelect={handleSelectToken}
-            mode={mode}
-            onModeChange={setMode}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-            filters={filters}
-            onFiltersChange={setFilters}
-            watchlist={watchlist}
-            onToggleWatchlist={handleToggleWatchlist}
-            t={t}
-            isRtl={isRtl}
-          />
-          <div className="flex min-h-0 flex-col gap-4">
-            <div className="flex-1 min-h-0">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-2 gap-3 md:grid lg:hidden">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+            <TokenListPanel
+              tokens={tokens}
+              isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
+              error={listError}
+              selectedAddress={selectedAddress}
+              onSelect={handleSelectToken}
+              mode={mode}
+              onModeChange={setMode}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              filters={filters}
+              onFiltersChange={setFilters}
+              watchlist={watchlist}
+              onToggleWatchlist={handleToggleWatchlist}
+              t={t}
+              isRtl={isRtl}
+            />
+          </div>
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ChartPanel
                 pair={selectedPair}
                 poolAddress={chartPoolAddress}
@@ -1383,9 +1460,16 @@ export default function MemeCoins({ language = 'en' }) {
                 isRtl={isRtl}
               />
             </div>
-            <div className="h-[240px] min-h-[220px]">
-              <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
-            </div>
+            <Collapsible open={infoOpen} onOpenChange={setInfoOpen} className="mt-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  {infoOpen ? t.hideInfo : t.showInfo}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 max-h-[35%] min-h-0 overflow-hidden">
+                <TokenInfoPanel pair={selectedPair} profile={profileSummary} t={t} isRtl={isRtl} />
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
 
@@ -1419,16 +1503,38 @@ export default function MemeCoins({ language = 'en' }) {
             <TabsContent value="chart" className="mt-3 min-h-0 flex-1 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
-                  <div className="min-h-[60vh]">
-                    <ChartPanel
-                      pair={selectedPair}
-                      poolAddress={chartPoolAddress}
-                      isLoading={pairQuery.isLoading}
-                      error={pairQuery.error}
-                      t={t}
-                      isRtl={isRtl}
-                      compact
-                    />
+                  <div className="rounded-xl border border-border/40 bg-muted/10 px-3 py-2">
+                    {selectedPair ? (
+                      <div className={cn('flex items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold">
+                            {selectedPair.baseToken.name} ({selectedPair.baseToken.symbol})
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {selectedPair.baseToken.symbol} / {selectedPair.quoteToken.symbol}
+                          </div>
+                        </div>
+                        <div className={cn('text-right', isRtl && 'text-left')}>
+                          <div className="text-sm font-semibold">
+                            {getDisplayPrice(selectedPair.priceUsd, t.estimatePlaceholder)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {getDisplayPercent(selectedPair.priceChange24h, t.estimatePlaceholder)}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">{t.selectTokenToViewChart}</div>
+                    )}
+                  </div>
+                  <div
+                    className="overflow-hidden rounded-xl border border-border/40 bg-muted/10"
+                    style={{
+                      height: 'calc(100dvh - 64px - 44px - 52px - 72px - env(safe-area-inset-bottom))',
+                      minHeight: '360px',
+                    }}
+                  >
+                    <MemeChart poolAddress={chartPoolAddress} t={t} isRtl={isRtl} />
                   </div>
                   <MobileTradeBar
                     pair={selectedPair}
