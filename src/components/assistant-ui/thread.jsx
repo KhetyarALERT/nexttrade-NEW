@@ -1,4 +1,5 @@
 import React from "react";
+ codex/implement-premium-assistant-chat-modal-fcmi6j
 import { Paperclip, SendHorizontal } from "lucide-react";
 
 import { InvokeLLM } from "@/api/integrations";
@@ -7,6 +8,24 @@ import { tAssistant } from "@/lib/i18n/assistant";
 import { cn } from "@/lib/utils";
 
 const seedCards = (t) => [
+
+import {
+  Check,
+  Clock,
+  Image as ImageIcon,
+  Paperclip,
+  Rocket,
+  SendHorizontal,
+  X
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { base44 } from "@/api/base44Client";
+import { tAssistant } from "@/lib/i18n/assistant";
+import { cn } from "@/lib/utils";
+
+const sampleCards = (t) => [
+ main
   {
     id: "market",
     title: t.cardTitle,
@@ -20,12 +39,60 @@ const seedCards = (t) => [
 ];
 
 const initialMessages = (t) => [
+ codex/implement-premium-assistant-chat-modal-fcmi6j
   { id: "welcome", role: "assistant", content: t.welcome },
+
+  { id: "welcome", role: "assistant", content: t.welcome, time: "10:22" },
+  { id: "card", role: "assistant", type: "card", cardId: "market", time: "10:23" },
+  {
+    id: "approval",
+    role: "assistant",
+    type: "approval",
+    time: "10:23",
+    approval: {
+      id: "approval-card-deploy",
+      title: "Deploy to Production?",
+      description: "This will push the latest changes to all users.",
+      icon: "rocket",
+      confirmLabel: "Deploy",
+      cancelLabel: "Cancel"
+    }
+  },
+  {
+    id: "image",
+    role: "assistant",
+    type: "image",
+    time: "10:24",
+    image: {
+      id: "image-preview-source",
+      assetId: "image-source",
+      src: "https://images.unsplash.com/photo-1504548840739-580b10ae7715?w=1200&auto=format&fit=crop",
+      alt: "Vintage mainframe with blinking lights",
+      title: "From mainframes to microchips",
+      description:
+        "A snapshot of when rooms were computers — not just what ran inside them.",
+      domain: "unsplash.com",
+      ratio: "4:3",
+      fileSizeBytes: 2457600,
+      createdAt: "2025-02-10T15:30:00.000Z",
+      source: {
+        label: "Computing archives",
+        iconUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=archives",
+        url: "https://assistant-ui.com/tools/alignment"
+      }
+    }
+  },
+  { id: "question", role: "user", content: t.sampleQuestion, time: "10:24" },
+ main
 ];
 
 function CardMessage({ card }) {
   return (
+ codex/implement-premium-assistant-chat-modal-fcmi6j
     <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+
+    <div className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
+ main
       <div className="text-sm font-semibold text-foreground">{card.title}</div>
       <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
       <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
@@ -47,6 +114,7 @@ function CardMessage({ card }) {
   );
 }
 
+ codex/implement-premium-assistant-chat-modal-fcmi6j
 function extractAssistantText(response) {
   if (!response) return "";
   if (typeof response === "string") return response;
@@ -77,10 +145,90 @@ function parseAssistantPayload(text) {
     // ignore JSON parse issues
   }
   return { message: text, cards: [] };
+
+function ApprovalCardMessage({ approval }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card/95 p-4 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.55)]">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background">
+          <Rocket className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-foreground">{approval.title}</div>
+          <p className="text-xs text-muted-foreground mt-1">{approval.description}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition hover:opacity-90"
+        >
+          <Check className="h-4 w-4" />
+          {approval.confirmLabel}
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-full border border-border/70 px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+          {approval.cancelLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ImageCardMessage({ image, formatFileSize, formatTime }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-[0_20px_45px_-36px_rgba(15,23,42,0.55)]">
+      <div className="relative">
+        <img src={image.src} alt={image.alt} className="h-48 w-full object-cover" />
+        <div className="absolute right-3 top-3 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow">
+          {image.ratio}
+        </div>
+      </div>
+      <div className="space-y-2 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ImageIcon className="h-4 w-4" />
+            {image.domain}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            {formatFileSize(image.fileSizeBytes)}
+          </div>
+        </div>
+        <div className="text-sm font-semibold text-foreground">{image.title}</div>
+        <p className="text-xs text-muted-foreground leading-relaxed">{image.description}</p>
+        <div className="flex items-center justify-between border-t border-border/70 pt-2">
+          <div className="flex items-center gap-2">
+            <img
+              src={image.source.iconUrl}
+              alt={image.source.label}
+              className="h-6 w-6 rounded-full border border-border/60"
+            />
+            <div>
+              <div className="text-xs font-semibold text-foreground">{image.source.label}</div>
+              <div className="text-[11px] text-muted-foreground">{formatTime(image.createdAt)}</div>
+            </div>
+          </div>
+          <a
+            href={image.source.url}
+            className="text-xs font-semibold text-foreground hover:opacity-80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View source
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+ main
 }
 
 export function Thread({ language = "en", isRtl = false }) {
   const t = React.useMemo(() => tAssistant(language), [language]);
+ codex/implement-premium-assistant-chat-modal-fcmi6j
   const [cards, setCards] = React.useState(() => seedCards(t));
   const [messages, setMessages] = React.useState(() => initialMessages(t));
   const [composerValue, setComposerValue] = React.useState("");
@@ -93,6 +241,41 @@ export function Thread({ language = "en", isRtl = false }) {
     setCards(seedCards(t));
     setMessages(initialMessages(t));
   }, [t]);
+
+  const locale = React.useMemo(() => (language === "ar" ? "ar-EG" : "en-US"), [language]);
+  const cards = React.useMemo(() => sampleCards(t), [t]);
+  const messages = React.useMemo(() => initialMessages(t), [t]);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [attachments, setAttachments] = React.useState([]);
+  const [composerText, setComposerText] = React.useState("");
+  const [threadMessages, setThreadMessages] = React.useState(messages);
+  const [agentStatus, setAgentStatus] = React.useState("idle");
+  const [sendError, setSendError] = React.useState("");
+  const conversationRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
+
+  const formatTime = React.useCallback(
+    (value) => {
+      if (!value) return "";
+      if (typeof value === "string" && /\d{1,2}:\d{2}/.test(value)) return value;
+      const date = typeof value === "string" ? new Date(value) : value;
+      if (!date || Number.isNaN(date.getTime?.())) return "";
+      return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+    },
+    [locale]
+  );
+
+  const formatFileSize = React.useCallback((bytes = 0) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${Math.round(kb)} KB`;
+    return `${(kb / 1024).toFixed(1)} MB`;
+  }, []);
+
+  React.useEffect(() => {
+    setThreadMessages(messages);
+  }, [messages]);
+ main
 
   const onDragOver = (event) => {
     event.preventDefault();
@@ -108,6 +291,7 @@ export function Thread({ language = "en", isRtl = false }) {
   const onDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
+ codex/implement-premium-assistant-chat-modal-fcmi6j
     const files = Array.from(event.dataTransfer.files || []).map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       file,
@@ -117,6 +301,11 @@ export function Thread({ language = "en", isRtl = false }) {
     }));
     if (!files.length) return;
     setAttachments((prev) => [...prev, ...files]);
+
+    const files = Array.from(event.dataTransfer.files || []);
+    if (!files.length) return;
+    setAttachments((prev) => [...prev, ...files.map((file) => file.name)]);
+ main
   };
 
   const onAttachClick = () => {
@@ -124,6 +313,7 @@ export function Thread({ language = "en", isRtl = false }) {
   };
 
   const onAttachChange = (event) => {
+ codex/implement-premium-assistant-chat-modal-fcmi6j
     const files = Array.from(event.target.files || []).map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       file,
@@ -225,13 +415,69 @@ export function Thread({ language = "en", isRtl = false }) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSend();
+=======
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setAttachments((prev) => [...prev, ...files.map((file) => file.name)]);
+    event.target.value = "";
+  };
+
+  const handleSend = async () => {
+    const trimmed = composerText.trim();
+    if (!trimmed) return;
+    setComposerText("");
+    setSendError("");
+    const createdAt = new Date().toISOString();
+    setThreadMessages((prev) => [
+      ...prev,
+      { id: `${Date.now()}-user`, role: "user", content: trimmed, createdAt }
+    ]);
+
+    setAgentStatus("sending");
+    try {
+      if (!base44?.agents?.createConversation || !base44?.agents?.addMessage) {
+        throw new Error("Base44 agents SDK is not available.");
+      }
+      let conversation = conversationRef.current;
+      if (!conversation) {
+        conversation = await base44.agents.createConversation({
+          agent_name: "tradingAssistant",
+          metadata: { source: "assistant-modal" }
+        });
+        conversationRef.current = conversation;
+      }
+      await base44.agents.addMessage(conversation, {
+        role: "user",
+        content: trimmed
+      });
+      setThreadMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-assistant`,
+          role: "assistant",
+          content:
+            language === "ar"
+              ? "تم إرسال رسالتك إلى tradingAssistant. سأوافيك بالتحديثات قريبًا."
+              : "Your message was delivered to tradingAssistant. I’ll share updates shortly.",
+          createdAt: new Date().toISOString()
+        }
+      ]);
+      setAgentStatus("connected");
+    } catch (error) {
+      setSendError(error?.message || "Unable to send message right now.");
+      setAgentStatus("error");
+ main
     }
   };
 
   return (
     <div
       className={cn(
+ codex/implement-premium-assistant-chat-modal-fcmi6j
         "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-popover",
+
+        "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20",
+ main
         isDragging && "border-primary/70 ring-2 ring-primary/30"
       )}
       onDragOver={onDragOver}
@@ -240,11 +486,55 @@ export function Thread({ language = "en", isRtl = false }) {
     >
       <div className="relative flex-1 overflow-y-auto px-4 py-5">
         <div className={cn("space-y-4", isRtl && "text-right")}>
+ codex/implement-premium-assistant-chat-modal-fcmi6j
           {messages.map((message) => {
             if (message.type === "card") {
               const card = cards.find((item) => item.id === message.cardId);
               if (!card) return null;
               return <CardMessage key={message.id} card={card} />;
+
+          {threadMessages.map((message) => {
+            if (message.type === "card") {
+              const card = cards.find((item) => item.id === message.cardId);
+              if (!card) return null;
+              return (
+                <div key={message.id} className="space-y-1">
+                  <CardMessage card={card} />
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatTime(message.time || message.createdAt)}
+                  </div>
+                </div>
+              );
+            }
+
+            if (message.type === "approval") {
+              return (
+                <div key={message.id} className="space-y-1">
+                  <ApprovalCardMessage approval={message.approval} />
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatTime(message.time || message.createdAt)}
+                  </div>
+                </div>
+              );
+            }
+
+            if (message.type === "image") {
+              return (
+                <div key={message.id} className="space-y-1">
+                  <ImageCardMessage
+                    image={message.image}
+                    formatFileSize={formatFileSize}
+                    formatTime={formatTime}
+                  />
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatTime(message.time || message.createdAt)}
+                  </div>
+                </div>
+              );
+ main
             }
 
             const isUser = message.role === "user";
@@ -258,6 +548,7 @@ export function Thread({ language = "en", isRtl = false }) {
                   isRtl && !isUser ? "justify-end" : ""
                 )}
               >
+ codex/implement-premium-assistant-chat-modal-fcmi6j
                 <div className="max-w-[80%] space-y-2">
                   <div
                     className={cn(
@@ -288,10 +579,26 @@ export function Thread({ language = "en", isRtl = false }) {
                       ))}
                     </div>
                   ) : null}
+
+                <div
+                  className={cn(
+                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)]",
+                    isUser
+                      ? "bg-foreground text-background"
+                      : "bg-card text-foreground"
+                  )}
+                >
+                  {message.content}
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {formatTime(message.time || message.createdAt)}
+ main
                 </div>
               </div>
             );
           })}
+ codex/implement-premium-assistant-chat-modal-fcmi6j
           {isLoading ? (
             <div className={cn("flex", isRtl ? "justify-end" : "justify-start")}>
               <div className="rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
@@ -299,6 +606,8 @@ export function Thread({ language = "en", isRtl = false }) {
               </div>
             </div>
           ) : null}
+
+ main
         </div>
         {isDragging ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 text-sm font-medium text-muted-foreground">
@@ -314,6 +623,7 @@ export function Thread({ language = "en", isRtl = false }) {
               {t.attachmentsTitle}
             </div>
             <div className={cn("mt-2 flex flex-wrap gap-2", isRtl && "justify-end")}>
+ codex/implement-premium-assistant-chat-modal-fcmi6j
               {attachments.map((file) => (
                 <span
                   key={file.id}
@@ -327,12 +637,46 @@ export function Thread({ language = "en", isRtl = false }) {
                     />
                   ) : null}
                   {file.name}
+
+              {attachments.map((name, index) => (
+                <span
+                  key={`${name}-${index}`}
+                  className="inline-flex items-center rounded-full border border-border/70 bg-muted px-3 py-1 text-xs text-muted-foreground"
+                >
+                  {name}
+ main
                 </span>
               ))}
             </div>
           </div>
         ) : null}
 
+ codex/implement-premium-assistant-chat-modal-fcmi6j
+
+        <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
+            {language === "ar" ? "متصل بـ tradingAssistant" : "Connected to tradingAssistant"}
+          </span>
+          <span>
+            {agentStatus === "sending"
+              ? language === "ar"
+                ? "جارٍ الإرسال..."
+                : "Sending..."
+              : agentStatus === "connected"
+              ? language === "ar"
+                ? "متصل"
+                : "Connected"
+              : agentStatus === "error"
+              ? language === "ar"
+                ? "تعذر الاتصال"
+                : "Connection issue"
+              : language === "ar"
+              ? "جاهز"
+              : "Ready"}
+          </span>
+        </div>
+
+ main
         <div className={cn("flex items-center gap-2", isRtl && "flex-row-reverse")}>
           <button
             type="button"
@@ -356,6 +700,7 @@ export function Thread({ language = "en", isRtl = false }) {
             <input
               id="assistant-composer"
               type="text"
+ codex/implement-premium-assistant-chat-modal-fcmi6j
               placeholder={t.composerPlaceholder}
               value={composerValue}
               onChange={(event) => setComposerValue(event.target.value)}
@@ -365,6 +710,19 @@ export function Thread({ language = "en", isRtl = false }) {
                 isRtl && "text-right"
               )}
               disabled={isLoading}
+
+              value={composerText}
+              onChange={(event) => setComposerText(event.target.value)}
+              placeholder={
+                language === "ar"
+                  ? "اكتب رسالتك إلى tradingAssistant..."
+                  : "Message tradingAssistant..."
+              }
+              className={cn(
+                "h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                isRtl && "text-right"
+              )}
+ main
             />
           </div>
           <Button
@@ -373,11 +731,23 @@ export function Thread({ language = "en", isRtl = false }) {
             variant="default"
             aria-label={t.sendLabel}
             onClick={handleSend}
+ codex/implement-premium-assistant-chat-modal-fcmi6j
             disabled={isLoading}
+
+            disabled={!composerText.trim()}
+ main
           >
             <SendHorizontal className="h-4 w-4" />
           </Button>
         </div>
+ codex/implement-premium-assistant-chat-modal-fcmi6j
+
+        {sendError ? (
+          <div className={cn("mt-2 text-xs text-rose-500", isRtl && "text-right")}>
+            {sendError}
+          </div>
+        ) : null}
+ main
       </div>
     </div>
   );
