@@ -1,4 +1,3 @@
-const API_BASE = 'https://api.geckoterminal.com/api/v2';
 const DEFAULT_NETWORK = 'solana';
 const OHLCV_TTL = 20000;
 const SEARCH_TTL = 60000;
@@ -16,12 +15,43 @@ const setCacheEntry = (cache, key, data) => {
 
 const isFresh = (entry, ttl) => entry && cacheNow() - entry.timestamp < ttl;
 
-const fetchJson = async (url, signal) => {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    throw new Error('Data source unavailable');
+const secondsForTimeframe = (timeframe, aggregate) => {
+  switch (timeframe) {
+    case 'hour':
+      return 3600 * aggregate;
+    case 'day':
+      return 86400 * aggregate;
+    case 'minute':
+    default:
+      return 60 * aggregate;
   }
-  return response.json();
+};
+
+const buildMockOhlcv = ({ timeframe, aggregate, limit }) => {
+  const now = Math.floor(Date.now() / 1000);
+  const step = secondsForTimeframe(timeframe, aggregate);
+  const rows = [];
+  let lastClose = 0.00018;
+
+  for (let index = limit - 1; index >= 0; index -= 1) {
+    const time = now - index * step;
+    const wave = Math.sin((limit - index) / 6) * 0.00001;
+    const open = lastClose;
+    const close = Math.max(0.00001, open + wave);
+    const high = Math.max(open, close) + Math.abs(wave) * 0.6;
+    const low = Math.min(open, close) - Math.abs(wave) * 0.6;
+    const volume = 400 + Math.abs(Math.cos((limit - index) / 3)) * 800;
+    rows.push([time, open, high, low, close, volume]);
+    lastClose = close;
+  }
+
+  return {
+    data: {
+      attributes: {
+        ohlcv_list: rows,
+      },
+    },
+  };
 };
 
 const createOhlcvKey = ({ network, poolAddress, timeframe, aggregate, limit }) =>
@@ -56,7 +86,6 @@ export const fetchGeckoOhlcv = async ({
   timeframe,
   aggregate = 1,
   limit = 120,
-  signal,
   onUpdate,
 } = {}) => {
   if (!poolAddress) return null;
@@ -66,15 +95,7 @@ export const fetchGeckoOhlcv = async ({
     return cached.data;
   }
 
-  const fetcher = async () => {
-    const params = new URLSearchParams({
-      aggregate: String(aggregate),
-      limit: String(limit),
-    });
-    const url = `${API_BASE}/networks/${network}/pools/${poolAddress}/ohlcv/${timeframe}?${params.toString()}`;
-    const data = await fetchJson(url, signal);
-    return data;
-  };
+  const fetcher = async () => buildMockOhlcv({ timeframe, aggregate, limit });
 
   if (cached) {
     revalidateCache({
@@ -95,7 +116,6 @@ export const fetchGeckoOhlcv = async ({
 export const fetchGeckoPoolSearch = async ({
   network = DEFAULT_NETWORK,
   query,
-  signal,
   onUpdate,
 } = {}) => {
   if (!query) return null;
@@ -105,10 +125,9 @@ export const fetchGeckoPoolSearch = async ({
     return cached.data;
   }
 
-  const fetcher = async () => {
-    const url = `${API_BASE}/search/pools?query=${encodeURIComponent(query)}&network=${network}`;
-    return fetchJson(url, signal);
-  };
+  const fetcher = async () => ({
+    data: [],
+  });
 
   if (cached) {
     revalidateCache({
