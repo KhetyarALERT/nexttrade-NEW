@@ -21,18 +21,17 @@ export function AssistantModal({ language = "en" }) {
             type="button"
             className={cn(
               "relative flex h-14 w-14 items-center justify-center rounded-full",
-              "border border-primary/30 bg-gradient-to-br from-primary/90 via-sky-500/90 to-cyan-400/90",
-              "shadow-lg shadow-primary/30 transition duration-200",
-              "hover:scale-[1.04] hover:shadow-xl hover:shadow-primary/40",
+              "border border-border/70 bg-background",
+              "shadow-lg shadow-black/10 transition duration-200",
+              "hover:scale-[1.04] hover:shadow-xl hover:shadow-black/15",
               "active:scale-[0.98]"
             )}
             aria-label={t.support}
           >
-            <span className="absolute inset-0 rounded-full bg-white/10 blur-md" />
             <img
               src={nextTradeLogo}
               alt="NextTrade"
-              className="relative h-7 w-7 object-contain"
+              className="relative h-8 w-8 object-contain"
             />
             {unreadCount > 0 ? (
               <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white shadow">
@@ -58,7 +57,7 @@ export function AssistantModal({ language = "en" }) {
         <div className={cn("flex items-center justify-between border-b border-border/70 px-4 py-3", isRtl && "flex-row-reverse")}
         >
           <div className={cn("flex items-center gap-3", isRtl && "flex-row-reverse text-right")}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-muted">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background">
               <img src={nextTradeLogo} alt="NextTrade" className="h-5 w-5 object-contain" />
             </div>
             <div>
