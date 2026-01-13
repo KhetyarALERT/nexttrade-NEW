@@ -3,14 +3,13 @@ import * as Dialog from "@radix-ui/react-dialog";
 
 import { cn } from "@/lib/utils";
 
+/** @type {React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<"div"> & React.RefAttributes<HTMLDivElement>>} */
 const Anchor = React.forwardRef(function Anchor({ className, ...props }, ref) {
   return <div ref={ref} className={cn("fixed right-4 bottom-4 z-50", className)} {...props} />;
 });
 
-const Content = React.forwardRef(function Content(
-  { className, sideOffset: _sideOffset, children, ...props },
-  ref
-) {
+/** @type {React.ForwardRefExoticComponent<React.ComponentPropsWithoutRef<typeof Dialog.Content> & { sideOffset?: number } & React.RefAttributes<HTMLDivElement>>} */
+const Content = React.forwardRef(function Content({ className, sideOffset: _sideOffset, children, ...props }, ref) {
   return (
     <Dialog.Portal>
       <Dialog.Overlay

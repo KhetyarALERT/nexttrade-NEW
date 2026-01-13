@@ -196,10 +196,10 @@ export default function AITradingChat({ language = "en" }) {
     if (!trimmed || isSending) return;
     setComposerText("");
     setSendError("");
-    const createdAt = new Date().toISOString();
+    const time = new Date().toISOString();
     setMessages((prev) => [
       ...prev,
-      { type: "user", text: trimmed, createdAt }
+      { type: "user", text: trimmed, time }
     ]);
 
     setIsSending(true);
@@ -229,7 +229,7 @@ export default function AITradingChat({ language = "en" }) {
             language === "ar"
               ? "تم إرسال رسالتك إلى المساعد. سأعود إليك بأقرب تحديث."
               : "Message delivered to tradingAssistant. I’ll follow up with updates shortly.",
-          createdAt: new Date().toISOString(),
+          time: new Date().toISOString(),
           status: true
         }
       ]);

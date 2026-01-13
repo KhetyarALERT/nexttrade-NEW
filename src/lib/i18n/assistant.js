@@ -18,14 +18,11 @@ const assistantI18n = {
     dropHint: "Drop files to attach",
     attachmentsTitle: "Attachments",
     closeLabel: "Close",
- codex/implement-premium-assistant-chat-modal-fcmi6j
     thinking: "Thinking…",
     errorMessage: "Sorry, something went wrong. Please try again.",
     fallbackMessage: "I’m here to help. Could you rephrase that?",
     systemPrompt:
       "You are the NextTrade assistant. Respond clearly and concisely. If useful, you may return JSON with keys: message (string) and cards (array). Each card can include title, description, bullets (array), and actions (array of { label, variant }).",
-
- main
   },
   ar: {
     support: "الدعم",
@@ -46,14 +43,11 @@ const assistantI18n = {
     dropHint: "أفلت الملفات للإرفاق",
     attachmentsTitle: "المرفقات",
     closeLabel: "إغلاق",
- codex/implement-premium-assistant-chat-modal-fcmi6j
     thinking: "جارٍ التفكير…",
     errorMessage: "عذرًا، حدث خطأ ما. حاول مرة أخرى.",
     fallbackMessage: "أنا هنا للمساعدة. هل يمكنك توضيح طلبك؟",
     systemPrompt:
       "أنت مساعد NextTrade. أجب بوضوح وباختصار. إذا كان ذلك مفيدًا، يمكنك إعادة JSON يحتوي على المفاتيح: message (نص) و cards (مصفوفة). كل بطاقة يمكن أن تحتوي على title و description و bullets (مصفوفة) و actions (مصفوفة من { label, variant }).",
-
- main
   },
 };
 
