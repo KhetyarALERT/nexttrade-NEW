@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { Check, Copy, Globe, Info, MessageCircle, Shield, Twitter } from 'lucide-react';
+import { Check, Copy, Globe, Info, MessageCircle, Search, Shield, Twitter } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,28 +155,34 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
         if (event.key === 'Enter') onSelect(token);
       }}
       className={cn(
-        'w-full rounded-lg border px-3 py-2 text-left transition hover:bg-muted/30',
-        selected ? 'border-primary/50 bg-primary/5' : 'border-border/50'
+        'group w-full rounded-xl border px-3 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:bg-muted/40',
+        selected
+          ? 'border-primary/60 bg-primary/10 shadow-md shadow-primary/10'
+          : 'border-border/50 bg-background/60 hover:border-primary/30'
       )}
     >
       <div className={cn('flex items-center gap-3', isRtl && 'flex-row-reverse text-right')}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-xs font-semibold ring-1 ring-border/60">
           {token.imageUrl ? (
-            <img src={token.imageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img src={token.imageUrl} alt="" className="h-11 w-11 rounded-xl object-cover" />
           ) : (
             <span>{token.symbol?.slice(0, 1) || '?'}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className={cn('flex items-center gap-2', isRtl && 'flex-row-reverse justify-end')}>
-            <span className="truncate text-sm font-semibold">{token.symbol || '—'}</span>
+            <span className="truncate text-sm font-semibold tracking-tight">{token.symbol || '—'}</span>
             {token.pairCreatedAt && Date.now() - token.pairCreatedAt < 86400000 ? (
               <Badge variant="secondary" className="text-[10px]">{t.newBadge}</Badge>
             ) : null}
           </div>
-          <div className="truncate text-xs text-muted-foreground">{token.name || '—'}</div>
+          <div className={cn('flex items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse')}>
+            <span className="truncate">{token.name || '—'}</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+            <span>{t.ageShort}: {formatAge(token.pairCreatedAt)}</span>
+          </div>
         </div>
-        <div className="text-right">
+        <div className={cn('text-right', isRtl && 'text-left')}>
           <div className="text-sm font-semibold">{priceDisplay}</div>
           <div
             className={cn(
@@ -193,7 +199,7 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
               type="button"
               size="icon"
               variant={isWatchlisted ? 'default' : 'outline'}
-              className="h-7 w-7"
+              className="h-8 w-8 rounded-full border-border/60 bg-background/70"
               aria-label={isWatchlisted ? t.removeWatchlist : t.addWatchlist}
               title={isWatchlisted ? t.removeWatchlist : t.addWatchlist}
               onClick={(event) => {
@@ -207,17 +213,25 @@ const TokenRow = ({ token, selected, onSelect, isWatchlisted, onToggleWatchlist,
           <TooltipContent>{isWatchlisted ? t.removeWatchlist : t.addWatchlist}</TooltipContent>
         </Tooltip>
       </div>
-      <div className={cn('mt-2 grid grid-cols-4 gap-2 text-[10px] text-muted-foreground', isRtl && 'text-right')}>
-        <div>{t.marketCapShort}: ${formatCompactNumber(token.marketCap)}</div>
-        <div>{t.liquidityShort}: ${formatCompactNumber(token.liquidityUsd)}</div>
-        <div>{t.volumeShort}: ${formatCompactNumber(token.volume24h)}</div>
-        <div>{t.ageShort}: {formatAge(token.pairCreatedAt)}</div>
+      <div className={cn('mt-3 grid grid-cols-2 gap-2 text-[10px] text-muted-foreground md:grid-cols-4', isRtl && 'text-right')}>
+        <div className="rounded-md border border-border/50 bg-muted/30 px-2 py-1">
+          {t.marketCapShort}: ${formatCompactNumber(token.marketCap)}
+        </div>
+        <div className="rounded-md border border-border/50 bg-muted/30 px-2 py-1">
+          {t.liquidityShort}: ${formatCompactNumber(token.liquidityUsd)}
+        </div>
+        <div className="rounded-md border border-border/50 bg-muted/30 px-2 py-1">
+          {t.volumeShort}: ${formatCompactNumber(token.volume24h)}
+        </div>
+        <div className="rounded-md border border-border/50 bg-muted/30 px-2 py-1">
+          {t.ageShort}: {formatAge(token.pairCreatedAt)}
+        </div>
       </div>
-      <div className="mt-2">
+      <div className="mt-3">
         <SafetyBadges t={t} isRtl={isRtl} />
       </div>
       {pressure ? (
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted/60">
           <div className="h-full bg-emerald-500" style={{ width: `${pressure.buyPercent}%` }} />
         </div>
       ) : null}
@@ -286,8 +300,8 @@ const TokenListPanel = ({
   }, [tokens, filters, mode, sortBy, watchlist]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className={cn('flex flex-wrap items-center gap-2', isRtl && 'flex-row-reverse text-right')}>
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <div className={cn('flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-background/60 px-3 py-2 shadow-sm', isRtl && 'flex-row-reverse text-right')}>
         <div className="flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -297,6 +311,7 @@ const TokenListPanel = ({
                 onClick={() => onModeChange('discover')}
                 title={t.discoverHelp}
                 aria-label={t.discoverHelp}
+                className="rounded-full px-4"
               >
                 {t.discover}
               </Button>
@@ -314,6 +329,7 @@ const TokenListPanel = ({
                 onClick={() => onModeChange('watchlist')}
                 title={t.watchlistHelp}
                 aria-label={t.watchlistHelp}
+                className="rounded-full px-4"
               >
                 {t.watchlist}
               </Button>
@@ -330,7 +346,7 @@ const TokenListPanel = ({
           <Select value={sortBy} onValueChange={onSortChange}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <SelectTrigger className="h-8 w-[130px]" title={t.sortHelp}>
+                <SelectTrigger className="h-8 w-[150px] rounded-full" title={t.sortHelp}>
                   <SelectValue placeholder={t.sort} />
                 </SelectTrigger>
               </TooltipTrigger>
@@ -352,15 +368,19 @@ const TokenListPanel = ({
           <span>{t.searchLabel}</span>
           <HelpTooltip text={t.searchHelp} />
         </div>
-        <Input
-          value={searchQuery}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t.searchPlaceholder}
-          title={t.searchHelp}
-          aria-label={t.searchHelp}
-        />
+        <div className="relative">
+          <Search className={cn('pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground', isRtl && 'left-auto right-3')} />
+          <Input
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={t.searchPlaceholder}
+            title={t.searchHelp}
+            aria-label={t.searchHelp}
+            className={cn('pl-9', isRtl && 'pl-3 pr-9')}
+          />
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <div className={cn('flex items-center gap-2 text-[11px] text-muted-foreground', isRtl && 'flex-row-reverse')}>
             <span>{t.minLiquidityShort}</span>
@@ -438,7 +458,7 @@ const TokenListPanel = ({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -513,8 +533,8 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = f
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className="rounded-xl border border-border/50 bg-background px-3 py-2 md:px-4 md:py-3">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+      <div className="rounded-2xl border border-border/40 bg-gradient-to-br from-background/80 via-background/60 to-muted/30 px-4 py-3 shadow-sm">
         <div className={cn('flex flex-wrap items-start justify-between gap-3', isRtl && 'flex-row-reverse text-right')}>
           <div>
             <div className="text-sm font-semibold">{pair.baseToken.name} ({pair.baseToken.symbol})</div>
@@ -589,7 +609,7 @@ const ChartPanel = ({ pair, poolAddress, isLoading, error, t, isRtl, compact = f
           </>
         ) : null}
       </div>
-      <div className="flex-1 min-h-0 min-h-[360px] overflow-hidden md:min-h-[520px]">
+      <div className="flex-1 min-h-0 min-h-[360px] overflow-hidden rounded-2xl border border-border/40 bg-background/40 md:min-h-[520px]">
         <MemeChart
           poolAddress={poolAddress}
           t={t}
@@ -642,7 +662,7 @@ const TokenInfoPanel = ({ pair, profile, t, isRtl }) => {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/70 shadow-sm">
       <div className="border-b border-border/50 px-4 py-3 text-sm font-semibold">{t.tokenInfoTitle}</div>
       <Tabs defaultValue="overview" className="flex h-full min-h-0 flex-col">
         <TabsList className="grid grid-cols-4">
@@ -771,7 +791,7 @@ const TradePanel = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isR
   const warning = (pair.liquidityUsd ?? 0) < 5000;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border/50 bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/70 shadow-sm">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         <div className={cn('flex items-center gap-2', isRtl && 'flex-row-reverse')}>
           <Tooltip>
@@ -955,7 +975,7 @@ const TradePanel = ({ pair, onPreview, walletReady, onConnect, maxAmount, t, isR
         <div className="flex-1" />
       </div>
 
-      <div className="sticky bottom-0 space-y-3 border-t border-border/40 bg-background px-4 pb-4 pt-3">
+      <div className="sticky bottom-0 space-y-3 border-t border-border/40 bg-background/90 px-4 pb-4 pt-3 backdrop-blur">
         {!walletReady ? (
           <Button className="w-full" onClick={onConnect} title={t.connectWalletHelp} aria-label={t.connectWalletHelp}>
             {t.connectWallet}
@@ -1354,7 +1374,10 @@ export default function MemeCoins({ language = 'en' }) {
 
   return (
     <TooltipProvider>
-      <div className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-3 overflow-hidden overflow-x-hidden px-3 pb-3 pt-2 text-foreground" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div
+        className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-4 overflow-hidden overflow-x-hidden rounded-2xl bg-gradient-to-b from-[#0b0d12] via-[#10131b] to-[#141824] px-3 pb-3 pt-2 text-foreground"
+        dir={isRtl ? 'rtl' : 'ltr'}
+      >
         <div className={cn('flex flex-wrap items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>
           <div className="flex items-center gap-3">
             <img src={solanaIcon} alt={t.solana} className="h-6 w-6" />
@@ -1370,8 +1393,8 @@ export default function MemeCoins({ language = 'en' }) {
           </div>
         </div>
 
-        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-[360px_minmax(0,1fr)_360px] gap-3 lg:grid">
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-[360px_minmax(0,1fr)_360px] gap-4 lg:grid">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/50 p-3 shadow-lg shadow-black/10 backdrop-blur">
             <TokenListPanel
               tokens={tokens}
               isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
@@ -1392,7 +1415,7 @@ export default function MemeCoins({ language = 'en' }) {
               isRtl={isRtl}
             />
           </div>
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/50 p-3 shadow-lg shadow-black/10 backdrop-blur">
             <div className="flex-1 min-h-0 overflow-hidden">
               <ChartPanel
                 pair={selectedPair}
@@ -1414,7 +1437,7 @@ export default function MemeCoins({ language = 'en' }) {
               </CollapsibleContent>
             </Collapsible>
           </div>
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/50 p-3 shadow-lg shadow-black/10 backdrop-blur">
             <TradePanel
               pair={selectedPair}
               onPreview={handleSwap}
@@ -1427,8 +1450,8 @@ export default function MemeCoins({ language = 'en' }) {
           </div>
         </div>
 
-        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-2 gap-3 md:grid lg:hidden">
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+        <div className="hidden min-h-0 min-w-0 flex-1 grid-cols-2 gap-4 md:grid lg:hidden">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/50 p-3 shadow-lg shadow-black/10 backdrop-blur">
             <TokenListPanel
               tokens={tokens}
               isLoading={trendingQuery.isLoading || searchQueryResult.isFetching}
@@ -1449,7 +1472,7 @@ export default function MemeCoins({ language = 'en' }) {
               isRtl={isRtl}
             />
           </div>
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/40 bg-muted/10 p-3">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border/40 bg-background/50 p-3 shadow-lg shadow-black/10 backdrop-blur">
             <div className="flex-1 min-h-0 overflow-hidden">
               <ChartPanel
                 pair={selectedPair}
@@ -1503,7 +1526,7 @@ export default function MemeCoins({ language = 'en' }) {
             <TabsContent value="chart" className="mt-3 min-h-0 flex-1 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
-                  <div className="rounded-xl border border-border/40 bg-muted/10 px-3 py-2">
+                  <div className="rounded-2xl border border-border/40 bg-background/60 px-3 py-2 shadow-sm">
                     {selectedPair ? (
                       <div className={cn('flex items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>
                         <div className="min-w-0">
@@ -1528,7 +1551,7 @@ export default function MemeCoins({ language = 'en' }) {
                     )}
                   </div>
                   <div
-                    className="overflow-hidden rounded-xl border border-border/40 bg-muted/10"
+                    className="overflow-hidden rounded-2xl border border-border/40 bg-background/40 shadow-sm"
                     style={{
                       height: 'calc(100dvh - 64px - 44px - 52px - 72px - env(safe-area-inset-bottom))',
                       minHeight: '360px',
