@@ -27,6 +27,9 @@ const secondsForTimeframe = (timeframe, aggregate) => {
   }
 };
 
+/**
+ * @param {{ timeframe?: string, aggregate?: number, limit?: number }} params
+ */
 const buildMockOhlcv = ({ timeframe, aggregate, limit }) => {
   const now = Math.floor(Date.now() / 1000);
   const step = secondsForTimeframe(timeframe, aggregate);
@@ -80,6 +83,19 @@ const revalidateCache = async ({ cache, key, fetcher }) => {
   return inflight;
 };
 
+/**
+ * @typedef {Object} GeckoOhlcvOptions
+ * @property {string} [network]
+ * @property {string} [poolAddress]
+ * @property {string} [timeframe]
+ * @property {number} [aggregate]
+ * @property {number} [limit]
+ * @property {(data: any) => void} [onUpdate]
+ */
+
+/**
+ * @param {GeckoOhlcvOptions} [options]
+ */
 export const fetchGeckoOhlcv = async ({
   network = DEFAULT_NETWORK,
   poolAddress,
@@ -113,6 +129,16 @@ export const fetchGeckoOhlcv = async ({
   return data;
 };
 
+/**
+ * @typedef {Object} GeckoSearchOptions
+ * @property {string} [network]
+ * @property {string} [query]
+ * @property {(data: any) => void} [onUpdate]
+ */
+
+/**
+ * @param {GeckoSearchOptions} [options]
+ */
 export const fetchGeckoPoolSearch = async ({
   network = DEFAULT_NETWORK,
   query,

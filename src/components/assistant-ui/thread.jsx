@@ -1,31 +1,12 @@
 import React from "react";
- codex/implement-premium-assistant-chat-modal-fcmi6j
-import { Paperclip, SendHorizontal } from "lucide-react";
+import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X } from "lucide-react";
 
 import { InvokeLLM } from "@/api/integrations";
 import { Button } from "@/components/ui/button";
 import { tAssistant } from "@/lib/i18n/assistant";
 import { cn } from "@/lib/utils";
 
-const seedCards = (t) => [
-
-import {
-  Check,
-  Clock,
-  Image as ImageIcon,
-  Paperclip,
-  Rocket,
-  SendHorizontal,
-  X
-} from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { base44 } from "@/api/base44Client";
-import { tAssistant } from "@/lib/i18n/assistant";
-import { cn } from "@/lib/utils";
-
 const sampleCards = (t) => [
- main
   {
     id: "market",
     title: t.cardTitle,
@@ -39,9 +20,6 @@ const sampleCards = (t) => [
 ];
 
 const initialMessages = (t) => [
- codex/implement-premium-assistant-chat-modal-fcmi6j
-  { id: "welcome", role: "assistant", content: t.welcome },
-
   { id: "welcome", role: "assistant", content: t.welcome, time: "10:22" },
   { id: "card", role: "assistant", type: "card", cardId: "market", time: "10:23" },
   {
@@ -55,8 +33,8 @@ const initialMessages = (t) => [
       description: "This will push the latest changes to all users.",
       icon: "rocket",
       confirmLabel: "Deploy",
-      cancelLabel: "Cancel"
-    }
+      cancelLabel: "Cancel",
+    },
   },
   {
     id: "image",
@@ -69,8 +47,7 @@ const initialMessages = (t) => [
       src: "https://images.unsplash.com/photo-1504548840739-580b10ae7715?w=1200&auto=format&fit=crop",
       alt: "Vintage mainframe with blinking lights",
       title: "From mainframes to microchips",
-      description:
-        "A snapshot of when rooms were computers — not just what ran inside them.",
+      description: "A snapshot of when rooms were computers — not just what ran inside them.",
       domain: "unsplash.com",
       ratio: "4:3",
       fileSizeBytes: 2457600,
@@ -78,21 +55,16 @@ const initialMessages = (t) => [
       source: {
         label: "Computing archives",
         iconUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=archives",
-        url: "https://assistant-ui.com/tools/alignment"
-      }
-    }
+        url: "https://assistant-ui.com/tools/alignment",
+      },
+    },
   },
   { id: "question", role: "user", content: t.sampleQuestion, time: "10:24" },
- main
 ];
 
 function CardMessage({ card }) {
   return (
- codex/implement-premium-assistant-chat-modal-fcmi6j
-    <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-
     <div className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
- main
       <div className="text-sm font-semibold text-foreground">{card.title}</div>
       <p className="mt-1 text-sm text-muted-foreground">{card.description}</p>
       <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
@@ -114,7 +86,6 @@ function CardMessage({ card }) {
   );
 }
 
- codex/implement-premium-assistant-chat-modal-fcmi6j
 function extractAssistantText(response) {
   if (!response) return "";
   if (typeof response === "string") return response;
@@ -145,6 +116,7 @@ function parseAssistantPayload(text) {
     // ignore JSON parse issues
   }
   return { message: text, cards: [] };
+}
 
 function ApprovalCardMessage({ approval }) {
   return (
@@ -155,7 +127,7 @@ function ApprovalCardMessage({ approval }) {
         </div>
         <div>
           <div className="text-sm font-semibold text-foreground">{approval.title}</div>
-          <p className="text-xs text-muted-foreground mt-1">{approval.description}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{approval.description}</p>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -193,12 +165,10 @@ function ImageCardMessage({ image, formatFileSize, formatTime }) {
             <ImageIcon className="h-4 w-4" />
             {image.domain}
           </div>
-          <div className="text-[11px] text-muted-foreground">
-            {formatFileSize(image.fileSizeBytes)}
-          </div>
+          <div className="text-[11px] text-muted-foreground">{formatFileSize(image.fileSizeBytes)}</div>
         </div>
         <div className="text-sm font-semibold text-foreground">{image.title}</div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{image.description}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">{image.description}</p>
         <div className="flex items-center justify-between border-t border-border/70 pt-2">
           <div className="flex items-center gap-2">
             <img
@@ -223,13 +193,11 @@ function ImageCardMessage({ image, formatFileSize, formatTime }) {
       </div>
     </div>
   );
- main
 }
 
 export function Thread({ language = "en", isRtl = false }) {
   const t = React.useMemo(() => tAssistant(language), [language]);
- codex/implement-premium-assistant-chat-modal-fcmi6j
-  const [cards, setCards] = React.useState(() => seedCards(t));
+  const [cards, setCards] = React.useState(() => sampleCards(t));
   const [messages, setMessages] = React.useState(() => initialMessages(t));
   const [composerValue, setComposerValue] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
@@ -238,21 +206,11 @@ export function Thread({ language = "en", isRtl = false }) {
   const fileInputRef = React.useRef(null);
 
   React.useEffect(() => {
-    setCards(seedCards(t));
+    setCards(sampleCards(t));
     setMessages(initialMessages(t));
   }, [t]);
 
   const locale = React.useMemo(() => (language === "ar" ? "ar-EG" : "en-US"), [language]);
-  const cards = React.useMemo(() => sampleCards(t), [t]);
-  const messages = React.useMemo(() => initialMessages(t), [t]);
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [attachments, setAttachments] = React.useState([]);
-  const [composerText, setComposerText] = React.useState("");
-  const [threadMessages, setThreadMessages] = React.useState(messages);
-  const [agentStatus, setAgentStatus] = React.useState("idle");
-  const [sendError, setSendError] = React.useState("");
-  const conversationRef = React.useRef(null);
-  const fileInputRef = React.useRef(null);
 
   const formatTime = React.useCallback(
     (value) => {
@@ -272,11 +230,6 @@ export function Thread({ language = "en", isRtl = false }) {
     return `${(kb / 1024).toFixed(1)} MB`;
   }, []);
 
-  React.useEffect(() => {
-    setThreadMessages(messages);
-  }, [messages]);
- main
-
   const onDragOver = (event) => {
     event.preventDefault();
     setIsDragging(true);
@@ -291,7 +244,6 @@ export function Thread({ language = "en", isRtl = false }) {
   const onDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
- codex/implement-premium-assistant-chat-modal-fcmi6j
     const files = Array.from(event.dataTransfer.files || []).map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       file,
@@ -301,11 +253,6 @@ export function Thread({ language = "en", isRtl = false }) {
     }));
     if (!files.length) return;
     setAttachments((prev) => [...prev, ...files]);
-
-    const files = Array.from(event.dataTransfer.files || []);
-    if (!files.length) return;
-    setAttachments((prev) => [...prev, ...files.map((file) => file.name)]);
- main
   };
 
   const onAttachClick = () => {
@@ -313,7 +260,6 @@ export function Thread({ language = "en", isRtl = false }) {
   };
 
   const onAttachChange = (event) => {
- codex/implement-premium-assistant-chat-modal-fcmi6j
     const files = Array.from(event.target.files || []).map((file) => ({
       id: `${file.name}-${file.lastModified}`,
       file,
@@ -338,6 +284,7 @@ export function Thread({ language = "en", isRtl = false }) {
     const trimmed = composerValue.trim();
     if (!trimmed && attachments.length === 0) return;
 
+    const time = new Date().toISOString();
     const attachmentSummary = attachments.length
       ? `\n\n${t.attachmentsTitle}:\n${attachments.map((file) => `- ${file.name}`).join("\n")}`
       : "";
@@ -347,6 +294,7 @@ export function Thread({ language = "en", isRtl = false }) {
       role: "user",
       content: trimmed || t.attachmentsTitle,
       attachments,
+      time,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -360,23 +308,26 @@ export function Thread({ language = "en", isRtl = false }) {
       .map((msg) => ({ role: msg.role, content: msg.content }));
 
     try {
-      const response = await InvokeLLM({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...history,
-          { role: "user", content: userContent },
-        ],
-      });
+      const response = await InvokeLLM(
+        /** @type {any} */ ({
+          temperature: 0.3,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...history,
+            { role: "user", content: userContent },
+          ],
+        })
+      );
 
       const rawText = extractAssistantText(response);
       const payload = parseAssistantPayload(rawText);
-      const resolvedCards = Array.isArray(response?.cards) ? response.cards : payload.cards;
+      const typedResponse = /** @type {any} */ (response);
+      const resolvedCards = Array.isArray(typedResponse?.cards) ? typedResponse.cards : payload.cards;
       const assistantMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
         content: payload.message || rawText || t.fallbackMessage,
+        time: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -396,16 +347,20 @@ export function Thread({ language = "en", isRtl = false }) {
             role: "assistant",
             type: "card",
             cardId: card.id,
+            time: new Date().toISOString(),
           })),
         ]);
       }
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
-        { id: `${Date.now()}-error`, role: "assistant", content: t.errorMessage },
+        {
+          id: `${Date.now()}-error`,
+          role: "assistant",
+          content: t.errorMessage,
+          time: new Date().toISOString(),
+        },
       ]);
-      // eslint-disable-next-line no-console
-      console.error("Assistant error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -415,69 +370,13 @@ export function Thread({ language = "en", isRtl = false }) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       handleSend();
-=======
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    setAttachments((prev) => [...prev, ...files.map((file) => file.name)]);
-    event.target.value = "";
-  };
-
-  const handleSend = async () => {
-    const trimmed = composerText.trim();
-    if (!trimmed) return;
-    setComposerText("");
-    setSendError("");
-    const createdAt = new Date().toISOString();
-    setThreadMessages((prev) => [
-      ...prev,
-      { id: `${Date.now()}-user`, role: "user", content: trimmed, createdAt }
-    ]);
-
-    setAgentStatus("sending");
-    try {
-      if (!base44?.agents?.createConversation || !base44?.agents?.addMessage) {
-        throw new Error("Base44 agents SDK is not available.");
-      }
-      let conversation = conversationRef.current;
-      if (!conversation) {
-        conversation = await base44.agents.createConversation({
-          agent_name: "tradingAssistant",
-          metadata: { source: "assistant-modal" }
-        });
-        conversationRef.current = conversation;
-      }
-      await base44.agents.addMessage(conversation, {
-        role: "user",
-        content: trimmed
-      });
-      setThreadMessages((prev) => [
-        ...prev,
-        {
-          id: `${Date.now()}-assistant`,
-          role: "assistant",
-          content:
-            language === "ar"
-              ? "تم إرسال رسالتك إلى tradingAssistant. سأوافيك بالتحديثات قريبًا."
-              : "Your message was delivered to tradingAssistant. I’ll share updates shortly.",
-          createdAt: new Date().toISOString()
-        }
-      ]);
-      setAgentStatus("connected");
-    } catch (error) {
-      setSendError(error?.message || "Unable to send message right now.");
-      setAgentStatus("error");
- main
     }
   };
 
   return (
     <div
       className={cn(
- codex/implement-premium-assistant-chat-modal-fcmi6j
-        "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-popover",
-
         "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20",
- main
         isDragging && "border-primary/70 ring-2 ring-primary/30"
       )}
       onDragOver={onDragOver}
@@ -485,15 +384,8 @@ export function Thread({ language = "en", isRtl = false }) {
       onDrop={onDrop}
     >
       <div className="relative flex-1 overflow-y-auto px-4 py-5">
-        <div className={cn("space-y-4", isRtl && "text-right")}>
- codex/implement-premium-assistant-chat-modal-fcmi6j
+        <div className={cn("space-y-4", isRtl && "text-right")}> 
           {messages.map((message) => {
-            if (message.type === "card") {
-              const card = cards.find((item) => item.id === message.cardId);
-              if (!card) return null;
-              return <CardMessage key={message.id} card={card} />;
-
-          {threadMessages.map((message) => {
             if (message.type === "card") {
               const card = cards.find((item) => item.id === message.cardId);
               if (!card) return null;
@@ -534,7 +426,6 @@ export function Thread({ language = "en", isRtl = false }) {
                   </div>
                 </div>
               );
- main
             }
 
             const isUser = message.role === "user";
@@ -548,14 +439,11 @@ export function Thread({ language = "en", isRtl = false }) {
                   isRtl && !isUser ? "justify-end" : ""
                 )}
               >
- codex/implement-premium-assistant-chat-modal-fcmi6j
                 <div className="max-w-[80%] space-y-2">
                   <div
                     className={cn(
-                      "rounded-2xl px-4 py-2 text-sm shadow-sm",
-                      isUser
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
+                      "rounded-2xl px-4 py-2 text-sm shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)]",
+                      isUser ? "bg-foreground text-background" : "bg-card text-foreground"
                     )}
                   >
                     {message.content}
@@ -579,26 +467,14 @@ export function Thread({ language = "en", isRtl = false }) {
                       ))}
                     </div>
                   ) : null}
-
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)]",
-                    isUser
-                      ? "bg-foreground text-background"
-                      : "bg-card text-foreground"
-                  )}
-                >
-                  {message.content}
-                </div>
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {formatTime(message.time || message.createdAt)}
- main
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {formatTime(message.time || message.createdAt)}
+                  </div>
                 </div>
               </div>
             );
           })}
- codex/implement-premium-assistant-chat-modal-fcmi6j
           {isLoading ? (
             <div className={cn("flex", isRtl ? "justify-end" : "justify-start")}>
               <div className="rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
@@ -606,8 +482,6 @@ export function Thread({ language = "en", isRtl = false }) {
               </div>
             </div>
           ) : null}
-
- main
         </div>
         {isDragging ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 text-sm font-medium text-muted-foreground">
@@ -623,7 +497,6 @@ export function Thread({ language = "en", isRtl = false }) {
               {t.attachmentsTitle}
             </div>
             <div className={cn("mt-2 flex flex-wrap gap-2", isRtl && "justify-end")}>
- codex/implement-premium-assistant-chat-modal-fcmi6j
               {attachments.map((file) => (
                 <span
                   key={file.id}
@@ -637,92 +510,38 @@ export function Thread({ language = "en", isRtl = false }) {
                     />
                   ) : null}
                   {file.name}
-
-              {attachments.map((name, index) => (
-                <span
-                  key={`${name}-${index}`}
-                  className="inline-flex items-center rounded-full border border-border/70 bg-muted px-3 py-1 text-xs text-muted-foreground"
-                >
-                  {name}
- main
                 </span>
               ))}
             </div>
           </div>
         ) : null}
 
- codex/implement-premium-assistant-chat-modal-fcmi6j
-
-        <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>
-            {language === "ar" ? "متصل بـ tradingAssistant" : "Connected to tradingAssistant"}
-          </span>
-          <span>
-            {agentStatus === "sending"
-              ? language === "ar"
-                ? "جارٍ الإرسال..."
-                : "Sending..."
-              : agentStatus === "connected"
-              ? language === "ar"
-                ? "متصل"
-                : "Connected"
-              : agentStatus === "error"
-              ? language === "ar"
-                ? "تعذر الاتصال"
-                : "Connection issue"
-              : language === "ar"
-              ? "جاهز"
-              : "Ready"}
-          </span>
-        </div>
-
- main
-        <div className={cn("flex items-center gap-2", isRtl && "flex-row-reverse")}>
+        <div className={cn("flex items-end gap-2", isRtl && "flex-row-reverse")}>
           <button
             type="button"
             onClick={onAttachClick}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-muted text-muted-foreground transition hover:text-foreground"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-muted text-muted-foreground transition hover:text-foreground"
             aria-label={t.attachLabel}
           >
             <Paperclip className="h-4 w-4" />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={onAttachChange}
-          />
+          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onAttachChange} />
           <div className="flex-1">
             <label className="sr-only" htmlFor="assistant-composer">
               {t.composerPlaceholder}
             </label>
-            <input
+            <textarea
               id="assistant-composer"
-              type="text"
- codex/implement-premium-assistant-chat-modal-fcmi6j
-              placeholder={t.composerPlaceholder}
               value={composerValue}
               onChange={(event) => setComposerValue(event.target.value)}
               onKeyDown={handleKeyDown}
+              placeholder={t.composerPlaceholder}
               className={cn(
-                "h-10 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                "min-h-[52px] w-full resize-none rounded-2xl border border-border/70 bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 isRtl && "text-right"
               )}
+              rows={1}
               disabled={isLoading}
-
-              value={composerText}
-              onChange={(event) => setComposerText(event.target.value)}
-              placeholder={
-                language === "ar"
-                  ? "اكتب رسالتك إلى tradingAssistant..."
-                  : "Message tradingAssistant..."
-              }
-              className={cn(
-                "h-11 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                isRtl && "text-right"
-              )}
- main
             />
           </div>
           <Button
@@ -731,23 +550,11 @@ export function Thread({ language = "en", isRtl = false }) {
             variant="default"
             aria-label={t.sendLabel}
             onClick={handleSend}
- codex/implement-premium-assistant-chat-modal-fcmi6j
-            disabled={isLoading}
-
-            disabled={!composerText.trim()}
- main
+            disabled={isLoading || (!composerValue.trim() && attachments.length === 0)}
           >
             <SendHorizontal className="h-4 w-4" />
           </Button>
         </div>
- codex/implement-premium-assistant-chat-modal-fcmi6j
-
-        {sendError ? (
-          <div className={cn("mt-2 text-xs text-rose-500", isRtl && "text-right")}>
-            {sendError}
-          </div>
-        ) : null}
- main
       </div>
     </div>
   );

@@ -60,12 +60,10 @@ const getChartTheme = (isDark) => ({
   },
 });
 
-export default function MemeChart({
-  poolAddress,
-  fallbackUrl,
-  t,
-  isRtl,
-}) {
+/**
+ * @param {{ poolAddress?: string, fallbackUrl?: string, t: any, isRtl: boolean }} props
+ */
+export default function MemeChart({ poolAddress, fallbackUrl, t, isRtl }) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleSeriesRef = useRef(null);
