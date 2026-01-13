@@ -262,7 +262,7 @@ export default function AITradingChat({ language = "en" }) {
             </span>
             <span className="text-[11px] text-slate-400">•</span>
             <span className="text-xs text-slate-500">
-              {language === "ar" ? "مساعد Base44" : "Base44 agent"}
+              {language === "ar" ? "" : ""}
             </span>
           </div>
         </div>
