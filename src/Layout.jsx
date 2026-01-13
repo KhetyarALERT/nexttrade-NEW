@@ -21,6 +21,7 @@ import { base44 } from "@/api/base44Client";
 import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
 import { WalletProvider } from "@/lib/web3/WalletContext";
 import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal as useSolanaWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAccount } from "wagmi";
@@ -900,6 +901,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         open={notificationSettingsOpen} 
         onOpenChange={setNotificationSettingsOpen} 
       />
+      <AssistantModal language={language} />
     </div>
     </NotificationProvider>
     </WalletProvider>);
