@@ -1,31 +1,94 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-const BINGX_API_URL = 'https://open-api.bingx.com';
+const OKX_API_URL = 'https://www.okx.com';
 
-// Generate HMAC signature for BingX API
-const generateSignature = async (queryString, secretKey) => {
+// Generate HMAC-SHA256 signature for OKX API
+// OKX signature = Base64(HMAC-SHA256(timestamp + method + requestPath + body, secretKey))
+const generateOkxSignature = async (
+  timestamp: string,
+  method: string,
+  requestPath: string,
+  body: string,
+  secretKey: string
+): Promise<string> => {
+  const prehash = timestamp + method + requestPath + body;
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secretKey);
-  const msgData = encoder.encode(queryString);
+  const msgData = encoder.encode(prehash);
   
   const cryptoKey = await crypto.subtle.importKey(
     'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
   
   const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
-  return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  // OKX requires Base64 encoding, not hex
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+};
+
+// Make authenticated OKX API request
+const okxRequest = async (
+  method: string,
+  endpoint: string,
+  body: object | null,
+  apiKey: string,
+  secretKey: string,
+  passphrase: string
+): Promise<{ code: string; msg: string; data: any }> => {
+  const timestamp = new Date().toISOString();
+  const bodyStr = body ? JSON.stringify(body) : '';
+  
+  const signature = await generateOkxSignature(
+    timestamp,
+    method,
+    endpoint,
+    bodyStr,
+    secretKey
+  );
+  
+  const headers: Record<string, string> = {
+    'OK-ACCESS-KEY': apiKey,
+    'OK-ACCESS-SIGN': signature,
+    'OK-ACCESS-TIMESTAMP': timestamp,
+    'OK-ACCESS-PASSPHRASE': passphrase,
+    'Content-Type': 'application/json'
+  };
+  
+  const response = await fetch(`${OKX_API_URL}${endpoint}`, {
+    method,
+    headers,
+    body: bodyStr || undefined
+  });
+  
+  return response.json();
 };
 
 // Log audit event
-const logAudit = (action, userId, details) => {
+const logAudit = (action: string, userId: string, details: object): void => {
   const timestamp = new Date().toISOString();
   console.log(`[AUDIT] [${timestamp}] [${action}] User: ${userId}`, JSON.stringify(details));
 };
 
+// Generate unique sub-account name (OKX requires 6-20 alphanumeric)
+const generateSubAcctName = (userId: string): string => {
+  const prefix = 'NT';
+  const userPart = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
+  const timePart = Date.now().toString(36).toUpperCase();
+  return `${prefix}${userPart}${timePart}`.substring(0, 20);
+};
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
+  
+  // CORS headers for preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      }
+    });
+  }
   
   try {
     // Verify authentication
@@ -39,15 +102,20 @@ Deno.serve(async (req) => {
     
     console.log('[SUBACCOUNT] Request:', { action, params, userId: user.id });
     
-    // Get API credentials
-    const apiKey = Deno.env.get('BINGX_API_KEY');
-    const secretKey = Deno.env.get('BINGX_SECRET_KEY');
+    // Get OKX Master API credentials (from secrets)
+    const apiKey = Deno.env.get('OKX_API_KEY');
+    const secretKey = Deno.env.get('OKX_SECRET_KEY');
+    const passphrase = Deno.env.get('OKX_PASSPHRASE');
     
-    if (!apiKey || !secretKey) {
-      console.log('[SUBACCOUNT] Missing API credentials');
-      return Response.json({ success: false, error: 'BingX API not configured' }, { status: 500 });
+    if (!apiKey || !secretKey || !passphrase) {
+      console.log('[SUBACCOUNT] Missing OKX API credentials');
+      return Response.json({ 
+        success: false, 
+        error: 'OKX API not configured. Please add OKX_API_KEY, OKX_SECRET_KEY, and OKX_PASSPHRASE to secrets.' 
+      }, { status: 500 });
     }
     
+    // ==================== CREATE SUB-ACCOUNT ====================
     if (action === 'create') {
       const { nickname, accountType = 'futures', leverage = 10 } = params;
       
@@ -74,66 +142,126 @@ Deno.serve(async (req) => {
       
       logAudit('SUBACCOUNT_CREATE_START', user.id, { nickname, accountType });
       
-      // BingX API - POST with JSON body
-      // According to BingX docs, subaccount creation uses JSON body
-      let bingxResult = null;
+      let okxResult: any = null;
+      let okxSubAcct: string | null = null;
+      let okxApiKey: string | null = null;
+      let okxApiSecret: string | null = null;
+      let okxApiPassphrase: string | null = null;
       let apiSuccess = false;
       
       try {
-        const timestamp = Date.now();
+        // Step 1: Create sub-account on OKX
+        const subAcctName = generateSubAcctName(user.id);
         
-        // Build request body as per BingX official docs
-        const requestBody = {
-          subAccountString: nickname.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20),
-          note: nickname
-        };
+        console.log('[SUBACCOUNT] Creating OKX sub-account:', subAcctName);
         
-        // For BingX, signature is on timestamp parameter
-        const queryString = `timestamp=${timestamp}`;
-        const signature = await generateSignature(queryString, secretKey);
-        
-        const url = `${BINGX_API_URL}/openApi/subAccount/v1/create?${queryString}&signature=${signature}`;
-        
-        console.log('[SUBACCOUNT] BingX API call:', { 
-          url: url.replace(signature, '***'),
-          body: requestBody 
-        });
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'X-BX-APIKEY': apiKey,
-            'Content-Type': 'application/json'
+        okxResult = await okxRequest(
+          'POST',
+          '/api/v5/users/subaccount/create-subaccount',
+          {
+            subAcct: subAcctName,
+            label: nickname.substring(0, 20) // OKX label max 20 chars
           },
-          body: JSON.stringify(requestBody)
-        });
+          apiKey,
+          secretKey,
+          passphrase
+        );
         
-        bingxResult = await response.json();
-        console.log('[SUBACCOUNT] BingX response:', bingxResult);
+        console.log('[SUBACCOUNT] OKX create response:', okxResult);
         
-        if (bingxResult.code === 0 && bingxResult.data) {
-          apiSuccess = true;
+        if (okxResult.code === '0' && okxResult.data?.[0]) {
+          okxSubAcct = okxResult.data[0].subAcct;
+          
+          // Step 2: Create API key for sub-account
+          console.log('[SUBACCOUNT] Creating API key for:', okxSubAcct);
+          
+          const apiKeyResult = await okxRequest(
+            'POST',
+            '/api/v5/users/subaccount/apikey',
+            {
+              subAcct: okxSubAcct,
+              label: `${nickname.substring(0, 10)}_api`,
+              passphrase: `Sub${Date.now().toString(36)}@1`, // Generate unique passphrase
+              perm: 'read_only,trade' // Read + Trade permissions
+            },
+            apiKey,
+            secretKey,
+            passphrase
+          );
+          
+          console.log('[SUBACCOUNT] OKX API key response:', {
+            code: apiKeyResult.code,
+            msg: apiKeyResult.msg,
+            hasData: !!apiKeyResult.data
+          });
+          
+          if (apiKeyResult.code === '0' && apiKeyResult.data?.[0]) {
+            okxApiKey = apiKeyResult.data[0].apiKey;
+            okxApiSecret = apiKeyResult.data[0].secretKey;
+            okxApiPassphrase = apiKeyResult.data[0].passphrase;
+            
+            // Step 3: Enable futures trading (set account level to 2)
+            console.log('[SUBACCOUNT] Enabling futures trading...');
+            
+            // Use sub-account's own API key to set account config
+            const configResult = await okxRequest(
+              'POST',
+              '/api/v5/account/set-account-level',
+              { acctLv: '2' }, // 2 = Single-currency margin (futures enabled)
+              okxApiKey,
+              okxApiSecret,
+              okxApiPassphrase
+            );
+            
+            console.log('[SUBACCOUNT] Account level config:', configResult);
+            
+            // Step 4: Set default leverage if futures enabled
+            if (accountType === 'futures' || accountType === 'both') {
+              console.log('[SUBACCOUNT] Setting leverage to:', leverage);
+              
+              const leverageResult = await okxRequest(
+                'POST',
+                '/api/v5/account/set-leverage',
+                {
+                  instId: 'BTC-USDT-SWAP',
+                  lever: String(leverage),
+                  mgnMode: 'cross'
+                },
+                okxApiKey,
+                okxApiSecret,
+                okxApiPassphrase
+              );
+              
+              console.log('[SUBACCOUNT] Leverage result:', leverageResult);
+            }
+            
+            apiSuccess = true;
+          }
         }
-      } catch (apiError) {
-        console.log('[SUBACCOUNT] BingX API error:', apiError.message);
-        // Continue with local account creation
+      } catch (apiError: any) {
+        console.log('[SUBACCOUNT] OKX API error:', apiError.message);
+        // Continue with local account creation if OKX fails
       }
       
-      // Generate local subaccount ID
+      // Generate local subaccount ID as fallback
       const localSubId = `nt_${user.id.substring(0, 8)}_${Date.now()}`;
       
       // Create subaccount record in database
+      // Note: In production, API credentials should be ENCRYPTED before storing!
       const subaccountRecord = await base44.asServiceRole.entities.Subaccount.create({
         user_id: user.id,
         user_email: user.email,
-        subaccount_id: apiSuccess && bingxResult?.data?.subUid 
-          ? bingxResult.data.subUid 
-          : localSubId,
+        subaccount_id: okxSubAcct || localSubId,
         nickname,
         account_type: accountType,
         leverage,
         status: 'active',
-        bingx_status: apiSuccess ? 'synced' : 'local',
+        okx_status: apiSuccess ? 'synced' : 'local',
+        okx_subacct: okxSubAcct || null,
+        // Store encrypted in production - these are the sub-account's own credentials
+        okx_api_key: okxApiKey || null,
+        okx_api_secret: okxApiSecret || null, // TODO: ENCRYPT THIS!
+        okx_api_passphrase: okxApiPassphrase || null, // TODO: ENCRYPT THIS!
         permissions: ['trade', 'read']
       });
       
@@ -168,7 +296,8 @@ Deno.serve(async (req) => {
       
       logAudit('SUBACCOUNT_CREATE_SUCCESS', user.id, { 
         subaccount_id: subaccountRecord.id,
-        bingx_synced: apiSuccess,
+        okx_synced: apiSuccess,
+        okx_subacct: okxSubAcct,
         account_type: accountType
       });
       
@@ -180,24 +309,27 @@ Deno.serve(async (req) => {
           account_type: subaccountRecord.account_type,
           leverage: subaccountRecord.leverage,
           status: subaccountRecord.status,
+          okx_synced: apiSuccess,
           created_date: subaccountRecord.created_date
         }
       });
     }
     
+    // ==================== LIST SUB-ACCOUNTS ====================
     if (action === 'list') {
       // Get user's subaccounts
       const subaccounts = await base44.entities.Subaccount.filter({ 
         user_id: user.id 
       });
       
-      // Return without sensitive data
-      const safeData = (subaccounts || []).map(s => ({
+      // Return without sensitive data (no API keys!)
+      const safeData = (subaccounts || []).map((s: any) => ({
         id: s.id,
         nickname: s.nickname,
         account_type: s.account_type,
         leverage: s.leverage,
         status: s.status,
+        okx_synced: s.okx_status === 'synced',
         created_date: s.created_date,
         updated_date: s.updated_date
       }));
@@ -205,6 +337,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, data: safeData });
     }
     
+    // ==================== DELETE SUB-ACCOUNT ====================
     if (action === 'delete') {
       const { subaccountId } = params;
       
@@ -221,7 +354,8 @@ Deno.serve(async (req) => {
         }, { status: 404 });
       }
       
-      // Mark as inactive (soft delete)
+      // Note: OKX sub-accounts cannot be deleted, only deactivated
+      // We just mark as inactive in our database
       await base44.asServiceRole.entities.Subaccount.update(subaccountId, {
         status: 'inactive'
       });
@@ -231,39 +365,160 @@ Deno.serve(async (req) => {
       return Response.json({ success: true });
     }
     
+    // ==================== TRANSFER FUNDS ====================
     if (action === 'transfer') {
-      const { sourceAccount, targetAccount, amount, asset = 'USDT' } = params;
+      const { subaccountId, direction, amount, asset = 'USDT' } = params;
+      // direction: 'to_sub' (main -> sub) or 'from_sub' (sub -> main)
       
-      if (!sourceAccount || !targetAccount || !amount || amount <= 0) {
+      if (!subaccountId || !direction || !amount || amount <= 0) {
         return Response.json({ 
           success: false, 
           error: 'Invalid transfer parameters' 
         }, { status: 400 });
       }
       
-      // Create transfer record
-      const transfer = await base44.asServiceRole.entities.InternalTransfer.create({
-        user_id: user.id,
-        transfer_id: `tf_${Date.now()}`,
-        source_account: sourceAccount,
-        target_account: targetAccount,
-        asset,
-        amount,
-        status: 'completed'
+      // Get subaccount details
+      const subaccounts = await base44.entities.Subaccount.filter({ 
+        id: subaccountId,
+        user_id: user.id 
       });
       
-      logAudit('INTERNAL_TRANSFER', user.id, { 
-        transfer_id: transfer.id,
-        amount,
-        asset 
+      if (!subaccounts || subaccounts.length === 0) {
+        return Response.json({ 
+          success: false, 
+          error: 'Subaccount not found' 
+        }, { status: 404 });
+      }
+      
+      const subaccount = subaccounts[0];
+      
+      if (!subaccount.okx_subacct) {
+        return Response.json({ 
+          success: false, 
+          error: 'Subaccount not synced with OKX' 
+        }, { status: 400 });
+      }
+      
+      logAudit('TRANSFER_START', user.id, { subaccountId, direction, amount, asset });
+      
+      try {
+        // OKX sub-account transfer
+        // type: 1 = main to sub, 2 = sub to main
+        const transferResult = await okxRequest(
+          'POST',
+          '/api/v5/asset/subaccount/transfer',
+          {
+            ccy: asset,
+            amt: String(amount),
+            from: direction === 'to_sub' ? '6' : '6', // 6 = funding account
+            to: direction === 'to_sub' ? '6' : '6',
+            subAcct: subaccount.okx_subacct,
+            type: direction === 'to_sub' ? '1' : '2'
+          },
+          apiKey,
+          secretKey,
+          passphrase
+        );
+        
+        console.log('[SUBACCOUNT] Transfer result:', transferResult);
+        
+        if (transferResult.code !== '0') {
+          return Response.json({ 
+            success: false, 
+            error: `Transfer failed: ${transferResult.msg}` 
+          }, { status: 400 });
+        }
+        
+        // Create transfer record
+        const transfer = await base44.asServiceRole.entities.InternalTransfer.create({
+          user_id: user.id,
+          transfer_id: transferResult.data?.[0]?.transId || `tf_${Date.now()}`,
+          source_account: direction === 'to_sub' ? 'main' : subaccountId,
+          target_account: direction === 'to_sub' ? subaccountId : 'main',
+          asset,
+          amount,
+          status: 'completed'
+        });
+        
+        logAudit('TRANSFER_SUCCESS', user.id, { 
+          transfer_id: transfer.id,
+          okx_trans_id: transferResult.data?.[0]?.transId,
+          amount,
+          asset 
+        });
+        
+        return Response.json({ success: true, data: transfer });
+        
+      } catch (transferError: any) {
+        console.log('[SUBACCOUNT] Transfer error:', transferError.message);
+        return Response.json({ 
+          success: false, 
+          error: `Transfer failed: ${transferError.message}` 
+        }, { status: 500 });
+      }
+    }
+    
+    // ==================== GET BALANCE ====================
+    if (action === 'balance') {
+      const { subaccountId } = params;
+      
+      // Get subaccount details
+      const subaccounts = await base44.entities.Subaccount.filter({ 
+        id: subaccountId,
+        user_id: user.id 
       });
       
-      return Response.json({ success: true, data: transfer });
+      if (!subaccounts || subaccounts.length === 0) {
+        return Response.json({ 
+          success: false, 
+          error: 'Subaccount not found' 
+        }, { status: 404 });
+      }
+      
+      const subaccount = subaccounts[0];
+      
+      if (!subaccount.okx_api_key || !subaccount.okx_api_secret) {
+        return Response.json({ 
+          success: false, 
+          error: 'Subaccount not synced with OKX' 
+        }, { status: 400 });
+      }
+      
+      try {
+        // Get balance using sub-account's own API key
+        const balanceResult = await okxRequest(
+          'GET',
+          '/api/v5/account/balance',
+          null,
+          subaccount.okx_api_key,
+          subaccount.okx_api_secret, // TODO: DECRYPT THIS!
+          subaccount.okx_api_passphrase // TODO: DECRYPT THIS!
+        );
+        
+        if (balanceResult.code !== '0') {
+          return Response.json({ 
+            success: false, 
+            error: `Failed to get balance: ${balanceResult.msg}` 
+          }, { status: 400 });
+        }
+        
+        return Response.json({ 
+          success: true, 
+          data: balanceResult.data 
+        });
+        
+      } catch (balanceError: any) {
+        console.log('[SUBACCOUNT] Balance error:', balanceError.message);
+        return Response.json({ 
+          success: false, 
+          error: `Failed to get balance: ${balanceError.message}` 
+        }, { status: 500 });
+      }
     }
     
     return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('[SUBACCOUNT_ERROR]', error.message, error.stack);
     return Response.json({ 
       success: false, 
