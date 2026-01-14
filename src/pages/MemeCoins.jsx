@@ -1375,7 +1375,7 @@ export default function MemeCoins({ language = 'en' }) {
   return (
     <TooltipProvider>
       <div
-        className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-4 overflow-hidden overflow-x-hidden rounded-2xl bg-gradient-to-b from-[#0b0d12] via-[#10131b] to-[#141824] px-3 pb-3 pt-2 text-foreground"
+        className="flex h-[calc(100dvh-64px)] min-h-0 flex-col gap-4 overflow-hidden overflow-x-hidden rounded-2xl bg-gradient-to-b from-slate-50 via-white to-slate-100 px-3 pb-3 pt-2 text-foreground dark:from-[#0b0d12] dark:via-[#10131b] dark:to-[#141824]"
         dir={isRtl ? 'rtl' : 'ltr'}
       >
         <div className={cn('flex flex-wrap items-center justify-between gap-2', isRtl && 'flex-row-reverse text-right')}>

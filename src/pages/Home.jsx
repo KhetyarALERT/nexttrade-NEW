@@ -21,11 +21,12 @@ import {
   ArrowUpRight,
   RefreshCw,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import AITradingChat from "../components/home/AITradingChat";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 
 export default function Home({ language = "en" }) {
+  const shouldReduceMotion = useReducedMotion();
   const content = {
     en: {
       hero: {
@@ -202,18 +203,23 @@ export default function Home({ language = "en" }) {
   return (
     <div className="overflow-hidden bg-background text-foreground">
       {/* Hero Section - Enhanced with AI Chat */}
-      <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <section className="relative min-h-[92vh] sm:min-h-[95vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50/40 via-transparent to-cyan-50/40 dark:from-blue-500/10 dark:to-cyan-500/10" />
+        <motion.div
+          className="absolute -top-24 right-[-10%] h-[320px] w-[320px] rounded-full bg-blue-500/10 blur-[120px] dark:bg-blue-500/20"
+          animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.4, 0.75, 0.4] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        />
 
         {/* Content Layer */}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 z-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 z-20">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
             {/* Left Content */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
-              className="order-2 lg:order-1"
+              className="order-2 lg:order-1 text-center lg:text-left"
             >
 
               {/* Credibility Badges */}
@@ -221,7 +227,7 @@ export default function Home({ language = "en" }) {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="flex flex-wrap gap-3 mb-8"
+                className="flex flex-wrap justify-center lg:justify-start gap-3 mb-6"
               >
                   <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 backdrop-blur-md flex items-center gap-2">
                   <Shield className="w-3.5 h-3.5 text-blue-600" />
@@ -239,7 +245,7 @@ export default function Home({ language = "en" }) {
 
               {/* Animated Hero Title */}
               <motion.h1
-                className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight"
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-5 leading-tight tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}>
@@ -247,7 +253,7 @@ export default function Home({ language = "en" }) {
               </motion.h1>
 
               <motion.p
-                className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-xl"
+                className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.8 }}>
@@ -255,14 +261,14 @@ export default function Home({ language = "en" }) {
               </motion.p>
 
               <motion.div
-                className="flex flex-col sm:flex-row gap-4 mb-12"
+                className="flex flex-col sm:flex-row gap-4 mb-10 sm:mb-12 justify-center lg:justify-start"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 1.2 }}>
 
                 <Button
                   size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-base sm:text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
                   asChild>
                       <Link to={createPageUrl("Futures")}>
                     {t.hero.cta1}
@@ -272,14 +278,14 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-border text-foreground hover:bg-muted rounded-full px-8 py-7 text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
+                  className="w-full sm:w-auto border-border text-foreground hover:bg-muted rounded-full px-8 py-7 text-base sm:text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
                   asChild>
                   <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
               </motion.div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6 text-center lg:text-left">
                 {t.stats.map((stat, idx) =>
                   <motion.div
                     key={idx}
@@ -296,10 +302,10 @@ export default function Home({ language = "en" }) {
             {/* Right Content - AI Chat Model */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.5 }}
+              animate={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1, y: [0, -8, 0] }}
+              transition={shouldReduceMotion ? { duration: 1, delay: 0.5 } : { duration: 6, delay: 0.5, repeat: Infinity, ease: "easeInOut" }}
               className="relative order-1 lg:order-2">
-              <div className="relative bg-background/70 backdrop-blur-xl rounded-3xl border border-border shadow-2xl overflow-hidden">
+              <div className="relative bg-background/80 backdrop-blur-xl rounded-3xl border border-border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.6)] overflow-hidden">
                 <AITradingChat language={language} />
               </div>
             </motion.div>
