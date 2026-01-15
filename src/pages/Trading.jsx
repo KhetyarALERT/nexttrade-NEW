@@ -15,6 +15,11 @@ function formatPrice(p) {
   return `$${p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
+function formatCompactNumber(value) {
+  if (!Number.isFinite(value)) return "—";
+  return Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(value);
+}
+
 function normalizeBinanceSymbol(sym) {
   return String(sym || "")
     .toUpperCase()
@@ -31,6 +36,7 @@ export default function Trading({ language = "en" }) {
 
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
+  const [quoteVolume, setQuoteVolume] = useState(0);
 
   const [liveAccount, setLiveAccount] = useState(null);
   const [demoAccount, setDemoAccount] = useState(null);
@@ -198,6 +204,7 @@ export default function Trading({ language = "en" }) {
       if (!t) return;
       if (t.lastPrice) setLastPrice(t.lastPrice);
       if (t.priceChangePercent !== undefined) setChangePct(t.priceChangePercent);
+      if (t.quoteVolume !== undefined) setQuoteVolume(t.quoteVolume);
     });
     const unsubPrice = binanceFuturesStore.subscribe(`price:${selectedSymbol}`, (p) => {
       if (p) setLastPrice(Number(p));
@@ -205,6 +212,7 @@ export default function Trading({ language = "en" }) {
     const existing = binanceFuturesStore.getTicker(selectedSymbol);
     if (existing?.lastPrice) setLastPrice(existing.lastPrice);
     if (existing?.priceChangePercent !== undefined) setChangePct(existing.priceChangePercent);
+    if (existing?.quoteVolume !== undefined) setQuoteVolume(existing.quoteVolume);
     return () => {
       try {
         unsubTicker?.();
@@ -222,8 +230,8 @@ export default function Trading({ language = "en" }) {
   }, [language]);
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex flex-col bg-background text-foreground overflow-hidden">
-      <header className="h-14 bg-card border-b border-border px-4 flex items-center justify-between shrink-0 z-20">
+    <div className="min-h-[calc(100vh-5rem)] flex flex-col bg-gradient-to-b from-background via-background to-background/80 text-foreground overflow-x-hidden">
+      <header className="border-b border-border/60 px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 shrink-0 z-20 bg-card/80 backdrop-blur">
         <div className="flex items-center gap-4 min-w-0">
           <button
             onClick={() => window.history.back()}
@@ -243,30 +251,40 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        <div className="hidden lg:flex items-center gap-6">
-          <div className="flex flex-col items-end">
-            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">{t.last}</span>
-            <span className="text-foreground font-bold text-sm font-mono">{formatPrice(lastPrice)}</span>
+        <div className="flex flex-wrap items-center gap-3 lg:gap-6">
+          <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            {language === "ar" ? "بيانات مباشرة" : "Live markets"}
           </div>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-start lg:items-end">
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">{t.last}</span>
+            <span className="text-foreground font-bold text-sm lg:text-base font-mono">{formatPrice(lastPrice)}</span>
+          </div>
+          <div className="flex flex-col items-start lg:items-end">
             <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">{t.change}</span>
             <span className={`font-bold text-sm ${changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {changePct >= 0 ? "+" : ""}
               {Number(changePct).toFixed(2)}%
             </span>
           </div>
+          <div className="flex flex-col items-start lg:items-end">
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-semibold">
+              {language === "ar" ? "حجم 24س" : "24h Vol"}
+            </span>
+            <span className="text-foreground font-semibold text-sm">{formatCompactNumber(quoteVolume)}</span>
+          </div>
         </div>
       </header>
 
       {/* Mobile view toggle */}
-      <div className="lg:hidden border-b border-border bg-background px-4 py-2 flex gap-2 shrink-0">
+      <div className="lg:hidden border-b border-border/60 bg-background/70 px-4 py-2 flex gap-2 shrink-0 sticky top-0 z-10 backdrop-blur">
         <button
           type="button"
           onClick={() => setMobileView("chart")}
           className={`flex-1 h-9 rounded-lg text-sm font-semibold transition-colors border ${
             mobileView === "chart"
-              ? "bg-foreground text-background border-foreground"
-              : "bg-transparent text-foreground border-border"
+              ? "bg-foreground text-background border-foreground shadow-md"
+              : "bg-transparent text-foreground border-border/60"
           }`}
         >
           {language === "ar" ? "الرسم" : "Chart"}
@@ -276,22 +294,22 @@ export default function Trading({ language = "en" }) {
           onClick={() => setMobileView("trade")}
           className={`flex-1 h-9 rounded-lg text-sm font-semibold transition-colors border ${
             mobileView === "trade"
-              ? "bg-foreground text-background border-foreground"
-              : "bg-transparent text-foreground border-border"
+              ? "bg-foreground text-background border-foreground shadow-md"
+              : "bg-transparent text-foreground border-border/60"
           }`}
         >
           {language === "ar" ? "تداول" : "Trade"}
         </button>
       </div>
 
-      <main className="flex-1 flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto lg:overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row gap-4 px-4 pb-4 overflow-x-hidden overflow-y-auto touch-pan-y">
         {/* Chart column */}
         <section
-          className={`flex-1 min-w-0 flex flex-col bg-background ${
+          className={`flex-1 min-w-0 flex flex-col min-h-0 ${
             mobileView === "trade" ? "hidden lg:flex" : "flex"
           }`}
         >
-          <div className="relative flex-1 min-h-0">
+          <div className="relative flex-1 min-h-0 rounded-2xl border border-border/60 bg-card/40 shadow-lg overflow-hidden">
             <BinanceFuturesChart
               symbol={selectedSymbol}
               language={language}
@@ -318,7 +336,7 @@ export default function Trading({ language = "en" }) {
               </div>
             ) : null}
           </div>
-          <div className="h-[320px] min-h-[240px] max-h-[50vh]">
+          <div className="h-[320px] min-h-[240px] max-h-[50vh] mt-4 rounded-2xl border border-border/60 bg-card/40 shadow-lg overflow-hidden">
             <FuturesActivityTabs
               symbol={selectedSymbol}
               language={language}
@@ -333,21 +351,21 @@ export default function Trading({ language = "en" }) {
 
         {/* Trade panel */}
         <section
-          className={`w-full lg:w-[360px] xl:w-[420px] lg:shrink-0 border-t border-border lg:border-t-0 lg:border-l lg:border-border ${
+          className={`w-full lg:w-[380px] xl:w-[440px] lg:shrink-0 flex flex-col min-h-0 ${
             mobileView === "chart" ? "hidden lg:block" : "block"
           }`}
         >
-          <div className="lg:hidden px-4 py-3 border-b border-border flex items-center justify-between bg-card">
+          <div className="lg:hidden px-4 py-3 border border-border/60 rounded-2xl flex items-center justify-between bg-card/70 backdrop-blur shadow-md">
             <div className="text-sm font-semibold text-foreground">{language === "ar" ? "لوحة التداول" : "Trading Panel"}</div>
             <button
               type="button"
               onClick={() => setMobileView("chart")}
-              className="text-xs font-semibold text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted"
+              className="text-xs font-semibold text-muted-foreground border border-border/60 rounded-lg px-3 py-1.5 hover:bg-muted"
             >
               {language === "ar" ? "الرسم" : "Chart"}
             </button>
           </div>
-          <div className="relative">
+          <div className="relative flex-1 min-h-0 mt-4">
             <FuturesTradePanel
               symbol={selectedSymbol}
               language={language}
@@ -357,7 +375,7 @@ export default function Trading({ language = "en" }) {
               onAccountsChanged={refreshAccounts}
             />
             {!isLoadingAuth && !isAuthenticated ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/85 backdrop-blur-sm">
+              <div className="absolute inset-0 flex items-center justify-center bg-background/85 backdrop-blur-sm rounded-2xl">
                 <div className="max-w-xs text-center space-y-2 p-5 rounded-2xl border border-border/60 bg-card/90 shadow-lg">
                   <h3 className="text-base font-semibold text-foreground">{t.authTitle}</h3>
                   <p className="text-xs text-muted-foreground">{t.authBody}</p>

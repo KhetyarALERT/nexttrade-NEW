@@ -164,8 +164,7 @@ export default function FuturesTradePanel({
       percent: isAr ? "%" : "%",
       openLong: isAr ? "فتح شراء" : "Open Long",
       openShort: isAr ? "فتح بيع" : "Open Short",
-      disabledTitle: isAr ? "التداول غير مفعل بعد" : "Trading not enabled in Step 1",
-      note: isAr ? "تمت إضافة واجهة التداول للتخطيط فقط. سيتم تنفيذ الأوامر لاحقًا." : "Trading UI is added for layout only. Order execution will be implemented later.",
+      note: isAr ? "تداول العقود يحمل مخاطر. تأكد من إدارة المخاطر واستخدام الرافعة بحذر." : "Futures trading carries risk. Manage exposure carefully and use leverage responsibly.",
       account: isAr ? "الحساب" : "Account",
       balance: isAr ? "الرصيد" : "Balance",
       margin: isAr ? "الهامش" : "Margin",
@@ -400,12 +399,12 @@ export default function FuturesTradePanel({
     shortSlTrigger,
   ]);
 
-  const doDemoOpen = async (demoSide) => {
+  const submitOpenTrade = async (sideKey, demoMode) => {
     setBotsError("");
     setBotsBusy(true);
 
     try {
-      const tradingAccountId = demoAccount?.id || liveAccount?.id;
+      const tradingAccountId = demoMode ? (demoAccount?.id || liveAccount?.id) : (liveAccount?.id || demoAccount?.id);
       if (!tradingAccountId) {
         setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
         return;
@@ -419,12 +418,12 @@ export default function FuturesTradePanel({
         return;
       }
 
-      const sideKey = demoSide === "short" ? "SHORT" : "LONG";
+      const normalizedSide = sideKey === "SHORT" ? "SHORT" : "LONG";
       const lev = Number(leverage);
-      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(125, Math.max(1, lev)) : Number(demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
+      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(125, Math.max(1, lev)) : Number((demoMode ? demoAccount : liveAccount)?.default_leverage ?? demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
 
-      const tpRaw = sideKey === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
-      const slRaw = sideKey === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
+      const tpRaw = normalizedSide === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
+      const slRaw = normalizedSide === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
 
       const takeProfit = Number.isFinite(tpRaw) && tpRaw > 0 ? tpRaw : null;
       const stopLoss = Number.isFinite(slRaw) && slRaw > 0 ? slRaw : null;
@@ -433,7 +432,7 @@ export default function FuturesTradePanel({
         action: "openTrade",
         tradingAccountId,
         symbol,
-        side: sideKey,
+        side: normalizedSide,
         quantity,
         leverage: levSafe,
         entryPrice,
@@ -458,12 +457,12 @@ export default function FuturesTradePanel({
     }
   };
 
-  const doDemoClose = async () => {
+  const submitCloseTrade = async (demoMode) => {
     setBotsError("");
     setBotsBusy(true);
 
     try {
-      const tradingAccountId = demoAccount?.id || liveAccount?.id;
+      const tradingAccountId = demoMode ? (demoAccount?.id || liveAccount?.id) : (liveAccount?.id || demoAccount?.id);
       if (!tradingAccountId) {
         setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
         return;
@@ -493,7 +492,7 @@ export default function FuturesTradePanel({
         action: "closeTrade",
         tradeId: open.id,
         exitPrice,
-        reason: "bots_demo",
+        reason: demoMode ? "bots_demo" : "manual_panel",
       });
 
       if (!closeRes?.data?.success) {
@@ -1499,34 +1498,30 @@ export default function FuturesTradePanel({
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
               type="button"
-              disabled={!demoMode || botsBusy}
-              onClick={() => doDemoOpen("long")}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${demoMode ? "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25" : "bg-emerald-600/40 text-white/70 cursor-not-allowed"}`}
-              title={demoMode ? undefined : labels.disabledTitle}
+              disabled={botsBusy}
+              onClick={() => submitOpenTrade("LONG", demoMode)}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${botsBusy ? "bg-emerald-600/60 text-white/80 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25"}`}
             >
-              {demoMode ? (botsBusy ? "..." : labels.demoOpenLong) : labels.openLong}
+              {botsBusy ? "..." : demoMode ? labels.demoOpenLong : labels.openLong}
             </button>
             <button
               type="button"
-              disabled={!demoMode || botsBusy}
-              onClick={() => doDemoOpen("short")}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${demoMode ? "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25" : "bg-rose-600/40 text-white/70 cursor-not-allowed"}`}
-              title={demoMode ? undefined : labels.disabledTitle}
+              disabled={botsBusy}
+              onClick={() => submitOpenTrade("SHORT", demoMode)}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${botsBusy ? "bg-rose-600/60 text-white/80 cursor-not-allowed" : "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25"}`}
             >
-              {demoMode ? (botsBusy ? "..." : labels.demoOpenShort) : labels.openShort}
+              {botsBusy ? "..." : demoMode ? labels.demoOpenShort : labels.openShort}
             </button>
           </div>
 
-          {demoMode ? (
-            <button
-              type="button"
-              onClick={doDemoClose}
-              disabled={botsBusy}
-              className={`mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all ${botsBusy ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : "bg-muted text-foreground hover:bg-secondary"}`}
-            >
-              {botsBusy ? "..." : labels.demoClose}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => submitCloseTrade(demoMode)}
+            disabled={botsBusy}
+            className={`mt-3 w-full py-2.5 rounded-xl text-sm font-medium transition-all ${botsBusy ? "bg-muted/60 text-muted-foreground cursor-not-allowed" : "bg-muted text-foreground hover:bg-secondary"}`}
+          >
+            {botsBusy ? "..." : demoMode ? labels.demoClose : labels.close}
+          </button>
 
           {demoMode && botsError ? (
             <div className="mt-2 text-[11px] text-destructive">
@@ -1541,7 +1536,7 @@ export default function FuturesTradePanel({
   };
 
   return (
-    <aside className="h-full w-full bg-background text-foreground border-l border-border flex flex-col overflow-hidden">
+    <aside className="h-full w-full bg-card/70 text-foreground border border-border/60 rounded-2xl shadow-xl backdrop-blur flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="p-3 border-b border-border shrink-0 bg-card">
           <TabsList className="bg-muted">
