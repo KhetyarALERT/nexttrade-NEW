@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Wallet, ArrowDownToLine, ShieldAlert } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { useAuth } from "@/lib/AuthContext";
+import AuthRequiredState from "@/components/AuthRequiredState";
 
 export default function OnChainDeposit({ language = "en" }) {
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const t = language === "ar"
     ? {
         title: "إيداع على السلسلة",
@@ -17,6 +20,10 @@ export default function OnChainDeposit({ language = "en" }) {
         openAssets: "افتح صفحة الإيداع",
         assets: "الأصول",
         warning: "تحذير: إرسال العملة على شبكة خاطئة قد يؤدي لفقدانها نهائياً.",
+        accessTitle: "سجّل الدخول لعرض العنوان",
+        accessDescription: "يرجى تسجيل الدخول للوصول إلى عنوان الإيداع وربط الأصول بحسابك.",
+        accessPrimary: "تسجيل الدخول",
+        accessSecondary: "العودة للرئيسية",
       }
     : {
         title: "On-chain Deposit",
@@ -27,7 +34,24 @@ export default function OnChainDeposit({ language = "en" }) {
         openAssets: "Open deposit page",
         assets: "Assets",
         warning: "Warning: sending via the wrong network may permanently lose funds.",
+        accessTitle: "Log in to view deposit details",
+        accessDescription: "Please log in to access your deposit address and link assets to your account.",
+        accessPrimary: "Log in",
+        accessSecondary: "Back to home",
       };
+
+  if (!isLoadingAuth && !isAuthenticated) {
+    return (
+      <AuthRequiredState
+        title={t.accessTitle}
+        description={t.accessDescription}
+        primaryActionLabel={t.accessPrimary}
+        secondaryActionLabel={t.accessSecondary}
+        secondaryActionHref={createPageUrl("Home")}
+        onPrimaryAction={navigateToLogin}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>

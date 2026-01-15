@@ -28,6 +28,11 @@ export const investingI18n = {
     howItWorksP1: "Choose your USDT wallet, enter an amount, then pick a lock period to earn APY.",
     howItWorksP2: "After the lock period ends, you can withdraw principal plus rewards.",
     howItWorksNote: "Note: Early unstaking may reduce earned rewards per product terms.",
+    riskTitle: "Risk disclosure",
+    riskBody: "Staking can involve lockups, market volatility, and platform risk. Only stake what you can afford to lock.",
+    eligibility: "Eligibility",
+    eligible: "Eligible",
+    depositToUnlock: "Deposit {amount} USDT to unlock.",
   },
   ar: {
     title: "الاستثمار",
@@ -58,6 +63,11 @@ export const investingI18n = {
     howItWorksP1: "اختر محفظة USDT، حدّد المبلغ، ثم اختر مدة القفل لتحصل على عائد سنوي (APY).",
     howItWorksP2: "بعد انتهاء مدة القفل يمكنك سحب المبلغ مع الأرباح.",
     howItWorksNote: "ملاحظة: الإلغاء المبكر قد يخصم جزءًا من الأرباح وفقًا لشروط المنتج.",
+    riskTitle: "تنبيه المخاطر",
+    riskBody: "قد يتضمن الاستثمار فترات قفل وتقلبات السوق ومخاطر المنصة. استثمر فقط المبلغ الذي يمكنك تجميده.",
+    eligibility: "الأهلية",
+    eligible: "مؤهل",
+    depositToUnlock: "أودع {amount} USDT للتفعيل.",
   },
 };
 

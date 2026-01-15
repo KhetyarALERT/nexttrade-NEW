@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { POSITION_VOUCHERS } from "@/lib/rewards-config";
 import { pickLang } from "@/lib/rewards-config";
@@ -36,9 +37,21 @@ export default function Rewards({ language = "en" }) {
 
   const defaultTasks = useMemo(
     () => [
-      { id: "deposit", title: language === "ar" ? "قم بالإيداع لأول مرة" : "Make your first deposit" },
-      { id: "trade", title: language === "ar" ? "نفّذ أول صفقة" : "Execute your first trade" },
-      { id: "enable2fa", title: language === "ar" ? "فعّل المصادقة الثنائية" : "Enable 2FA" },
+      {
+        id: "deposit",
+        title: language === "ar" ? "قم بالإيداع لأول مرة" : "Make your first deposit",
+        reward: language === "ar" ? "+10 نقاط" : "+10 pts",
+      },
+      {
+        id: "trade",
+        title: language === "ar" ? "نفّذ أول صفقة" : "Execute your first trade",
+        reward: language === "ar" ? "+20 نقاط" : "+20 pts",
+      },
+      {
+        id: "enable2fa",
+        title: language === "ar" ? "فعّل المصادقة الثنائية" : "Enable 2FA",
+        reward: language === "ar" ? "+5 نقاط" : "+5 pts",
+      },
     ],
     [language]
   );
@@ -49,6 +62,18 @@ export default function Rewards({ language = "en" }) {
   const [eligibility, setEligibility] = useState({});
   const completedTasks = tasks.filter((task) => task.done).length;
   const taskProgress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
+  const voucherGroups = useMemo(() => ([
+    {
+      id: "welcome",
+      title: language === "ar" ? "مكافآت الترحيب" : "Welcome bonuses",
+      ids: ["signup", "verify", "first_deposit", "first_stake"],
+    },
+    {
+      id: "performance",
+      title: language === "ar" ? "مكافآت الأداء" : "Performance bonuses",
+      ids: ["deposit_500", "zero_fee_5"],
+    },
+  ]), [language]);
 
   useEffect(() => {
     try {
@@ -241,12 +266,12 @@ export default function Rewards({ language = "en" }) {
               <div className="rounded-xl border border-border bg-card p-4 space-y-2">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Trophy className="h-4 w-4 text-amber-500" />
-                  {language === "ar" ? "كيف تكسب أسرع" : "Earn faster"}
+                  {language === "ar" ? "نصائح سريعة" : "Quick tips"}
                 </div>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>{language === "ar" ? "قم بإيداع صغير لفتح قسيمة الترحيب." : "Make a small deposit to unlock the welcome voucher."}</li>
-                  <li>{language === "ar" ? "أكمل أول صفقة لإطلاق مكافأة التداول." : "Complete your first trade to activate a trading reward."}</li>
-                  <li>{language === "ar" ? "فعّل 2FA للحصول على نقطة أمان إضافية." : "Enable 2FA to gain a security bonus."}</li>
+                  <li>{language === "ar" ? "أكمل أول إيداع لفتح قسيمة ترحيبية." : "Make your first deposit to unlock a welcome voucher."}</li>
+                  <li>{language === "ar" ? "نفّذ صفقتك الأولى لرفع فرص المكافآت." : "Execute your first trade to boost rewards."}</li>
+                  <li>{language === "ar" ? "فعّل 2FA لتعزيز أمان الحساب." : "Enable 2FA to strengthen account security."}</li>
                 </ul>
               </div>
             </CardContent>
@@ -303,8 +328,13 @@ export default function Rewards({ language = "en" }) {
                   <span className={`text-sm ${task.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                     {task.title}
                   </span>
-                  <span className={`text-xs font-medium ${task.done ? "text-emerald-600" : "text-muted-foreground"}`}>
-                    {task.done ? (language === "ar" ? "تم" : "Done") : (language === "ar" ? "ابدأ" : "Start")}
+                  <span className="flex items-center gap-3">
+                    <span className="text-[10px] rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                      {task.reward}
+                    </span>
+                    <span className={`text-xs font-medium ${task.done ? "text-emerald-600" : "text-muted-foreground"}`}>
+                      {task.done ? (language === "ar" ? "تم" : "Done") : (language === "ar" ? "ابدأ" : "Start")}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -326,42 +356,60 @@ export default function Rewards({ language = "en" }) {
                 {t.vouchersSubtitle}
               </p>
 
-              {POSITION_VOUCHERS.milestones.map((v) => {
-                const claimed = Boolean(voucherClaims?.[v.id]);
-                const eligible = v.id === "signup" ? true : Boolean(eligibility?.[v.id]);
-                const disabled = claimed || !eligible;
-                return (
-                  <div key={v.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-lg border border-border">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                      <Gift className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-foreground">{pickLang(language, v.title)}</p>
-                      <p className="text-xs text-muted-foreground">{pickLang(language, v.condition)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{pickLang(language, v.reward)}</p>
-                      {v.expiry ? (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {language === "ar" ? "ينتهي:" : "Expires:"} {v.expiry}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge className={claimed ? "bg-slate-500" : eligible ? (v.status === "New" ? "bg-green-500" : "bg-blue-500") : "bg-slate-400"}>
-                        {claimed ? t.claimed : eligible ? (v.status || t.eligible) : t.notEligible}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant={claimed ? "outline" : "default"}
-                        className={claimed ? "" : "bg-blue-600 hover:bg-blue-700"}
-                        disabled={disabled}
-                        onClick={() => claimVoucher(v.id)}
-                      >
-                        {claimed ? t.claimed : t.claim}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+              <Accordion type="multiple" defaultValue={voucherGroups.map((g) => g.id)} className="space-y-3">
+                {voucherGroups.map((group) => (
+                  <AccordionItem key={group.id} value={group.id} className="border-border rounded-xl">
+                    <AccordionTrigger className="px-3 py-2 text-sm">
+                      {group.title}
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3 px-3 pb-3">
+                      {POSITION_VOUCHERS.milestones.filter((v) => group.ids.includes(v.id)).map((v) => {
+                        const claimed = Boolean(voucherClaims?.[v.id]);
+                        const eligible = v.id === "signup" ? true : Boolean(eligibility?.[v.id]);
+                        const disabled = claimed || !eligible;
+                        return (
+                          <div key={v.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-lg border border-border">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                              <Gift className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-bold text-foreground">{pickLang(language, v.title)}</p>
+                              <p className="text-xs text-muted-foreground">{pickLang(language, v.condition)}</p>
+                              <Badge variant="secondary" className="mt-2 text-[10px]">
+                                {pickLang(language, v.reward)}
+                              </Badge>
+                              {v.expiry ? (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {language === "ar" ? "ينتهي:" : "Expires:"} {v.expiry}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className={claimed ? "bg-slate-500" : eligible ? (v.status === "New" ? "bg-green-500" : "bg-blue-500") : "bg-slate-400"}>
+                                {claimed ? t.claimed : eligible ? (v.status || t.eligible) : t.notEligible}
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant={claimed ? "outline" : "default"}
+                                className={claimed ? "" : "bg-blue-600 hover:bg-blue-700"}
+                                disabled={disabled}
+                                onClick={() => claimVoucher(v.id)}
+                              >
+                                {claimed ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    {t.claimed}
+                                  </span>
+                                ) : t.claim}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             </CardContent>
           </Card>
         </div>

@@ -557,60 +557,60 @@ export default function FuturesTradePanel({
 
     return (
       <>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setMode("cross")}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${mode === "cross" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`px-4 py-2 rounded-lg text-sm transition-all ${mode === "cross" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.cross}
           </button>
           <button
             type="button"
             onClick={() => setMode("isolated")}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-all ${mode === "isolated" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`px-4 py-2 rounded-lg text-sm transition-all ${mode === "isolated" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.isolated}
           </button>
           <div className="ml-auto text-[11px] text-muted-foreground">{demoMode ? labels.demoTrade : labels.demo}</div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setSide("open")}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${side === "open" ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-sm font-medium transition-all ${side === "open" ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.open}
           </button>
           <button
             type="button"
             onClick={() => setSide("close")}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${side === "close" ? "bg-secondary text-secondary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-sm font-medium transition-all ${side === "close" ? "bg-secondary text-secondary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.close}
           </button>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <button
             type="button"
             onClick={() => setOrderType("limit")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "limit" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "limit" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.limit}
           </button>
           <button
             type="button"
             onClick={() => setOrderType("market")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "market" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "market" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.market}
           </button>
           <button
             type="button"
             onClick={() => setOrderType("trigger")}
-            className={`px-3 py-1.5 rounded-lg transition-all ${orderType === "trigger" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "trigger" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
           >
             {labels.trigger}
           </button>

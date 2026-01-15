@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -21,6 +22,7 @@ function normalizeBinanceSymbol(sym) {
 }
 
 export default function Trading({ language = "en" }) {
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
     const stored = localStorage.getItem("trading_symbol");
     const normalized = normalizeBinanceSymbol(stored || "BTCUSDT");
@@ -215,8 +217,8 @@ export default function Trading({ language = "en" }) {
 
   const t = useMemo(() => {
     return language === "ar"
-      ? { last: "آخر سعر", change: "تغير 24س" }
-      : { last: "Last", change: "24h" };
+      ? { last: "آخر سعر", change: "تغير 24س", authTitle: "سجّل الدخول لبيانات مباشرة", authBody: "سجّل الدخول لعرض الرسم البياني الحقيقي وتنفيذ الأوامر.", authAction: "تسجيل الدخول" }
+      : { last: "Last", change: "24h", authTitle: "Log in for live data", authBody: "Log in to view real-time charts and place orders.", authAction: "Log in" };
   }, [language]);
 
   return (
@@ -289,7 +291,7 @@ export default function Trading({ language = "en" }) {
             mobileView === "trade" ? "hidden lg:flex" : "flex"
           }`}
         >
-          <div className="flex-1 min-h-0">
+          <div className="relative flex-1 min-h-0">
             <BinanceFuturesChart
               symbol={selectedSymbol}
               language={language}
@@ -297,6 +299,24 @@ export default function Trading({ language = "en" }) {
               positionTrade={openTradeForSymbol}
               pendingOrders={pendingOrdersForSymbol}
             />
+            {!isLoadingAuth && !isAuthenticated ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                <div className="max-w-md text-center space-y-3 p-6 rounded-2xl border border-border/60 bg-card/90 shadow-lg">
+                  <div className="mx-auto w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                    <Lock className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">{t.authTitle}</h3>
+                  <p className="text-sm text-muted-foreground">{t.authBody}</p>
+                  <button
+                    type="button"
+                    onClick={navigateToLogin}
+                    className="mt-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    {t.authAction}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="h-[320px] min-h-[240px] max-h-[50vh]">
             <FuturesActivityTabs
@@ -327,14 +347,31 @@ export default function Trading({ language = "en" }) {
               {language === "ar" ? "الرسم" : "Chart"}
             </button>
           </div>
-          <FuturesTradePanel
-            symbol={selectedSymbol}
-            language={language}
-            liveAccount={liveAccount}
-            demoAccount={demoAccount}
-            onTradesChanged={refreshTrades}
-            onAccountsChanged={refreshAccounts}
-          />
+          <div className="relative">
+            <FuturesTradePanel
+              symbol={selectedSymbol}
+              language={language}
+              liveAccount={liveAccount}
+              demoAccount={demoAccount}
+              onTradesChanged={refreshTrades}
+              onAccountsChanged={refreshAccounts}
+            />
+            {!isLoadingAuth && !isAuthenticated ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/85 backdrop-blur-sm">
+                <div className="max-w-xs text-center space-y-2 p-5 rounded-2xl border border-border/60 bg-card/90 shadow-lg">
+                  <h3 className="text-base font-semibold text-foreground">{t.authTitle}</h3>
+                  <p className="text-xs text-muted-foreground">{t.authBody}</p>
+                  <button
+                    type="button"
+                    onClick={navigateToLogin}
+                    className="mt-1 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                  >
+                    {t.authAction}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </section>
       </main>
     </div>

@@ -255,9 +255,11 @@ const TokenListPanel = ({
   onFiltersChange,
   watchlist,
   onToggleWatchlist,
+  walletReady,
   t,
   isRtl,
 }) => {
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const displayTokens = useMemo(() => {
     let list = [...tokens];
     if (filters.minLiquidity) {
@@ -299,6 +301,9 @@ const TokenListPanel = ({
     return list;
   }, [tokens, filters, mode, sortBy, watchlist]);
 
+  const shouldShowConnectHint = !walletReady && displayTokens.length === 0;
+  const shouldShowWatchlistHint = mode === 'watchlist' && displayTokens.length === 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
       <div className={cn('flex flex-wrap items-center gap-2 rounded-xl border border-border/50 bg-background/60 px-3 py-2 shadow-sm', isRtl && 'flex-row-reverse text-right')}>
@@ -338,6 +343,25 @@ const TokenListPanel = ({
           </Tooltip>
           <HelpTooltip text={t.watchlistHelp} />
         </div>
+        {mode === 'watchlist' ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full px-4 text-xs"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(watchlist.join("\n"));
+                toast.message(t.exportSuccess);
+              } catch {
+                toast.message(t.exportSuccess);
+              }
+            }}
+            disabled={watchlist.length === 0}
+          >
+            {t.exportWatchlist}
+          </Button>
+        ) : null}
         <div className={cn('ml-auto flex items-center gap-2', isRtl && 'ml-0 mr-auto')}>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{t.sort}</span>
@@ -362,25 +386,36 @@ const TokenListPanel = ({
             </SelectContent>
           </Select>
         </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full px-4 text-xs"
+          onClick={() => setFiltersOpen((prev) => !prev)}
+        >
+          {filtersOpen ? t.hideFilters : t.showFilters}
+        </Button>
       </div>
-      <div className="space-y-2">
-        <div className={cn('flex items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse')}>
-          <span>{t.searchLabel}</span>
-          <HelpTooltip text={t.searchHelp} />
-        </div>
-        <div className="relative">
-          <Search className={cn('pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground', isRtl && 'left-auto right-3')} />
-          <Input
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={t.searchPlaceholder}
-            title={t.searchHelp}
-            aria-label={t.searchHelp}
-            className={cn('pl-9', isRtl && 'pl-3 pr-9')}
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+      {filtersOpen ? (
+        <>
+          <div className="space-y-2">
+            <div className={cn('flex items-center gap-2 text-xs text-muted-foreground', isRtl && 'flex-row-reverse')}>
+              <span>{t.searchLabel}</span>
+              <HelpTooltip text={t.searchHelp} />
+            </div>
+            <div className="relative">
+              <Search className={cn('pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground', isRtl && 'left-auto right-3')} />
+              <Input
+                value={searchQuery}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={t.searchPlaceholder}
+                title={t.searchHelp}
+                aria-label={t.searchHelp}
+                className={cn('pl-9', isRtl && 'pl-3 pr-9')}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <div className={cn('flex items-center gap-2 text-[11px] text-muted-foreground', isRtl && 'flex-row-reverse')}>
             <span>{t.minLiquidityShort}</span>
@@ -457,7 +492,9 @@ const TokenListPanel = ({
             <SelectItem value="168">7d</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+          </div>
+        </>
+      ) : null}
       <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
         {isLoading ? (
           <div className="space-y-2">
@@ -470,8 +507,10 @@ const TokenListPanel = ({
             {t.dataUnavailable}
           </div>
         ) : displayTokens.length === 0 ? (
-          <div className="rounded-lg border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground">
-            {t.noTokensFound}
+          <div className="rounded-lg border border-border/50 bg-muted/20 p-4 text-sm text-muted-foreground space-y-2">
+            <div>{t.noTokensFound}</div>
+            {shouldShowConnectHint ? <div>{t.connectWalletHint}</div> : null}
+            {shouldShowWatchlistHint ? <div>{t.watchlistEmpty}</div> : null}
           </div>
         ) : (
           displayTokens.map((token) => (
@@ -1411,6 +1450,7 @@ export default function MemeCoins({ language = 'en' }) {
               onFiltersChange={setFilters}
               watchlist={watchlist}
               onToggleWatchlist={handleToggleWatchlist}
+              walletReady={connected}
               t={t}
               isRtl={isRtl}
             />
@@ -1468,6 +1508,7 @@ export default function MemeCoins({ language = 'en' }) {
               onFiltersChange={setFilters}
               watchlist={watchlist}
               onToggleWatchlist={handleToggleWatchlist}
+              walletReady={connected}
               t={t}
               isRtl={isRtl}
             />
@@ -1519,6 +1560,7 @@ export default function MemeCoins({ language = 'en' }) {
                 onFiltersChange={setFilters}
                 watchlist={watchlist}
                 onToggleWatchlist={handleToggleWatchlist}
+                walletReady={connected}
                 t={t}
                 isRtl={isRtl}
               />
