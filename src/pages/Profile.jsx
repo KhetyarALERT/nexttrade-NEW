@@ -64,6 +64,8 @@ import NotificationPreferencesTab from "@/components/profile/NotificationPrefere
 import { fetchCurrentUser, updateCurrentUser } from "@/api/functions";
 import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
+import { useAuth } from "@/lib/AuthContext";
+import AuthRequiredState from "@/components/AuthRequiredState";
 
 const translations = {
   en: {
@@ -102,7 +104,11 @@ const translations = {
     shareInvite: "Share invite",
     inviteMessage: "Invite friends to NextTrade",
     inviteMessageBody: "Join NextTrade using my referral link:",
-    shareNotSupported: "Sharing isn't available here. Link copied instead."
+    shareNotSupported: "Sharing isn't available here. Link copied instead.",
+    accessTitle: "Log in to access your account",
+    accessDescription: "Please log in to view your assets, referrals, and account settings.",
+    accessPrimary: "Log in",
+    accessSecondary: "Back to home",
   },
   ar: {
     heroTitle: "مركز الحساب",
@@ -140,7 +146,11 @@ const translations = {
     shareInvite: "مشاركة الدعوة",
     inviteMessage: "ادعُ أصدقاءك إلى NextTrade",
     inviteMessageBody: "انضم إلى NextTrade عبر رابط الإحالة الخاص بي:",
-    shareNotSupported: "المشاركة غير متاحة هنا. تم نسخ الرابط بدلاً من ذلك."
+    shareNotSupported: "المشاركة غير متاحة هنا. تم نسخ الرابط بدلاً من ذلك.",
+    accessTitle: "سجّل الدخول للوصول إلى حسابك",
+    accessDescription: "يرجى تسجيل الدخول لعرض الأصول والإحالات وإعدادات الحساب.",
+    accessPrimary: "تسجيل الدخول",
+    accessSecondary: "العودة للرئيسية",
   }
 };
 
@@ -159,6 +169,7 @@ const normalizeUserProfile = (user = {}) => ({
 
 export default function Profile({ language = "en" }) {
   const t = translations[language] || translations.en;
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -226,9 +237,15 @@ export default function Profile({ language = "en" }) {
   }, []);
 
   useEffect(() => {
+    if (isLoadingAuth) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     loadUser();
     loadTradingAccounts();
-  }, [loadUser, loadTradingAccounts]);
+  }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts]);
 
   const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -348,7 +365,20 @@ export default function Profile({ language = "en" }) {
     return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
   }, []);
 
-  if (loading) {
+  if (!isLoadingAuth && !isAuthenticated) {
+    return (
+      <AuthRequiredState
+        title={t.accessTitle}
+        description={t.accessDescription}
+        primaryActionLabel={t.accessPrimary}
+        secondaryActionLabel={t.accessSecondary}
+        secondaryActionHref={createPageUrl("Home")}
+        onPrimaryAction={navigateToLogin}
+      />
+    );
+  }
+
+  if (loading || isLoadingAuth) {
     return (
       <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
         <div className="mx-auto max-w-7xl space-y-6">

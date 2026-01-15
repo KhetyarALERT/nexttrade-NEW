@@ -30,6 +30,10 @@ export default function Investing({ language = "en" }) {
 
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const usdtWallet = wallets.find((wallet) => wallet?.currency === "USDT");
+  const usdtBalance = Number(usdtWallet?.balance || 0);
+  const minEligibility = 50;
+  const isEligible = usdtBalance >= minEligibility;
 
   const loadWallets = useCallback(async () => {
     setLoading(true);
@@ -64,8 +68,8 @@ export default function Investing({ language = "en" }) {
                 {t.staking}
               </Badge>
             </div>
-            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-2">{t.note}</p>
+            <p className="text-muted-foreground mt-2 text-base">{t.subtitle}</p>
+            <p className="text-sm text-muted-foreground mt-2">{t.note}</p>
           </div>
 
           <Button variant="outline" onClick={loadWallets} disabled={loading}>
@@ -80,10 +84,15 @@ export default function Investing({ language = "en" }) {
 
             <Card className="border-border shadow-sm">
               <CardHeader className="border-b border-border">
-                <CardTitle className="text-lg">{t.stakingVouchersTitle}</CardTitle>
+                <CardTitle className="text-lg flex flex-col gap-1">
+                  <span>{t.stakingVouchersTitle}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t.eligibility}: {isEligible ? t.eligible : t.depositToUnlock.replace("{amount}", String(minEligibility))}
+                  </span>
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
-                <p className="text-xs text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
+                <p className="text-sm text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
                 <div className="flex flex-wrap gap-2 mb-3">
                   <Badge className="rounded-full border-0 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-emerald-400/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-[11px] shadow-sm">
                     {t.promoNewUser}
@@ -92,7 +101,11 @@ export default function Investing({ language = "en" }) {
                     {t.promoFiveK}
                   </Badge>
                 </div>
-                <p className="text-[11px] text-muted-foreground mb-4">{t.minDepositNote}</p>
+                <p className="text-xs text-muted-foreground mb-4">{t.minDepositNote}</p>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 mb-4">
+                  <div className="font-semibold mb-1">{t.riskTitle}</div>
+                  <p>{t.riskBody}</p>
+                </div>
 
                 {/* Enhanced Mobile-First USDT Staking Card */}
                 <Card className="bg-card border-border text-foreground shadow-sm">
@@ -130,7 +143,7 @@ export default function Investing({ language = "en" }) {
                           <div className="overflow-x-auto -mx-3 sm:mx-0">
                             <table className="w-full text-sm border-collapse min-w-[300px]">
                               <thead>
-                                <tr className="text-xs text-muted-foreground">
+                                <tr className="text-xs text-muted-foreground sticky top-0 bg-card/95 backdrop-blur-sm">
                                   <th className="text-left py-2 pr-2 sm:pr-4 pl-3 sm:pl-0">{`${t.amount} (USDT)`}</th>
                                   {stakeTiers?.durations?.map((d) =>
                                   <th key={d} className="text-right py-2 px-1 sm:pl-4 whitespace-nowrap">
@@ -178,7 +191,7 @@ export default function Investing({ language = "en" }) {
               </CardContent>
             </Card>
           </div>
-          <Card className="border-border shadow-sm">
+          <Card className="border-border shadow-sm lg:order-last">
             <CardHeader className="border-b border-border">
               <CardTitle className="text-lg">{t.howItWorksTitle}</CardTitle>
             </CardHeader>

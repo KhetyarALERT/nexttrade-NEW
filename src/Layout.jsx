@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Rocket } from "lucide-react";
+import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Rocket, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -635,8 +635,18 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               )}
             </div>
 
-            {/* Mobile Menu Button - Hidden since we have bottom nav */}
+            {/* Mobile Menu Button */}
             <div className="md:hidden flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => setMobileMenuOpen((prev) => !prev)}
+                aria-label={language === "ar" ? "فتح القائمة" : "Open menu"}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
 
               {isMemeCoinsPage ? <SolanaNavWalletButton /> : <Web3ModalButton language={language} />}
@@ -672,8 +682,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           </div>
         </div>
 
-        {/* Mobile Menu - Hidden, using bottom nav instead */}
-        {false && mobileMenuOpen && (
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
           <div className="md:hidden glass-effect border-t border-border">
             <div className="px-4 py-6 space-y-4">
               {navigation.map((item) => {

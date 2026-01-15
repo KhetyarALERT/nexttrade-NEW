@@ -53,7 +53,11 @@ const translations = {
     entry: "Entry",
     pnlLabel: "PnL",
     price: "Price",
-    qty: "Qty"
+    qty: "Qty",
+    positionsHint: "Place your first trade to see open positions.",
+    ordersHint: "Set a limit or trigger order to track it here.",
+    referralHint: "Share your link to earn rewards when friends trade.",
+    voucherHint: "Complete tasks to unlock vouchers for trading boosts."
   },
   ar: {
     title: "لوحة التداول",
@@ -80,7 +84,11 @@ const translations = {
     entry: "الدخول",
     pnlLabel: "الربح",
     price: "السعر",
-    qty: "الكمية"
+    qty: "الكمية",
+    positionsHint: "نفّذ أول صفقة لرؤية المراكز المفتوحة.",
+    ordersHint: "ضع أمرًا محددًا أو تفعيلًا لمتابعته هنا.",
+    referralHint: "شارك رابطك لتكسب مكافآت عندما يتداول الأصدقاء.",
+    voucherHint: "أكمل المهام لفتح قسائم تعزز التداول."
   }
 };
 
@@ -95,12 +103,12 @@ const logActivity = (action, details) => {
   return logEntry;
 };
 
-const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg }) => (
-  <div className="rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm transition-shadow hover:shadow-md">
+const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg, emphasis = false, className = "" }) => (
+  <div className={`rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm transition-shadow hover:shadow-md ${emphasis ? "bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 border-blue-500/20" : ""} ${className}`}>
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-        <p className="text-2xl font-semibold text-foreground mt-2">{value}</p>
+        <p className={`font-semibold text-foreground mt-2 ${emphasis ? "text-3xl" : "text-2xl"}`}>{value}</p>
         {change !== undefined && (
           <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
@@ -108,7 +116,7 @@ const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accent
           </div>
         )}
       </div>
-      <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center`}>
+      <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center ${emphasis ? "shadow-lg shadow-blue-500/20" : ""}`}>
         <Icon className={`h-6 w-6 ${accent}`} />
       </div>
     </div>
@@ -355,6 +363,8 @@ export default function Dashboard({ language = "en" }) {
             icon={Wallet}
             accent="text-blue-600"
             accentBg="bg-blue-500/10"
+            emphasis
+            className="lg:col-span-2"
           />
           <StatCard 
             title={t.available} 
@@ -377,6 +387,8 @@ export default function Dashboard({ language = "en" }) {
             icon={TrendingUp}
             accent="text-cyan-600"
             accentBg="bg-cyan-500/10"
+            emphasis
+            className="lg:col-span-2"
           />
         </div>
 
@@ -418,9 +430,13 @@ export default function Dashboard({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-3 sm:p-4">
               {positions.length === 0 ? (
-                <div className="py-8 text-center">
+                <div className="py-8 text-center space-y-2">
                   <Activity className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
                   <p className="text-muted-foreground text-sm">{t.noPositions}</p>
+                  <p className="text-xs text-muted-foreground">{t.positionsHint}</p>
+                  <Button asChild size="sm" className="mt-2 bg-blue-600 hover:bg-blue-700">
+                    <Link to={createPageUrl("Futures")}>{t.trade}</Link>
+                  </Button>
                 </div>
               ) : (
                 <>
@@ -477,9 +493,13 @@ export default function Dashboard({ language = "en" }) {
             </CardHeader>
             <CardContent className="p-3 sm:p-4">
               {orders.length === 0 ? (
-                <div className="py-8 text-center">
+                <div className="py-8 text-center space-y-2">
                   <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
                   <p className="text-muted-foreground text-sm">{t.noOrders}</p>
+                  <p className="text-xs text-muted-foreground">{t.ordersHint}</p>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to={createPageUrl("Futures")}>{t.trade}</Link>
+                  </Button>
                 </div>
               ) : (
                 <>
@@ -547,7 +567,7 @@ export default function Dashboard({ language = "en" }) {
                 ))}
               </div>
               
-              <div className="rounded-xl bg-muted/30 border border-border/40 p-3">
+              <div className="rounded-xl bg-muted/30 border border-border/40 p-3 space-y-2">
                 <p className="text-[10px] text-muted-foreground uppercase mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 font-mono font-bold text-sm">
@@ -563,6 +583,7 @@ export default function Dashboard({ language = "en" }) {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">{t.referralHint}</p>
               </div>
             </CardContent>
           </Card>
@@ -578,8 +599,14 @@ export default function Dashboard({ language = "en" }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3">
-              <div className="space-y-2">
-                {vouchers.map(voucher => (
+              {vouchers.length === 0 ? (
+                <div className="py-6 text-center space-y-2">
+                  <Gift className="h-10 w-10 mx-auto text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">{t.voucherHint}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {vouchers.map(voucher => (
                   <div key={voucher.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
                       <Gift className="h-5 w-5 text-white" />
@@ -592,8 +619,9 @@ export default function Dashboard({ language = "en" }) {
                       {voucher.status}
                     </Badge>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

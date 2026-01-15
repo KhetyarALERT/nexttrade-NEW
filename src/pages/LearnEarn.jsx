@@ -19,6 +19,7 @@ export default function LearnEarn({ language = "en" }) {
       title: "Learn & Earn",
       subtitle: "Short lessons + quick checks. Learn safely and earn points as you go.",
       points: "Points",
+      pointsHelp: "Complete lessons and quizzes to earn points and unlock rewards.",
       yourProgress: "Your progress",
       start: "Start",
       continue: "Continue",
@@ -30,6 +31,7 @@ export default function LearnEarn({ language = "en" }) {
       earned: "You earned",
       pts: "pts",
       disclaimer: "Educational content only. Points are demo rewards and may change.",
+      lessonsComplete: "Lessons completed",
       courses: {
         basics: {
           title: "Getting Started",
@@ -97,6 +99,7 @@ export default function LearnEarn({ language = "en" }) {
       title: "تعلّم واربح",
       subtitle: "دروس قصيرة + اختبارات سريعة. تعلّم بأمان واكسب نقاطًا أثناء التقدّم.",
       points: "النقاط",
+      pointsHelp: "أكمل الدروس والاختبارات لكسب النقاط وفتح المكافآت.",
       yourProgress: "تقدّمك",
       start: "ابدأ",
       continue: "تابع",
@@ -108,6 +111,7 @@ export default function LearnEarn({ language = "en" }) {
       earned: "لقد ربحت",
       pts: "نقطة",
       disclaimer: "محتوى تعليمي فقط. النقاط تجريبية وقد تتغيّر.",
+      lessonsComplete: "الدروس المكتملة",
       courses: {
         basics: {
           title: "البدء من الصفر",
@@ -263,7 +267,8 @@ export default function LearnEarn({ language = "en" }) {
               </Badge>
             </div>
             <p className="text-muted-foreground mt-2">{t.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-2">{t.disclaimer}</p>
+            <p className="text-xs text-muted-foreground mt-2">{t.pointsHelp}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t.disclaimer}</p>
           </div>
         </div>
 
@@ -297,6 +302,9 @@ export default function LearnEarn({ language = "en" }) {
                       <span>{Math.round(progress * 100)}%</span>
                     </div>
                     <Progress value={progress * 100} className="h-2" />
+                    <div className="text-[11px] text-muted-foreground">
+                      {t.lessonsComplete}: {Math.min(courseState.lessonIndex || 0, lessonCount)} / {lessonCount}
+                    </div>
                   </div>
 
                   <div className="space-y-2 text-sm">
@@ -318,15 +326,15 @@ export default function LearnEarn({ language = "en" }) {
 
                   <div className="grid grid-cols-2 gap-2">
                     <Button
-                      variant="outline"
                       onClick={() => markLessonDone(key)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                       disabled={(courseState.lessonIndex || 0) >= lessonCount}
                     >
                       {(courseState.lessonIndex || 0) === 0 ? t.start : t.continue}
                     </Button>
                     <Button
+                      variant="outline"
                       onClick={() => takeQuiz(key)}
-                      className="bg-blue-600 hover:bg-blue-700"
                       disabled={(courseState.lessonIndex || 0) < lessonCount}
                     >
                       {t.takeQuiz}

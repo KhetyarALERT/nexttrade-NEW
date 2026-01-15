@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { CreditCard, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { useAuth } from "@/lib/AuthContext";
+import AuthRequiredState from "@/components/AuthRequiredState";
 
 export default function BuyWithCard({ language = "en" }) {
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const t = language === "ar"
     ? {
         title: "شراء بالبطاقة",
@@ -15,6 +18,10 @@ export default function BuyWithCard({ language = "en" }) {
         action: "استخدم الإيداع على السلسلة الآن",
         assets: "الأصول",
         safety: "نصيحة أمان: لا تشارك بيانات بطاقتك خارج الصفحات الرسمية.",
+        accessTitle: "سجّل الدخول للمتابعة",
+        accessDescription: "يرجى تسجيل الدخول لعرض أصولك وربط عمليات الشراء بحسابك.",
+        accessPrimary: "تسجيل الدخول",
+        accessSecondary: "العودة للرئيسية",
       }
     : {
         title: "Buy with Card",
@@ -23,7 +30,24 @@ export default function BuyWithCard({ language = "en" }) {
         action: "Use on-chain deposit now",
         assets: "Assets",
         safety: "Safety tip: never share your card details outside official pages.",
+        accessTitle: "Log in to continue",
+        accessDescription: "Please log in to view your assets and connect purchases to your account.",
+        accessPrimary: "Log in",
+        accessSecondary: "Back to home",
       };
+
+  if (!isLoadingAuth && !isAuthenticated) {
+    return (
+      <AuthRequiredState
+        title={t.accessTitle}
+        description={t.accessDescription}
+        primaryActionLabel={t.accessPrimary}
+        secondaryActionLabel={t.accessSecondary}
+        secondaryActionHref={createPageUrl("Home")}
+        onPrimaryAction={navigateToLogin}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
