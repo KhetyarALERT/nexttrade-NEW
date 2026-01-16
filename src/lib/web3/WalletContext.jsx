@@ -1,13 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { User } from '@/api/entities';
-import { 
+import {
   saveWalletConnection, 
   disconnectWallet as disconnectWalletBackend,
   updateWalletBalance as updateWalletBalanceBackend,
   updateWalletChain,
   getUserWallets
 } from '@/api/web3Wallets';
+import { getEthereumProvider } from '@/lib/web3/ethereumProvider';
 
 const WalletContext = createContext(null);
 
@@ -38,11 +39,13 @@ export function WalletProvider({ children }) {
   }, []);
 
   // Update balance for different wallet types
-  const updateBalance = useCallback(async (address, type = 'ethereum') => {
+  const updateBalance = useCallback(async (address, type = 'ethereum', walletProvider = null) => {
     if (!address) return;
     try {
-      if (type === 'ethereum' && window.ethereum) {
-        const balanceHex = await window.ethereum.request({
+      if (type === 'ethereum') {
+        const ethereumProvider = walletProvider || provider || window.ethereum;
+        if (!ethereumProvider) return;
+        const balanceHex = await ethereumProvider.request({
           method: 'eth_getBalance',
           params: [address, 'latest']
         });
@@ -66,15 +69,23 @@ export function WalletProvider({ children }) {
     } catch (err) {
       console.error('Failed to fetch balance:', err);
     }
-  }, []);
+  }, [provider]);
 
   // Connect Ethereum wallet (MetaMask, Coinbase, Trust, WalletConnect)
   const connectEthereumWallet = useCallback(async (specificWalletType = 'metamask') => {
-    if (!window.ethereum) {
-      throw new Error('Please install MetaMask or another Ethereum wallet');
+    const ethereumProvider = getEthereumProvider(window.ethereum, specificWalletType);
+    if (!ethereumProvider) {
+      const walletLabels = {
+        metamask: 'MetaMask',
+        coinbase: 'Coinbase Wallet',
+        trust: 'Trust Wallet',
+        walletconnect: 'WalletConnect'
+      };
+      const label = walletLabels[specificWalletType] || 'an Ethereum wallet';
+      throw new Error(`Please install ${label} or another Ethereum wallet`);
     }
 
-    const accounts = await window.ethereum.request({
+    const accounts = await ethereumProvider.request({
       method: 'eth_requestAccounts'
     });
 
@@ -85,11 +96,11 @@ export function WalletProvider({ children }) {
 
     const selectedAccount = accounts[0];
     setAccount(selectedAccount);
-    setProvider(window.ethereum);
+    setProvider(ethereumProvider);
     setWalletType('ethereum');
     setSelectedWalletType(specificWalletType);
 
-    const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+    const chainIdHex = await ethereumProvider.request({ method: 'eth_chainId' });
     const chainIdDecimal = parseInt(String(chainIdHex), 16);
     setChainId(chainIdDecimal);
     
@@ -99,7 +110,7 @@ export function WalletProvider({ children }) {
     else if (chainIdDecimal === 56) setNetworkName('BSC');
     else setNetworkName('Unknown');
 
-    await updateBalance(selectedAccount, 'ethereum');
+    await updateBalance(selectedAccount, 'ethereum', ethereumProvider);
 
     localStorage.setItem('walletConnected', 'true');
     localStorage.setItem('walletAccount', selectedAccount);
@@ -109,7 +120,7 @@ export function WalletProvider({ children }) {
     // Save to backend if user is authenticated
     if (currentUser) {
       try {
-        const balanceWei = await window.ethereum.request({
+        const balanceWei = await ethereumProvider.request({
           method: 'eth_getBalance',
           params: [selectedAccount, 'latest']
         });
@@ -272,7 +283,8 @@ export function WalletProvider({ children }) {
 
   // Handle account changes for Ethereum
   useEffect(() => {
-    if (walletType !== 'ethereum' || !window.ethereum) return;
+    const activeProvider = provider || window.ethereum;
+    if (walletType !== 'ethereum' || !activeProvider) return;
 
     const handleAccountsChanged = (accounts) => {
       if (accounts.length === 0) {
@@ -293,18 +305,18 @@ export function WalletProvider({ children }) {
       disconnectWallet();
     };
 
-    window.ethereum.on('accountsChanged', handleAccountsChanged);
-    window.ethereum.on('chainChanged', handleChainChanged);
-    window.ethereum.on('disconnect', handleDisconnect);
+    activeProvider.on('accountsChanged', handleAccountsChanged);
+    activeProvider.on('chainChanged', handleChainChanged);
+    activeProvider.on('disconnect', handleDisconnect);
 
     return () => {
-      if (window.ethereum.removeListener) {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-        window.ethereum.removeListener('disconnect', handleDisconnect);
+      if (activeProvider.removeListener) {
+        activeProvider.removeListener('accountsChanged', handleAccountsChanged);
+        activeProvider.removeListener('chainChanged', handleChainChanged);
+        activeProvider.removeListener('disconnect', handleDisconnect);
       }
     };
-  }, [account, walletType, updateBalance, disconnectWallet]);
+  }, [account, walletType, updateBalance, disconnectWallet, provider]);
 
   // Handle account changes for Solana
   useEffect(() => {
@@ -365,8 +377,17 @@ export function WalletProvider({ children }) {
     const savedSpecificType = localStorage.getItem('specificWalletType');
 
     if (wasConnected === 'true' && savedAccount) {
-      if (savedType === 'ethereum' && window.ethereum) {
-        window.ethereum.request({ method: 'eth_accounts' })
+      if (savedType === 'ethereum') {
+        const ethereumProvider = getEthereumProvider(window.ethereum, savedSpecificType || 'metamask');
+        if (!ethereumProvider) {
+          localStorage.removeItem('walletConnected');
+          localStorage.removeItem('walletAccount');
+          localStorage.removeItem('walletType');
+          localStorage.removeItem('specificWalletType');
+          return;
+        }
+
+        ethereumProvider.request({ method: 'eth_accounts' })
           .then(accounts => {
             // @ts-ignore
             if (accounts && accounts.length > 0 && accounts.includes(savedAccount)) {

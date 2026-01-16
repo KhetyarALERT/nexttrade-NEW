@@ -230,7 +230,8 @@ export function WalletButton({ language = 'en', className = '' }) {
       if (!window.ethereum) {
         if (isMobileDevice) {
           // MetaMask mobile deep link
-          window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+          const dappUrl = window.location.href.replace(/^https?:\/\//, '');
+          window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
         } else {
           window.open('https://metamask.io/download/', '_blank');
         }
