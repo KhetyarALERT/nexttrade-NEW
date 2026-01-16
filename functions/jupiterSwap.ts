@@ -3,6 +3,7 @@
 // Jupiter Swap Functions - Quotes and transaction building for POST_DEX tokens
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { checkRateLimit, getSolanaRpcUrl, okResponse } from './okxCore.ts';
 
 const JUPITER_QUOTE_BASE = 'https://quote-api.jup.ag/v6';
 
@@ -34,6 +35,30 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const { action, ...params } = body;
+
+    // ==================== SOLANA RPC PROXY ====================
+    if (!action && body?.jsonrpc && body?.method) {
+      const clientKey = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'anon';
+      if (!checkRateLimit(`solana_rpc_${clientKey}`)) {
+        return json(okResponse(false, null, { code: 'RATE_LIMITED', message: 'Too many requests' }), { status: 429 });
+      }
+
+      const rpcUrl = getSolanaRpcUrl();
+      const proxyRes = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const proxyData = await proxyRes.text();
+
+      return new Response(proxyData, {
+        status: proxyRes.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
     
     // ==================== GET QUOTE ====================
     if (action === 'getQuote') {

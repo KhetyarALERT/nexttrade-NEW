@@ -17,7 +17,7 @@ export function SolanaWalletProvider({ children }) {
   // Can be overridden via Vite env: VITE_SOLANA_RPC_URL
   const endpoint = useMemo(() => {
     const envUrl = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SOLANA_RPC_URL : null;
-    return envUrl || 'https://rpc.ankr.com/solana';
+    return envUrl || 'https://api.mainnet-beta.solana.com';
   }, []);
   
   // Configure supported wallets

@@ -32,7 +32,7 @@ function formatCompactPrice(v) {
 function normalizeSymbol(sym) {
   return String(sym || "")
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+    .replace(/[^A-Z0-9-]/g, "");
 }
 
 function EmptyState({ title, subtitle, icon: Icon }) {
@@ -327,12 +327,15 @@ export default function FuturesActivityTabs({
   symbol,
   language,
   trades = [],
+  dataSource = "demo",
+  accountId = null,
   onRefresh,
   selectedTradeId,
   onSelectTrade,
   onCloseTrade,
 }) {
   const [tab, setTab] = useState("positions");
+  const isOkx = dataSource === "okx";
   const [markBySymbol, setMarkBySymbol] = useState({});
 
   const [tpSlOpen, setTpSlOpen] = useState(false);
@@ -518,6 +521,10 @@ export default function FuturesActivityTabs({
   };
 
   const submitTpSl = async () => {
+    if (isOkx) {
+      setTpSlError(labels.common.updateFailed);
+      return;
+    }
     if (!tpSlTrade?.id) return;
     setTpSlError("");
     setTpSlBusy(true);
@@ -555,6 +562,7 @@ export default function FuturesActivityTabs({
 
   // Auto-trigger TP/SL on open positions using live mark prices.
   useEffect(() => {
+    if (isOkx) return;
     if (!openPositions.length) return;
 
     const toClose = [];
@@ -682,15 +690,25 @@ export default function FuturesActivityTabs({
     if (!id) return;
     setCancelBusyId(id);
     try {
-      if (o.kind === "PENDING") {
-        if (!o?.raw?.id) return;
-        await base44.functions.invoke("tradingAccount", { action: "cancelOrder", tradeId: o.raw.id });
-      } else if (o.kind === "TP") {
-        if (!o?.raw?.id) return;
-        await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, takeProfit: null });
-      } else if (o.kind === "SL") {
-        if (!o?.raw?.id) return;
-        await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, stopLoss: null });
+      if (isOkx) {
+        if (!accountId || !o?.raw?.instId || !o?.raw?.id) return;
+        await base44.functions.invoke("okxTrading", {
+          action: "cancelOrder",
+          accountId,
+          instId: o.raw.instId,
+          orderId: o.raw.id,
+        });
+      } else {
+        if (o.kind === "PENDING") {
+          if (!o?.raw?.id) return;
+          await base44.functions.invoke("tradingAccount", { action: "cancelOrder", tradeId: o.raw.id });
+        } else if (o.kind === "TP") {
+          if (!o?.raw?.id) return;
+          await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, takeProfit: null });
+        } else if (o.kind === "SL") {
+          if (!o?.raw?.id) return;
+          await base44.functions.invoke("tradingAccount", { action: "updateTrade", tradeId: o.raw.id, stopLoss: null });
+        }
       }
     } finally {
       await onRefresh?.();
@@ -1096,6 +1114,8 @@ FuturesActivityTabs.propTypes = {
   symbol: PropTypes.string.isRequired,
   language: PropTypes.string,
   trades: PropTypes.array,
+  dataSource: PropTypes.string,
+  accountId: PropTypes.string,
   onRefresh: PropTypes.func,
   selectedTradeId: PropTypes.string,
   onSelectTrade: PropTypes.func,

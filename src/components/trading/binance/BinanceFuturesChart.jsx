@@ -104,7 +104,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   }, [onPriceUpdate]);
 
   const normalizedSymbol = useMemo(
-    () => String(symbol || "").toUpperCase().replace(/[^A-Z0-9]/g, ""),
+    () => String(symbol || "").toUpperCase().replace(/[^A-Z0-9-]/g, ""),
     [symbol],
   );
 
@@ -897,7 +897,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       <div ref={containerRef} className="flex-1 min-h-0 relative">
         {/* Symbol watermark */}
         <div className="absolute top-3 left-3 text-xs font-medium text-muted-foreground/40 dark:text-muted-foreground/50 select-none pointer-events-none z-10">
-          {normalizedSymbol || symbol}
+          {String(symbol || normalizedSymbol)}
         </div>
       </div>
     </div>

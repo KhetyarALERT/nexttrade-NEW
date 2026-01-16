@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/lib/web3/WalletContext';
+import { useWalletConnect } from '@/lib/web3/WalletConnectProvider';
 import { Wallet, ChevronDown, Copy, ExternalLink, LogOut, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -60,6 +61,7 @@ export function WalletButton({ language = 'en', className = '' }) {
     walletType,
     networkName
   } = useWallet();
+  const { enabled: walletConnectEnabled, initError: walletConnectError } = useWalletConnect();
 
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -256,6 +258,10 @@ export function WalletButton({ language = 'en', className = '' }) {
   const handleConnectWalletConnect = async () => {
     setShowConnectDialog(false);
     try {
+      if (!walletConnectEnabled || walletConnectError) {
+        toast.warning(language === 'ar' ? 'WalletConnect غير متاح؛ استخدم Phantom أو Solflare' : 'WalletConnect unavailable; use Phantom/Solflare');
+        return;
+      }
       if (!window.ethereum) {
         toast.info('Please install a Web3 wallet first');
         return;
@@ -392,12 +398,14 @@ export function WalletButton({ language = 'en', className = '' }) {
                 showMobileHint
               />
 
-              <WalletOption
-                onClick={handleConnectWalletConnect}
-                icon="/wallets/walletconnect.svg"
-                name={t.walletConnect}
-                desc={t.walletConnectDesc}
-              />
+              {walletConnectEnabled && !walletConnectError && (
+                <WalletOption
+                  onClick={handleConnectWalletConnect}
+                  icon="/wallets/walletconnect.svg"
+                  name={t.walletConnect}
+                  desc={t.walletConnectDesc}
+                />
+              )}
 
               <WalletOption
                 onClick={handleConnectCoinbase}

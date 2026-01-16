@@ -39,7 +39,12 @@ async function fetchWithFallback(path, options) {
 const SOLANA_RPC =
   typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SOLANA_RPC_URL
     ? String(import.meta.env.VITE_SOLANA_RPC_URL)
-    : 'https://rpc.ankr.com/solana';
+    : 'https://api.mainnet-beta.solana.com';
+
+const SOLANA_RPC_PROXY =
+  typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SOLANA_RPC_PROXY
+    ? String(import.meta.env.VITE_SOLANA_RPC_PROXY)
+    : '';
 
 // Common token addresses on Solana
 export const TOKENS = {
@@ -152,7 +157,7 @@ export async function executeSwap(swapTransaction, wallet) {
     // Sign and send transaction
     const signedTransaction = await wallet.signTransaction(transaction);
     
-    const connection = new Connection(SOLANA_RPC, 'confirmed');
+    const connection = new Connection(SOLANA_RPC_PROXY || SOLANA_RPC, 'confirmed');
     const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
       skipPreflight: false,
       maxRetries: 3,

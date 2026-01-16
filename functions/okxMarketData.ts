@@ -3,8 +3,9 @@
 // OKX Market Data - Public endpoints for instruments, tickers, candles
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { okResponse } from './okxCore.ts';
 
-const OKX_API_URL = 'https://www.okx.com';
+const OKX_API_URL = Deno.env.get('OKX_BASE_URL') || 'https://www.okx.com';
 
 // Simple cache
 const dataCache = new Map();
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch instruments' } }, { status: 500 });
+        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch instruments' }), { status: 502 });
       }
       
       const instruments = (result.data || []).map(i => ({
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch tickers' } }, { status: 500 });
+        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch tickers' }), { status: 502 });
       }
       
       const tickers = (result.data || []).map(t => ({
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch candles' } }, { status: 500 });
+        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch candles' }), { status: 502 });
       }
       
       const candles = (result.data || []).map(c => ({
@@ -138,6 +139,30 @@ Deno.serve(async (req) => {
       
       setCache(cacheKey, candles);
       return Response.json({ ok: true, data: candles });
+    }
+
+    // ==================== GET MARK PRICE ====================
+    if (action === 'getMarkPrice') {
+      const { instId } = params;
+      if (!instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID', message: 'instId required' } }, { status: 400 });
+      }
+
+      const cacheKey = `okx_mark_${instId}`;
+      const cached = getCached(cacheKey);
+      if (cached) return Response.json({ ok: true, data: cached });
+
+      const endpoint = `/api/v5/public/mark-price?instType=SWAP&instId=${instId}`;
+      const res = await fetch(`${OKX_API_URL}${endpoint}`);
+      const result = await res.json();
+
+      if (result.code !== '0') {
+        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch mark price' }), { status: 502 });
+      }
+
+      const mark = result.data?.[0] || null;
+      setCache(cacheKey, mark);
+      return Response.json({ ok: true, data: mark });
     }
     
     return Response.json({ ok: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });

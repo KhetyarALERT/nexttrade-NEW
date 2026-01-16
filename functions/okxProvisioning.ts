@@ -3,87 +3,105 @@
 // OKX Provisioning - Create subaccounts, API keys, configure accounts
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import {
+  auditLog,
+  decryptSecret,
+  encryptSecret,
+  generateSubAcctName,
+  getMasterCredentials,
+  okResponse,
+  okxRequest,
+} from './okxCore.ts';
 
-const OKX_API_URL = 'https://www.okx.com';
-
-async function generateOkxSignature(timestamp, method, requestPath, body, secretKey) {
-  const prehash = timestamp + method.toUpperCase() + requestPath + body;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secretKey);
-  const msgData = encoder.encode(prehash);
-  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
-}
-
-async function okxRequest(method, endpoint, body, apiKey, secretKey, passphrase) {
-  const timestamp = new Date().toISOString();
-  const bodyStr = body ? JSON.stringify(body) : '';
-  const signature = await generateOkxSignature(timestamp, method, endpoint, bodyStr, secretKey);
-  
-  const response = await fetch(`${OKX_API_URL}${endpoint}`, {
-    method: method.toUpperCase(),
-    headers: {
-      'OK-ACCESS-KEY': apiKey,
-      'OK-ACCESS-SIGN': signature,
-      'OK-ACCESS-TIMESTAMP': timestamp,
-      'OK-ACCESS-PASSPHRASE': passphrase,
-      'Content-Type': 'application/json'
-    },
-    body: method.toUpperCase() === 'GET' ? undefined : (bodyStr || undefined)
+async function loadCredential(base44, account) {
+  const credentials = await base44.asServiceRole.entities.ExchangeCredential.filter({
+    user_exchange_account_id: account.id,
+    provider: 'OKX',
+    status: 'ACTIVE',
   });
-  return response.json();
-}
 
-function generateSubAcctName(userId) {
-  const prefix = 'NT';
-  const userPart = (userId || '').replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
-  const timePart = Date.now().toString(36).toUpperCase();
-  return `${prefix}${userPart}${timePart}`.substring(0, 20);
-}
-
-function auditLog(action, userId, details) {
-  console.log(`[OKX_AUDIT] [${new Date().toISOString()}] [${action}] User: ${userId}`, JSON.stringify(details));
-}
-
-// Helper: Fetch and store deposit addresses for user's subaccount
-async function fetchDepositAddresses(base44, user, exchangeAccount, masterApiKey, masterSecretKey, masterPassphrase) {
-  const metadata = exchangeAccount.metadata || {};
-  const subAcctApiKey = metadata.okx_api_key;
-  const subAcctSecret = metadata.okx_api_secret;
-  const subAcctPass = metadata.okx_api_passphrase;
-  
-  if (!subAcctApiKey || !subAcctSecret || !subAcctPass) {
-    return { error: 'Missing subaccount credentials' };
-  }
-  
-  const addresses = {};
-  const currencies = ['USDT', 'BTC', 'ETH'];
-  
-  for (const ccy of currencies) {
-    try {
-      const result = await okxRequest('GET', `/api/v5/asset/deposit-address?ccy=${ccy}`, null,
-        subAcctApiKey, subAcctSecret, subAcctPass);
-      
-      if (result.code === '0' && result.data?.length) {
-        addresses[ccy] = result.data.map(d => ({
-          chain: d.chain || d.ccy,
-          address: d.addr,
-          tag: d.tag || d.memo || null,
-          to: d.to,
-          selected: d.selected
-        }));
-      }
-    } catch (err) {
-      console.error(`[OKX] Failed to fetch ${ccy} deposit address:`, err.message);
-      addresses[ccy] = { error: err.message };
+  if (credentials?.length) {
+    const cred = credentials[0];
+    if (cred.secret_enc || cred.passphrase_enc) {
+      return okResponse(true, cred);
     }
   }
-  
-  // Store in metadata
-  const updatedMetadata = { ...metadata, deposit_addresses: addresses, deposit_addresses_fetched_at: new Date().toISOString() };
-  await base44.asServiceRole.entities.UserExchangeAccount.update(exchangeAccount.id, { metadata: updatedMetadata });
-  
+
+  const metadata = account.metadata || {};
+  if (metadata.okx_api_key && metadata.okx_api_secret && metadata.okx_api_passphrase) {
+    const secretEnc = await encryptSecret(metadata.okx_api_secret);
+    const passphraseEnc = await encryptSecret(metadata.okx_api_passphrase);
+    const nowISO = new Date().toISOString();
+
+    const created = await base44.asServiceRole.entities.ExchangeCredential.create({
+      user_id: account.user_id,
+      user_exchange_account_id: account.id,
+      provider: 'OKX',
+      api_key: metadata.okx_api_key,
+      secret_enc: secretEnc,
+      passphrase_enc: passphraseEnc,
+      permissions_json: JSON.stringify(metadata.okx_permissions || ['read_only', 'trade']),
+      status: 'ACTIVE',
+      created_at: nowISO,
+    });
+
+    const cleanedMetadata = { ...metadata };
+    delete cleanedMetadata.okx_api_secret;
+    delete cleanedMetadata.okx_api_passphrase;
+    delete cleanedMetadata.okx_api_key;
+    delete cleanedMetadata.okx_permissions;
+
+    await base44.asServiceRole.entities.UserExchangeAccount.update(account.id, {
+      metadata: cleanedMetadata,
+    });
+
+    return okResponse(true, created);
+  }
+
+  return okResponse(false, null, { code: 'NO_CREDENTIALS', message: 'Account credentials not found' });
+}
+
+async function buildOkxCredential(credential) {
+  const secretKey = await decryptSecret(credential.secret_enc || credential.secretEnc);
+  const passphrase = await decryptSecret(credential.passphrase_enc || credential.passphraseEnc);
+  return {
+    apiKey: credential.api_key || credential.apiKey,
+    secretKey,
+    passphrase,
+  };
+}
+
+async function fetchDepositAddresses(base44, exchangeAccount, credential) {
+  const addresses = {};
+  const currencies = ['USDT', 'BTC', 'ETH'];
+
+  for (const ccy of currencies) {
+    const result = await okxRequest({
+      credential,
+      method: 'GET',
+      path: '/api/v5/asset/deposit-address',
+      query: { ccy },
+      isTradingEndpoint: false,
+    });
+
+    if (result.ok && result.data?.data?.length) {
+      addresses[ccy] = result.data.data.map((d) => ({
+        chain: d.chain || d.ccy,
+        address: d.addr,
+        tag: d.tag || d.memo || null,
+        to: d.to,
+        selected: d.selected,
+      }));
+    } else if (!result.ok) {
+      addresses[ccy] = { error: result.error?.okxMsg || result.error?.okxCode || 'FAILED' };
+    }
+  }
+
+  await base44.asServiceRole.entities.UserExchangeAccount.update(exchangeAccount.id, {
+    deposit_addresses_json: addresses,
+    deposit_addresses_fetched_at: new Date().toISOString(),
+  });
+
   return addresses;
 }
 
@@ -103,12 +121,9 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, ...params } = body;
     
-    const apiKey = Deno.env.get('OKX_API_KEY');
-    const secretKey = Deno.env.get('OKX_SECRET_KEY');
-    const passphrase = Deno.env.get('OKX_PASSPHRASE');
-    
-    if (!apiKey || !secretKey || !passphrase) {
-      return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'OKX API credentials not configured' } }, { status: 500 });
+    const masterCredsResult = getMasterCredentials();
+    if (!masterCredsResult.ok) {
+      return Response.json(masterCredsResult, { status: 500 });
     }
     
     // ====================ENSURE USER ACCOUNT (Idempotent) ====================
@@ -121,19 +136,24 @@ Deno.serve(async (req) => {
       
       if (activeAccount) {
         auditLog('ENSURE_ACCOUNT_EXISTS', user.id, { accountId: activeAccount.id });
-        
-        // Verify account is ready (fetch deposit address if not cached)
-        const depositCheck = await fetchDepositAddresses(base44, user, activeAccount, apiKey, secretKey, passphrase);
-        
-        return Response.json({ 
-          ok: true, 
-          data: { 
-            accountId: activeAccount.id, 
+
+        const credentialResult = await loadCredential(base44, activeAccount);
+        if (!credentialResult.ok) {
+          return Response.json(credentialResult, { status: 400 });
+        }
+
+        const okxCredential = await buildOkxCredential(credentialResult.data);
+        const depositCheck = await fetchDepositAddresses(base44, activeAccount, okxCredential);
+
+        return Response.json({
+          ok: true,
+          data: {
+            accountId: activeAccount.id,
             externalAccountId: activeAccount.external_account_id,
             status: activeAccount.status,
             depositAddresses: depositCheck,
-            isNew: false 
-          }
+            isNew: false,
+          },
         });
       }
       
@@ -142,58 +162,67 @@ Deno.serve(async (req) => {
       let okxApiKey = null;
       let okxApiSecret = null;
       let okxApiPassphrase = null;
-      let provisionSuccess = false;
-      let errorMsg = null;
-      
-      try {
-        // Step 1: Create sub-account
-        const createResult = await okxRequest('POST', '/api/v5/users/subaccount/create-subaccount', {
+
+      const createResult = await okxRequest({
+        credential: masterCredsResult.data,
+        method: 'POST',
+        path: '/api/v5/users/subaccount/create-subaccount',
+        body: {
           subAcct: subAcctName,
-          label: (user.full_name || user.email || 'User').substring(0, 20)
-        }, apiKey, secretKey, passphrase);
-        
-        console.log('[OKX] Create subaccount result:', createResult);
-        
-        if (createResult.code !== '0') {
-          errorMsg = createResult.msg || 'Subaccount creation failed';
-          throw new Error(errorMsg);
-        }
-        
-        okxSubAcct = createResult.data?.[0]?.subAcct;
-        if (!okxSubAcct) throw new Error('No subaccount ID returned');
-        
-        // Step 2: Create API key for sub-account with Read + Trade permissions
-        const generatedPassphrase = `Sub${Date.now().toString(36)}@1`;
-        const apiKeyResult = await okxRequest('POST', '/api/v5/users/subaccount/apikey', {
+          label: (user.full_name || user.email || 'User').substring(0, 20),
+        },
+        isTradingEndpoint: false,
+      });
+
+      if (!createResult.ok) {
+        return Response.json(
+          okResponse(false, null, {
+            code: 'PROVISION_FAILED',
+            message: createResult.error?.okxMsg || 'Subaccount creation failed',
+            okxCode: createResult.error?.okxCode,
+            okxMsg: createResult.error?.okxMsg,
+          }),
+          { status: 502 }
+        );
+      }
+
+      okxSubAcct = createResult.data?.data?.[0]?.subAcct;
+      if (!okxSubAcct) {
+        return Response.json(okResponse(false, null, { code: 'PROVISION_FAILED', message: 'No subaccount ID returned' }), { status: 502 });
+      }
+
+      const generatedPassphrase = `Sub${Date.now().toString(36)}@1`;
+      const apiKeyResult = await okxRequest({
+        credential: masterCredsResult.data,
+        method: 'POST',
+        path: '/api/v5/users/subaccount/apikey',
+        body: {
           subAcct: okxSubAcct,
           label: `${subAcctName}_api`.substring(0, 20),
           passphrase: generatedPassphrase,
-          perm: 'read_only,trade'
-        }, apiKey, secretKey, passphrase);
-        
-        console.log('[OKX] Create API key result:', { code: apiKeyResult.code, msg: apiKeyResult.msg });
-        
-        if (apiKeyResult.code !== '0') {
-          errorMsg = apiKeyResult.msg || 'API key creation failed';
-          throw new Error(errorMsg);
-        }
-        
-        okxApiKey = apiKeyResult.data?.[0]?.apiKey;
-        okxApiSecret = apiKeyResult.data?.[0]?.secretKey;
-        okxApiPassphrase = apiKeyResult.data?.[0]?.passphrase;
-        
-        if (!okxApiKey || !okxApiSecret || !okxApiPassphrase) {
-          throw new Error('API key data incomplete');
-        }
-        
-        provisionSuccess = true;
-      } catch (err) {
-        console.error('[OKX] Provision error:', err.message);
-        errorMsg = err.message;
+          perm: 'read_only,trade',
+        },
+        isTradingEndpoint: false,
+      });
+
+      if (!apiKeyResult.ok) {
+        return Response.json(
+          okResponse(false, null, {
+            code: 'PROVISION_FAILED',
+            message: apiKeyResult.error?.okxMsg || 'API key creation failed',
+            okxCode: apiKeyResult.error?.okxCode,
+            okxMsg: apiKeyResult.error?.okxMsg,
+          }),
+          { status: 502 }
+        );
       }
-      
-      if (!provisionSuccess) {
-        return Response.json({ ok: false, error: { code: 'PROVISION_FAILED', message: errorMsg || 'Failed to provision OKX account' } }, { status: 500 });
+
+      okxApiKey = apiKeyResult.data?.data?.[0]?.apiKey;
+      okxApiSecret = apiKeyResult.data?.data?.[0]?.secretKey;
+      okxApiPassphrase = apiKeyResult.data?.data?.[0]?.passphrase;
+
+      if (!okxApiKey || !okxApiSecret || !okxApiPassphrase) {
+        return Response.json(okResponse(false, null, { code: 'PROVISION_FAILED', message: 'API key data incomplete' }), { status: 502 });
       }
       
       const nowISO = new Date().toISOString();
@@ -209,19 +238,22 @@ Deno.serve(async (req) => {
         margin_mode: 'cross',
         default_leverage: 10,
         position_mode: 'net',
-        metadata: { okx_api_key: okxApiKey, okx_api_secret: okxApiSecret, okx_api_passphrase: okxApiPassphrase },
         created_at: nowISO
       });
       
+      const secretEnc = await encryptSecret(okxApiSecret);
+      const passphraseEnc = await encryptSecret(okxApiPassphrase);
+      const permissions = ['read_only', 'trade'];
+
       // Create ExchangeCredential
       await base44.asServiceRole.entities.ExchangeCredential.create({
         user_id: user.id,
         user_exchange_account_id: exchangeAccount.id,
         provider: 'OKX',
         api_key: okxApiKey,
-        secret_ref: `okx_secret_${exchangeAccount.id}`,
-        passphrase_ref: `okx_pass_${exchangeAccount.id}`,
-        permissions: ['read_only', 'trade'],
+        secret_enc: secretEnc,
+        passphrase_enc: passphraseEnc,
+        permissions_json: JSON.stringify(permissions),
         status: 'ACTIVE',
         created_at: nowISO
       });
@@ -229,7 +261,25 @@ Deno.serve(async (req) => {
       auditLog('ENSURE_ACCOUNT_SUCCESS', user.id, { accountId: exchangeAccount.id, okxSubAcct });
       
       // Fetch deposit addresses
-      const depositAddresses = await fetchDepositAddresses(base44, user, exchangeAccount, apiKey, secretKey, passphrase);
+      const depositAddresses = await fetchDepositAddresses(base44, exchangeAccount, {
+        apiKey: okxApiKey,
+        secretKey: okxApiSecret,
+        passphrase: okxApiPassphrase,
+      });
+
+      const accountReady = await okxRequest({
+        credential: { apiKey: okxApiKey, secretKey: okxApiSecret, passphrase: okxApiPassphrase },
+        method: 'GET',
+        path: '/api/v5/account/config',
+        isTradingEndpoint: true,
+      });
+
+      if (accountReady.ok) {
+        const configData = accountReady.data?.data?.[0];
+        await base44.asServiceRole.entities.UserExchangeAccount.update(exchangeAccount.id, {
+          account_config_json: configData || null,
+        });
+      }
       
       return Response.json({
         ok: true,
@@ -238,7 +288,9 @@ Deno.serve(async (req) => {
           externalAccountId: okxSubAcct,
           status: 'ACTIVE',
           depositAddresses,
-          isNew: true
+          isNew: true,
+          accountConfig: accountReady.ok ? accountReady.data?.data?.[0] : null,
+          accountConfigError: accountReady.ok ? null : accountReady.error,
         }
       });
     }
@@ -252,48 +304,47 @@ Deno.serve(async (req) => {
       if (!accounts?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Account not found' } }, { status: 404 });
       
       const account = accounts[0];
-      const metadata = account.metadata || {};
-      
-      if (!metadata.okx_api_key || !metadata.okx_api_secret || !metadata.okx_api_passphrase) {
-        return Response.json({ ok: false, error: { code: 'NO_CREDENTIALS', message: 'Account credentials not found' } }, { status: 400 });
+      const credentialResult = await loadCredential(base44, account);
+      if (!credentialResult.ok) {
+        return Response.json(credentialResult, { status: 400 });
       }
-      
-      try {
-        // Fetch account config from OKX
-        const configResult = await okxRequest('GET', '/api/v5/account/config', null, 
-          metadata.okx_api_key, metadata.okx_api_secret, metadata.okx_api_passphrase);
-        
-        console.log('[OKX] Account config:', configResult);
-        
-        if (configResult.code !== '0') {
-          return Response.json({ ok: false, error: { code: 'CONFIG_FETCH_FAILED', message: configResult.msg || 'Failed to fetch config' } }, { status: 500 });
-        }
-        
-        const configData = configResult.data?.[0];
-        const acctLv = configData?.acctLv;
-        
-        // Store config snapshot
-        await base44.asServiceRole.entities.UserExchangeAccount.update(accountId, {
-          metadata: { ...metadata, account_config: configData }
-        });
-        
-        // Check if account mode supports futures
-        if (acctLv !== '2' && acctLv !== '3' && acctLv !== '4') {
-          return Response.json({ 
-            ok: false, 
-            error: { 
-              code: 'OKX_MODE_NOT_READY', 
-              message: 'Account mode must be set to "Single-currency margin" or higher in OKX web/app to enable futures trading.',
-              currentMode: acctLv
-            }
-          }, { status: 400 });
-        }
-        
-        return Response.json({ ok: true, data: { accountLevel: acctLv, config: configData } });
-      } catch (err) {
-        console.error('[OKX] assertAccountReady error:', err.message);
-        return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: err.message } }, { status: 500 });
+
+      const credential = await buildOkxCredential(credentialResult.data);
+      const configResult = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/account/config',
+        isTradingEndpoint: true,
+      });
+
+      if (!configResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'CONFIG_FETCH_FAILED',
+          message: configResult.error?.okxMsg || 'Failed to fetch config',
+          okxCode: configResult.error?.okxCode,
+          okxMsg: configResult.error?.okxMsg,
+        }), { status: 502 });
       }
+
+      const configData = configResult.data?.data?.[0];
+      const acctLv = configData?.acctLv;
+
+      await base44.asServiceRole.entities.UserExchangeAccount.update(accountId, {
+        account_config_json: configData,
+      });
+
+      if (acctLv !== '2' && acctLv !== '3' && acctLv !== '4') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'OKX_MODE_NOT_READY',
+            message: 'Account mode must be set to a futures-enabled mode in the exchange web/app.',
+            currentMode: acctLv,
+          },
+        }, { status: 400 });
+      }
+
+      return Response.json({ ok: true, data: { accountLevel: acctLv, config: configData } });
     }
     
     // ==================== KEEP ALIVE ====================
@@ -303,27 +354,29 @@ Deno.serve(async (req) => {
       const credentials = await base44.asServiceRole.entities.ExchangeCredential.filter({
         user_id: user.id,
         provider: 'OKX',
-        status: 'ACTIVE'
+        status: 'ACTIVE',
       });
       
       const results = [];
       for (const cred of credentials || []) {
         const accounts = await base44.entities.UserExchangeAccount.filter({ id: cred.user_exchange_account_id });
         if (!accounts?.length) continue;
-        
-        const metadata = accounts[0].metadata || {};
-        if (!metadata.okx_api_key || !metadata.okx_api_secret || !metadata.okx_api_passphrase) continue;
-        
+
         try {
-          const balanceResult = await okxRequest('GET', '/api/v5/account/balance', null,
-            metadata.okx_api_key, metadata.okx_api_secret, metadata.okx_api_passphrase);
-          
-          const success = balanceResult.code === '0';
+          const credential = await buildOkxCredential(cred);
+          const balanceResult = await okxRequest({
+            credential,
+            method: 'GET',
+            path: '/api/v5/account/balance',
+            isTradingEndpoint: true,
+          });
+
+          const success = balanceResult.ok;
           results.push({ credentialId: cred.id, accountId: accounts[0].id, success, response: balanceResult });
-          
+
           if (success) {
             await base44.asServiceRole.entities.ExchangeCredential.update(cred.id, {
-              last_used_at: new Date().toISOString()
+              last_used_at: new Date().toISOString(),
             });
           }
         } catch (err) {

@@ -33,9 +33,9 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
       copy: "Copy",
       copied: "Copied!",
       refresh: "Refresh Addresses",
-      modeNotReady: "OKX Account Configuration Required",
-      modeNotReadyDesc: "Your OKX master account must be configured for futures trading. Please:",
-      modeStep1: "Log in to OKX web or mobile app",
+      modeNotReady: "Account Configuration Required",
+      modeNotReadyDesc: "Your master exchange account must be configured for futures trading. Please:",
+      modeStep1: "Log in to your exchange web or mobile app",
       modeStep2: "Go to Account Settings → Trading Settings",
       modeStep3: "Set account level to 'Single-currency margin' or higher",
       modeStep4: "Come back and click 'Retry'",
@@ -58,9 +58,9 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
       copy: "نسخ",
       copied: "تم النسخ!",
       refresh: "تحديث العناوين",
-      modeNotReady: "يلزم تكوين حساب OKX",
-      modeNotReadyDesc: "يجب تكوين حساب OKX الرئيسي الخاص بك لتداول العقود الآجلة. يرجى:",
-      modeStep1: "تسجيل الدخول إلى تطبيق OKX أو الويب",
+      modeNotReady: "يلزم تكوين الحساب",
+      modeNotReadyDesc: "يجب تكوين حساب المنصة الرئيسي لتداول العقود الآجلة. يرجى:",
+      modeStep1: "تسجيل الدخول إلى تطبيق المنصة أو الويب",
       modeStep2: "انتقل إلى إعدادات الحساب ← إعدادات التداول",
       modeStep3: "تعيين مستوى الحساب إلى 'هامش عملة واحدة' أو أعلى",
       modeStep4: "ارجع واضغط على 'إعادة المحاولة'",
@@ -84,7 +84,7 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
       if (!result.data?.ok) {
         const error = result.data?.error;
         
-        // Handle OKX mode not ready
+        // Handle account mode not ready
         if (error?.code === 'OKX_MODE_NOT_READY') {
           setStep('error');
           setErrorData(error);
@@ -102,7 +102,7 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
       if (onComplete) onComplete(result.data.data);
       
     } catch (err) {
-      console.error('[OKXSetup] Error:', err);
+      console.error('[LiveAccountSetup] Error:', err);
       setStep('error');
       setErrorData({ code: 'UNKNOWN', message: err.message });
       toast.error(err.message);
@@ -264,7 +264,7 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
               </>
             )}
 
-            {/* OKX Mode Not Ready */}
+            {/* Mode Not Ready */}
             {step === 'error' && errorData?.code === 'OKX_MODE_NOT_READY' && (
               <div className="space-y-4">
                 <Alert className="bg-amber-50 border-amber-200">
@@ -303,7 +303,7 @@ export default function OKXAccountSetup({ language = "en", onComplete }) {
                     className="w-full"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    {language === 'ar' ? 'فتح إعدادات OKX' : 'Open OKX Settings'}
+                    {language === 'ar' ? 'فتح إعدادات المنصة' : 'Open Exchange Settings'}
                   </Button>
                 </div>
 

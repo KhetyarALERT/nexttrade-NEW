@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { config } from './walletConnectConfig';
+import { config, walletConnectEnabled, walletConnectError } from './walletConnectConfig';
 
 // Create a react-query client
 const queryClient = new QueryClient({
@@ -34,10 +34,23 @@ export function WalletConnectProvider({ children }) {
     return null;
   }
 
+  const contextValue = {
+    enabled: walletConnectEnabled,
+    initError: walletConnectError,
+  };
+
+  if (!walletConnectEnabled || walletConnectError || !config) {
+    return (
+      <WalletConnectContext.Provider value={contextValue}>
+        {children}
+      </WalletConnectContext.Provider>
+    );
+  }
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <WalletConnectContext.Provider value={{}}>
+        <WalletConnectContext.Provider value={contextValue}>
           {children}
         </WalletConnectContext.Provider>
       </QueryClientProvider>
@@ -56,4 +69,3 @@ export function useWalletConnect() {
   }
   return context;
 }
-
