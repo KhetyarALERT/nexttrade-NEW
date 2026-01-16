@@ -1,10 +1,12 @@
 import React from "react";
 import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X } from "lucide-react";
 
-import { InvokeLLM } from "@/api/integrations";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { tAssistant } from "@/lib/i18n/assistant";
 import { cn } from "@/lib/utils";
+
+const AGENT_NAME = "supportAssistant";
 
 const sampleCards = (t) => [
   {
@@ -203,7 +205,49 @@ export function Thread({ language = "en", isRtl = false }) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
   const [attachments, setAttachments] = React.useState([]);
+  const [conversationId, setConversationId] = React.useState(null);
   const fileInputRef = React.useRef(null);
+  
+  // Initialize conversation with agent
+  React.useEffect(() => {
+    const initConversation = async () => {
+      try {
+        const conversation = await base44.agents.createConversation({
+          agent_name: AGENT_NAME,
+          metadata: { name: "Support Chat", language }
+        });
+        setConversationId(conversation.id);
+      } catch (err) {
+        console.log("[CHAT] Failed to create conversation:", err.message);
+      }
+    };
+    initConversation();
+  }, [language]);
+  
+  // Subscribe to conversation updates
+  React.useEffect(() => {
+    if (!conversationId) return;
+    
+    const unsubscribe = base44.agents.subscribeToConversation(conversationId, (data) => {
+      if (data?.messages?.length) {
+        // Map agent messages to our format
+        const agentMessages = data.messages.map((msg, idx) => ({
+          id: msg.id || `agent-${idx}`,
+          role: msg.role,
+          content: msg.content,
+          time: msg.created_at || new Date().toISOString(),
+          tool_calls: msg.tool_calls
+        }));
+        // Keep initial sample messages, append agent conversation
+        setMessages(prev => {
+          const initMsgs = prev.filter(m => ['welcome','card','approval','image','question'].includes(m.id));
+          return [...initMsgs, ...agentMessages];
+        });
+      }
+    });
+    
+    return () => unsubscribe?.();
+  }, [conversationId]);
 
   React.useEffect(() => {
     setCards(sampleCards(t));
@@ -285,10 +329,6 @@ export function Thread({ language = "en", isRtl = false }) {
     if (!trimmed && attachments.length === 0) return;
 
     const time = new Date().toISOString();
-    const attachmentSummary = attachments.length
-      ? `\n\n${t.attachmentsTitle}:\n${attachments.map((file) => `- ${file.name}`).join("\n")}`
-      : "";
-    const userContent = `${trimmed}${attachmentSummary}`;
     const userMessage = {
       id: `${Date.now()}-user`,
       role: "user",
@@ -302,56 +342,44 @@ export function Thread({ language = "en", isRtl = false }) {
     setAttachments([]);
     setIsLoading(true);
 
-    const systemPrompt = t.systemPrompt;
-    const history = [...messages, userMessage]
-      .filter((msg) => msg.role && msg.content)
-      .map((msg) => ({ role: msg.role, content: msg.content }));
-
     try {
-      const response = await InvokeLLM(
-        /** @type {any} */ ({
+      // Use the Base44 agent SDK if we have a conversation
+      if (conversationId) {
+        const conversation = await base44.agents.getConversation(conversationId);
+        await base44.agents.addMessage(conversation, {
+          role: "user",
+          content: trimmed || t.attachmentsTitle
+        });
+        // The subscription will handle updating messages
+      } else {
+        // Fallback to direct LLM if no conversation
+        const { InvokeLLM } = await import("@/api/integrations");
+        const systemPrompt = t.systemPrompt;
+        const history = [...messages, userMessage]
+          .filter((msg) => msg.role && msg.content)
+          .map((msg) => ({ role: msg.role, content: msg.content }));
+
+        const response = await InvokeLLM({
           temperature: 0.3,
           messages: [
             { role: "system", content: systemPrompt },
             ...history,
-            { role: "user", content: userContent },
+            { role: "user", content: trimmed },
           ],
-        })
-      );
+        });
 
-      const rawText = extractAssistantText(response);
-      const payload = parseAssistantPayload(rawText);
-      const typedResponse = /** @type {any} */ (response);
-      const resolvedCards = Array.isArray(typedResponse?.cards) ? typedResponse.cards : payload.cards;
-      const assistantMessage = {
-        id: `${Date.now()}-assistant`,
-        role: "assistant",
-        content: payload.message || rawText || t.fallbackMessage,
-        time: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      if (resolvedCards.length) {
-        const newCards = resolvedCards.map((card, index) => ({
-          id: `${assistantMessage.id}-card-${index}`,
-          title: card.title || t.cardTitle,
-          description: card.description || "",
-          bullets: card.bullets || [],
-          actions: card.actions || [],
-        }));
-        setCards((prev) => [...prev, ...newCards]);
-        setMessages((prev) => [
-          ...prev,
-          ...newCards.map((card) => ({
-            id: `${assistantMessage.id}-card-message-${card.id}`,
-            role: "assistant",
-            type: "card",
-            cardId: card.id,
-            time: new Date().toISOString(),
-          })),
-        ]);
+        const rawText = extractAssistantText(response);
+        const payload = parseAssistantPayload(rawText);
+        const assistantMessage = {
+          id: `${Date.now()}-assistant`,
+          role: "assistant",
+          content: payload.message || rawText || t.fallbackMessage,
+          time: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
       }
-    } catch {
+    } catch (err) {
+      console.error("[CHAT] Send error:", err);
       setMessages((prev) => [
         ...prev,
         {
