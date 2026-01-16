@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import LiveAccountCard from "@/components/profile/LiveAccountCard";
 import {
   Select,
   SelectContent,
@@ -469,11 +470,14 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="main" className="mt-4">
-          <div className={`mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
+        <TabsContent value="main" className="mt-4 space-y-4">
+          <div className={`rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground flex items-start gap-2 ${language === 'ar' ? 'flex-row-reverse text-right' : ''}`}>
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
             <span>{t.fundingHelp}</span>
           </div>
+          
+          <LiveAccountCard language={language} onRefresh={onRefresh} />
+          
           <AssetsTable
             wallets={groupedWallets}
             searchTerm={searchTerm}
@@ -487,7 +491,6 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             language={language}
             t={t}
           />
-
         </TabsContent>
 
         <TabsContent value="spot" className="mt-4">
