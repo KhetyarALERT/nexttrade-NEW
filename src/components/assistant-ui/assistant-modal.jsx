@@ -14,7 +14,7 @@ export function AssistantModal({ language = "en" }) {
 
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor className="bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-6">
+      <AssistantModalPrimitive.Anchor className="bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]">
         <AssistantModalPrimitive.Trigger asChild>
           <button
             type="button"
