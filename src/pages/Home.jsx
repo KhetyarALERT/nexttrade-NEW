@@ -22,7 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import AITradingChat from "../components/home/AITradingChat";
+import TradingHeroDisplay from "../components/home/TradingHeroDisplay";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 
 export default function Home({ language = "en" }) {
@@ -303,15 +303,13 @@ export default function Home({ language = "en" }) {
               </motion.div>
             </motion.div>
 
-            {/* Right Content - AI Chat Model */}
+            {/* Right Content - Trading Hero Display */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1, y: [0, -8, 0] }}
               transition={shouldReduceMotion ? { duration: 1, delay: 0.5 } : { duration: 6, delay: 0.5, repeat: Infinity, ease: "easeInOut" }}
               className="relative order-1 lg:order-2 w-full max-w-xl mx-auto lg:max-w-none">
-              <div className="relative bg-background/80 backdrop-blur-xl rounded-3xl border border-border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.6)] overflow-hidden min-h-[360px]">
-                <AITradingChat language={language} />
-              </div>
+              <TradingHeroDisplay language={language} />
             </motion.div>
           </div>
         </div>
