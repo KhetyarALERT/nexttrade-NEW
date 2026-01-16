@@ -58,16 +58,16 @@ export default function TradingHeroDisplay({ language = "en" }) {
   const t = content[language];
 
   return (
-    <div className="relative overflow-hidden rounded-[32px] border border-border bg-white/80 p-6 shadow-[0_32px_90px_-50px_rgba(15,23,42,0.6)] backdrop-blur-xl dark:bg-slate-950/80">
+    <div className="relative overflow-hidden rounded-[32px] border border-border bg-white/80 p-4 sm:p-6 shadow-[0_32px_90px_-50px_rgba(15,23,42,0.6)] backdrop-blur-xl dark:bg-slate-950/80">
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/10" />
-      <div className="relative space-y-6">
-        <div className="flex items-start justify-between gap-4">
+      <div className="relative space-y-5 sm:space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
               <Sparkles className="h-4 w-4" />
               {t.title}
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">{t.subtitle}</p>
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground">{t.subtitle}</p>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-emerald-200/70 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -75,23 +75,23 @@ export default function TradingHeroDisplay({ language = "en" }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-background/80 p-5">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-border/70 bg-background/80 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 {t.account}
               </p>
-              <div className="mt-2 text-3xl font-bold text-foreground">{t.equity}</div>
+              <div className="mt-2 text-2xl sm:text-3xl font-bold text-foreground">{t.equity}</div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <div className="text-sm font-semibold text-emerald-600">{t.change}</div>
-              <div className="mt-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground sm:justify-end">
                 <BarChart3 className="h-4 w-4" />
                 24h volatility: 1.8%
               </div>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {t.cards.map((card) => (
               <div
                 key={card.label}
@@ -118,8 +118,8 @@ export default function TradingHeroDisplay({ language = "en" }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-background/90 p-5">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-border/70 bg-background/90 p-4 sm:p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-semibold text-foreground">{t.positionsTitle}</div>
             <div className="text-xs text-muted-foreground">Risk engine: Balanced</div>
           </div>
@@ -148,8 +148,8 @@ export default function TradingHeroDisplay({ language = "en" }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-5 text-white">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-4 sm:p-5 text-white">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-sm font-semibold">{t.ticketTitle}</div>
               <p className="mt-1 text-xs text-white/70">{t.ticketSubtitle}</p>
@@ -158,7 +158,7 @@ export default function TradingHeroDisplay({ language = "en" }) {
               <CheckCircle2 className="h-5 w-5 text-emerald-400" />
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70">
+          <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/70 sm:grid-cols-3 sm:gap-0 sm:text-center">
             <span>Order flow: 2.4x</span>
             <span>Latency: 42ms</span>
             <span>Slippage: 0.08%</span>
