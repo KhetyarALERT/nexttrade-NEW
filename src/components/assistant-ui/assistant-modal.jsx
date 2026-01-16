@@ -10,7 +10,6 @@ import nextTradeLogo from "@/assets/nexttrade-logo.png";
 export function AssistantModal({ language = "en" }) {
   const t = tAssistant(language);
   const isRtl = language === "ar";
-  const unreadCount = 2;
 
   return (
     <AssistantModalPrimitive.Root>
@@ -29,11 +28,6 @@ export function AssistantModal({ language = "en" }) {
           >
             <span className="absolute inset-0 rounded-full bg-white/10 blur-md" />
             <img src={nextTradeLogo} alt="NextTrade" className="relative h-8 w-8 object-contain" />
-            {unreadCount > 0 ? (
-              <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white shadow">
-                {unreadCount}
-              </span>
-            ) : null}
           </button>
         </AssistantModalPrimitive.Trigger>
       </AssistantModalPrimitive.Anchor>
