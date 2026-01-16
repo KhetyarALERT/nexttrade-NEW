@@ -30,8 +30,13 @@ export default function Home({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        title: "AI-Assisted Trading. Instant Withdrawals.",
-        subtitle: "A professional crypto trading experience with real-time insights and full control of your funds — deposit and withdraw 24/7.",
+        title: "AI-Enhanced Trading, Investing & Locked-Gain Strategies.",
+        subtitle: "Trade spot and futures, invest long-term, and lock deposits for disciplined gains — with real-time insights and full control of your funds.",
+        offerings: [
+          { icon: LineChart, title: "Active Trading", desc: "Spot & futures execution with AI signals." },
+          { icon: Wallet, title: "Long-Term Investing", desc: "Diversified portfolios with risk controls." },
+          { icon: Lock, title: "Deposit & Lock Gains", desc: "Lock amounts for structured rewards." }
+        ],
         cta1: "Go to Trading",
         cta2: "Open Dashboard"
       },
@@ -114,8 +119,13 @@ export default function Home({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "تداول مدعوم بالذكاء الاصطناعي. سحب فوري.",
-        subtitle: "تجربة تداول احترافية مع رؤى لحظية وتحكم كامل بأموالك — إيداع وسحب على مدار الساعة.",
+        title: "تداول واستثمار مدعوم بالذكاء الاصطناعي مع أرباح مقفلة.",
+        subtitle: "تداول فوري ومشتقات، استثمار طويل الأجل، وإيداع مع قفل الأرباح — مع رؤى لحظية وتحكم كامل بأموالك.",
+        offerings: [
+          { icon: LineChart, title: "تداول نشط", desc: "تنفيذ فوري ومشتقات بإشارات ذكية." },
+          { icon: Wallet, title: "استثمار طويل الأجل", desc: "محافظ متنوعة مع إدارة مخاطر." },
+          { icon: Lock, title: "إيداع وقفل الأرباح", desc: "قفل المبالغ لعوائد منظمة." }
+        ],
         cta1: "الانتقال للتداول",
         cta2: "فتح لوحة التحكم"
       },
@@ -260,6 +270,26 @@ export default function Home({ language = "en" }) {
                 {t.hero.subtitle}
               </motion.p>
 
+              <div className="grid gap-4 sm:grid-cols-3 mb-10 max-w-2xl mx-auto lg:mx-0">
+                {t.hero.offerings.map((offering) => {
+                  const Icon = offering.icon;
+                  return (
+                    <div
+                      key={offering.title}
+                      className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm backdrop-blur-md"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{offering.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{offering.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
               <motion.div
                 className="flex flex-col sm:flex-row gap-4 mb-10 sm:mb-12 justify-center lg:justify-start"
                 initial={{ opacity: 0, y: 20 }}
@@ -308,6 +338,29 @@ export default function Home({ language = "en" }) {
               <div className="relative bg-background/80 backdrop-blur-xl rounded-3xl border border-border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.6)] overflow-hidden">
                 <AITradingChat language={language} />
               </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Crypto Markets Section */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
+              {language === "en" ? "Real-Time Market Pulse" : "نبض السوق المباشر"}
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              {language === "en" ? "Institutional-grade data streaming directly from global exchanges." : "بيانات بمستوى مؤسسي تتدفق مباشرة من البورصات العالمية."}
+            </p>
+          </div>
+          <div className="w-full">
+            {/* Full Width Crypto Table */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}>
+              <CryptoPriceTable language={language} />
             </motion.div>
           </div>
         </div>
@@ -426,29 +479,6 @@ export default function Home({ language = "en" }) {
                   <div className="text-muted-foreground text-sm font-medium">5,000 USDT Sent</div>
                 </div>
               </motion.div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Live Crypto Markets Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">
-              {language === "en" ? "Real-Time Market Pulse" : "نبض السوق المباشر"}
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              {language === "en" ? "Institutional-grade data streaming directly from global exchanges." : "بيانات بمستوى مؤسسي تتدفق مباشرة من البورصات العالمية."}
-            </p>
-          </div>
-          <div className="w-full">
-            {/* Full Width Crypto Table */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}>
-              <CryptoPriceTable language={language} />
             </motion.div>
           </div>
         </div>
