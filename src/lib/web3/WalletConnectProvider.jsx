@@ -22,6 +22,7 @@ const WalletConnectContext = createContext(null);
  */
 export function WalletConnectProvider({ children }) {
   const [isReady, setIsReady] = useState(false);
+  const wagmiEnabled = Boolean(walletConnectEnabled && config && !walletConnectError);
 
   useEffect(() => {
     // Mark as ready after mount
@@ -35,11 +36,11 @@ export function WalletConnectProvider({ children }) {
   }
 
   const contextValue = {
-    enabled: walletConnectEnabled,
+    enabled: wagmiEnabled,
     initError: walletConnectError,
   };
 
-  if (!walletConnectEnabled || walletConnectError || !config) {
+  if (!wagmiEnabled) {
     return (
       <WalletConnectContext.Provider value={contextValue}>
         {children}
