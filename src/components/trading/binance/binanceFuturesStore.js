@@ -1,12 +1,10 @@
-const BINANCE_FAPI_REST = "https://fapi.binance.com";
-const BINANCE_FAPI_WS = "wss://fstream.binance.com";
+import { base44 } from "@/api/base44Client";
+import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
 
-const INTERVALS = /** @type {const} */ (["1m", "5m", "15m", "1h", "4h", "1d"]);
+const INTERVALS = /** @type {const} */ (["1m", "5m", "15m", "1H", "4H", "1D"]);
 
 function normalizeSymbol(sym) {
-  return String(sym || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+  return normalizeOkxSymbol(sym);
 }
 
 function intervalToSeconds(interval) {
@@ -17,11 +15,11 @@ function intervalToSeconds(interval) {
       return 5 * 60;
     case "15m":
       return 15 * 60;
-    case "1h":
+    case "1H":
       return 60 * 60;
-    case "4h":
+    case "4H":
       return 4 * 60 * 60;
-    case "1d":
+    case "1D":
       return 24 * 60 * 60;
     default:
       return 60;
@@ -73,11 +71,11 @@ class BinanceFuturesStore {
     /** @type {Map<string, Array<{time:number, open:number, high:number, low:number, close:number, volume:number}>>} */
     this.candles = new Map();
 
-    /** @type {WebSocket | null} */
     this.chartWs = null;
-    this.activeChart = { symbol: "BTCUSDT", interval: "1m" };
+    this.activeChart = { symbol: "BTC-USDT-SWAP", interval: "1m" };
     this.chartReconnectAttempts = 0;
     this.chartReconnectTimer = null;
+    this.chartPollTimer = null;
 
     this.tickerPollTimer = null;
     this.premiumPollTimer = null;
@@ -105,6 +103,8 @@ class BinanceFuturesStore {
     this.premiumSymbol = null;
 
     this.closeChartWs();
+    if (this.chartPollTimer) clearInterval(this.chartPollTimer);
+    this.chartPollTimer = null;
     this.subscribers.clear();
   }
 
@@ -157,18 +157,13 @@ class BinanceFuturesStore {
   }
 
   async loadExchangeInfo() {
-    // Prefer exchangeInfo so we only show USDT-M perpetual TRADING pairs
     try {
-      const url = `${BINANCE_FAPI_REST}/fapi/v1/exchangeInfo`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`exchangeInfo HTTP ${res.status}`);
-      const data = await res.json();
-      const list = Array.isArray(data?.symbols) ? data.symbols : [];
+      const res = await base44.functions.invoke("okxMarketData", { action: "listInstrumentsSwap" });
+      const list = Array.isArray(res?.data?.data) ? res.data.data : [];
       const symbols = list
-        .filter((s) => s?.status === "TRADING")
-        .filter((s) => s?.contractType === "PERPETUAL")
-        .filter((s) => s?.quoteAsset === "USDT")
-        .map((s) => String(s.symbol))
+        .filter((s) => s?.instId && s?.state === "live")
+        .filter((s) => s?.quoteCcy === "USDT")
+        .map((s) => normalizeSymbol(s.instId))
         .filter(Boolean);
 
       // Stable order: by baseAsset, then symbol
@@ -191,17 +186,14 @@ class BinanceFuturesStore {
     const tick = async () => {
       if (this._disposed) return;
       try {
-        const url = `${BINANCE_FAPI_REST}/fapi/v1/ticker/24hr`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`ticker24hr HTTP ${res.status}`);
-        const data = await res.json();
-        if (!Array.isArray(data)) return;
+        const res = await base44.functions.invoke("okxMarketData", { action: "getTickersSwap" });
+        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+        if (!data.length) return;
 
         // If exchangeInfo failed, derive symbols list from tickers
         if (!this.exchangeInfoLoaded && this.symbols.length === 0) {
           const derived = data
-            .map((t) => String(t?.symbol || ""))
-            .filter((s) => s.endsWith("USDT"))
+            .map((t) => normalizeSymbol(t?.instId || ""))
             .filter(Boolean);
           derived.sort((a, b) => a.localeCompare(b));
           this.symbols = derived;
@@ -212,13 +204,14 @@ class BinanceFuturesStore {
 
         let anyChanged = false;
         for (const t of data) {
-          const symbol = String(t?.symbol || "");
+          const symbol = normalizeSymbol(t?.instId || "");
           if (!symbol) continue;
           if (allowed && !allowed.has(symbol)) continue;
 
-          const lastPrice = toNumber(t?.lastPrice);
-          const priceChangePercent = toNumber(t?.priceChangePercent);
-          const quoteVolume = toNumber(t?.quoteVolume);
+          const lastPrice = toNumber(t?.last);
+          const open24h = toNumber(t?.open24h);
+          const priceChangePercent = open24h ? ((lastPrice - open24h) / open24h) * 100 : 0;
+          const quoteVolume = toNumber(t?.volCcy24h);
 
           const prev = this.tickers.get(symbol);
           if (
@@ -252,13 +245,10 @@ class BinanceFuturesStore {
 
   async fetchPremiumIndex(symbol) {
     symbol = normalizeSymbol(symbol);
-    const url = new URL(`${BINANCE_FAPI_REST}/fapi/v1/premiumIndex`);
-    url.searchParams.set("symbol", symbol);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`premiumIndex HTTP ${res.status}`);
-    const data = await res.json();
-    const markPrice = toNumber(data?.markPrice);
-    const indexPrice = toNumber(data?.indexPrice);
+    const res = await base44.functions.invoke("okxMarketData", { action: "getMarkPrice", instId: symbol });
+    const data = res?.data?.data || {};
+    const markPrice = toNumber(data?.markPx);
+    const indexPrice = toNumber(data?.idxPx || data?.markPx);
     const payload = { symbol, markPrice, indexPrice };
     this.premiumIndex.set(symbol, payload);
     this.emit(`premium:${symbol}`, payload);
@@ -300,16 +290,13 @@ class BinanceFuturesStore {
     symbol = normalizeSymbol(symbol);
     if (!INTERVALS.includes(interval)) throw new Error("Unsupported interval");
 
-    const url = new URL(`${BINANCE_FAPI_REST}/fapi/v1/klines`);
-    url.searchParams.set("symbol", symbol);
-    url.searchParams.set("interval", interval);
-    url.searchParams.set("limit", String(limit));
-
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`klines HTTP ${res.status}`);
-
-    const data = await res.json();
-    const candles = parseKlines(data);
+    const res = await base44.functions.invoke("okxMarketData", {
+      action: "getCandles",
+      instId: symbol,
+      bar: interval,
+      limit,
+    });
+    const candles = Array.isArray(res?.data?.data) ? res.data.data : [];
 
     this.candles.set(this._candleKey(symbol, interval), candles);
     this.emit(`candles:${this._candleKey(symbol, interval)}`, candles);
@@ -330,83 +317,36 @@ class BinanceFuturesStore {
     const intv = interval || this.activeChart.interval;
     this.setActiveChart(sym, intv);
 
-    // Always switch streams cleanly
     this.closeChartWs();
 
-    const streamKline = `${sym.toLowerCase()}@kline_${intv}`;
-    const streamTrade = `${sym.toLowerCase()}@trade`;
-    const wsUrl = `${BINANCE_FAPI_WS}/stream?streams=${streamKline}/${streamTrade}`;
-
-    let ws;
-    try {
-      ws = new WebSocket(wsUrl);
-    } catch {
-      return;
-    }
-
-    this.chartWs = ws;
-    this.chartReconnectAttempts = 0;
-
-    ws.onopen = () => {
-      // no-op: combined streams auto-subscribe
-      this.emit("chart:connected", { symbol: sym, interval: intv });
-      if (!seeded) {
-        // safety: if caller forgot to seed, do it here
-        this.fetchCandles(sym, intv, 500).catch(() => {});
-      }
-    };
-
-    ws.onmessage = (evt) => {
+    const poll = async () => {
+      if (this._disposed) return;
       try {
-        const msg = JSON.parse(evt.data);
-        const payload = msg?.data ?? msg;
-        if (!payload) return;
-
-        // Kline
-        if (payload.e === "kline" && payload.k) {
-          const k = payload.k;
-          const symbolMsg = String(payload?.s || k?.s || sym);
-          const intervalMsg = String(k?.i || intv);
-          const candle = {
-            time: Math.floor(toNumber(k.t) / 1000),
-            open: toNumber(k.o),
-            high: toNumber(k.h),
-            low: toNumber(k.l),
-            close: toNumber(k.c),
-            volume: toNumber(k.v),
-            closed: Boolean(k.x),
-          };
-
-          this._upsertCandle(symbolMsg, intervalMsg, candle);
-          return;
-        }
-
-        // Trade
-        if (payload.e === "trade" || payload.e === "aggTrade") {
-          const symbolMsg = String(payload?.s || sym);
-          const price = toNumber(payload?.p);
-          if (price > 0) this.emit(`price:${symbolMsg}`, price);
-          return;
-        }
+        const candles = await this.fetchCandles(sym, intv, 500);
+        const last = candles[candles.length - 1];
+        if (last?.close) this.emit(`price:${sym}`, last.close);
       } catch {
         // ignore
       }
     };
 
-    ws.onclose = () => {
-      this.emit("chart:connected", { symbol: sym, interval: intv, connected: false });
-      this._scheduleChartReconnect();
-    };
+    if (!seeded) {
+      poll();
+    }
 
-    ws.onerror = () => {
-      // Let onclose handle reconnect
-    };
+    this.chartPollTimer = setInterval(poll, 5000);
+    this.emit("chart:connected", { symbol: sym, interval: intv });
   }
 
   closeChartWs() {
     if (this.chartReconnectTimer) {
       clearTimeout(this.chartReconnectTimer);
       this.chartReconnectTimer = null;
+    }
+
+    if (this.chartPollTimer) {
+      clearInterval(this.chartPollTimer);
+      this.chartPollTimer = null;
     }
 
     if (this.chartWs) {
@@ -422,24 +362,7 @@ class BinanceFuturesStore {
   }
 
   _scheduleChartReconnect() {
-    if (this._disposed) return;
-
-    this.chartReconnectAttempts = Math.min(this.chartReconnectAttempts + 1, 6);
-    const base = [500, 1000, 2000, 5000, 10000, 20000][this.chartReconnectAttempts - 1] || 20000;
-    const jitter = Math.floor(base * 0.25 * Math.random());
-    const delay = base + jitter;
-
-    if (this.chartReconnectTimer) clearTimeout(this.chartReconnectTimer);
-    this.chartReconnectTimer = setTimeout(async () => {
-      const { symbol, interval } = this.activeChart;
-
-      // Backfill before reconnect to avoid gaps
-      try {
-        await this.fetchCandles(symbol, interval, 500);
-      } catch {}
-
-      this.connectChartStreams({ symbol, interval, seeded: true });
-    }, delay);
+    // no-op: polling handles reconnects
   }
 
   _candleKey(symbol, interval) {

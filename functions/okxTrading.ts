@@ -3,37 +3,7 @@
 // OKX Trading Functions - Orders, Positions, Close
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-
-const OKX_API_URL = 'https://www.okx.com';
-
-async function generateOkxSignature(timestamp, method, requestPath, body, secretKey) {
-  const prehash = timestamp + method.toUpperCase() + requestPath + body;
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(secretKey);
-  const msgData = encoder.encode(prehash);
-  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
-}
-
-async function okxRequest(method, endpoint, body, apiKey, secretKey, passphrase) {
-  const timestamp = new Date().toISOString();
-  const bodyStr = body ? JSON.stringify(body) : '';
-  const signature = await generateOkxSignature(timestamp, method, endpoint, bodyStr, secretKey);
-  
-  const response = await fetch(`${OKX_API_URL}${endpoint}`, {
-    method: method.toUpperCase(),
-    headers: {
-      'OK-ACCESS-KEY': apiKey,
-      'OK-ACCESS-SIGN': signature,
-      'OK-ACCESS-TIMESTAMP': timestamp,
-      'OK-ACCESS-PASSPHRASE': passphrase,
-      'Content-Type': 'application/json'
-    },
-    body: method.toUpperCase() === 'GET' ? undefined : (bodyStr || undefined)
-  });
-  return response.json();
-}
+import { decryptSecret, okResponse, okxRequest } from './okxCore.ts';
 
 function generateClientOrderId() {
   return `NT${Date.now()}${Math.random().toString(36).substring(2, 8)}`;
@@ -41,6 +11,33 @@ function generateClientOrderId() {
 
 function auditLog(action, userId, details) {
   console.log(`[OKX_TRADING] [${new Date().toISOString()}] [${action}] User: ${userId}`, JSON.stringify(details));
+}
+
+async function resolveAccount(base44, userId, accountId) {
+  const accounts = await base44.entities.UserExchangeAccount.filter({
+    id: accountId,
+    user_id: userId,
+    provider: 'OKX',
+  });
+  if (!accounts?.length) return okResponse(false, null, { code: 'NOT_FOUND', message: 'Account not found' });
+  return okResponse(true, accounts[0]);
+}
+
+async function resolveCredential(base44, account) {
+  const creds = await base44.asServiceRole.entities.ExchangeCredential.filter({
+    user_exchange_account_id: account.id,
+    provider: 'OKX',
+    status: 'ACTIVE',
+  });
+  if (!creds?.length) return okResponse(false, null, { code: 'NO_CREDENTIALS', message: 'Account credentials not found' });
+  const cred = creds[0];
+  const secretKey = await decryptSecret(cred.secret_enc || cred.secretEnc);
+  const passphrase = await decryptSecret(cred.passphrase_enc || cred.passphraseEnc);
+  return okResponse(true, {
+    apiKey: cred.api_key || cred.apiKey,
+    secretKey,
+    passphrase,
+  });
 }
 
 Deno.serve(async (req) => {
@@ -59,14 +56,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, ...params } = body;
     
-    const apiKey = Deno.env.get('OKX_API_KEY');
-    const secretKey = Deno.env.get('OKX_SECRET_KEY');
-    const passphrase = Deno.env.get('OKX_PASSPHRASE');
-    
-    if (!apiKey || !secretKey || !passphrase) {
-      return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'OKX API credentials not configured' } }, { status: 500 });
-    }
-    
     // ==================== PLACE ORDER ====================
     if (action === 'placeOrder') {
       const { accountId, instId, side, orderType = 'market', size, price, reduceOnly = false, leverage } = params;
@@ -75,93 +64,55 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'MISSING_FIELDS', message: 'accountId, instId, side, size required' } }, { status: 400 });
       }
       
-      // Verify account ownership
-      const accounts = await base44.entities.UserExchangeAccount.filter({ id: accountId, user_id: user.id, provider: 'OKX' });
-      if (!accounts?.length) {
-        return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Account not found' } }, { status: 404 });
-      }
-      
+      const accountResult = await resolveAccount(base44, user.id, accountId);
+      if (!accountResult.ok) return Response.json(accountResult, { status: 404 });
+
+      const credentialResult = await resolveCredential(base44, accountResult.data);
+      if (!credentialResult.ok) return Response.json(credentialResult, { status: 400 });
+
       const clientOrderId = generateClientOrderId();
-      const nowISO = new Date().toISOString();
       
       auditLog('PLACE_ORDER', user.id, { accountId, instId, side, orderType, size, price, reduceOnly });
-      
-      // Create order record
-      const orderRecord = await base44.asServiceRole.entities.ExchangeOrder.create({
-        user_id: user.id,
-        user_exchange_account_id: accountId,
-        provider: 'OKX',
-        inst_id: instId,
-        side,
-        order_type: orderType,
-        size,
-        price: price || null,
-        reduce_only: reduceOnly,
-        leverage: leverage || accounts[0].default_leverage,
-        margin_mode: accounts[0].margin_mode,
-        status: 'PENDING',
-        external_client_order_id: clientOrderId,
-        created_at: nowISO
+
+      const tdMode = accountResult.data.margin_mode || 'cross';
+      const ordType = orderType === 'limit' ? 'limit' : 'market';
+
+      const orderResult = await okxRequest({
+        credential: credentialResult.data,
+        method: 'POST',
+        path: '/api/v5/trade/order',
+        body: {
+          instId,
+          tdMode,
+          side,
+          ordType,
+          sz: String(size),
+          px: ordType === 'limit' ? String(price || '') : undefined,
+          reduceOnly: reduceOnly ? 'true' : undefined,
+          clOrdId: clientOrderId,
+          lever: leverage ? String(leverage) : undefined,
+        },
+        isTradingEndpoint: true,
       });
-      
-      // In production: Call OKX API to place order
-      // For now, simulate successful order
-      const simulatedOrderId = `okx_${Date.now()}`;
-      
-      await base44.asServiceRole.entities.ExchangeOrder.update(orderRecord.id, {
-        status: orderType === 'market' ? 'FILLED' : 'OPEN',
-        external_order_id: simulatedOrderId,
-        filled_size: orderType === 'market' ? size : 0,
-        avg_fill_price: price || 0,
-        filled_at: orderType === 'market' ? nowISO : null
-      });
-      
-      // Create/update position record for market orders
-      if (orderType === 'market') {
-        const existingPositions = await base44.entities.ExchangePosition.filter({
-          user_id: user.id,
-          user_exchange_account_id: accountId,
-          inst_id: instId,
-          status: 'OPEN'
-        });
-        
-        if (existingPositions?.length) {
-          // Update existing position
-          const pos = existingPositions[0];
-          const newSize = reduceOnly ? Math.max(0, pos.size - size) : pos.size + size;
-          await base44.asServiceRole.entities.ExchangePosition.update(pos.id, {
-            size: newSize,
-            status: newSize === 0 ? 'CLOSED' : 'OPEN',
-            last_sync_at: nowISO,
-            updated_at: nowISO
-          });
-        } else if (!reduceOnly) {
-          // Create new position
-          await base44.asServiceRole.entities.ExchangePosition.create({
-            user_id: user.id,
-            user_exchange_account_id: accountId,
-            provider: 'OKX',
-            inst_id: instId,
-            pos_side: side === 'buy' ? 'long' : 'short',
-            size,
-            avg_entry_price: price || 0,
-            margin_mode: accounts[0].margin_mode,
-            leverage: leverage || accounts[0].default_leverage,
-            status: 'OPEN',
-            opened_at: nowISO,
-            created_at: nowISO
-          });
-        }
+
+      if (!orderResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'ORDER_FAILED',
+          message: orderResult.error?.okxMsg || 'Order failed',
+          okxCode: orderResult.error?.okxCode,
+          okxMsg: orderResult.error?.okxMsg,
+        }), { status: 502 });
       }
-      
+
+      const okxOrder = orderResult.data?.data?.[0];
       return Response.json({
         ok: true,
         data: {
-          orderId: orderRecord.id,
-          externalOrderId: simulatedOrderId,
+          orderId: okxOrder?.ordId || null,
           clientOrderId,
-          status: orderType === 'market' ? 'FILLED' : 'OPEN'
-        }
+          status: okxOrder?.sCode === '0' ? 'SUBMITTED' : 'REJECTED',
+          okx: okxOrder,
+        },
       });
     }
     
@@ -170,126 +121,171 @@ Deno.serve(async (req) => {
       const { orderId } = params;
       if (!orderId) return Response.json({ ok: false, error: { code: 'MISSING_ORDER_ID', message: 'Order ID required' } }, { status: 400 });
       
-      const orders = await base44.entities.ExchangeOrder.filter({ id: orderId, user_id: user.id });
-      if (!orders?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Order not found' } }, { status: 404 });
-      
-      if (orders[0].status !== 'OPEN' && orders[0].status !== 'PENDING') {
-        return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: 'Order cannot be cancelled' } }, { status: 400 });
+      const { accountId, instId } = params;
+      if (!accountId || !instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_FIELDS', message: 'accountId and instId required' } }, { status: 400 });
       }
-      
-      auditLog('CANCEL_ORDER', user.id, { orderId });
-      
-      await base44.asServiceRole.entities.ExchangeOrder.update(orderId, { status: 'CANCELLED' });
-      
-      return Response.json({ ok: true, data: { orderId, status: 'CANCELLED' } });
+
+      const accountResult = await resolveAccount(base44, user.id, accountId);
+      if (!accountResult.ok) return Response.json(accountResult, { status: 404 });
+
+      const credentialResult = await resolveCredential(base44, accountResult.data);
+      if (!credentialResult.ok) return Response.json(credentialResult, { status: 400 });
+
+      const cancelResult = await okxRequest({
+        credential: credentialResult.data,
+        method: 'POST',
+        path: '/api/v5/trade/cancel-order',
+        body: { ordId: orderId, instId },
+        isTradingEndpoint: true,
+      });
+
+      if (!cancelResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'CANCEL_FAILED',
+          message: cancelResult.error?.okxMsg || 'Cancel failed',
+          okxCode: cancelResult.error?.okxCode,
+          okxMsg: cancelResult.error?.okxMsg,
+        }), { status: 502 });
+      }
+
+      return Response.json({ ok: true, data: cancelResult.data?.data });
     }
     
     // ==================== GET ORDERS ====================
     if (action === 'getOrders') {
-      const { accountId, status, limit = 50 } = params;
-      
-      let query = { user_id: user.id, provider: 'OKX' };
-      if (accountId) query.user_exchange_account_id = accountId;
-      if (status) query.status = status;
-      
-      const orders = await base44.entities.ExchangeOrder.filter(query, '-created_date', limit);
-      
-      return Response.json({
-        ok: true,
-        data: (orders || []).map(o => ({
-          id: o.id,
-          instId: o.inst_id,
-          side: o.side,
-          orderType: o.order_type,
-          size: o.size,
-          price: o.price,
-          filledSize: o.filled_size,
-          avgFillPrice: o.avg_fill_price,
-          status: o.status,
-          externalOrderId: o.external_order_id,
-          createdAt: o.created_at || o.created_date
-        }))
+      const { accountId, instId, status = 'open', limit = 50 } = params;
+      if (!accountId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_ACCOUNT_ID', message: 'accountId required' } }, { status: 400 });
+      }
+
+      const accountResult = await resolveAccount(base44, user.id, accountId);
+      if (!accountResult.ok) return Response.json(accountResult, { status: 404 });
+
+      const credentialResult = await resolveCredential(base44, accountResult.data);
+      if (!credentialResult.ok) return Response.json(credentialResult, { status: 400 });
+
+      const path = status === 'history' ? '/api/v5/trade/orders-history' : '/api/v5/trade/orders-pending';
+      const orderResult = await okxRequest({
+        credential: credentialResult.data,
+        method: 'GET',
+        path,
+        query: { instId, limit },
+        isTradingEndpoint: true,
       });
+
+      if (!orderResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'FETCH_FAILED',
+          message: orderResult.error?.okxMsg || 'Failed to fetch orders',
+          okxCode: orderResult.error?.okxCode,
+          okxMsg: orderResult.error?.okxMsg,
+        }), { status: 502 });
+      }
+
+      const orders = (orderResult.data?.data || []).map((o) => ({
+        id: o.ordId,
+        instId: o.instId,
+        side: o.side,
+        orderType: o.ordType,
+        size: Number(o.sz),
+        price: Number(o.px || 0),
+        filledSize: Number(o.fillSz || 0),
+        avgFillPrice: Number(o.avgPx || 0),
+        status: o.state,
+        createdAt: o.cTime ? new Date(Number(o.cTime)).toISOString() : null,
+      }));
+
+      return Response.json({ ok: true, data: orders });
     }
     
     // ==================== GET POSITIONS ====================
     if (action === 'getPositions') {
       const { accountId, instId } = params;
       
-      let query = { user_id: user.id, provider: 'OKX', status: 'OPEN' };
-      if (accountId) query.user_exchange_account_id = accountId;
-      if (instId) query.inst_id = instId;
-      
-      const positions = await base44.entities.ExchangePosition.filter(query);
-      
-      return Response.json({
-        ok: true,
-        data: (positions || []).map(p => ({
-          id: p.id,
-          instId: p.inst_id,
-          posSide: p.pos_side,
-          size: p.size,
-          entryPrice: p.avg_entry_price,
-          markPrice: p.mark_price,
-          unrealizedPnl: p.unrealized_pnl,
-          liquidationPrice: p.liquidation_price,
-          marginMode: p.margin_mode,
-          leverage: p.leverage,
-          margin: p.margin,
-          openedAt: p.opened_at
-        }))
+      if (!accountId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_ACCOUNT_ID', message: 'accountId required' } }, { status: 400 });
+      }
+
+      const accountResult = await resolveAccount(base44, user.id, accountId);
+      if (!accountResult.ok) return Response.json(accountResult, { status: 404 });
+
+      const credentialResult = await resolveCredential(base44, accountResult.data);
+      if (!credentialResult.ok) return Response.json(credentialResult, { status: 400 });
+
+      const positionResult = await okxRequest({
+        credential: credentialResult.data,
+        method: 'GET',
+        path: '/api/v5/account/positions',
+        query: { instType: 'SWAP', instId },
+        isTradingEndpoint: true,
       });
+
+      if (!positionResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'FETCH_FAILED',
+          message: positionResult.error?.okxMsg || 'Failed to fetch positions',
+          okxCode: positionResult.error?.okxCode,
+          okxMsg: positionResult.error?.okxMsg,
+        }), { status: 502 });
+      }
+
+      const positions = (positionResult.data?.data || []).map((p) => ({
+        id: p.posId || `${p.instId}:${p.posSide}`,
+        instId: p.instId,
+        posSide: p.posSide,
+        size: Number(p.pos || 0),
+        entryPrice: Number(p.avgPx || 0),
+        markPrice: Number(p.markPx || 0),
+        unrealizedPnl: Number(p.upl || 0),
+        liquidationPrice: Number(p.liqPx || 0),
+        marginMode: p.mgnMode,
+        leverage: Number(p.lever || 0),
+        margin: Number(p.imr || 0),
+        openedAt: p.cTime ? new Date(Number(p.cTime)).toISOString() : null,
+      }));
+
+      return Response.json({ ok: true, data: positions });
     }
     
     // ==================== CLOSE POSITION ====================
     if (action === 'closePosition') {
-      const { positionId, size } = params;
-      if (!positionId) return Response.json({ ok: false, error: { code: 'MISSING_POSITION_ID', message: 'Position ID required' } }, { status: 400 });
-      
-      const positions = await base44.entities.ExchangePosition.filter({ id: positionId, user_id: user.id, status: 'OPEN' });
-      if (!positions?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Position not found' } }, { status: 404 });
-      
-      const position = positions[0];
-      const closeSize = size || position.size;
-      
-      auditLog('CLOSE_POSITION', user.id, { positionId, closeSize });
-      
-      // Place a reduce-only market order to close
-      const closeSide = position.pos_side === 'long' ? 'sell' : 'buy';
-      const nowISO = new Date().toISOString();
-      
-      const closeOrder = await base44.asServiceRole.entities.ExchangeOrder.create({
-        user_id: user.id,
-        user_exchange_account_id: position.user_exchange_account_id,
-        provider: 'OKX',
-        inst_id: position.inst_id,
-        side: closeSide,
-        order_type: 'market',
-        size: closeSize,
-        reduce_only: true,
-        status: 'FILLED',
-        filled_size: closeSize,
-        filled_at: nowISO,
-        created_at: nowISO
+      const { accountId, instId, posSide, size } = params;
+      if (!accountId || !instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_FIELDS', message: 'accountId and instId required' } }, { status: 400 });
+      }
+
+      const accountResult = await resolveAccount(base44, user.id, accountId);
+      if (!accountResult.ok) return Response.json(accountResult, { status: 404 });
+
+      const credentialResult = await resolveCredential(base44, accountResult.data);
+      if (!credentialResult.ok) return Response.json(credentialResult, { status: 400 });
+
+      auditLog('CLOSE_POSITION', user.id, { accountId, instId, size });
+
+      const closeResult = await okxRequest({
+        credential: credentialResult.data,
+        method: 'POST',
+        path: '/api/v5/trade/close-position',
+        body: {
+          instId,
+          posSide,
+          mgnMode: accountResult.data.margin_mode || 'cross',
+          sz: size ? String(size) : undefined,
+        },
+        isTradingEndpoint: true,
       });
-      
-      const newSize = position.size - closeSize;
-      await base44.asServiceRole.entities.ExchangePosition.update(positionId, {
-        size: newSize,
-        status: newSize <= 0 ? 'CLOSED' : 'OPEN',
-        closed_at: newSize <= 0 ? nowISO : null,
-        updated_at: nowISO
-      });
-      
-      return Response.json({
-        ok: true,
-        data: {
-          positionId,
-          closeOrderId: closeOrder.id,
-          closedSize: closeSize,
-          remainingSize: newSize
-        }
-      });
+
+      if (!closeResult.ok) {
+        return Response.json(okResponse(false, null, {
+          code: 'CLOSE_FAILED',
+          message: closeResult.error?.okxMsg || 'Close failed',
+          okxCode: closeResult.error?.okxCode,
+          okxMsg: closeResult.error?.okxMsg,
+        }), { status: 502 });
+      }
+
+      return Response.json({ ok: true, data: closeResult.data?.data });
     }
     
     return Response.json({ ok: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });

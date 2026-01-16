@@ -8,6 +8,7 @@ import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTab
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -20,18 +21,12 @@ function formatCompactNumber(value) {
   return Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(value);
 }
 
-function normalizeBinanceSymbol(sym) {
-  return String(sym || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-}
-
 export default function Trading({ language = "en" }) {
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
     const stored = localStorage.getItem("trading_symbol");
-    const normalized = normalizeBinanceSymbol(stored || "BTCUSDT");
-    return normalized || "BTCUSDT";
+    const normalized = normalizeOkxSymbol(stored || "BTC-USDT-SWAP");
+    return normalized || "BTC-USDT-SWAP";
   });
 
   const [lastPrice, setLastPrice] = useState(0);
@@ -41,26 +36,80 @@ export default function Trading({ language = "en" }) {
   const [liveAccount, setLiveAccount] = useState(null);
   const [demoAccount, setDemoAccount] = useState(null);
 
-  const [trades, setTrades] = useState([]);
+  const [liveTrades, setLiveTrades] = useState([]);
+  const [demoTrades, setDemoTrades] = useState([]);
 
   const accountsInFlightRef = useRef(false);
+  const refreshLiveTrades = useCallback(async (account) => {
+    if (!account?.id) {
+      setLiveTrades([]);
+      return;
+    }
+    try {
+      const [posRes, orderRes] = await Promise.all([
+        base44.functions.invoke("okxTrading", { action: "getPositions", accountId: account.id }),
+        base44.functions.invoke("okxTrading", { action: "getOrders", accountId: account.id, status: "open" }),
+      ]);
+
+      const positions = posRes?.data?.ok ? posRes.data.data : [];
+      const orders = orderRes?.data?.ok ? orderRes.data.data : [];
+
+      const mappedPositions = (positions || []).map((p) => ({
+        id: p.id,
+        symbol: p.instId,
+        side: String(p.posSide || "").toUpperCase() === "SHORT" ? "SHORT" : "LONG",
+        quantity: Math.abs(Number(p.size || 0)),
+        entry_price: Number(p.entryPrice || 0),
+        margin: Number(p.margin || 0),
+        leverage: Number(p.leverage || 0),
+        status: "OPEN",
+        created_at: p.openedAt,
+        mark_price: p.markPrice,
+      }));
+
+      const mappedOrders = (orders || []).map((o) => ({
+        id: o.id,
+        instId: o.instId,
+        symbol: o.instId,
+        side: String(o.side || "").toUpperCase() === "SELL" ? "SHORT" : "LONG",
+        quantity: Number(o.size || 0),
+        entry_price: Number(o.price || 0),
+        order_type: String(o.orderType || "").toUpperCase(),
+        status: "PENDING",
+        created_at: o.createdAt,
+      }));
+
+      setLiveTrades([...mappedPositions, ...mappedOrders]);
+    } catch {
+      setLiveTrades([]);
+    }
+  }, []);
+
   const refreshAccounts = useCallback(async () => {
     if (accountsInFlightRef.current) return;
     accountsInFlightRef.current = true;
     try {
       const [demoResult, liveResult] = await Promise.all([
         base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
-        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
+        base44.functions.invoke("okxProvisioning", { action: "listSubaccounts" }),
       ]);
 
-      if (demoResult?.data?.success) setDemoAccount(demoResult.data.data);
-      if (liveResult?.data?.success) setLiveAccount(liveResult.data.data);
+      if (demoResult?.data?.success) {
+        setDemoAccount(demoResult.data.data);
+        setDemoTrades(demoResult.data.data?.trades || []);
+      }
+
+      if (liveResult?.data?.ok && Array.isArray(liveResult.data.data)) {
+        const active = liveResult.data.data.find((a) => a.status === "ACTIVE") || liveResult.data.data[0];
+        setLiveAccount(active || null);
+        if (active) await refreshLiveTrades(active);
+      }
     } catch {
       // ignore
     } finally {
       accountsInFlightRef.current = false;
     }
-  }, []);
+  }, [refreshLiveTrades]);
 
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
@@ -104,12 +153,6 @@ export default function Trading({ language = "en" }) {
     };
   }, [isAuthenticated, isLoadingAuth, refreshAccounts]);
 
-  const allTrades = useMemo(() => {
-    const live = (liveAccount?.trades || []).map((t) => ({ ...t, accountType: "live" }));
-    const demo = (demoAccount?.trades || []).map((t) => ({ ...t, accountType: "demo" }));
-    return [...live, ...demo].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 50);
-  }, [liveAccount, demoAccount]);
-
   const chartHeight = useMemo(() => {
     if (typeof window === "undefined") return "h-[320px]";
     const width = window.innerWidth;
@@ -128,8 +171,24 @@ export default function Trading({ language = "en" }) {
   );
 
   const handleSymbolChange = useCallback((symbol) => {
-    setSelectedSymbol(normalizeBinanceSymbol(symbol));
+    setSelectedSymbol(normalizeOkxSymbol(symbol));
   }, []);
+
+  const handleCloseLivePosition = useCallback(async (pos) => {
+    if (!liveAccount?.id || !pos?.symbol) return;
+    const posSide = pos.side === "SHORT" ? "short" : "long";
+    try {
+      await base44.functions.invoke("okxTrading", {
+        action: "closePosition",
+        accountId: liveAccount.id,
+        instId: pos.symbol,
+        posSide,
+        size: pos.quantity || undefined,
+      });
+    } finally {
+      await refreshLiveTrades(liveAccount);
+    }
+  }, [liveAccount, refreshLiveTrades]);
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -180,7 +239,15 @@ export default function Trading({ language = "en" }) {
           </div>
 
           <div className="border-t border-border">
-            <FuturesActivityTabs trades={allTrades} symbol={selectedSymbol} language={language} />
+            <FuturesActivityTabs
+              trades={liveTrades}
+              symbol={selectedSymbol}
+              language={language}
+              dataSource="okx"
+              accountId={liveAccount?.id}
+              onRefresh={() => refreshLiveTrades(liveAccount)}
+              onCloseTrade={handleCloseLivePosition}
+            />
           </div>
         </div>
 
@@ -202,9 +269,25 @@ export default function Trading({ language = "en" }) {
             </div>
           ) : (
             <>
-              <FuturesTradePanel account={liveAccount} symbol={selectedSymbol} onTradeCreated={() => refreshAccounts()} language={language} />
+              <FuturesTradePanel
+                liveAccount={liveAccount}
+                demoAccount={demoAccount}
+                symbol={selectedSymbol}
+                onTradesChanged={() => refreshLiveTrades(liveAccount)}
+                onAccountsChanged={() => refreshAccounts()}
+                language={language}
+              />
               <div className="flex-1 overflow-hidden border-t border-border">
-                <FuturesActivityTabs trades={allTrades} symbol={selectedSymbol} language={language} compact={true} />
+                <FuturesActivityTabs
+                  trades={liveTrades}
+                  symbol={selectedSymbol}
+                  language={language}
+                  dataSource="okx"
+                  accountId={liveAccount?.id}
+                  onRefresh={() => refreshLiveTrades(liveAccount)}
+                  compact={true}
+                  onCloseTrade={handleCloseLivePosition}
+                />
               </div>
             </>
           )}

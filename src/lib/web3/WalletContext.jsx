@@ -50,8 +50,9 @@ export function WalletProvider({ children }) {
         const balanceEth = (balanceWei / 1e18).toFixed(4);
         setBalance(balanceEth);
       } else if (type === 'solana' && window.solana) {
+        const envUrl = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SOLANA_RPC_URL : null;
         const connection = new window.solanaWeb3.Connection(
-          window.solanaWeb3.clusterApiUrl('mainnet-beta')
+          envUrl || window.solanaWeb3.clusterApiUrl('mainnet-beta')
         );
         const pubKey = new window.solanaWeb3.PublicKey(address);
         const balanceLamports = await connection.getBalance(pubKey);

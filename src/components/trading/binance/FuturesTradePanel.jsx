@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
+import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -120,7 +121,7 @@ export default function FuturesTradePanel({
 
   const baseAsset = useMemo(() => {
     if (!symbol) return "—";
-    return symbol.endsWith("USDT") ? symbol.slice(0, -4) : symbol;
+    return getOkxBaseAsset(symbol);
   }, [symbol]);
 
   const labels = useMemo(() => {
@@ -404,7 +405,8 @@ export default function FuturesTradePanel({
     setBotsBusy(true);
 
     try {
-      const tradingAccountId = demoMode ? (demoAccount?.id || liveAccount?.id) : (liveAccount?.id || demoAccount?.id);
+      const isLive = !demoMode && liveAccount?.id;
+      const tradingAccountId = demoMode ? demoAccount?.id : liveAccount?.id;
       if (!tradingAccountId) {
         setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
         return;
@@ -428,24 +430,44 @@ export default function FuturesTradePanel({
       const takeProfit = Number.isFinite(tpRaw) && tpRaw > 0 ? tpRaw : null;
       const stopLoss = Number.isFinite(slRaw) && slRaw > 0 ? slRaw : null;
 
-      const res = await base44.functions.invoke("tradingAccount", {
-        action: "openTrade",
-        tradingAccountId,
-        symbol,
-        side: normalizedSide,
-        quantity,
-        leverage: levSafe,
-        entryPrice,
-        orderType: orderType === "market" ? "MARKET" : orderType === "trigger" ? "STOP" : "LIMIT",
-        limitPrice: orderType === "limit" ? entryPrice : null,
-        stopPrice: orderType === "trigger" ? entryPrice : null,
-        takeProfit,
-        stopLoss,
-      });
+      if (isLive) {
+        const okxSide = normalizedSide === "SHORT" ? "sell" : "buy";
+        const res = await base44.functions.invoke("okxTrading", {
+          action: "placeOrder",
+          accountId: tradingAccountId,
+          instId: symbol,
+          side: okxSide,
+          orderType: orderType === "limit" ? "limit" : "market",
+          size: quantity,
+          price: orderType === "limit" ? entryPrice : null,
+          reduceOnly: false,
+          leverage: levSafe,
+        });
 
-      if (!res?.data?.success) {
-        setBotsError(res?.data?.error || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
-        return;
+        if (!res?.data?.ok) {
+          setBotsError(res?.data?.error?.message || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+          return;
+        }
+      } else {
+        const res = await base44.functions.invoke("tradingAccount", {
+          action: "openTrade",
+          tradingAccountId,
+          symbol,
+          side: normalizedSide,
+          quantity,
+          leverage: levSafe,
+          entryPrice,
+          orderType: orderType === "market" ? "MARKET" : orderType === "trigger" ? "STOP" : "LIMIT",
+          limitPrice: orderType === "limit" ? entryPrice : null,
+          stopPrice: orderType === "trigger" ? entryPrice : null,
+          takeProfit,
+          stopLoss,
+        });
+
+        if (!res?.data?.success) {
+          setBotsError(res?.data?.error || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+          return;
+        }
       }
 
       await onTradesChanged?.();
@@ -462,7 +484,8 @@ export default function FuturesTradePanel({
     setBotsBusy(true);
 
     try {
-      const tradingAccountId = demoMode ? (demoAccount?.id || liveAccount?.id) : (liveAccount?.id || demoAccount?.id);
+      const isLive = !demoMode && liveAccount?.id;
+      const tradingAccountId = demoMode ? demoAccount?.id : liveAccount?.id;
       if (!tradingAccountId) {
         setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
         return;
@@ -474,30 +497,63 @@ export default function FuturesTradePanel({
         return;
       }
 
-      const listRes = await base44.functions.invoke("tradingAccount", {
-        action: "getTrades",
-        tradingAccountId,
-        status: "OPEN",
-        limit: 50,
-      });
+      if (isLive) {
+        const posRes = await base44.functions.invoke("okxTrading", {
+          action: "getPositions",
+          accountId: tradingAccountId,
+          instId: symbol,
+        });
 
-      const list = listRes?.data?.data || [];
-      const open = list.find((t) => String(t?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase() && t?.status === "OPEN");
-      if (!open?.id) {
-        setBotsError(language === "ar" ? "لا يوجد مركز مفتوح" : "No open position to close");
-        return;
-      }
+        if (!posRes?.data?.ok) {
+          setBotsError(posRes?.data?.error?.message || (language === "ar" ? "فشل جلب المراكز" : "Failed to load positions"));
+          return;
+        }
 
-      const closeRes = await base44.functions.invoke("tradingAccount", {
-        action: "closeTrade",
-        tradeId: open.id,
-        exitPrice,
-        reason: demoMode ? "bots_demo" : "manual_panel",
-      });
+        const positions = posRes?.data?.data || [];
+        const pos = positions.find((p) => Number(p?.size || 0) !== 0);
+        if (!pos?.instId) {
+          setBotsError(language === "ar" ? "لا يوجد مركز مفتوح" : "No open position to close");
+          return;
+        }
 
-      if (!closeRes?.data?.success) {
-        setBotsError(closeRes?.data?.error || (language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade"));
-        return;
+        const closeRes = await base44.functions.invoke("okxTrading", {
+          action: "closePosition",
+          accountId: tradingAccountId,
+          instId: pos.instId,
+          posSide: pos.posSide,
+          size: Number.isFinite(parseNum(amount)) && parseNum(amount) > 0 ? parseNum(amount) : undefined,
+        });
+
+        if (!closeRes?.data?.ok) {
+          setBotsError(closeRes?.data?.error?.message || (language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade"));
+          return;
+        }
+      } else {
+        const listRes = await base44.functions.invoke("tradingAccount", {
+          action: "getTrades",
+          tradingAccountId,
+          status: "OPEN",
+          limit: 50,
+        });
+
+        const list = listRes?.data?.data || [];
+        const open = list.find((t) => String(t?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase() && t?.status === "OPEN");
+        if (!open?.id) {
+          setBotsError(language === "ar" ? "لا يوجد مركز مفتوح" : "No open position to close");
+          return;
+        }
+
+        const closeRes = await base44.functions.invoke("tradingAccount", {
+          action: "closeTrade",
+          tradeId: open.id,
+          exitPrice,
+          reason: demoMode ? "bots_demo" : "manual_panel",
+        });
+
+        if (!closeRes?.data?.success) {
+          setBotsError(closeRes?.data?.error || (language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade"));
+          return;
+        }
       }
 
       await onTradesChanged?.();

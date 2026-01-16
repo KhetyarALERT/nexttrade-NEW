@@ -2,6 +2,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const OKX_API_URL = 'https://www.okx.com';
 
+const jsonOk = (data: any, init: ResponseInit = {}) =>
+  Response.json({ ok: true, data }, init);
+const jsonError = (code: string, message: string, status = 400, extra: Record<string, unknown> = {}) =>
+  Response.json({ ok: false, error: { code, message, ...extra } }, { status });
+
 // Generate HMAC-SHA256 signature for OKX API
 // OKX signature = Base64(HMAC-SHA256(timestamp + method + requestPath + body, secretKey))
 const generateOkxSignature = async (
@@ -94,7 +99,7 @@ Deno.serve(async (req) => {
     // Verify authentication
     const user = await base44.auth.me();
     if (!user) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return jsonError('UNAUTHORIZED', 'Unauthorized', 401);
     }
     
     const body = await req.json();
@@ -103,16 +108,17 @@ Deno.serve(async (req) => {
     console.log('[SUBACCOUNT] Request:', { action, params, userId: user.id });
     
     // Get OKX Master API credentials (from secrets)
-    const apiKey = Deno.env.get('OKX_API_KEY');
-    const secretKey = Deno.env.get('OKX_SECRET_KEY');
-    const passphrase = Deno.env.get('OKX_PASSPHRASE');
+    const apiKey = Deno.env.get('OKX_MAIN_API_KEY');
+    const secretKey = Deno.env.get('OKX_MAIN_SECRET');
+    const passphrase = Deno.env.get('OKX_MAIN_PASSPHRASE');
     
     if (!apiKey || !secretKey || !passphrase) {
       console.log('[SUBACCOUNT] Missing OKX API credentials');
-      return Response.json({ 
-        success: false, 
-        error: 'OKX API not configured. Please add OKX_API_KEY, OKX_SECRET_KEY, and OKX_PASSPHRASE to secrets.' 
-      }, { status: 500 });
+      return jsonError(
+        'CONFIG_ERROR',
+        'Exchange API not configured. Please add OKX_MAIN_API_KEY, OKX_MAIN_SECRET, and OKX_MAIN_PASSPHRASE to secrets.',
+        500
+      );
     }
     
     // ==================== CREATE SUB-ACCOUNT ====================
@@ -121,10 +127,7 @@ Deno.serve(async (req) => {
       
       // Validate inputs
       if (!nickname || nickname.length < 2 || nickname.length > 32) {
-        return Response.json({ 
-          success: false, 
-          error: 'Nickname must be 2-32 characters' 
-        }, { status: 400 });
+        return jsonError('VALIDATION_ERROR', 'Nickname must be 2-32 characters', 400);
       }
       
       // Check for duplicate nickname for this user
@@ -134,10 +137,7 @@ Deno.serve(async (req) => {
       });
       
       if (existing && existing.length > 0) {
-        return Response.json({ 
-          success: false, 
-          error: 'A subaccount with this nickname already exists' 
-        }, { status: 400 });
+        return jsonError('DUPLICATE', 'A subaccount with this nickname already exists', 400);
       }
       
       logAudit('SUBACCOUNT_CREATE_START', user.id, { nickname, accountType });
@@ -301,17 +301,14 @@ Deno.serve(async (req) => {
         account_type: accountType
       });
       
-      return Response.json({ 
-        success: true, 
-        data: {
-          id: subaccountRecord.id,
-          nickname: subaccountRecord.nickname,
-          account_type: subaccountRecord.account_type,
-          leverage: subaccountRecord.leverage,
-          status: subaccountRecord.status,
-          okx_synced: apiSuccess,
-          created_date: subaccountRecord.created_date
-        }
+      return jsonOk({
+        id: subaccountRecord.id,
+        nickname: subaccountRecord.nickname,
+        account_type: subaccountRecord.account_type,
+        leverage: subaccountRecord.leverage,
+        status: subaccountRecord.status,
+        okx_synced: apiSuccess,
+        created_date: subaccountRecord.created_date,
       });
     }
     
@@ -334,7 +331,7 @@ Deno.serve(async (req) => {
         updated_date: s.updated_date
       }));
       
-      return Response.json({ success: true, data: safeData });
+      return jsonOk(safeData);
     }
     
     // ==================== DELETE SUB-ACCOUNT ====================
@@ -348,10 +345,7 @@ Deno.serve(async (req) => {
       });
       
       if (!subaccount || subaccount.length === 0) {
-        return Response.json({ 
-          success: false, 
-          error: 'Subaccount not found' 
-        }, { status: 404 });
+        return jsonError('NOT_FOUND', 'Subaccount not found', 404);
       }
       
       // Note: OKX sub-accounts cannot be deleted, only deactivated
@@ -362,7 +356,7 @@ Deno.serve(async (req) => {
       
       logAudit('SUBACCOUNT_DELETE', user.id, { subaccountId });
       
-      return Response.json({ success: true });
+      return jsonOk({ deleted: true });
     }
     
     // ==================== TRANSFER FUNDS ====================
@@ -371,10 +365,7 @@ Deno.serve(async (req) => {
       // direction: 'to_sub' (main -> sub) or 'from_sub' (sub -> main)
       
       if (!subaccountId || !direction || !amount || amount <= 0) {
-        return Response.json({ 
-          success: false, 
-          error: 'Invalid transfer parameters' 
-        }, { status: 400 });
+        return jsonError('INVALID_PARAMS', 'Invalid transfer parameters', 400);
       }
       
       // Get subaccount details
@@ -384,19 +375,13 @@ Deno.serve(async (req) => {
       });
       
       if (!subaccounts || subaccounts.length === 0) {
-        return Response.json({ 
-          success: false, 
-          error: 'Subaccount not found' 
-        }, { status: 404 });
+        return jsonError('NOT_FOUND', 'Subaccount not found', 404);
       }
       
       const subaccount = subaccounts[0];
       
       if (!subaccount.okx_subacct) {
-        return Response.json({ 
-          success: false, 
-          error: 'Subaccount not synced with OKX' 
-        }, { status: 400 });
+        return jsonError('NOT_SYNCED', 'Subaccount not synced with OKX', 400);
       }
       
       logAudit('TRANSFER_START', user.id, { subaccountId, direction, amount, asset });
@@ -423,10 +408,7 @@ Deno.serve(async (req) => {
         console.log('[SUBACCOUNT] Transfer result:', transferResult);
         
         if (transferResult.code !== '0') {
-          return Response.json({ 
-            success: false, 
-            error: `Transfer failed: ${transferResult.msg}` 
-          }, { status: 400 });
+          return jsonError('TRANSFER_FAILED', `Transfer failed: ${transferResult.msg}`, 400);
         }
         
         // Create transfer record
@@ -447,14 +429,11 @@ Deno.serve(async (req) => {
           asset 
         });
         
-        return Response.json({ success: true, data: transfer });
+        return jsonOk(transfer);
         
       } catch (transferError: any) {
         console.log('[SUBACCOUNT] Transfer error:', transferError.message);
-        return Response.json({ 
-          success: false, 
-          error: `Transfer failed: ${transferError.message}` 
-        }, { status: 500 });
+        return jsonError('TRANSFER_FAILED', `Transfer failed: ${transferError.message}`, 500);
       }
     }
     
@@ -469,19 +448,13 @@ Deno.serve(async (req) => {
       });
       
       if (!subaccounts || subaccounts.length === 0) {
-        return Response.json({ 
-          success: false, 
-          error: 'Subaccount not found' 
-        }, { status: 404 });
+        return jsonError('NOT_FOUND', 'Subaccount not found', 404);
       }
       
       const subaccount = subaccounts[0];
       
       if (!subaccount.okx_api_key || !subaccount.okx_api_secret) {
-        return Response.json({ 
-          success: false, 
-          error: 'Subaccount not synced with OKX' 
-        }, { status: 400 });
+        return jsonError('NOT_SYNCED', 'Subaccount not synced with OKX', 400);
       }
       
       try {
@@ -496,33 +469,21 @@ Deno.serve(async (req) => {
         );
         
         if (balanceResult.code !== '0') {
-          return Response.json({ 
-            success: false, 
-            error: `Failed to get balance: ${balanceResult.msg}` 
-          }, { status: 400 });
+          return jsonError('BALANCE_FAILED', `Failed to get balance: ${balanceResult.msg}`, 400);
         }
         
-        return Response.json({ 
-          success: true, 
-          data: balanceResult.data 
-        });
+        return jsonOk(balanceResult.data);
         
       } catch (balanceError: any) {
         console.log('[SUBACCOUNT] Balance error:', balanceError.message);
-        return Response.json({ 
-          success: false, 
-          error: `Failed to get balance: ${balanceError.message}` 
-        }, { status: 500 });
+        return jsonError('BALANCE_FAILED', `Failed to get balance: ${balanceError.message}`, 500);
       }
     }
     
-    return Response.json({ success: false, error: 'Invalid action' }, { status: 400 });
+    return jsonError('INVALID_ACTION', 'Invalid action', 400);
     
   } catch (error: any) {
     console.error('[SUBACCOUNT_ERROR]', error.message, error.stack);
-    return Response.json({ 
-      success: false, 
-      error: error.message || 'Internal server error' 
-    }, { status: 500 });
+    return jsonError('INTERNAL_ERROR', error.message || 'Internal server error', 500);
   }
 });

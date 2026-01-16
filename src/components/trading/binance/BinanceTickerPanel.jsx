@@ -4,6 +4,7 @@ import { FixedSizeList as List } from "react-window";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { formatOkxSymbolDisplay } from "@/lib/market/okxSymbols";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -128,7 +129,7 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
     return {
       search: isAr ? "ابحث عن الرمز…" : "Search symbol…",
       symbols: isAr ? "رمز" : "symbols",
-      contractType: isAr ? "عقد دائم USDT‑M" : "USDT‑M Perpetual",
+      contractType: isAr ? "عقد دائم" : "Perpetual",
       tradingPair: isAr ? "زوج التداول" : "Trading Pair",
       lastPrice: isAr ? "آخر سعر" : "Last Price",
       chg24h: isAr ? "تغير 24س" : "24h chg%",
@@ -156,7 +157,7 @@ export default function BinanceTickerPanel({ selectedSymbol, onSelectSymbol, onA
         }`}
       >
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-foreground">{symbol}</span>
+          <span className="text-sm font-semibold text-foreground">{formatOkxSymbolDisplay(symbol)}</span>
           <span className="text-[10px] text-muted-foreground">{labels.vol} {formatCompactNumber(vol)}</span>
         </div>
         <div className="text-right">

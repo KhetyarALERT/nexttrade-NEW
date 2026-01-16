@@ -12,6 +12,7 @@ import { Wallet, Copy, ExternalLink, LogOut, Check } from 'lucide-react';
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { toast } from 'sonner';
+import { useWalletConnect } from '@/lib/web3/WalletConnectProvider';
 
 /**
  * Web3Modal Wallet Button
@@ -28,7 +29,7 @@ import { toast } from 'sonner';
  * - Copy address
  * - View on explorer
  */
-export function Web3ModalButton({ language = 'en' }) {
+function Web3ModalButtonEnabled({ language = 'en', initError = null }) {
   const { open } = useWeb3Modal();
   const { address, isConnected, connector, chain } = useAccount();
   const { disconnect } = useDisconnect();
@@ -107,8 +108,17 @@ export function Web3ModalButton({ language = 'en' }) {
     return (
       <Button
         onClick={() => {
+          if (initError) {
+            toast.warning(language === 'ar' ? 'WalletConnect غير متاح؛ استخدم Phantom أو Solflare' : 'WalletConnect unavailable; use Phantom/Solflare');
+            return;
+          }
           console.log('🔗 Opening Web3Modal...');
-          open();
+          try {
+            open();
+          } catch (error) {
+            console.warn('WalletConnect open failed:', error);
+            toast.warning(language === 'ar' ? 'WalletConnect غير متاح؛ استخدم Phantom أو Solflare' : 'WalletConnect unavailable; use Phantom/Solflare');
+          }
         }}
         variant="outline"
         size="sm"
@@ -214,6 +224,28 @@ export function Web3ModalButton({ language = 'en' }) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+export function Web3ModalButton({ language = 'en' }) {
+  const { enabled, initError } = useWalletConnect();
+
+  if (!enabled) {
+    return (
+      <Button
+        onClick={() => {
+          toast.warning(language === 'ar' ? 'WalletConnect غير متاح؛ استخدم Phantom أو Solflare' : 'WalletConnect unavailable; use Phantom/Solflare');
+        }}
+        variant="outline"
+        size="sm"
+        className="rounded-xl border-2 border-blue-500/30 hover:border-blue-500 hover:bg-blue-500/10 transition-all"
+      >
+        <Wallet className="w-4 h-4 mr-2" />
+        {language === 'ar' ? 'ربط المحفظة' : 'Connect Wallet'}
+      </Button>
+    );
+  }
+
+  return <Web3ModalButtonEnabled language={language} initError={initError} />;
 }
 
 Web3ModalButton.propTypes = {

@@ -4,6 +4,7 @@ import { ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import BinanceTickerPanel from "@/components/trading/binance/BinanceTickerPanel";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { formatOkxSymbolDisplay } from "@/lib/market/okxSymbols";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -29,7 +30,7 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
   const labels = useMemo(() => {
     const isAr = language === "ar";
     return {
-      contractType: isAr ? "عقد دائم USDT‑M" : "Perpetual",
+      contractType: isAr ? "عقد دائم" : "Perpetual",
       mark: isAr ? "مارك" : "Mark",
       index: isAr ? "مؤشر" : "Index",
       selectMarketTitle: isAr ? "اختر السوق" : "Select market",
@@ -83,7 +84,7 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
         {/* Symbol Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <span className="text-white font-bold text-base sm:text-lg truncate">{selectedSymbol}</span>
+            <span className="text-white font-bold text-base sm:text-lg truncate">{formatOkxSymbolDisplay(selectedSymbol)}</span>
             <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           </div>
           <div className="text-[10px] text-slate-500 hidden sm:block">{labels.contractType}</div>

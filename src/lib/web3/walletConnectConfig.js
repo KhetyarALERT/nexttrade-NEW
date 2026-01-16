@@ -6,8 +6,13 @@ import { mainnet, polygon, arbitrum, optimism, base, bsc } from 'wagmi/chains';
 // WalletConnect v2 Configuration
 // ==========================================
 
-// Your WalletConnect Cloud Project ID
-const projectId = 'a846c729635359bb2f3d8eca53cb74fe';
+const rawEnabled = typeof import.meta !== 'undefined'
+  ? (import.meta.env?.VITE_WALLETCONNECT_ENABLED ?? import.meta.env?.WALLETCONNECT_ENABLED)
+  : null;
+const walletConnectEnabled = String(rawEnabled || '').toLowerCase() === 'true';
+const projectId = typeof import.meta !== 'undefined'
+  ? (import.meta.env?.VITE_WALLETCONNECT_PROJECT_ID ?? import.meta.env?.WALLETCONNECT_PROJECT_ID)
+  : '';
 
 // App metadata
 const metadata = {
@@ -22,24 +27,31 @@ const metadata = {
 const chains = [mainnet, polygon, arbitrum, optimism, base, bsc];
 
 // Create wagmi config
-const config = defaultWagmiConfig({
-  chains,
-  projectId,
-  metadata,
-});
+const config = walletConnectEnabled && projectId
+  ? defaultWagmiConfig({
+    chains,
+    projectId,
+    metadata,
+  })
+  : null;
 
 // Initialize Web3Modal - this MUST run before any React rendering
 let web3Modal = null;
-if (typeof window !== 'undefined') {
-  web3Modal = createWeb3Modal({
-    wagmiConfig: config,
-    projectId,
-    enableAnalytics: false,
-    themeMode: 'light',
-  });
-  console.log('✅ Web3Modal initialized with project:', projectId);
+let walletConnectError = null;
+if (typeof window !== 'undefined' && walletConnectEnabled && projectId) {
+  try {
+    web3Modal = createWeb3Modal({
+      wagmiConfig: config,
+      projectId,
+      enableAnalytics: false,
+      themeMode: 'light',
+    });
+    console.log('✅ Web3Modal initialized with project:', projectId);
+  } catch (error) {
+    walletConnectError = error instanceof Error ? error : new Error(String(error));
+    console.warn('⚠️ WalletConnect disabled due to init error:', walletConnectError.message);
+  }
 }
 
 // Export
-export { config, projectId, metadata, chains, web3Modal };
-
+export { config, projectId, metadata, chains, web3Modal, walletConnectEnabled, walletConnectError };
