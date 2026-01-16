@@ -63,40 +63,6 @@ export default function AITradingChat({ language = "en" }) {
       time: "10:24"
     },
     {
-      type: "ai",
-      approvalCard: {
-        id: "approval-card-deploy",
-        title: "Deploy to Production?",
-        description: "This will push the latest changes to all users.",
-        icon: "rocket",
-        confirmLabel: "Deploy",
-        cancelLabel: "Cancel"
-      },
-      time: "10:24"
-    },
-    {
-      type: "ai",
-      imageCard: {
-        id: "image-preview-source",
-        assetId: "image-source",
-        src: "https://images.unsplash.com/photo-1504548840739-580b10ae7715?w=1200&auto=format&fit=crop",
-        alt: "Vintage mainframe with blinking lights",
-        title: "From mainframes to microchips",
-        description:
-          "A snapshot of when rooms were computers — not just what ran inside them.",
-        domain: "unsplash.com",
-        ratio: "4:3",
-        fileSizeBytes: 2457600,
-        createdAt: "2025-02-10T15:30:00.000Z",
-        source: {
-          label: "Computing archives",
-          iconUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=archives",
-          url: "https://assistant-ui.com/tools/alignment"
-        }
-      },
-      time: "10:24"
-    },
-    {
       type: "user",
       text: "شكراً جزيلاً! سأتابع هذه الإشارة",
       time: "10:25"
@@ -132,40 +98,6 @@ export default function AITradingChat({ language = "en" }) {
         tp1: "$97,800",
         tp2: "$101,200",
         riskReward: "1:2.5"
-      },
-      time: "10:24"
-    },
-    {
-      type: "ai",
-      approvalCard: {
-        id: "approval-card-deploy",
-        title: "Deploy to Production?",
-        description: "This will push the latest changes to all users.",
-        icon: "rocket",
-        confirmLabel: "Deploy",
-        cancelLabel: "Cancel"
-      },
-      time: "10:24"
-    },
-    {
-      type: "ai",
-      imageCard: {
-        id: "image-preview-source",
-        assetId: "image-source",
-        src: "https://images.unsplash.com/photo-1504548840739-580b10ae7715?w=1200&auto=format&fit=crop",
-        alt: "Vintage mainframe with blinking lights",
-        title: "From mainframes to microchips",
-        description:
-          "A snapshot of when rooms were computers — not just what ran inside them.",
-        domain: "unsplash.com",
-        ratio: "4:3",
-        fileSizeBytes: 2457600,
-        createdAt: "2025-02-10T15:30:00.000Z",
-        source: {
-          label: "Computing archives",
-          iconUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=archives",
-          url: "https://assistant-ui.com/tools/alignment"
-        }
       },
       time: "10:24"
     },
