@@ -156,7 +156,7 @@ export default function Trading({ language = "en" }) {
       <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
         <div className="flex flex-1 flex-col overflow-hidden">
           <div className="border-b border-border px-4 py-3 sm:px-6">
-            <BinanceSymbolSelector value={selectedSymbol} onChange={handleSymbolChange} language={language} />
+            <BinanceSymbolSelector selectedSymbol={selectedSymbol} onSelectSymbol={handleSymbolChange} language={language} />
           </div>
 
           <div className="grid grid-cols-3 gap-2 border-b border-border px-4 py-3 sm:gap-4 sm:px-6">
