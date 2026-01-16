@@ -46,6 +46,47 @@ function auditLog(action, userId, details) {
   console.log(`[OKX_AUDIT] [${new Date().toISOString()}] [${action}] User: ${userId}`, JSON.stringify(details));
 }
 
+// Helper: Fetch and store deposit addresses for user's subaccount
+async function fetchDepositAddresses(base44, user, exchangeAccount, masterApiKey, masterSecretKey, masterPassphrase) {
+  const metadata = exchangeAccount.metadata || {};
+  const subAcctApiKey = metadata.okx_api_key;
+  const subAcctSecret = metadata.okx_api_secret;
+  const subAcctPass = metadata.okx_api_passphrase;
+  
+  if (!subAcctApiKey || !subAcctSecret || !subAcctPass) {
+    return { error: 'Missing subaccount credentials' };
+  }
+  
+  const addresses = {};
+  const currencies = ['USDT', 'BTC', 'ETH'];
+  
+  for (const ccy of currencies) {
+    try {
+      const result = await okxRequest('GET', `/api/v5/asset/deposit-address?ccy=${ccy}`, null,
+        subAcctApiKey, subAcctSecret, subAcctPass);
+      
+      if (result.code === '0' && result.data?.length) {
+        addresses[ccy] = result.data.map(d => ({
+          chain: d.chain || d.ccy,
+          address: d.addr,
+          tag: d.tag || d.memo || null,
+          to: d.to,
+          selected: d.selected
+        }));
+      }
+    } catch (err) {
+      console.error(`[OKX] Failed to fetch ${ccy} deposit address:`, err.message);
+      addresses[ccy] = { error: err.message };
+    }
+  }
+  
+  // Store in metadata
+  const updatedMetadata = { ...metadata, deposit_addresses: addresses, deposit_addresses_fetched_at: new Date().toISOString() };
+  await base44.asServiceRole.entities.UserExchangeAccount.update(exchangeAccount.id, { metadata: updatedMetadata });
+  
+  return addresses;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {

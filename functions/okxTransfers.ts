@@ -122,33 +122,106 @@ Deno.serve(async (req) => {
     if (action === 'getBalances') {
       const { accountId } = params;
       
-      // In production: Call OKX API for real balances
-      // For now, return simulated data
-      return Response.json({
-        ok: true,
-        data: {
-          balances: [
-            { currency: 'USDT', available: 1000, frozen: 0, total: 1000 },
-            { currency: 'BTC', available: 0.01, frozen: 0, total: 0.01 }
-          ]
-        }
+      const accounts = await base44.entities.UserExchangeAccount.filter({ 
+        user_id: user.id, 
+        provider: 'OKX',
+        ...(accountId ? { id: accountId } : {})
       });
+      
+      const account = accounts?.find(a => a.status === 'ACTIVE') || accounts?.[0];
+      if (!account) {
+        return Response.json({ ok: false, error: { code: 'NO_ACCOUNT', message: 'No exchange account found' } }, { status: 404 });
+      }
+      
+      const metadata = account.metadata || {};
+      if (!metadata.okx_api_key || !metadata.okx_api_secret || !metadata.okx_api_passphrase) {
+        return Response.json({ ok: false, error: { code: 'NO_CREDENTIALS', message: 'Account credentials not found' } }, { status: 400 });
+      }
+      
+      try {
+        const result = await okxRequest('GET', '/api/v5/account/balance', null,
+          metadata.okx_api_key, metadata.okx_api_secret, metadata.okx_api_passphrase);
+        
+        console.log('[OKX] Balance result:', result);
+        
+        if (result.code !== '0') {
+          return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch balances' } }, { status: 500 });
+        }
+        
+        const balances = (result.data?.[0]?.details || []).map(d => ({
+          currency: d.ccy,
+          available: parseFloat(d.availBal || 0),
+          frozen: parseFloat(d.frozenBal || 0),
+          total: parseFloat(d.cashBal || d.eq || 0)
+        }));
+        
+        return Response.json({ ok: true, data: { balances } });
+      } catch (err) {
+        console.error('[OKX] getBalances error:', err.message);
+        return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: err.message } }, { status: 500 });
+      }
     }
     
     // ==================== GET DEPOSIT ADDRESS ====================
     if (action === 'getDepositAddress') {
-      const { currency = 'USDT', chain = 'TRC20' } = params;
+      const { accountId, currency = 'USDT' } = params;
       
-      // In production: Call OKX API
-      return Response.json({
-        ok: true,
-        data: {
-          address: 'T...simulated...',
-          chain,
-          currency,
-          memo: null
-        }
+      // Get user's exchange account
+      const accounts = await base44.entities.UserExchangeAccount.filter({ 
+        user_id: user.id, 
+        provider: 'OKX',
+        ...(accountId ? { id: accountId } : {})
       });
+      
+      const account = accounts?.find(a => a.status === 'ACTIVE') || accounts?.[0];
+      if (!account) {
+        return Response.json({ ok: false, error: { code: 'NO_ACCOUNT', message: 'No exchange account found. Please create one first.' } }, { status: 404 });
+      }
+      
+      const metadata = account.metadata || {};
+      
+      // Check cached addresses first
+      if (metadata.deposit_addresses?.[currency]) {
+        const cached = metadata.deposit_addresses[currency];
+        if (!cached.error) {
+          return Response.json({ ok: true, data: { addresses: cached, fromCache: true } });
+        }
+      }
+      
+      // Fetch fresh from OKX
+      if (!metadata.okx_api_key || !metadata.okx_api_secret || !metadata.okx_api_passphrase) {
+        return Response.json({ ok: false, error: { code: 'NO_CREDENTIALS', message: 'Account credentials not found' } }, { status: 400 });
+      }
+      
+      try {
+        const result = await okxRequest('GET', `/api/v5/asset/deposit-address?ccy=${currency}`, null,
+          metadata.okx_api_key, metadata.okx_api_secret, metadata.okx_api_passphrase);
+        
+        console.log('[OKX] Deposit address result:', result);
+        
+        if (result.code !== '0') {
+          return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch deposit address' } }, { status: 500 });
+        }
+        
+        const addresses = (result.data || []).map(d => ({
+          chain: d.chain || d.ccy,
+          address: d.addr,
+          tag: d.tag || d.memo || null,
+          to: d.to,
+          selected: d.selected
+        }));
+        
+        // Update cache
+        const updatedDeposits = { ...(metadata.deposit_addresses || {}), [currency]: addresses };
+        await base44.asServiceRole.entities.UserExchangeAccount.update(account.id, {
+          metadata: { ...metadata, deposit_addresses: updatedDeposits, deposit_addresses_fetched_at: new Date().toISOString() }
+        });
+        
+        return Response.json({ ok: true, data: { addresses, fromCache: false } });
+      } catch (err) {
+        console.error('[OKX] getDepositAddress error:', err.message);
+        return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: err.message } }, { status: 500 });
+      }
     }
     
     // ==================== REQUEST WITHDRAWAL ====================
