@@ -25,6 +25,7 @@ import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal as useSolanaWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAccount } from "wagmi";
+import { useWalletConnect } from "@/lib/web3/WalletConnectProvider";
 
 const formatShortAddress = (address, start = 6, end = 4) => {
   if (!address) return "";
@@ -33,35 +34,62 @@ const formatShortAddress = (address, start = 6, end = 4) => {
 };
 
 // Component to display connected wallet info in Accounts section
-function ConnectedWalletAccountsItem({ language }) {
+function EvmConnectedWalletAccountsItem({ language }) {
   const { address, isConnected, chain } = useAccount();
-  const solWallet = useSolanaWallet();
   const hasEvm = Boolean(isConnected && address);
-  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
 
-  if (!hasEvm && !hasSolana) return null;
+  if (!hasEvm) return null;
 
   return (
     <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
       <div className="flex items-center gap-2 w-full">
         <WalletIcon className="h-4 w-4 text-primary" />
-        <span className="font-medium">{language === "ar" ? "المحفظة المتصلة" : "Connected Wallet"}</span>
+        <span className="font-medium">{language === "ar" ? "محفظة EVM متصلة" : "Connected EVM Wallet"}</span>
       </div>
       <div className="flex flex-col gap-1 w-full pl-6 text-xs">
-        {hasEvm ? (
-          <div className="flex items-center justify-between w-full">
-            <span className="text-muted-foreground">{chain?.name || "EVM"}:</span>
-            <span className="font-mono">{formatShortAddress(address)}</span>
-          </div>
-        ) : null}
-        {hasSolana ? (
-          <div className="flex items-center justify-between w-full">
-            <span className="text-muted-foreground">Solana:</span>
-            <span className="font-mono">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
-          </div>
-        ) : null}
+        <div className="flex items-center justify-between w-full">
+          <span className="text-muted-foreground">{chain?.name || "EVM"}:</span>
+          <span className="font-mono">{formatShortAddress(address)}</span>
+        </div>
       </div>
     </DropdownMenuItem>
+  );
+}
+
+function SolanaConnectedWalletAccountsItem({ language }) {
+  const solWallet = useSolanaWallet();
+  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
+
+  if (!hasSolana) return null;
+
+  return (
+    <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
+      <div className="flex items-center gap-2 w-full">
+        <WalletIcon className="h-4 w-4 text-primary" />
+        <span className="font-medium">{language === "ar" ? "محفظة سولانا متصلة" : "Connected Solana Wallet"}</span>
+      </div>
+      <div className="flex flex-col gap-1 w-full pl-6 text-xs">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-muted-foreground">Solana:</span>
+          <span className="font-mono">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
+        </div>
+      </div>
+    </DropdownMenuItem>
+  );
+}
+
+function ConnectedWalletAccountsItem({ language }) {
+  const { enabled: wagmiEnabled } = useWalletConnect();
+  const solWallet = useSolanaWallet();
+  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
+
+  if (!wagmiEnabled && !hasSolana) return null;
+
+  return (
+    <>
+      {wagmiEnabled ? <EvmConnectedWalletAccountsItem language={language} /> : null}
+      {hasSolana ? <SolanaConnectedWalletAccountsItem language={language} /> : null}
+    </>
   );
 }
 
