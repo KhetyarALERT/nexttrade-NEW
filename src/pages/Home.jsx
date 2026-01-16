@@ -30,12 +30,12 @@ export default function Home({ language = "en" }) {
   const content = {
     en: {
       hero: {
-        title: "AI-Enhanced Trading, Investing & Locked-Gain Strategies.",
-        subtitle: "Trade spot and futures, invest long-term, and lock deposits for disciplined gains — with real-time insights and full control of your funds.",
+        title: "AI-Enhanced Trading & Investing with Smart Rewards.",
+        subtitle: "Trade spot and futures with real-time insights, invest securely, and earn structured rewards — all with full control of your funds.",
         offerings: [
-          { icon: LineChart, title: "Active Trading", desc: "Spot & futures execution with AI signals." },
-          { icon: Wallet, title: "Long-Term Investing", desc: "Diversified portfolios with risk controls." },
-          { icon: Lock, title: "Deposit & Lock Gains", desc: "Lock amounts for structured rewards." }
+          { icon: LineChart, title: "Live Trading", desc: "Up to 100x leverage on futures with AI signals." },
+          { icon: Shield, title: "Secured Investing", desc: "Clear rewards system with transparent risk controls." },
+          { icon: Wallet, title: "Flexible Rewards", desc: "Grow balances with structured rewards and easy access." }
         ],
         cta1: "Go to Trading",
         cta2: "Open Dashboard"
@@ -49,12 +49,6 @@ export default function Home({ language = "en" }) {
           { title: "Fair Fees", desc: "Only pay official blockchain network fees. No hidden platform markups." }
         ]
       },
-      stats: [
-        { value: "24/7", label: "Crypto Trading" },
-        { value: "0.0", label: "Commission" },
-        { value: "Instant", label: "Withdrawals" },
-        { value: "<1s", label: "Execution" }],
-
       exclusiveOffers: {
         title: "Exclusive Registration Bonuses",
         subtitle: "Get premium features when you open your account today",
@@ -119,12 +113,12 @@ export default function Home({ language = "en" }) {
     },
     ar: {
       hero: {
-        title: "تداول واستثمار مدعوم بالذكاء الاصطناعي مع أرباح مقفلة.",
-        subtitle: "تداول فوري ومشتقات، استثمار طويل الأجل، وإيداع مع قفل الأرباح — مع رؤى لحظية وتحكم كامل بأموالك.",
+        title: "تداول واستثمار مدعوم بالذكاء الاصطناعي مع مكافآت ذكية.",
+        subtitle: "تداول فوري ومشتقات برؤى لحظية، استثمار آمن، وعوائد منظمة — مع تحكم كامل بأموالك.",
         offerings: [
-          { icon: LineChart, title: "تداول نشط", desc: "تنفيذ فوري ومشتقات بإشارات ذكية." },
-          { icon: Wallet, title: "استثمار طويل الأجل", desc: "محافظ متنوعة مع إدارة مخاطر." },
-          { icon: Lock, title: "إيداع وقفل الأرباح", desc: "قفل المبالغ لعوائد منظمة." }
+          { icon: LineChart, title: "تداول مباشر", desc: "رافعة مالية حتى 100x على العقود بإشارات ذكية." },
+          { icon: Shield, title: "استثمار آمن", desc: "نظام مكافآت واضح مع إدارة مخاطر شفافة." },
+          { icon: Wallet, title: "عوائد مرنة", desc: "نمِّ رصيدك بعوائد منظمة مع مرونة السحب." }
         ],
         cta1: "الانتقال للتداول",
         cta2: "فتح لوحة التحكم"
@@ -138,12 +132,6 @@ export default function Home({ language = "en" }) {
           { title: "رسوم عادلة", desc: "ادفع فقط رسوم شبكة البلوكشين الرسمية. لا رسوم إضافية مخفية." }
         ]
       },
-      stats: [
-        { value: "24/7", label: "تداول العملات الرقمية" },
-        { value: "0.0", label: "عمولة" },
-        { value: "فوري", label: "سحوبات" },
-        { value: "<1s", label: "تنفيذ فوري" }],
-
       exclusiveOffers: {
         title: "مكافآت التسجيل الحصرية",
         subtitle: "احصل على ميزات مميزة عند فتح حسابك اليوم",
@@ -270,16 +258,16 @@ export default function Home({ language = "en" }) {
                 {t.hero.subtitle}
               </motion.p>
 
-              <div className="grid gap-4 sm:grid-cols-3 mb-10 max-w-2xl mx-auto lg:mx-0">
+              <div className="grid gap-3 sm:grid-cols-3 mb-10 max-w-2xl mx-auto lg:mx-0">
                 {t.hero.offerings.map((offering) => {
                   const Icon = offering.icon;
                   return (
                     <div
                       key={offering.title}
-                      className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm backdrop-blur-md"
+                      className="rounded-xl border border-border/60 bg-background/80 p-3 shadow-sm backdrop-blur-md transition-transform duration-300 hover:-translate-y-1 hover:shadow-md"
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                           <Icon className="h-4 w-4" />
                         </span>
                         <span className="text-sm font-semibold text-foreground">{offering.title}</span>
@@ -298,7 +286,7 @@ export default function Home({ language = "en" }) {
 
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-7 text-base sm:text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-105 transition-all group"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-7 py-5 text-base sm:text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-[1.02] transition-all group"
                   asChild>
                       <Link to={createPageUrl("Futures")}>
                     {t.hero.cta1}
@@ -308,25 +296,11 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="w-full sm:w-auto border-border text-foreground hover:bg-muted rounded-full px-8 py-7 text-base sm:text-lg font-bold backdrop-blur-sm hover:scale-105 transition-all"
+                  className="w-full sm:w-auto border-border text-foreground hover:bg-muted rounded-full px-7 py-5 text-base sm:text-lg font-bold backdrop-blur-sm hover:scale-[1.02] transition-all"
                   asChild>
                   <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
               </motion.div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6 text-center lg:text-left">
-                {t.stats.map((stat, idx) =>
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 1.4 + idx * 0.1 }}>
-                    <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                    <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
-                  </motion.div>
-                )}
-              </div>
             </motion.div>
 
             {/* Right Content - AI Chat Model */}
@@ -334,8 +308,8 @@ export default function Home({ language = "en" }) {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1, y: [0, -8, 0] }}
               transition={shouldReduceMotion ? { duration: 1, delay: 0.5 } : { duration: 6, delay: 0.5, repeat: Infinity, ease: "easeInOut" }}
-              className="relative order-1 lg:order-2">
-              <div className="relative bg-background/80 backdrop-blur-xl rounded-3xl border border-border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.6)] overflow-hidden">
+              className="relative order-1 lg:order-2 w-full max-w-xl mx-auto lg:max-w-none">
+              <div className="relative bg-background/80 backdrop-blur-xl rounded-3xl border border-border shadow-[0_30px_80px_-40px_rgba(15,23,42,0.6)] overflow-hidden min-h-[360px]">
                 <AITradingChat language={language} />
               </div>
             </motion.div>
