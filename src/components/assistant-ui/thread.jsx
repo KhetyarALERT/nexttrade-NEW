@@ -8,62 +8,6 @@ import { cn } from "@/lib/utils";
 
 const AGENT_NAME = "supportAssistant";
 
-const sampleCards = (t) => [
-  {
-    id: "market",
-    title: t.cardTitle,
-    description: t.cardDescription,
-    bullets: [t.cardBulletOne, t.cardBulletTwo, t.cardBulletThree],
-    actions: [
-      { id: "dashboard", label: t.cardActionPrimary, variant: "default" },
-      { id: "alert", label: t.cardActionSecondary, variant: "outline" },
-    ],
-  },
-];
-
-const initialMessages = (t) => [
-  { id: "welcome", role: "assistant", content: t.welcome, time: "10:22" },
-  { id: "card", role: "assistant", type: "card", cardId: "market", time: "10:23" },
-  {
-    id: "approval",
-    role: "assistant",
-    type: "approval",
-    time: "10:23",
-    approval: {
-      id: "approval-card-deploy",
-      title: "Deploy to Production?",
-      description: "This will push the latest changes to all users.",
-      icon: "rocket",
-      confirmLabel: "Deploy",
-      cancelLabel: "Cancel",
-    },
-  },
-  {
-    id: "image",
-    role: "assistant",
-    type: "image",
-    time: "10:24",
-    image: {
-      id: "image-preview-source",
-      assetId: "image-source",
-      src: "https://images.unsplash.com/photo-1504548840739-580b10ae7715?w=1200&auto=format&fit=crop",
-      alt: "Vintage mainframe with blinking lights",
-      title: "From mainframes to microchips",
-      description: "A snapshot of when rooms were computers — not just what ran inside them.",
-      domain: "unsplash.com",
-      ratio: "4:3",
-      fileSizeBytes: 2457600,
-      createdAt: "2025-02-10T15:30:00.000Z",
-      source: {
-        label: "Computing archives",
-        iconUrl: "https://api.dicebear.com/7.x/shapes/svg?seed=archives",
-        url: "https://assistant-ui.com/tools/alignment",
-      },
-    },
-  },
-  { id: "question", role: "user", content: t.sampleQuestion, time: "10:24" },
-];
-
 function CardMessage({ card }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/90 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
@@ -199,8 +143,8 @@ function ImageCardMessage({ image, formatFileSize, formatTime }) {
 
 export function Thread({ language = "en", isRtl = false }) {
   const t = React.useMemo(() => tAssistant(language), [language]);
-  const [cards, setCards] = React.useState(() => sampleCards(t));
-  const [messages, setMessages] = React.useState(() => initialMessages(t));
+  const cards = React.useMemo(() => [], []);
+  const [messages, setMessages] = React.useState([]);
   const [composerValue, setComposerValue] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -238,11 +182,7 @@ export function Thread({ language = "en", isRtl = false }) {
           time: msg.created_at || new Date().toISOString(),
           tool_calls: msg.tool_calls
         }));
-        // Keep initial sample messages, append agent conversation
-        setMessages(prev => {
-          const initMsgs = prev.filter(m => ['welcome','card','approval','image','question'].includes(m.id));
-          return [...initMsgs, ...agentMessages];
-        });
+        setMessages(agentMessages);
       }
     });
     
@@ -250,8 +190,7 @@ export function Thread({ language = "en", isRtl = false }) {
   }, [conversationId]);
 
   React.useEffect(() => {
-    setCards(sampleCards(t));
-    setMessages(initialMessages(t));
+    setMessages([]);
   }, [t]);
 
   const locale = React.useMemo(() => (language === "ar" ? "ar-EG" : "en-US"), [language]);
