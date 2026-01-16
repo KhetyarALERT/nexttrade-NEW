@@ -105,20 +105,19 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-bold">Live Crypto Markets</h3>
-              <div className="text-xs text-gray-400">Data via CoinGecko</div>
             </div>
           </div>
         </div>
 
         <div className="overflow-hidden">
-          <table className="w-full table-fixed">
+          <table className="w-full table-auto">
             <thead className="bg-gray-900/50">
               <tr>
-                <th className="py-3 px-3 text-left text-xs font-medium text-gray-400 uppercase w-[25%]">Name</th>
-                <th className="py-3 px-3 text-right text-xs font-medium text-gray-400 uppercase w-[18%]">Price</th>
-                <th className="py-3 px-3 text-right text-xs font-medium text-gray-400 uppercase w-[15%]">24h</th>
-                <th className="py-3 px-3 text-center text-xs font-medium text-gray-400 uppercase w-[22%]">Chart</th>
-                <th className="py-3 px-3 text-right text-xs font-medium text-gray-400 uppercase w-[20%]">Action</th>
+                <th className="py-3 px-3 text-left text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Name</th>
+                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Price</th>
+                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">24h</th>
+                <th className="hidden md:table-cell py-3 px-3 text-center text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Chart</th>
+                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -128,25 +127,27 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
                   <tr key={coin.id} className="hover:bg-gray-900/50 transition-colors">
                     <td className="py-4 px-3">
                       <div className="flex items-center gap-2">
-                        <img src={coin.image} alt={coin.symbol} className="w-8 h-8 rounded-full flex-shrink-0" />
-                        <div className="overflow-hidden">
+                        <img src={coin.image} alt={coin.symbol} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0" />
+                        <div className="overflow-hidden min-w-0">
                           <div className="font-semibold text-sm truncate">{coin.name}</div>
-                          <div className="text-xs text-gray-400 uppercase">{coin.symbol}</div>
+                          <div className="text-[11px] text-gray-400 uppercase">{coin.symbol}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-right font-bold">{formatPrice(coin.current_price)}</td>
+                    <td className="py-4 px-3 text-right font-bold text-sm">{formatPrice(coin.current_price)}</td>
                     <td className="py-4 px-3 text-right">
                       <span className={`font-bold text-sm ${isPositive ? "text-green-500" : "text-red-500"}`}>
                         {formatPercent(coin.price_change_percentage_24h)}
                       </span>
                     </td>
-                    <td className="py-4 px-3 flex justify-center">
-                      <Sparkline data={coin.sparkline_in_7d?.price} width={100} height={30} />
+                    <td className="hidden md:table-cell py-4 px-3">
+                      <div className="flex justify-center">
+                        <Sparkline data={coin.sparkline_in_7d?.price} width={100} height={30} />
+                      </div>
                     </td>
                     <td className="py-4 px-3 text-right">
                       <Link to={createPageUrl("Futures")}>
-                        <button className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm w-full">
+                        <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-xs sm:text-sm w-full">
                           Trade
                         </button>
                       </Link>
@@ -156,10 +157,6 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
               })}
             </tbody>
           </table>
-        </div>
-
-        <div className="p-3 bg-gray-900/50 text-center">
-          <p className="text-xs text-gray-500 uppercase">Data via CoinGecko</p>
         </div>
       </CardContent>
     </Card>

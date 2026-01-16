@@ -193,17 +193,18 @@ export function Thread({ language = "en", isRtl = false }) {
     setMessages([]);
   }, [t]);
 
-  const locale = React.useMemo(() => (language === "ar" ? "ar-EG" : "en-US"), [language]);
-
   const formatTime = React.useCallback(
     (value) => {
       if (!value) return "";
-      if (typeof value === "string" && /\d{1,2}:\d{2}/.test(value)) return value;
-      const date = typeof value === "string" ? new Date(value) : value;
+      const normalized = typeof value === "string" ? value.trim() : value;
+      if (typeof normalized === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+        return normalized;
+      }
+      const date = typeof normalized === "string" ? new Date(normalized) : normalized;
       if (!date || Number.isNaN(date.getTime?.())) return "";
-      return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+      return date.toISOString().replace(/\.\d{3}Z$/, "");
     },
-    [locale]
+    []
   );
 
   const formatFileSize = React.useCallback((bytes = 0) => {

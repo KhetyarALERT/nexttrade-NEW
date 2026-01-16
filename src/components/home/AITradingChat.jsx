@@ -99,7 +99,7 @@ export default function AITradingChat({ language = "en" }) {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-[28px] p-6 shadow-[0_24px_60px_-45px_rgba(15,23,42,0.45)] border border-slate-200/80 h-full flex flex-col">
+    <div className="bg-gradient-to-br from-slate-50 via-white to-slate-100 rounded-[28px] p-4 sm:p-6 shadow-[0_24px_60px_-45px_rgba(15,23,42,0.45)] border border-slate-200/80 h-full flex flex-col">
       {/* Chat Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-slate-200/80 mb-4">
         <div className="w-11 h-11 rounded-full flex items-center justify-center border border-slate-200/70 bg-transparent">
@@ -123,7 +123,7 @@ export default function AITradingChat({ language = "en" }) {
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto space-y-5 pr-2" style={{ maxHeight: "500px" }}>
+      <div className="flex-1 overflow-y-auto space-y-5 pr-2" style={{ maxHeight: "420px" }}>
         {messages.map((msg, idx) => (
           <motion.div
             key={idx}

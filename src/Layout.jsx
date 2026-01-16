@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Globe, Phone, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Rocket, Menu } from "lucide-react";
+import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Rocket, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -828,12 +828,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               <h3 className="font-semibold mb-4">{language === "en" ? "Contact" : "اتصل بنا"}</h3>
               <ul className="space-y-3 text-sm text-gray-400">
                 <li className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  <span className="">963940632191+</span>
-                </li>
-                <li className="flex items-center gap-2">
                   <Mail className="w-4 h-4" />
-                  <span>support@nexttrade.app</span>
+                  <span>info@nexttrade.exchange</span>
                 </li>
               </ul>
             </div>
