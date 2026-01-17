@@ -66,6 +66,7 @@ import { base44 } from "@/api/base44Client";
 import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
 import AuthRequiredState from "@/components/AuthRequiredState";
+import VerificationModal from "@/components/profile/VerificationModal";
 
 const translations = {
   en: {
@@ -200,6 +201,8 @@ export default function Profile({ language = "en" }) {
   const [wallets, setWallets] = useState([]);
   const [trades, setTrades] = useState([]);
   const [loadingAccount, setLoadingAccount] = useState(false);
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
+  const [existingVerification, setExistingVerification] = useState(null);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -236,6 +239,18 @@ export default function Profile({ language = "en" }) {
     }
   }, []);
 
+  const loadVerificationRequest = useCallback(async () => {
+    try {
+      const user = await base44.auth.me();
+      const requests = await base44.entities.VerificationRequest.filter({ user_id: user.id }, "-created_date", 1);
+      if (requests && requests.length > 0) {
+        setExistingVerification(requests[0]);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     if (isLoadingAuth) return;
     if (!isAuthenticated) {
@@ -245,7 +260,8 @@ export default function Profile({ language = "en" }) {
     }
     loadUser();
     loadTradingAccounts();
-  }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts]);
+    loadVerificationRequest();
+  }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts, loadVerificationRequest]);
 
   const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -918,6 +934,51 @@ export default function Profile({ language = "en" }) {
 
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-6">
+            {/* Identity Verification Card - Prominent */}
+            <Card className="border-border shadow-xl rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg">
+                      <ShieldCheck className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {language === "en" ? "Identity Verification (KYC)" : "التحقق من الهوية (KYC)"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {language === "en" 
+                          ? "Complete verification to unlock withdrawals and higher limits"
+                          : "أكمل التحقق لفتح السحوبات والحدود الأعلى"}
+                      </p>
+                      {existingVerification && (
+                        <Badge className={`mt-2 ${
+                          existingVerification.status === 'approved' ? 'bg-emerald-500' :
+                          existingVerification.status === 'rejected' ? 'bg-rose-500' :
+                          'bg-amber-500'
+                        } text-white`}>
+                          {existingVerification.status === 'approved' ? (language === "en" ? "Verified" : "موثق") :
+                           existingVerification.status === 'rejected' ? (language === "en" ? "Rejected" : "مرفوض") :
+                           existingVerification.status === 'under_review' ? (language === "en" ? "Under Review" : "قيد المراجعة") :
+                           (language === "en" ? "Pending" : "قيد الانتظار")}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setVerificationModalOpen(true)}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-lg"
+                  >
+                    {existingVerification?.status === 'approved' 
+                      ? (language === "en" ? "View Status" : "عرض الحالة")
+                      : existingVerification 
+                        ? (language === "en" ? "Check Status" : "تحقق من الحالة")
+                        : (language === "en" ? "Start Verification" : "بدء التحقق")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
               <CardHeader className="border-b border-border bg-muted/30 p-6">
                 <div className="flex items-center gap-3">
@@ -934,14 +995,6 @@ export default function Profile({ language = "en" }) {
               </CardHeader>
               <CardContent className="divide-y divide-border p-0">
                 {[
-                  { 
-                    title: language === "en" ? "Identity Verification" : "التحقق من الهوية", 
-                    status: formState.verificationStatus === 'verified' ? t.verified : t.notVerified, 
-                    icon: ShieldCheck, 
-                    action: language === "en" ? "Verify" : "توثيق",
-                    gradient: "from-emerald-500 to-emerald-600",
-                    bgGradient: "from-emerald-50 to-emerald-50"
-                  },
                   { 
                     title: t.passwordLabel, 
                     status: language === "en" ? "Last changed 3 months ago" : "آخر تغيير قبل 3 أشهر", 
@@ -1000,6 +1053,13 @@ export default function Profile({ language = "en" }) {
                 </p>
               </CardContent>
             </Card>
+
+            <VerificationModal
+              open={verificationModalOpen}
+              onOpenChange={setVerificationModalOpen}
+              language={language}
+              existingRequest={existingVerification}
+            />
           </TabsContent>
 
           {/* Referrals Tab */}

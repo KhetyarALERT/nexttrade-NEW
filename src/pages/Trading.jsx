@@ -154,11 +154,12 @@ export default function Trading({ language = "en" }) {
   }, [isAuthenticated, isLoadingAuth, refreshAccounts]);
 
   const chartHeight = useMemo(() => {
-    if (typeof window === "undefined") return "h-[320px]";
+    if (typeof window === "undefined") return "h-[400px]";
     const width = window.innerWidth;
-    if (width < 768) return "h-[200px]";
-    if (width < 1024) return "h-[240px]";
-    return "h-[320px]";
+    if (width < 640) return "h-[280px]";
+    if (width < 768) return "h-[320px]";
+    if (width < 1024) return "h-[360px]";
+    return "h-[400px]";
   }, []);
 
   const stats = useMemo(
@@ -227,8 +228,8 @@ export default function Trading({ language = "en" }) {
             ))}
           </div>
 
-          <div className="flex-1 overflow-hidden px-4 py-3 sm:px-6">
-            <div className={`h-full ${chartHeight} w-full`}>
+          <div className="flex-1 overflow-hidden px-2 py-2 sm:px-4 sm:py-3">
+            <div className={`${chartHeight} w-full min-h-[250px]`}>
               <BinanceFuturesChart
                 symbol={selectedSymbol}
                 onPriceUpdate={setLastPrice}
