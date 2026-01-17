@@ -22,7 +22,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import TradingHeroDisplay from "../components/home/TradingHeroDisplay";
+import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 
 export default function Home({ language = "en" }) {
@@ -200,116 +200,74 @@ export default function Home({ language = "en" }) {
 
   return (
     <div className="overflow-hidden bg-background text-foreground">
-      {/* Hero Section - Enhanced with AI Chat */}
-      <section className="relative min-h-[80vh] sm:min-h-[92vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-white via-slate-50 to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/40 via-transparent to-cyan-50/40 dark:from-blue-500/10 dark:to-cyan-500/10" />
-        <motion.div
-          className="absolute -top-24 right-[-10%] h-[320px] w-[320px] rounded-full bg-blue-500/10 blur-[120px] dark:bg-blue-500/20"
-          animate={shouldReduceMotion ? { opacity: 1 } : { opacity: [0.4, 0.75, 0.4] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-        />
-
-        {/* Content Layer */}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 z-20">
-          <div className="grid lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 items-center">
-            {/* Left Content */}
+      {/* Hero Section - Clean Professional Design like OKX */}
+      <section className="relative min-h-[70vh] sm:min-h-[85vh] flex items-center overflow-hidden bg-slate-950">
+        {/* Subtle background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+        
+        {/* Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 z-10 w-full">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            {/* Left Content - Text */}
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
               className="order-2 lg:order-1 text-center lg:text-left"
             >
-
-              {/* Credibility Badges */}
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 mb-5 sm:mb-6"
-              >
-                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 text-xs sm:text-sm backdrop-blur-md flex items-center gap-2">
-                  <Shield className="w-3.5 h-3.5 text-blue-600" />
-                  {language === "en" ? "Verified Security" : "أمان موثق"}
-                </Badge>
-                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 text-xs sm:text-sm backdrop-blur-md flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                  {language === "en" ? "Instant Liquidity" : "سيولة فورية"}
-                </Badge>
-                  <Badge className="bg-background/80 text-muted-foreground border-border px-3 py-1 text-xs sm:text-sm backdrop-blur-md flex items-center gap-2">
-                  <Bot className="w-3.5 h-3.5 text-indigo-600" />
-                  {language === "en" ? "AI Powered" : "مدعوم بالذكاء الاصطناعي"}
-                </Badge>
-              </motion.div>
-
-              {/* Animated Hero Title */}
-              <motion.h1
-                className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-4 sm:mb-5 leading-tight tracking-tight"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.2 }}>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
                 {t.hero.title}
-              </motion.h1>
+              </h1>
 
-              <motion.p
-                className="text-sm sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-xl mx-auto lg:mx-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.8 }}>
+              <p className="text-base sm:text-lg text-white/60 mb-6 sm:mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed">
                 {t.hero.subtitle}
-              </motion.p>
+              </p>
 
-              <div className="grid gap-3 sm:gap-4 sm:grid-cols-3 mb-8 sm:mb-10 max-w-2xl mx-auto lg:mx-0">
-                {t.hero.offerings.map((offering) => {
-                  const Icon = offering.icon;
-                  return (
-                    <div
-                      key={offering.title}
-                      className="rounded-xl border border-border/60 bg-background/80 p-4 sm:p-3 shadow-sm backdrop-blur-md transition-transform duration-300 hover:-translate-y-1 hover:shadow-md"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <span className="text-sm font-semibold text-foreground">{offering.title}</span>
-                      </div>
-                      <p className="text-xs sm:text-[11px] text-muted-foreground leading-relaxed">{offering.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <motion.div
-                className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-10 sm:mb-12 justify-center lg:justify-start"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 1.2 }}>
-
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-12">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-4 sm:px-7 sm:py-5 text-base sm:text-lg font-bold shadow-2xl shadow-blue-500/20 hover:scale-[1.02] transition-all group"
-                  asChild>
-                      <Link to={createPageUrl("Futures")}>
+                  className="bg-white text-slate-900 hover:bg-white/90 rounded-lg px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg font-semibold transition-all hover:scale-[1.02]"
+                  asChild
+                >
+                  <Link to={createPageUrl("Futures")}>
                     {t.hero.cta1}
-                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="w-full sm:w-auto border-border text-foreground hover:bg-muted rounded-full px-6 py-4 sm:px-7 sm:py-5 text-base sm:text-lg font-bold backdrop-blur-sm hover:scale-[1.02] transition-all"
-                  asChild>
+                  className="border-white/20 text-white hover:bg-white/10 rounded-lg px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg font-semibold transition-all"
+                  asChild
+                >
                   <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
-              </motion.div>
+              </div>
+
+              {/* Trust indicators - minimal */}
+              <div className="flex flex-wrap justify-center lg:justify-start gap-4 sm:gap-6 text-white/40 text-xs sm:text-sm">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  <span>{language === "en" ? "Secure" : "آمن"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  <span>{language === "en" ? "Fast" : "سريع"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  <span>{language === "en" ? "24/7" : "على مدار الساعة"}</span>
+                </div>
+              </div>
             </motion.div>
 
-            {/* Right Content - Trading Hero Display */}
+            {/* Right Content - Phone Mockup */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1, y: [0, -8, 0] }}
-              transition={shouldReduceMotion ? { duration: 1, delay: 0.5 } : { duration: 6, delay: 0.5, repeat: Infinity, ease: "easeInOut" }}
-              className="relative order-1 lg:order-2 w-full max-w-lg sm:max-w-xl mx-auto lg:max-w-none">
-              <TradingHeroDisplay language={language} />
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="order-1 lg:order-2 flex justify-center"
+            >
+              <PhoneMockup language={language} />
             </motion.div>
           </div>
         </div>
