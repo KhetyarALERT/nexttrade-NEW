@@ -208,12 +208,12 @@ export default function Home({ language = "en" }) {
         {/* Content */}
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 z-10 w-full">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            {/* Left Content - Text */}
+            {/* Left Content - Text (Full width on mobile) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="order-2 lg:order-1 text-center lg:text-left"
+              className="text-center lg:text-left lg:col-span-1"
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
                 {t.hero.title}
@@ -260,12 +260,12 @@ export default function Home({ language = "en" }) {
               </div>
             </motion.div>
 
-            {/* Right Content - Phone Mockup */}
+            {/* Right Content - Phone Mockup (Desktop only) */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="order-1 lg:order-2 flex justify-center"
+              className="order-1 lg:order-2 hidden lg:flex justify-center"
             >
               <PhoneMockup language={language} />
             </motion.div>
