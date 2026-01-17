@@ -1,418 +1,396 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { Gift, CalendarCheck2, CheckCircle2, Flame, Sparkles, Trophy } from "lucide-react";
+import { Gift, CalendarCheck2, CheckCircle2, Flame, Sparkles, Trophy, Star, Zap, Users, TrendingUp, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { POSITION_VOUCHERS } from "@/lib/rewards-config";
-import { pickLang } from "@/lib/rewards-config";
-import { tRewards } from "@/lib/i18n/rewards";
-import { fetchRewardsState, fetchVoucherClaims, claimVoucher as claimVoucherApi } from "@/api/functions";
+import { base44 } from "@/api/base44Client";
 
 const STORAGE_KEYS = {
   lastCheckin: "rewards_last_checkin",
   streak: "rewards_streak",
   tasks: "rewards_tasks",
-  // legacy fallback only
-  voucherClaims: "rewards_voucher_claims_v1",
+  voucherClaims: "rewards_voucher_claims_v2",
 };
 
-
 function isSameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export default function Rewards({ language = "en" }) {
-  const t = tRewards(language);
+const rewardMilestones = [
+  { id: "signup", points: 100, title: { en: "Welcome Bonus", ar: "مكافأة الترحيب" }, desc: { en: "Sign up and verify email", ar: "سجل وتحقق من البريد" }, auto: true },
+  { id: "first_deposit", points: 200, title: { en: "First Deposit", ar: "أول إيداع" }, desc: { en: "Make your first deposit", ar: "قم بأول إيداع" } },
+  { id: "first_trade", points: 150, title: { en: "First Trade", ar: "أول صفقة" }, desc: { en: "Execute your first trade", ar: "نفذ أول صفقة" } },
+  { id: "kyc_complete", points: 300, title: { en: "KYC Verified", ar: "تحقق KYC" }, desc: { en: "Complete identity verification", ar: "أكمل التحقق من الهوية" } },
+  { id: "referral_1", points: 500, title: { en: "First Referral", ar: "أول إحالة" }, desc: { en: "Invite your first friend", ar: "ادعُ أول صديق" } },
+  { id: "trade_volume_1k", points: 250, title: { en: "$1K Volume", ar: "حجم $1K" }, desc: { en: "Trade $1,000 in volume", ar: "تداول بحجم $1,000" } },
+  { id: "stake_first", points: 200, title: { en: "First Stake", ar: "أول ستيك" }, desc: { en: "Stake any amount", ar: "قم بأول ستيك" } },
+];
 
+const dailyRewards = [
+  { day: 1, points: 10 },
+  { day: 2, points: 15 },
+  { day: 3, points: 20 },
+  { day: 4, points: 25 },
+  { day: 5, points: 35 },
+  { day: 6, points: 50 },
+  { day: 7, points: 100, bonus: true },
+];
+
+const t = {
+  en: {
+    title: "Rewards Hub",
+    subtitle: "Complete tasks, earn points, and unlock exclusive rewards",
+    totalPoints: "Total Points",
+    currentStreak: "Current Streak",
+    days: "days",
+    level: "Level",
+    nextReward: "Next Reward",
+    dailyCheckin: "Daily Check-in",
+    checkinNow: "Check In Now",
+    checkedIn: "Checked In!",
+    checkinDesc: "Come back daily to earn bonus points",
+    milestones: "Milestones",
+    milestonesDesc: "Complete actions to earn points",
+    claimed: "Claimed",
+    claim: "Claim",
+    locked: "Locked",
+    leaderboard: "Leaderboard",
+    yourRank: "Your Rank",
+    topEarners: "Top Earners",
+    rewardsStore: "Rewards Store",
+    comingSoon: "Coming Soon",
+    redeemPoints: "Redeem your points for exclusive rewards",
+    day: "Day",
+    bonus: "BONUS",
+    tasks: "Daily Tasks",
+    taskDeposit: "Make a deposit",
+    taskTrade: "Execute a trade",
+    taskRefer: "Invite a friend",
+  },
+  ar: {
+    title: "مركز المكافآت",
+    subtitle: "أكمل المهام، اربح نقاط، واحصل على مكافآت حصرية",
+    totalPoints: "إجمالي النقاط",
+    currentStreak: "السلسلة الحالية",
+    days: "أيام",
+    level: "المستوى",
+    nextReward: "المكافأة التالية",
+    dailyCheckin: "تسجيل الدخول اليومي",
+    checkinNow: "سجل الآن",
+    checkedIn: "تم التسجيل!",
+    checkinDesc: "عد يوميًا لكسب نقاط إضافية",
+    milestones: "الإنجازات",
+    milestonesDesc: "أكمل الإجراءات لكسب النقاط",
+    claimed: "تم الاستلام",
+    claim: "استلم",
+    locked: "مقفل",
+    leaderboard: "قائمة المتصدرين",
+    yourRank: "ترتيبك",
+    topEarners: "أكثر الرابحين",
+    rewardsStore: "متجر المكافآت",
+    comingSoon: "قريبًا",
+    redeemPoints: "استبدل نقاطك بمكافآت حصرية",
+    day: "يوم",
+    bonus: "مكافأة",
+    tasks: "المهام اليومية",
+    taskDeposit: "قم بإيداع",
+    taskTrade: "نفذ صفقة",
+    taskRefer: "ادعُ صديقًا",
+  },
+};
+
+export default function Rewards({ language = "en" }) {
+  const labels = t[language];
+  
   const [streak, setStreak] = useState(0);
   const [lastCheckin, setLastCheckin] = useState(null);
+  const [totalPoints, setTotalPoints] = useState(100); // Start with signup bonus
+  const [claimedMilestones, setClaimedMilestones] = useState(["signup"]);
+  const [loading, setLoading] = useState(false);
 
-  const defaultTasks = useMemo(
-    () => [
-      {
-        id: "deposit",
-        title: language === "ar" ? "قم بالإيداع لأول مرة" : "Make your first deposit",
-        reward: language === "ar" ? "+10 نقاط" : "+10 pts",
-      },
-      {
-        id: "trade",
-        title: language === "ar" ? "نفّذ أول صفقة" : "Execute your first trade",
-        reward: language === "ar" ? "+20 نقاط" : "+20 pts",
-      },
-      {
-        id: "enable2fa",
-        title: language === "ar" ? "فعّل المصادقة الثنائية" : "Enable 2FA",
-        reward: language === "ar" ? "+5 نقاط" : "+5 pts",
-      },
-    ],
-    [language]
-  );
-
-  const [tasks, setTasks] = useState(defaultTasks.map((tItem) => ({ ...tItem, done: false })));
-
-  const [voucherClaims, setVoucherClaims] = useState({});
-  const [eligibility, setEligibility] = useState({});
-  const completedTasks = tasks.filter((task) => task.done).length;
-  const taskProgress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
-  const voucherGroups = useMemo(() => ([
-    {
-      id: "welcome",
-      title: language === "ar" ? "مكافآت الترحيب" : "Welcome bonuses",
-      ids: ["signup", "verify", "first_deposit", "first_stake"],
-    },
-    {
-      id: "performance",
-      title: language === "ar" ? "مكافآت الأداء" : "Performance bonuses",
-      ids: ["deposit_500", "zero_fee_5"],
-    },
-  ]), [language]);
+  const checkedInToday = lastCheckin ? isSameDay(lastCheckin, new Date()) : false;
+  const currentLevel = Math.floor(totalPoints / 500) + 1;
+  const levelProgress = (totalPoints % 500) / 500 * 100;
+  const pointsToNextLevel = 500 - (totalPoints % 500);
 
   useEffect(() => {
     try {
       const storedStreak = parseInt(localStorage.getItem(STORAGE_KEYS.streak) || "0", 10);
       const storedLast = localStorage.getItem(STORAGE_KEYS.lastCheckin);
-      const storedTasks = localStorage.getItem(STORAGE_KEYS.tasks);
+      const storedClaims = localStorage.getItem(STORAGE_KEYS.voucherClaims);
+      const storedPoints = localStorage.getItem("rewards_total_points");
 
-      setStreak(Number.isFinite(storedStreak) ? storedStreak : 0);
-      setLastCheckin(storedLast ? new Date(storedLast) : null);
-
-      if (storedTasks) {
-        const parsed = JSON.parse(storedTasks);
-        if (Array.isArray(parsed)) {
-          setTasks(
-            defaultTasks.map((task) => {
-              const saved = parsed.find((p) => p?.id === task.id);
-              return { ...task, done: Boolean(saved?.done) };
-            })
-          );
-        }
+      if (Number.isFinite(storedStreak)) setStreak(storedStreak);
+      if (storedLast) setLastCheckin(new Date(storedLast));
+      if (storedClaims) {
+        try {
+          const parsed = JSON.parse(storedClaims);
+          if (Array.isArray(parsed)) setClaimedMilestones(parsed);
+        } catch {}
       }
-
-      // legacy local claims (fallback only)
-      const rawClaims = localStorage.getItem(STORAGE_KEYS.voucherClaims);
-      if (rawClaims) {
-        const parsedClaims = JSON.parse(rawClaims);
-        if (parsedClaims && typeof parsedClaims === "object") setVoucherClaims(parsedClaims);
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, [defaultTasks]);
-
-  // Prefer Base44-backed claims/eligibility. If permissions are not ready, UI still works.
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const [claimsRes, stateRes] = await Promise.all([fetchVoucherClaims(), fetchRewardsState()]);
-        if (cancelled) return;
-
-        if (claimsRes?.data?.success && Array.isArray(claimsRes.data.data)) {
-          const next = {};
-          claimsRes.data.data.forEach((c) => {
-            if (c?.voucher_id) {
-              next[String(c.voucher_id)] = {
-                claimedAt: c.claimed_at || c.created_date || new Date().toISOString(),
-              };
-            }
-          });
-          setVoucherClaims(next);
-        }
-
-        if (stateRes?.data?.success && stateRes.data.data) {
-          setEligibility(stateRes.data.data.milestones || {});
-        }
-      } catch {
-        // ignore - likely permissions not configured yet
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+      if (storedPoints) setTotalPoints(parseInt(storedPoints, 10) || 100);
+    } catch {}
   }, []);
 
-  const checkedInToday = lastCheckin ? isSameDay(lastCheckin, new Date()) : false;
-
-  const persist = useCallback(
-    (nextStreak, nextLast, nextTasks) => {
-      try {
-        localStorage.setItem(STORAGE_KEYS.streak, String(nextStreak));
-        localStorage.setItem(STORAGE_KEYS.lastCheckin, nextLast ? nextLast.toISOString() : "");
-        localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify(nextTasks));
-      } catch {
-        // ignore
-      }
-    },
-    []
-  );
-
-  const persistVoucherClaims = useCallback((nextClaims) => {
-    setVoucherClaims(nextClaims);
+  const persist = useCallback((nextStreak, nextLast, nextClaims, nextPoints) => {
     try {
+      localStorage.setItem(STORAGE_KEYS.streak, String(nextStreak));
+      localStorage.setItem(STORAGE_KEYS.lastCheckin, nextLast ? nextLast.toISOString() : "");
       localStorage.setItem(STORAGE_KEYS.voucherClaims, JSON.stringify(nextClaims));
-    } catch {
-      // ignore
-    }
+      localStorage.setItem("rewards_total_points", String(nextPoints));
+    } catch {}
   }, []);
 
-  const claimVoucher = async (voucherId) => {
-    if (!voucherId) return;
-    if (voucherClaims?.[voucherId]) return;
-
-    try {
-      const res = await claimVoucherApi(voucherId, { source: "rewards_page" });
-      if (res?.data?.success) {
-        const next = { ...(voucherClaims || {}), [voucherId]: { claimedAt: new Date().toISOString() } };
-        persistVoucherClaims(next);
-        toast.success(language === "ar" ? "تمت إضافة القسيمة" : "Voucher claimed");
-        return;
-      }
-    } catch {
-      // fall back to local below
-    }
-
-    const next = { ...(voucherClaims || {}), [voucherId]: { claimedAt: new Date().toISOString() } };
-    persistVoucherClaims(next);
-    toast.success(language === "ar" ? "تمت إضافة القسيمة" : "Voucher claimed");
-  };
-
-  const handleCheckIn = () => {
-    const now = new Date();
+  const handleCheckIn = useCallback(() => {
     if (checkedInToday) return;
-
+    
+    const now = new Date();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
     const nextStreak = lastCheckin && isSameDay(lastCheckin, yesterday) ? streak + 1 : 1;
+    const dayIndex = Math.min(nextStreak - 1, 6);
+    const pointsEarned = dailyRewards[dayIndex].points;
+    const nextPoints = totalPoints + pointsEarned;
+
     setStreak(nextStreak);
     setLastCheckin(now);
+    setTotalPoints(nextPoints);
+    persist(nextStreak, now, claimedMilestones, nextPoints);
+    
+    toast.success(language === "ar" ? `+${pointsEarned} نقطة!` : `+${pointsEarned} points!`);
+  }, [checkedInToday, lastCheckin, streak, totalPoints, claimedMilestones, persist, language]);
 
-    persist(nextStreak, now, tasks);
-    toast.success(language === "ar" ? "تم تسجيل اليوم" : "Checked in for today");
-  };
-
-  const toggleTask = (taskId) => {
-    const nextTasks = tasks.map((task) =>
-      task.id === taskId ? { ...task, done: !task.done } : task
-    );
-    setTasks(nextTasks);
-    persist(streak, lastCheckin, nextTasks);
-  };
+  const claimMilestone = useCallback((id, points) => {
+    if (claimedMilestones.includes(id)) return;
+    
+    const nextClaims = [...claimedMilestones, id];
+    const nextPoints = totalPoints + points;
+    
+    setClaimedMilestones(nextClaims);
+    setTotalPoints(nextPoints);
+    persist(streak, lastCheckin, nextClaims, nextPoints);
+    
+    toast.success(language === "ar" ? `+${points} نقطة!` : `+${points} points!`);
+  }, [claimedMilestones, totalPoints, streak, lastCheckin, persist, language]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
-              <Badge variant="outline" className="border-border text-muted-foreground">
-                <Gift className="h-3.5 w-3.5 mr-1" />
-                {t.title}
-              </Badge>
+    <div className="min-h-screen bg-background text-foreground pb-20" dir={language === "ar" ? "rtl" : "ltr"}>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 pt-8 pb-16">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+              <Gift className="w-5 h-5 text-yellow-400" />
+              <span className="text-white font-medium">{labels.title}</span>
             </div>
-            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+              {labels.subtitle}
+            </h1>
+          </motion.div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: labels.totalPoints, value: totalPoints.toLocaleString(), icon: Star, color: "text-yellow-400" },
+              { label: labels.currentStreak, value: `${streak} ${labels.days}`, icon: Flame, color: "text-orange-400" },
+              { label: labels.level, value: currentLevel, icon: Trophy, color: "text-purple-400" },
+              { label: labels.nextReward, value: `${pointsToNextLevel} pts`, icon: Zap, color: "text-cyan-400" },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className="bg-white/10 border-white/10 backdrop-blur-xl">
+                  <CardContent className="p-4">
+                    <stat.icon className={`w-6 h-6 ${stat.color} mb-2`} />
+                    <p className="text-white/60 text-xs">{stat.label}</p>
+                    <p className="text-xl font-bold text-white">{stat.value}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Level Progress */}
+          <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+            <div className="flex items-center justify-between text-sm text-white/60 mb-2">
+              <span>Level {currentLevel}</span>
+              <span>Level {currentLevel + 1}</span>
+            </div>
+            <Progress value={levelProgress} className="h-3 bg-white/20" />
+            <p className="text-center text-xs text-white/40 mt-2">
+              {pointsToNextLevel} points to next level
+            </p>
           </div>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="border-border shadow-sm lg:col-span-1 bg-gradient-to-br from-blue-600/10 via-transparent to-purple-600/10">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-blue-600" />
-                {language === "ar" ? "ملخص المكافآت" : "Rewards snapshot"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-600/10 flex items-center justify-center">
-                    <Flame className="h-5 w-5 text-blue-600" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-8">
+        {/* Daily Check-in */}
+        <Card className="border-border shadow-xl overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-b border-border">
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck2 className="w-5 h-5 text-orange-500" />
+              {labels.dailyCheckin}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground mb-6">{labels.checkinDesc}</p>
+            
+            <div className="grid grid-cols-7 gap-2 sm:gap-3 mb-6">
+              {dailyRewards.map((reward, i) => {
+                const isCompleted = i < streak && checkedInToday ? true : i < streak - 1;
+                const isCurrent = i === Math.min(streak, 6) && !checkedInToday;
+                const isLocked = i > streak;
+                
+                return (
+                  <div
+                    key={i}
+                    className={`relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl border-2 transition-all ${
+                      isCompleted ? "bg-emerald-500/10 border-emerald-500" :
+                      isCurrent ? "bg-orange-500/10 border-orange-500 animate-pulse" :
+                      "bg-muted/30 border-border"
+                    }`}
+                  >
+                    {reward.bonus && (
+                      <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-[8px] px-1.5 py-0.5">
+                        {labels.bonus}
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">{labels.day} {reward.day}</span>
+                    <span className={`text-sm sm:text-base font-bold ${isCompleted ? "text-emerald-500" : isCurrent ? "text-orange-500" : "text-foreground"}`}>
+                      +{reward.points}
+                    </span>
+                    {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />}
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t.streak}</p>
-                    <p className="text-lg font-semibold">{streak}</p>
+                );
+              })}
+            </div>
+
+            <Button
+              onClick={handleCheckIn}
+              disabled={checkedInToday}
+              className={`w-full ${checkedInToday 
+                ? "bg-emerald-500 hover:bg-emerald-500" 
+                : "bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+              } text-white`}
+            >
+              {checkedInToday ? (
+                <><CheckCircle2 className="w-4 h-4 mr-2" /> {labels.checkedIn}</>
+              ) : (
+                labels.checkinNow
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Milestones */}
+        <Card className="border-border shadow-xl">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-purple-500" />
+              {labels.milestones}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm text-muted-foreground mb-6">{labels.milestonesDesc}</p>
+            
+            <div className="space-y-3">
+              {rewardMilestones.map((milestone) => {
+                const isClaimed = claimedMilestones.includes(milestone.id);
+                
+                return (
+                  <div
+                    key={milestone.id}
+                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                      isClaimed 
+                        ? "bg-emerald-500/5 border-emerald-500/30" 
+                        : "bg-card border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        isClaimed ? "bg-emerald-500/20" : "bg-primary/10"
+                      }`}>
+                        {isClaimed ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        ) : (
+                          <Star className="w-5 h-5 text-primary" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{milestone.title[language]}</p>
+                        <p className="text-xs text-muted-foreground">{milestone.desc[language]}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className={isClaimed ? "border-emerald-500 text-emerald-500" : ""}>
+                        +{milestone.points}
+                      </Badge>
+                      {isClaimed ? (
+                        <span className="text-xs text-emerald-500 font-medium">{labels.claimed}</span>
+                      ) : milestone.auto ? (
+                        <Button
+                          size="sm"
+                          onClick={() => claimMilestone(milestone.id, milestone.points)}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {labels.claim}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{labels.locked}</span>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Rewards Store Preview */}
+        <Card className="border-border shadow-xl overflow-hidden">
+          <CardContent className="p-0">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 sm:p-8 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold mb-2">{labels.rewardsStore}</h3>
+                  <p className="text-white/80 text-sm">{labels.redeemPoints}</p>
                 </div>
-                <Badge variant="outline" className="border-border text-muted-foreground">
-                  {checkedInToday ? t.checkedIn : t.checkIn}
+                <Badge className="bg-white/20 text-white border-0 px-4 py-2">
+                  {labels.comingSoon}
                 </Badge>
               </div>
-              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {language === "ar" ? "تقدم المهام" : "Tasks progress"}
-                  </span>
-                  <span className="text-foreground font-semibold">{taskProgress}%</span>
-                </div>
-                <Progress value={taskProgress} />
-                <div className="text-xs text-muted-foreground">
-                  {language === "ar"
-                    ? `أكملت ${completedTasks} من ${tasks.length} مهام.`
-                    : `You have completed ${completedTasks} of ${tasks.length} tasks.`}
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Trophy className="h-4 w-4 text-amber-500" />
-                  {language === "ar" ? "نصائح سريعة" : "Quick tips"}
-                </div>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>{language === "ar" ? "أكمل أول إيداع لفتح قسيمة ترحيبية." : "Make your first deposit to unlock a welcome voucher."}</li>
-                  <li>{language === "ar" ? "نفّذ صفقتك الأولى لرفع فرص المكافآت." : "Execute your first trade to boost rewards."}</li>
-                  <li>{language === "ar" ? "فعّل 2FA لتعزيز أمان الحساب." : "Enable 2FA to strengthen account security."}</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Daily */}
-          <Card className="border-border shadow-sm lg:col-span-1">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarCheck2 className="h-5 w-5 text-blue-600" />
-                {t.daily}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">{t.streak}</div>
-                <div className="text-lg font-bold text-foreground">{streak}</div>
-              </div>
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={handleCheckIn}
-                disabled={checkedInToday}
-              >
-                {checkedInToday ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    {t.checkedIn}
-                  </>
-                ) : (
-                  t.checkIn
-                )}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                {language === "ar"
-                  ? "سجّل مرة واحدة يوميًا للحفاظ على سلسلة الأيام."
-                  : "Check in once per day to maintain your streak."}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Tasks */}
-          <Card className="border-border shadow-sm lg:col-span-1">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg">{t.tasks}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              {tasks.map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  onClick={() => toggleTask(task.id)}
-                  className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left hover:bg-muted transition-colors"
-                >
-                  <span className={`text-sm ${task.done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {task.title}
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span className="text-[10px] rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                      {task.reward}
-                    </span>
-                    <span className={`text-xs font-medium ${task.done ? "text-emerald-600" : "text-muted-foreground"}`}>
-                      {task.done ? (language === "ar" ? "تم" : "Done") : (language === "ar" ? "ابدأ" : "Start")}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Position vouchers */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Gift className="h-5 w-5 text-purple-600" />
-                {t.vouchersTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              <p className="text-xs text-muted-foreground">
-                {t.vouchersSubtitle}
-              </p>
-
-              <Accordion type="multiple" defaultValue={voucherGroups.map((g) => g.id)} className="space-y-3">
-                {voucherGroups.map((group) => (
-                  <AccordionItem key={group.id} value={group.id} className="border-border rounded-xl">
-                    <AccordionTrigger className="px-3 py-2 text-sm">
-                      {group.title}
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-3 px-3 pb-3">
-                      {POSITION_VOUCHERS.milestones.filter((v) => group.ids.includes(v.id)).map((v) => {
-                        const claimed = Boolean(voucherClaims?.[v.id]);
-                        const eligible = v.id === "signup" ? true : Boolean(eligibility?.[v.id]);
-                        const disabled = claimed || !eligible;
-                        return (
-                          <div key={v.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-500/10 dark:to-blue-500/10 rounded-lg border border-border">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                              <Gift className="h-6 w-6 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-bold text-foreground">{pickLang(language, v.title)}</p>
-                              <p className="text-xs text-muted-foreground">{pickLang(language, v.condition)}</p>
-                              <Badge variant="secondary" className="mt-2 text-[10px]">
-                                {pickLang(language, v.reward)}
-                              </Badge>
-                              {v.expiry ? (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {language === "ar" ? "ينتهي:" : "Expires:"} {v.expiry}
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge className={claimed ? "bg-slate-500" : eligible ? (v.status === "New" ? "bg-green-500" : "bg-blue-500") : "bg-slate-400"}>
-                                {claimed ? t.claimed : eligible ? (v.status || t.eligible) : t.notEligible}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant={claimed ? "outline" : "default"}
-                                className={claimed ? "" : "bg-blue-600 hover:bg-blue-700"}
-                                disabled={disabled}
-                                onClick={() => claimVoucher(v.id)}
-                              >
-                                {claimed ? (
-                                  <span className="inline-flex items-center gap-1">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    {t.claimed}
-                                  </span>
-                                ) : t.claim}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </AccordionContent>
-                  </AccordionItem>
+              
+              <div className="mt-6 grid grid-cols-3 gap-4">
+                {[
+                  { name: language === "ar" ? "خصم رسوم" : "Fee Discount", points: 500 },
+                  { name: language === "ar" ? "مكافأة تداول" : "Trading Bonus", points: 1000 },
+                  { name: language === "ar" ? "NFT حصري" : "Exclusive NFT", points: 2500 },
+                ].map((item, i) => (
+                  <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <Gift className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-white/60">{item.points} pts</p>
+                  </div>
                 ))}
-              </Accordion>
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -4,48 +4,138 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Lock } from "lucide-react";
+import { RefreshCw, Lock, TrendingUp, Shield, Clock, Sparkles, CheckCircle2, Zap, Gift, ArrowRight } from "lucide-react";
 import StakingPanel from "@/components/profile/StakingPanel";
-import { POSITION_VOUCHERS } from "@/lib/rewards-config";
-import { tInvesting } from "@/lib/i18n/investing";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { motion } from "framer-motion";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 
+const stakingPlans = [
+  {
+    id: "flex",
+    name: { en: "Flexible", ar: "مرن" },
+    apy: "5.2%",
+    apyValue: 5.2,
+    lockPeriod: { en: "No lock", ar: "بدون قفل" },
+    minAmount: 50,
+    features: { en: ["Withdraw anytime", "Daily rewards", "Auto-compound"], ar: ["سحب في أي وقت", "مكافآت يومية", "تراكم تلقائي"] },
+    popular: false,
+    gradient: "from-blue-500 to-cyan-500",
+  },
+  {
+    id: "30d",
+    name: { en: "30 Days", ar: "30 يوم" },
+    apy: "8.5%",
+    apyValue: 8.5,
+    lockPeriod: { en: "30 days", ar: "30 يوم" },
+    minAmount: 100,
+    features: { en: ["Higher returns", "Daily rewards", "Principal protected"], ar: ["عوائد أعلى", "مكافآت يومية", "رأس المال محمي"] },
+    popular: true,
+    gradient: "from-emerald-500 to-teal-500",
+  },
+  {
+    id: "90d",
+    name: { en: "90 Days", ar: "90 يوم" },
+    apy: "12.8%",
+    apyValue: 12.8,
+    lockPeriod: { en: "90 days", ar: "90 يوم" },
+    minAmount: 500,
+    features: { en: ["Maximum returns", "Priority support", "Bonus rewards"], ar: ["أقصى عوائد", "دعم أولوية", "مكافآت إضافية"] },
+    popular: false,
+    gradient: "from-purple-500 to-pink-500",
+  },
+  {
+    id: "180d",
+    name: { en: "180 Days", ar: "180 يوم" },
+    apy: "18.5%",
+    apyValue: 18.5,
+    lockPeriod: { en: "180 days", ar: "180 يوم" },
+    minAmount: 1000,
+    features: { en: ["Premium APY", "VIP benefits", "Exclusive access"], ar: ["APY مميز", "مزايا VIP", "وصول حصري"] },
+    popular: false,
+    gradient: "from-orange-500 to-red-500",
+  },
+];
+
+const t = {
+  en: {
+    title: "Earn & Invest",
+    subtitle: "Put your crypto to work with industry-leading APY rates",
+    totalStaked: "Total Staked",
+    totalEarned: "Total Earned",
+    activePositions: "Active Positions",
+    avgApy: "Avg. APY",
+    choosePlan: "Choose Your Plan",
+    planSubtitle: "Lock your USDT and earn daily rewards",
+    minDeposit: "Min. deposit",
+    lockPeriod: "Lock period",
+    selectPlan: "Select Plan",
+    popular: "Most Popular",
+    new: "New",
+    howItWorks: "How It Works",
+    step1Title: "Deposit",
+    step1Desc: "Transfer USDT to your account",
+    step2Title: "Choose Plan",
+    step2Desc: "Select your preferred staking duration",
+    step3Title: "Earn",
+    step3Desc: "Watch your balance grow daily",
+    whyStake: "Why Stake with NextTrade?",
+    benefit1: "Institutional-grade security",
+    benefit2: "Daily reward distribution",
+    benefit3: "No hidden fees",
+    benefit4: "24/7 customer support",
+    myPositions: "My Staking Positions",
+    refresh: "Refresh",
+    noWallet: "Connect wallet to start earning",
+  },
+  ar: {
+    title: "الكسب والاستثمار",
+    subtitle: "ضع عملاتك الرقمية في العمل مع أفضل معدلات APY في الصناعة",
+    totalStaked: "إجمالي المودع",
+    totalEarned: "إجمالي المكتسب",
+    activePositions: "المراكز النشطة",
+    avgApy: "متوسط APY",
+    choosePlan: "اختر خطتك",
+    planSubtitle: "اقفل USDT الخاص بك واربح مكافآت يومية",
+    minDeposit: "الحد الأدنى للإيداع",
+    lockPeriod: "فترة القفل",
+    selectPlan: "اختر الخطة",
+    popular: "الأكثر شعبية",
+    new: "جديد",
+    howItWorks: "كيف يعمل",
+    step1Title: "إيداع",
+    step1Desc: "حول USDT إلى حسابك",
+    step2Title: "اختر خطة",
+    step2Desc: "حدد مدة الستيكنج المفضلة",
+    step3Title: "اربح",
+    step3Desc: "شاهد رصيدك ينمو يوميًا",
+    whyStake: "لماذا الستيكنج مع NextTrade؟",
+    benefit1: "أمان بمستوى مؤسسي",
+    benefit2: "توزيع المكافآت يوميًا",
+    benefit3: "بدون رسوم خفية",
+    benefit4: "دعم عملاء على مدار الساعة",
+    myPositions: "مراكز الستيكنج الخاصة بي",
+    refresh: "تحديث",
+    noWallet: "اربط المحفظة لبدء الكسب",
+  },
+};
+
 export default function Investing({ language = "en" }) {
-  const t = tInvesting(language);
-
-  const stakeTiers = POSITION_VOUCHERS?.stakeTiers;
-  const tierDurations = Array.isArray(stakeTiers?.durations) ? stakeTiers.durations : [];
-  const durationMin = tierDurations.length ? Math.min(...tierDurations) : null;
-  const durationMax = tierDurations.length ? Math.max(...tierDurations) : null;
-  const pctValues = tierDurations.
-  map((d) => Number(stakeTiers?.percentByDuration?.[d])).
-  filter((v) => Number.isFinite(v));
-  const pctMin = pctValues.length ? Math.min(...pctValues) : null;
-  const pctMax = pctValues.length ? Math.max(...pctValues) : null;
-  const promoBonus = {
-    newUser: true,
-    fiveK: { amount: 4999, duration: 49 }
-  };
-
+  const labels = t[language];
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const usdtWallet = wallets.find((wallet) => wallet?.currency === "USDT");
-  const usdtBalance = Number(usdtWallet?.balance || 0);
-  const minEligibility = 50;
-  const isEligible = usdtBalance >= minEligibility;
+
+  const usdtWallet = wallets.find((w) => w?.currency === "USDT");
+  const totalStaked = wallets.reduce((sum, w) => sum + (w?.staked_balance || 0), 0);
+  const totalEarned = 0; // Would be calculated from staking positions
 
   const loadWallets = useCallback(async () => {
     setLoading(true);
     try {
-      const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
-      if (walletsResult.data?.success) {
-        setWallets(walletsResult.data.data || []);
-      } else {
-        setWallets([]);
+      const result = await base44.functions.invoke("wallet", { action: "list" });
+      if (result.data?.success) {
+        setWallets(result.data.data || []);
       }
-    } catch (err) {
-      console.error("Failed to load wallets:", err);
+    } catch {
       setWallets([]);
     } finally {
       setLoading(false);
@@ -57,171 +147,198 @@ export default function Investing({ language = "en" }) {
   }, [loadWallets]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
-              <Badge variant="outline" className="border-border text-muted-foreground">
-                <Lock className="h-3.5 w-3.5 mr-1" />
-                {t.staking}
-              </Badge>
-            </div>
-            <p className="text-muted-foreground mt-2 text-base">{t.subtitle}</p>
-            <p className="text-sm text-muted-foreground mt-2">{t.note}</p>
-          </div>
+    <div className="min-h-screen bg-background text-foreground" dir={language === "ar" ? "rtl" : "ltr"}>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pt-8 pb-16">
+        <div className="absolute inset-0 bg-grid-white/[0.02] [mask-image:linear-gradient(0deg,transparent,white)]" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <Badge className="mb-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-4 py-1.5">
+              <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+              {language === "en" ? "Up to 18.5% APY" : "حتى 18.5% APY"}
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
+              {labels.title}
+            </h1>
+            <p className="text-lg text-white/60 max-w-2xl mx-auto">
+              {labels.subtitle}
+            </p>
+          </motion.div>
 
-          <Button variant="outline" onClick={loadWallets} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            {t.refresh}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <StakingPanel wallets={wallets} language={language} onRefresh={loadWallets} />
-
-            <Card className="border-border shadow-sm">
-              <CardHeader className="border-b border-border">
-                <CardTitle className="text-lg flex flex-col gap-1">
-                  <span>{t.stakingVouchersTitle}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {t.eligibility}: {isEligible ? t.eligible : t.depositToUnlock.replace("{amount}", String(minEligibility))}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                <p className="text-sm text-muted-foreground mb-4">{t.stakingVouchersSubtitle}</p>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Badge className="rounded-full border-0 bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-emerald-400/30 text-emerald-700 dark:text-emerald-200 px-3 py-1 text-[11px] shadow-sm">
-                    {t.promoNewUser}
-                  </Badge>
-                  <Badge className="rounded-full border-0 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-yellow-300/30 text-amber-700 dark:text-amber-200 px-3 py-1 text-[11px] shadow-sm">
-                    {t.promoFiveK}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-4">{t.minDepositNote}</p>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 mb-4">
-                  <div className="font-semibold mb-1">{t.riskTitle}</div>
-                  <p>{t.riskBody}</p>
-                </div>
-
-                {/* Enhanced Mobile-First USDT Staking Card */}
-                <Card className="bg-card border-border text-foreground shadow-sm">
-                  <CardContent className="p-0">
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="usdt" className="border-border">
-                        <AccordionTrigger className="hover:no-underline px-3 sm:px-4 py-3 sm:py-4">
-                          {/* Mobile: Stack vertically | Desktop: Horizontal */}
-                          <div className="flex flex-col sm:flex-row w-full gap-2 sm:gap-4 sm:items-center">
-                            {/* Asset info - always visible */}
-                            <div className="flex items-center gap-3 shrink-0">
-                              <CryptoIcon currency="USDT" size="sm" className="ring-1 ring-border" />
-                              <div className="leading-tight text-left">
-                                <div className="text-sm font-semibold text-foreground">USDT</div>
-                                <div className="text-[11px] text-muted-foreground">Tether</div>
-                              </div>
-                            </div>
-
-                            {/* APY & Duration - wrap on mobile */}
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:flex-1">
-                              <div className="text-emerald-600 dark:text-emerald-400 text-sm font-semibold">
-                                {pctMin !== null && pctMax !== null ? `${pctMin.toFixed(2)}%~${pctMax.toFixed(2)}%` : "—"}
-                              </div>
-
-                              <div className="text-xs sm:text-sm text-muted-foreground">
-                                {language === "ar" ?
-                                `مرن، ${durationMin ?? "—"}-${durationMax ?? "—"} ${t.days}` :
-                                `Flexible, ${durationMin ?? "—"}-${durationMax ?? "—"} days`}
-                              </div>
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-
-                        <AccordionContent className="px-3 sm:px-4 pb-4">
-                          <div className="overflow-x-auto -mx-3 sm:mx-0">
-                            <table className="w-full text-sm border-collapse min-w-[300px]">
-                              <thead>
-                                <tr className="text-xs text-muted-foreground sticky top-0 bg-card/95 backdrop-blur-sm">
-                                  <th className="text-left py-2 pr-2 sm:pr-4 pl-3 sm:pl-0">{`${t.amount} (USDT)`}</th>
-                                  {stakeTiers?.durations?.map((d) =>
-                                  <th key={d} className="text-right py-2 px-1 sm:pl-4 whitespace-nowrap">
-                                      {language === "ar" ? `${d} ${t.days}` : `${d}d`}
-                                    </th>
-                                  )}
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border">
-                                {stakeTiers?.amounts?.map((amt) =>
-                                <tr key={amt}>
-                                    <td className="py-2 pr-2 sm:pr-4 pl-3 sm:pl-0 font-semibold text-foreground">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <CryptoIcon currency="USDT" size="xs" className="ring-1 ring-border" />
-                                        <span>{Number(amt).toLocaleString()}</span>
-                                        {Number(amt) === 50 ? (
-                                          <Badge className="rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[9px]">
-                                            {t.newUserMin}
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                    </td>
-                                    {stakeTiers?.durations?.map((d) => {
-                                    const pct = stakeTiers?.percentByDuration?.[d];
-                                    const showFiveKBonus = promoBonus.fiveK && Number(amt) === promoBonus.fiveK.amount && Number(d) === promoBonus.fiveK.duration;
-                                    return (
-                                      <td key={d} className="py-2 px-1 sm:pl-4 text-right font-mono text-muted-foreground text-xs sm:text-sm">
-                                          <div className="flex flex-col items-end gap-1">
-                                            <span>{Number.isFinite(Number(pct)) ? `${pct}%` : "—"}</span>
-                                            {showFiveKBonus ? <Badge className="rounded-full border-0 bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-yellow-300/30 text-amber-700 dark:text-amber-200 text-[9px] px-2">200% bonus</Badge> : null}
-                                          </div>
-                                        </td>);
-
-                                  })}
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            {[
+              { label: labels.totalStaked, value: `$${totalStaked.toLocaleString()}`, icon: Lock, gradient: "from-blue-500 to-cyan-500" },
+              { label: labels.totalEarned, value: `$${totalEarned.toLocaleString()}`, icon: TrendingUp, gradient: "from-emerald-500 to-teal-500" },
+              { label: labels.activePositions, value: wallets.filter(w => w?.staked_balance > 0).length, icon: Sparkles, gradient: "from-purple-500 to-pink-500" },
+              { label: labels.avgApy, value: "12.5%", icon: Zap, gradient: "from-orange-500 to-red-500" },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
+                  <CardContent className="p-4 sm:p-6">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-3`}>
+                      <stat.icon className="w-5 h-5 text-white" />
+                    </div>
+                    <p className="text-white/50 text-xs sm:text-sm">{stat.label}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-white mt-1">{stat.value}</p>
                   </CardContent>
                 </Card>
-              </CardContent>
-            </Card>
+              </motion.div>
+            ))}
           </div>
-          <Card className="border-border shadow-sm lg:order-last">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg">{t.howItWorksTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3 text-sm text-muted-foreground">
-              <p>{t.howItWorksP1}</p>
-              <p>{t.howItWorksP2}</p>
-              <p className="text-xs text-muted-foreground">{t.howItWorksNote}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border shadow-sm">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="text-lg">{t.whatIsTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3 text-sm text-muted-foreground">
-              <p>{t.whatIsP1}</p>
-              <p>{t.whatIsP2}</p>
-              <p>{t.whatIsP3}</p>
-              <p className="text-xs text-muted-foreground">{t.whatIsHint}</p>
-              <div className="rounded-lg border border-border bg-muted p-3">
-                <div className="text-[11px] text-muted-foreground">{t.countdownLabel}</div>
-                <div className="text-sm font-semibold text-foreground">{t.countdownStarts}</div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-      </div>
-    </div>);
+      </section>
 
+      {/* Staking Plans */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 -mt-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">{labels.choosePlan}</h2>
+            <p className="text-muted-foreground">{labels.planSubtitle}</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {stakingPlans.map((plan, i) => (
+              <motion.div
+                key={plan.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card className={`relative overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
+                  plan.popular ? "border-emerald-500 shadow-emerald-500/20 shadow-lg" : "border-border hover:border-primary/50"
+                }`}>
+                  {plan.popular && (
+                    <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                      {labels.popular}
+                    </div>
+                  )}
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center`}>
+                        <CryptoIcon currency="USDT" size="sm" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-foreground">{plan.name[language]}</h3>
+                        <p className="text-xs text-muted-foreground">{labels.lockPeriod}: {plan.lockPeriod[language]}</p>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <div className={`text-4xl font-bold bg-gradient-to-r ${plan.gradient} bg-clip-text text-transparent`}>
+                        {plan.apy}
+                      </div>
+                      <p className="text-xs text-muted-foreground">APY</p>
+                    </div>
+
+                    <ul className="space-y-2 mb-6">
+                      {plan.features[language].map((feature, fi) => (
+                        <li key={fi} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="text-xs text-muted-foreground mb-4">
+                      {labels.minDeposit}: <span className="font-semibold text-foreground">${plan.minAmount}</span>
+                    </div>
+
+                    <Button className={`w-full bg-gradient-to-r ${plan.gradient} hover:opacity-90 text-white border-0`}>
+                      {labels.selectPlan}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center mb-10">{labels.howItWorks}</h2>
+          
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              { icon: Lock, title: labels.step1Title, desc: labels.step1Desc, gradient: "from-blue-500 to-cyan-500" },
+              { icon: Sparkles, title: labels.step2Title, desc: labels.step2Desc, gradient: "from-emerald-500 to-teal-500" },
+              { icon: TrendingUp, title: labels.step3Title, desc: labels.step3Desc, gradient: "from-purple-500 to-pink-500" },
+            ].map((step, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-4`}>
+                  <step.icon className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-2xl font-bold text-foreground mb-2">0{i + 1}</div>
+                <h3 className="font-bold text-foreground mb-2">{step.title}</h3>
+                <p className="text-sm text-muted-foreground">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why Stake Section */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center mb-10">{labels.whyStake}</h2>
+          
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[
+              { icon: Shield, text: labels.benefit1 },
+              { icon: Clock, text: labels.benefit2 },
+              { icon: CheckCircle2, text: labels.benefit3 },
+              { icon: Gift, text: labels.benefit4 },
+            ].map((benefit, i) => (
+              <Card key={i} className="border-border">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <benefit.icon className="w-6 h-6 text-primary" />
+                  </div>
+                  <span className="font-medium text-foreground">{benefit.text}</span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* My Positions */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">{labels.myPositions}</h2>
+            <Button variant="outline" onClick={loadWallets} disabled={loading} size="sm">
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              {labels.refresh}
+            </Button>
+          </div>
+          
+          <StakingPanel wallets={wallets} language={language} onRefresh={loadWallets} />
+        </div>
+      </section>
+    </div>
+  );
 }
 
 Investing.propTypes = {
-  language: PropTypes.oneOf(["en", "ar"])
+  language: PropTypes.oneOf(["en", "ar"]),
 };
