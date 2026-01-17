@@ -759,22 +759,22 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   }, [pendingOrders, chartColors]);
 
   return (
-    <div className="w-full h-full bg-background text-foreground flex flex-col">
-      {/* Chart Header / Toolbar */}
-      <div className="flex items-center gap-1 sm:gap-2 p-2 bg-card border-b border-border">
-        {/* Timeframe buttons */}
-        <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto hide-scrollbar flex-shrink-0">
+    <div className="w-full h-full min-h-[250px] bg-background text-foreground flex flex-col">
+      {/* Chart Header / Toolbar - Compact on mobile */}
+      <div className="flex items-center gap-1 p-1.5 sm:p-2 bg-card border-b border-border">
+        {/* Timeframe buttons - scrollable on mobile */}
+        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
           {INTERVALS.map((tf) => (
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
-              className={`px-1.5 sm:px-2.5 py-1 text-[10px] sm:text-xs rounded-md transition-all duration-200 font-medium whitespace-nowrap ${
+              className={`px-2 py-1.5 text-[11px] sm:text-xs rounded-md transition-all duration-200 font-medium whitespace-nowrap flex-shrink-0 ${
                 timeframe === tf
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              {isNarrow ? tf.toUpperCase().replace(/M$/, "") : tf.toUpperCase()}
+              {tf.toUpperCase()}
             </button>
           ))}
         </div>
@@ -893,10 +893,10 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         </div>
       </div>
 
-      {/* Chart Container */}
-      <div ref={containerRef} className="flex-1 min-h-0 relative">
+      {/* Chart Container - Ensure minimum height on mobile */}
+      <div ref={containerRef} className="flex-1 min-h-[200px] sm:min-h-[280px] relative">
         {/* Symbol watermark */}
-        <div className="absolute top-3 left-3 text-xs font-medium text-muted-foreground/40 dark:text-muted-foreground/50 select-none pointer-events-none z-10">
+        <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-medium text-muted-foreground/40 dark:text-muted-foreground/50 select-none pointer-events-none z-10">
           {String(symbol || normalizedSymbol)}
         </div>
       </div>
