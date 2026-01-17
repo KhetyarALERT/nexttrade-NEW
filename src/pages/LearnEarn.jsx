@@ -1,356 +1,557 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  BookOpen, CheckCircle2, GraduationCap, Lock, Play, Star, Trophy, 
+  Zap, ChevronRight, Award, Target, Flame, Gift, ArrowRight, Volume2, X
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, CheckCircle2, GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import confetti from "canvas-confetti";
 
-const STORAGE_KEY = "learn_earn_progress_v1";
+const COURSES = [
+  {
+    id: "crypto-basics",
+    icon: "🪙",
+    color: "from-blue-500 to-cyan-500",
+    lessons: [
+      { id: "cb-1", title: { en: "What is Cryptocurrency?", ar: "ما هي العملة الرقمية؟" }, duration: "3 min", points: 10 },
+      { id: "cb-2", title: { en: "Blockchain Explained", ar: "شرح البلوكشين" }, duration: "4 min", points: 15 },
+      { id: "cb-3", title: { en: "Wallets: Hot vs Cold", ar: "المحافظ: ساخنة مقابل باردة" }, duration: "3 min", points: 10 },
+      { id: "cb-4", title: { en: "Private Keys & Security", ar: "المفاتيح الخاصة والأمان" }, duration: "5 min", points: 20 },
+    ],
+    quiz: {
+      id: "cb-quiz",
+      questions: [
+        { q: { en: "A seed phrase should be shared with:", ar: "يجب مشاركة عبارة الاستعادة مع:" }, 
+          options: { en: ["No one", "Customer support", "A friend"], ar: ["لا أحد", "الدعم الفني", "صديق"] }, 
+          correct: 0 },
+        { q: { en: "Hot wallets are:", ar: "المحافظ الساخنة هي:" }, 
+          options: { en: ["Connected to internet", "Offline storage", "Paper wallets"], ar: ["متصلة بالإنترنت", "تخزين غير متصل", "محافظ ورقية"] }, 
+          correct: 0 },
+      ],
+      points: 50,
+    }
+  },
+  {
+    id: "trading-101",
+    icon: "📈",
+    color: "from-emerald-500 to-teal-500",
+    lessons: [
+      { id: "t1-1", title: { en: "Spot vs Futures Trading", ar: "تداول سبوت مقابل العقود" }, duration: "4 min", points: 15 },
+      { id: "t1-2", title: { en: "Understanding Order Types", ar: "فهم أنواع الأوامر" }, duration: "5 min", points: 20 },
+      { id: "t1-3", title: { en: "Reading Charts Basics", ar: "أساسيات قراءة الرسوم" }, duration: "6 min", points: 25 },
+      { id: "t1-4", title: { en: "Risk Management 101", ar: "إدارة المخاطر 101" }, duration: "5 min", points: 20 },
+    ],
+    quiz: {
+      id: "t1-quiz",
+      questions: [
+        { q: { en: "A limit order:", ar: "أمر محدد:" }, 
+          options: { en: ["Executes at specified price", "Executes immediately", "Never expires"], ar: ["ينفذ بسعر محدد", "ينفذ فوراً", "لا ينتهي أبداً"] }, 
+          correct: 0 },
+        { q: { en: "Stop loss helps:", ar: "وقف الخسارة يساعد في:" }, 
+          options: { en: ["Limit losses", "Maximize profit", "Both"], ar: ["تحديد الخسائر", "تعظيم الربح", "كلاهما"] }, 
+          correct: 0 },
+      ],
+      points: 50,
+    }
+  },
+  {
+    id: "futures-advanced",
+    icon: "🚀",
+    color: "from-purple-500 to-pink-500",
+    lessons: [
+      { id: "fa-1", title: { en: "Leverage Explained", ar: "شرح الرافعة المالية" }, duration: "5 min", points: 25 },
+      { id: "fa-2", title: { en: "Liquidation & Margin", ar: "التصفية والهامش" }, duration: "6 min", points: 30 },
+      { id: "fa-3", title: { en: "Position Sizing", ar: "حجم المركز" }, duration: "5 min", points: 25 },
+      { id: "fa-4", title: { en: "TP/SL Strategies", ar: "استراتيجيات TP/SL" }, duration: "7 min", points: 35 },
+    ],
+    quiz: {
+      id: "fa-quiz",
+      questions: [
+        { q: { en: "Higher leverage means:", ar: "الرافعة الأعلى تعني:" }, 
+          options: { en: ["Higher risk", "Lower risk", "No change"], ar: ["مخاطر أعلى", "مخاطر أقل", "لا تغيير"] }, 
+          correct: 0 },
+        { q: { en: "Liquidation happens when:", ar: "تحدث التصفية عندما:" }, 
+          options: { en: ["Margin depleted", "Profit target hit", "Order expires"], ar: ["نفاد الهامش", "تحقق هدف الربح", "انتهاء الأمر"] }, 
+          correct: 0 },
+      ],
+      points: 75,
+    }
+  },
+  {
+    id: "security",
+    icon: "🛡️",
+    color: "from-amber-500 to-orange-500",
+    lessons: [
+      { id: "sec-1", title: { en: "2FA Setup Guide", ar: "دليل إعداد 2FA" }, duration: "3 min", points: 15 },
+      { id: "sec-2", title: { en: "Spotting Phishing", ar: "اكتشاف التصيد" }, duration: "4 min", points: 20 },
+      { id: "sec-3", title: { en: "Secure Withdrawals", ar: "سحب آمن" }, duration: "3 min", points: 15 },
+    ],
+    quiz: {
+      id: "sec-quiz",
+      questions: [
+        { q: { en: "Best 2FA method:", ar: "أفضل طريقة 2FA:" }, 
+          options: { en: ["Authenticator app", "SMS", "Email"], ar: ["تطبيق المصادقة", "SMS", "البريد"] }, 
+          correct: 0 },
+      ],
+      points: 40,
+    }
+  },
+];
 
-function clamp01(v) {
-  return Math.max(0, Math.min(1, v));
-}
+const COURSE_TITLES = {
+  "crypto-basics": { en: "Crypto Basics", ar: "أساسيات الكريبتو" },
+  "trading-101": { en: "Trading 101", ar: "التداول 101" },
+  "futures-advanced": { en: "Futures Advanced", ar: "العقود المتقدمة" },
+  "security": { en: "Security", ar: "الأمان" },
+};
+
+const XP_PER_LEVEL = 500;
 
 export default function LearnEarn({ language = "en" }) {
-  const t = useMemo(() => {
-    const en = {
-      title: "Learn & Earn",
-      subtitle: "Short lessons + quick checks. Learn safely and earn points as you go.",
-      points: "Points",
-      pointsHelp: "Complete lessons and quizzes to earn points and unlock rewards.",
-      yourProgress: "Your progress",
-      start: "Start",
-      continue: "Continue",
-      completeLesson: "Mark lesson as done",
-      takeQuiz: "Take quick quiz",
-      passed: "Passed",
-      notYet: "Not yet",
-      courseComplete: "Course completed",
-      earned: "You earned",
-      pts: "pts",
-      disclaimer: "Educational content only. Points are demo rewards and may change.",
-      lessonsComplete: "Lessons completed",
-      courses: {
-        basics: {
-          title: "Getting Started",
-          desc: "Wallets, networks, and how to avoid common beginner mistakes.",
-          lessons: [
-            "Wallets: hot vs cold (and what you actually need)",
-            "Networks & memos: how people lose funds",
-            "Spot vs Futures: the one-sentence difference",
-            "Fees, spread, and slippage (why price can differ)",
-          ],
-          quiz: {
-            q: "A seed phrase should be shared with:",
-            a: ["No one", "Customer support", "A friend"],
-            correct: 0,
-          },
-        },
-        security: {
-          title: "Security",
-          desc: "Protect your account with habits that actually work.",
-          lessons: [
-            "2FA: authenticator vs SMS (what to use)",
-            "Phishing basics: how to spot fake links",
-            "Device hygiene: updates, passwords, and backups",
-            "Withdrawals: whitelists and test transactions",
-          ],
-          quiz: {
-            q: "The safest way to enable 2FA is:",
-            a: ["SMS only", "Authenticator app", "Email codes"],
-            correct: 1,
-          },
-        },
-        risk: {
-          title: "Futures 101",
-          desc: "Leverage, liquidation, and how to size positions without panic.",
-          lessons: [
-            "Leverage: what it changes (and what it doesn't)",
-            "Liquidation: why it happens",
-            "TP/SL: how to plan before entering",
-            "Position sizing: risk per trade",
-          ],
-          quiz: {
-            q: "Higher leverage generally means:",
-            a: ["Lower risk", "Higher risk", "No change"],
-            correct: 1,
-          },
-        },
-        earn: {
-          title: "Staking & Earning",
-          desc: "Understand staking, lockups, and rewards in plain language.",
-          lessons: [
-            "Staking vs holding: what's the difference?",
-            "Lockup periods and what 'APR' actually means",
-            "Risks: smart contract risk & platform risk",
-          ],
-          quiz: {
-            q: "APR usually means:",
-            a: ["Guaranteed profit", "A yearly rate estimate", "No risk"],
-            correct: 1,
-          },
-        },
-      },
-    };
+  const { isAuthenticated, user } = useAuth();
+  const [progress, setProgress] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeCourse, setActiveCourse] = useState(null);
+  const [activeLesson, setActiveLesson] = useState(null);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizCourse, setQuizCourse] = useState(null);
+  const [quizStep, setQuizStep] = useState(0);
+  const [quizAnswers, setQuizAnswers] = useState([]);
 
-    const ar = {
-      title: "تعلّم واربح",
-      subtitle: "دروس قصيرة + اختبارات سريعة. تعلّم بأمان واكسب نقاطًا أثناء التقدّم.",
-      points: "النقاط",
-      pointsHelp: "أكمل الدروس والاختبارات لكسب النقاط وفتح المكافآت.",
-      yourProgress: "تقدّمك",
-      start: "ابدأ",
-      continue: "تابع",
-      completeLesson: "وضع علامة تم على الدرس",
-      takeQuiz: "اختبار سريع",
-      passed: "ناجح",
-      notYet: "ليس بعد",
-      courseComplete: "تم إكمال المسار",
-      earned: "لقد ربحت",
-      pts: "نقطة",
-      disclaimer: "محتوى تعليمي فقط. النقاط تجريبية وقد تتغيّر.",
-      lessonsComplete: "الدروس المكتملة",
-      courses: {
-        basics: {
-          title: "البدء من الصفر",
-          desc: "المحافظ، الشبكات، وتجنّب أخطاء المبتدئين الشائعة.",
-          lessons: [
-            "المحافظ: ساخنة مقابل باردة (ماذا تحتاج فعلاً)",
-            "الشبكات والميمو: كيف يضيع الناس أموالهم",
-            "سبوت مقابل العقود: الفرق بجملة واحدة",
-            "الرسوم والسبريد والانزلاق السعري",
-          ],
-          quiz: {
-            q: "يجب مشاركة عبارة الاستعادة (Seed Phrase) مع:",
-            a: ["لا أحد", "الدعم الفني", "صديق"],
-            correct: 0,
-          },
-        },
-        security: {
-          title: "الأمان",
-          desc: "احمِ حسابك بعادات عملية وسهلة.",
-          lessons: [
-            "2FA: تطبيق المصادقة مقابل الرسائل",
-            "التصيّد: كيف تميّز الروابط المزيفة",
-            "أمان الجهاز: تحديثات وكلمات مرور ونسخ احتياطية",
-            "السحب: قائمة العناوين وتحويلة اختبار",
-          ],
-          quiz: {
-            q: "أفضل طريقة لتفعيل 2FA هي:",
-            a: ["SMS فقط", "تطبيق المصادقة", "رموز البريد"],
-            correct: 1,
-          },
-        },
-        risk: {
-          title: "العقود للمبتدئين",
-          desc: "الرافعة والتصفية وكيف تحدد حجم صفقة بهدوء.",
-          lessons: [
-            "الرافعة: ماذا تغيّر؟",
-            "التصفية: لماذا تحدث؟",
-            "TP/SL: خطّط قبل الدخول",
-            "حجم الصفقة: نسبة مخاطرة لكل صفقة",
-          ],
-          quiz: {
-            q: "الرافعة الأعلى تعني غالباً:",
-            a: ["مخاطر أقل", "مخاطر أعلى", "لا فرق"],
-            correct: 1,
-          },
-        },
-        earn: {
-          title: "الربح والرهن",
-          desc: "افهم الرهن وفترات القفل والمكافآت بلغة بسيطة.",
-          lessons: [
-            "الرهن مقابل الاحتفاظ: ما الفرق؟",
-            "فترة القفل و APR: ماذا تعني؟",
-            "المخاطر: مخاطر العقد الذكي ومخاطر المنصة",
-          ],
-          quiz: {
-            q: "APR تعني غالباً:",
-            a: ["ربح مضمون", "تقدير سنوي", "بدون مخاطر"],
-            correct: 1,
-          },
-        },
-      },
-    };
+  const t = useMemo(() => ({
+    title: language === "ar" ? "تعلّم واربح" : "Learn & Earn",
+    subtitle: language === "ar" ? "أكمل الدروس واربح نقاط حقيقية" : "Complete lessons and earn real rewards",
+    level: language === "ar" ? "المستوى" : "Level",
+    points: language === "ar" ? "النقاط" : "Points",
+    streak: language === "ar" ? "السلسلة" : "Streak",
+    days: language === "ar" ? "أيام" : "days",
+    startCourse: language === "ar" ? "ابدأ الدورة" : "Start Course",
+    continueCourse: language === "ar" ? "استمر" : "Continue",
+    completed: language === "ar" ? "مكتمل" : "Completed",
+    lessons: language === "ar" ? "دروس" : "lessons",
+    quiz: language === "ar" ? "اختبار" : "Quiz",
+    takeQuiz: language === "ar" ? "ابدأ الاختبار" : "Take Quiz",
+    watchLesson: language === "ar" ? "شاهد الدرس" : "Watch Lesson",
+    completeLesson: language === "ar" ? "أكمل الدرس" : "Complete Lesson",
+    nextLesson: language === "ar" ? "الدرس التالي" : "Next Lesson",
+    earnPoints: language === "ar" ? "اربح نقاط" : "Earn",
+    locked: language === "ar" ? "مقفل" : "Locked",
+    passed: language === "ar" ? "ناجح" : "Passed",
+    submit: language === "ar" ? "إرسال" : "Submit",
+    correct: language === "ar" ? "صحيح!" : "Correct!",
+    wrong: language === "ar" ? "خطأ" : "Wrong",
+    quizComplete: language === "ar" ? "أحسنت!" : "Well done!",
+    loginToStart: language === "ar" ? "سجل دخول للبدء" : "Login to start earning",
+  }), [language]);
 
-    return language === "ar" ? ar : en;
-  }, [language]);
-
-  const [state, setState] = useState(() => ({ points: 0, courses: {} }));
+  const loadProgress = useCallback(async () => {
+    if (!isAuthenticated) {
+      setProgress({ total_points: 0, level: 1, xp: 0, streak_days: 0, completed_lessons: [], completed_quizzes: [] });
+      setLoading(false);
+      return;
+    }
+    try {
+      const u = await base44.auth.me();
+      const results = await base44.entities.UserProgress.filter({ user_id: u.id });
+      if (results?.length > 0) {
+        setProgress(results[0]);
+      } else {
+        const newProgress = await base44.entities.UserProgress.create({ user_id: u.id, total_points: 100, level: 1, xp: 100, streak_days: 0, completed_lessons: [], completed_quizzes: [] });
+        setProgress(newProgress);
+      }
+    } catch {
+      setProgress({ total_points: 0, level: 1, xp: 0, streak_days: 0, completed_lessons: [], completed_quizzes: [] });
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    loadProgress();
+  }, [loadProgress]);
+
+  const updateProgress = useCallback(async (updates) => {
+    if (!progress?.id) return;
+    const newData = { ...progress, ...updates };
+    // Calculate level
+    const totalXp = newData.xp || 0;
+    newData.level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
+    
+    setProgress(newData);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(JSON.parse(raw));
-    } catch {
-      // ignore
+      await base44.entities.UserProgress.update(progress.id, updates);
+    } catch {}
+  }, [progress]);
+
+  const completeLesson = useCallback(async (lessonId, points) => {
+    if (!progress || progress.completed_lessons?.includes(lessonId)) return;
+    
+    const newLessons = [...(progress.completed_lessons || []), lessonId];
+    const newPoints = (progress.total_points || 0) + points;
+    const newXp = (progress.xp || 0) + points;
+    
+    await updateProgress({
+      completed_lessons: newLessons,
+      total_points: newPoints,
+      xp: newXp,
+    });
+
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+    toast.success(`+${points} ${t.points}!`);
+  }, [progress, updateProgress, t.points]);
+
+  const completeQuiz = useCallback(async (quizId, points, correctCount, totalCount) => {
+    if (!progress || progress.completed_quizzes?.includes(quizId)) return;
+    
+    const passed = correctCount >= Math.ceil(totalCount / 2);
+    if (!passed) {
+      toast.error(t.wrong);
+      return;
     }
-  }, []);
 
-  const save = (next) => {
-    setState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
+    const newQuizzes = [...(progress.completed_quizzes || []), quizId];
+    const newPoints = (progress.total_points || 0) + points;
+    const newXp = (progress.xp || 0) + points;
 
-  const courseKeys = Object.keys(t.courses);
+    await updateProgress({
+      completed_quizzes: newQuizzes,
+      total_points: newPoints,
+      xp: newXp,
+    });
 
-  const getCourseProgress = (key) => {
-    const courseState = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
-    const lessonCount = t.courses[key].lessons.length;
-    const lessonsDone = Math.min(courseState.lessonIndex, lessonCount);
-    const lessonPct = lessonCount ? lessonsDone / lessonCount : 0;
-    const quizPct = courseState.quizPassed ? 1 : 0;
-    return clamp01((lessonPct * 0.8) + (quizPct * 0.2));
-  };
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    toast.success(`${t.quizComplete} +${points} ${t.points}!`);
+    setQuizOpen(false);
+  }, [progress, updateProgress, t]);
 
-  const markLessonDone = (key) => {
-    const lessonCount = t.courses[key].lessons.length;
-    const prev = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
-    const nextLessonIndex = Math.min(lessonCount, (prev.lessonIndex || 0) + 1);
-    const gained = nextLessonIndex > (prev.lessonIndex || 0) ? 10 : 0;
-
-    const next = {
-      ...state,
-      points: (state.points || 0) + gained,
-      courses: {
-        ...(state.courses || {}),
-        [key]: { ...prev, lessonIndex: nextLessonIndex },
-      },
+  const getCourseProgress = (course) => {
+    if (!progress) return { completed: 0, total: course.lessons.length, percent: 0, quizPassed: false };
+    const completed = course.lessons.filter(l => progress.completed_lessons?.includes(l.id)).length;
+    const quizPassed = progress.completed_quizzes?.includes(course.quiz.id);
+    return {
+      completed,
+      total: course.lessons.length,
+      percent: Math.round((completed / course.lessons.length) * 100),
+      quizPassed,
     };
-
-    save(next);
-    if (gained) toast.success(`${t.earned} 10 ${t.pts}`);
   };
 
-  const takeQuiz = (key) => {
-    const prev = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
-    if (prev.quizPassed) return;
+  const levelProgress = progress ? ((progress.xp || 0) % XP_PER_LEVEL) / XP_PER_LEVEL * 100 : 0;
 
-    const quiz = t.courses[key].quiz;
-    const answer = window.prompt(`${quiz.q}\n\n1) ${quiz.a[0]}\n2) ${quiz.a[1]}\n3) ${quiz.a[2]}\n\n${language === "ar" ? "اكتب رقم الإجابة (1-3)" : "Type answer number (1-3)"}`);
-
-    const idx = Number.parseInt(answer || "", 10) - 1;
-    const passed = idx === quiz.correct;
-
-    const gained = passed ? 25 : 0;
-    const next = {
-      ...state,
-      points: (state.points || 0) + gained,
-      courses: {
-        ...(state.courses || {}),
-        [key]: { ...prev, quizPassed: passed || prev.quizPassed },
-      },
-    };
-
-    save(next);
-
-    if (passed) toast.success(`${t.passed} — ${t.earned} 25 ${t.pts}`);
-    else toast.error(language === "ar" ? "إجابة غير صحيحة" : "Incorrect answer");
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
-              <Badge variant="outline" className="border-border text-muted-foreground">
-                <GraduationCap className="h-3.5 w-3.5 mr-1" />
-                {t.points}: {state.points || 0}
-              </Badge>
+    <div className="min-h-screen bg-background pb-20" dir={language === "ar" ? "rtl" : "ltr"}>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 pt-8 pb-16">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
+        
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
+              <GraduationCap className="w-5 h-5 text-yellow-400" />
+              <span className="text-white font-medium">{t.title}</span>
             </div>
-            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-2">{t.pointsHelp}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t.disclaimer}</p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">{t.subtitle}</h1>
+          </motion.div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="bg-white/10 border-white/20 backdrop-blur">
+              <CardContent className="p-4 text-center">
+                <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{progress?.level || 1}</div>
+                <div className="text-xs text-white/60">{t.level}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 border-white/20 backdrop-blur">
+              <CardContent className="p-4 text-center">
+                <Star className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{(progress?.total_points || 0).toLocaleString()}</div>
+                <div className="text-xs text-white/60">{t.points}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 border-white/20 backdrop-blur">
+              <CardContent className="p-4 text-center">
+                <Flame className="w-6 h-6 text-orange-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">{progress?.streak_days || 0}</div>
+                <div className="text-xs text-white/60">{t.streak} {t.days}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white/10 border-white/20 backdrop-blur">
+              <CardContent className="p-4 text-center">
+                <Zap className="w-6 h-6 text-cyan-400 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-white">
+                  {COURSES.reduce((acc, c) => acc + getCourseProgress(c).completed, 0)}/{COURSES.reduce((acc, c) => acc + c.lessons.length, 0)}
+                </div>
+                <div className="text-xs text-white/60">{t.lessons}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Level Progress */}
+          <div className="mt-6 bg-white/10 backdrop-blur rounded-2xl p-4">
+            <div className="flex items-center justify-between text-sm text-white/60 mb-2">
+              <span>{t.level} {progress?.level || 1}</span>
+              <span>{t.level} {(progress?.level || 1) + 1}</span>
+            </div>
+            <Progress value={levelProgress} className="h-3 bg-white/20" />
           </div>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {courseKeys.map((key) => {
-            const course = t.courses[key];
-            const courseState = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
-            const lessonCount = course.lessons.length;
-            const progress = getCourseProgress(key);
-            const done = progress >= 0.999;
-
-            const Icon =
-              key === "security" ? ShieldCheck :
-              key === "risk" ? Sparkles :
-              BookOpen;
-
+      {/* Course Grid */}
+      <div className="max-w-6xl mx-auto px-4 -mt-8">
+        <div className="grid sm:grid-cols-2 gap-4">
+          {COURSES.map((course, i) => {
+            const prog = getCourseProgress(course);
+            const isComplete = prog.completed === prog.total && prog.quizPassed;
+            
             return (
-              <Card key={key} className="border-border shadow-sm">
-                <CardHeader className="border-b border-border">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Icon className="h-5 w-5 text-blue-600" />
-                    {course.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <p className="text-sm text-muted-foreground">{course.desc}</p>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{t.yourProgress}</span>
-                      <span>{Math.round(progress * 100)}%</span>
+              <motion.div
+                key={course.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <Card 
+                  className={`overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
+                    isComplete ? "border-emerald-500/50" : "border-border"
+                  }`}
+                  onClick={() => setActiveCourse(course)}
+                >
+                  <div className={`h-2 bg-gradient-to-r ${course.color}`} />
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${course.color} flex items-center justify-center text-2xl shadow-lg`}>
+                        {course.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-foreground truncate">
+                            {COURSE_TITLES[course.id][language]}
+                          </h3>
+                          {isComplete && <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {prog.completed}/{prog.total} {t.lessons} • {prog.quizPassed ? t.passed : t.quiz}
+                        </p>
+                        <Progress value={prog.percent} className="h-2" />
+                      </div>
                     </div>
-                    <Progress value={progress * 100} className="h-2" />
-                    <div className="text-[11px] text-muted-foreground">
-                      {t.lessonsComplete}: {Math.min(courseState.lessonIndex || 0, lessonCount)} / {lessonCount}
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        <span>{course.lessons.reduce((a, l) => a + l.points, 0) + course.quiz.points} pts</span>
+                      </div>
+                      <Button size="sm" className={`bg-gradient-to-r ${course.color} text-white border-0`}>
+                        {prog.completed === 0 ? t.startCourse : t.continueCourse}
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="text-muted-foreground font-medium">
-                      {language === "ar" ? "الدروس" : "Lessons"}
-                    </div>
-                    <ul className="space-y-1">
-                      {course.lessons.map((lesson, idx) => {
-                        const doneLesson = idx < (courseState.lessonIndex || 0);
-                        return (
-                          <li key={lesson} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-                            <span className={doneLesson ? "text-muted-foreground line-through" : "text-foreground"}>{lesson}</span>
-                            {doneLesson ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      onClick={() => markLessonDone(key)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      disabled={(courseState.lessonIndex || 0) >= lessonCount}
-                    >
-                      {(courseState.lessonIndex || 0) === 0 ? t.start : t.continue}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => takeQuiz(key)}
-                      disabled={(courseState.lessonIndex || 0) < lessonCount}
-                    >
-                      {t.takeQuiz}
-                    </Button>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    {language === "ar" ? "الاختبار" : "Quiz"}: {courseState.quizPassed ? t.passed : t.notYet}
-                    {done ? ` • ${t.courseComplete}` : ""}
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             );
           })}
         </div>
       </div>
+
+      {/* Course Detail Modal */}
+      <Dialog open={!!activeCourse} onOpenChange={() => setActiveCourse(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {activeCourse && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${activeCourse.color} flex items-center justify-center text-xl`}>
+                    {activeCourse.icon}
+                  </div>
+                  <DialogTitle>{COURSE_TITLES[activeCourse.id][language]}</DialogTitle>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-3 mt-4">
+                {activeCourse.lessons.map((lesson, i) => {
+                  const isCompleted = progress?.completed_lessons?.includes(lesson.id);
+                  const prevCompleted = i === 0 || progress?.completed_lessons?.includes(activeCourse.lessons[i - 1].id);
+                  const isLocked = !prevCompleted && !isCompleted;
+
+                  return (
+                    <div
+                      key={lesson.id}
+                      onClick={() => !isLocked && !isCompleted && setActiveLesson({ ...lesson, courseId: activeCourse.id })}
+                      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                        isCompleted 
+                          ? "bg-emerald-500/10 border-emerald-500/30" 
+                          : isLocked 
+                            ? "bg-muted/30 border-border opacity-50 cursor-not-allowed"
+                            : "bg-card border-border hover:border-primary cursor-pointer"
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        isCompleted ? "bg-emerald-500 text-white" : isLocked ? "bg-muted" : `bg-gradient-to-br ${activeCourse.color} text-white`
+                      }`}>
+                        {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : isLocked ? <Lock className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${isCompleted ? "text-emerald-600" : "text-foreground"}`}>
+                          {lesson.title[language]}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{lesson.duration}</p>
+                      </div>
+                      <Badge variant="outline" className={isCompleted ? "border-emerald-500 text-emerald-500" : ""}>
+                        +{lesson.points}
+                      </Badge>
+                    </div>
+                  );
+                })}
+
+                {/* Quiz Section */}
+                {(() => {
+                  const allLessonsComplete = activeCourse.lessons.every(l => progress?.completed_lessons?.includes(l.id));
+                  const quizPassed = progress?.completed_quizzes?.includes(activeCourse.quiz.id);
+                  
+                  return (
+                    <div
+                      onClick={() => allLessonsComplete && !quizPassed && (() => { setQuizCourse(activeCourse); setQuizOpen(true); setQuizStep(0); setQuizAnswers([]); })()}
+                      className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                        quizPassed 
+                          ? "bg-emerald-500/10 border-emerald-500" 
+                          : allLessonsComplete 
+                            ? "bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500 cursor-pointer hover:shadow-lg"
+                            : "bg-muted/30 border-border opacity-50 cursor-not-allowed"
+                      }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        quizPassed ? "bg-emerald-500 text-white" : allLessonsComplete ? "bg-gradient-to-br from-purple-500 to-pink-500 text-white" : "bg-muted"
+                      }`}>
+                        {quizPassed ? <Trophy className="w-5 h-5" /> : <Target className="w-5 h-5" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-bold ${quizPassed ? "text-emerald-600" : "text-foreground"}`}>
+                          {t.quiz}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {quizPassed ? t.passed : `${activeCourse.quiz.questions.length} questions`}
+                        </p>
+                      </div>
+                      <Badge className={quizPassed ? "bg-emerald-500" : "bg-gradient-to-r from-purple-500 to-pink-500"}>
+                        +{activeCourse.quiz.points}
+                      </Badge>
+                    </div>
+                  );
+                })()}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Lesson Modal */}
+      <Dialog open={!!activeLesson} onOpenChange={() => setActiveLesson(null)}>
+        <DialogContent className="max-w-md">
+          {activeLesson && (
+            <div className="text-center py-6">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">{activeLesson.title[language]}</h2>
+              <p className="text-muted-foreground mb-6">{activeLesson.duration}</p>
+              
+              <div className="bg-muted/30 rounded-xl p-4 mb-6 text-left">
+                <p className="text-sm text-muted-foreground">
+                  {language === "ar" 
+                    ? "في هذا الدرس ستتعلم المفاهيم الأساسية وأفضل الممارسات. شاهد المحتوى بعناية ثم أكمل الدرس لكسب النقاط."
+                    : "In this lesson, you'll learn key concepts and best practices. Watch carefully and complete to earn points."}
+                </p>
+              </div>
+
+              <Button
+                onClick={() => {
+                  completeLesson(activeLesson.id, activeLesson.points);
+                  setActiveLesson(null);
+                }}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white"
+              >
+                {t.completeLesson} (+{activeLesson.points} pts)
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quiz Modal */}
+      <Dialog open={quizOpen} onOpenChange={setQuizOpen}>
+        <DialogContent className="max-w-md">
+          {quizCourse && (
+            <div>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-purple-500" />
+                  {t.quiz}: {COURSE_TITLES[quizCourse.id][language]}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="mt-4">
+                <Progress value={((quizStep + 1) / quizCourse.quiz.questions.length) * 100} className="h-2 mb-6" />
+                
+                {quizStep < quizCourse.quiz.questions.length ? (
+                  <div>
+                    <p className="font-medium mb-4">{quizCourse.quiz.questions[quizStep].q[language]}</p>
+                    <div className="space-y-2">
+                      {quizCourse.quiz.questions[quizStep].options[language].map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            const newAnswers = [...quizAnswers, i];
+                            setQuizAnswers(newAnswers);
+                            if (quizStep + 1 < quizCourse.quiz.questions.length) {
+                              setQuizStep(quizStep + 1);
+                            } else {
+                              const correctCount = newAnswers.filter((a, idx) => a === quizCourse.quiz.questions[idx].correct).length;
+                              completeQuiz(quizCourse.quiz.id, quizCourse.quiz.points, correctCount, quizCourse.quiz.questions.length);
+                            }
+                          }}
+                          className="w-full p-4 text-left rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all"
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Login CTA */}
+      {!isAuthenticated && (
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-transparent pt-12 pb-6 px-4">
+          <div className="max-w-md mx-auto">
+            <Button className="w-full py-6 text-lg bg-gradient-to-r from-indigo-600 to-purple-600">
+              {t.loginToStart}
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
