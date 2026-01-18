@@ -1,119 +1,133 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
-import { TrendingUp, TrendingDown, ChevronDown } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import BinanceTickerPanel from "@/components/trading/binance/BinanceTickerPanel";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { formatOkxSymbolDisplay } from "@/lib/market/okxSymbols";
 
-function formatPrice(p, detailed = false) {
+function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
-  if (detailed && p < 1) return p.toFixed(8);
-  const digits = p < 1 ? 4 : 2;
+  const digits = p < 1 ? 6 : 2;
   return p.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function formatCompactPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
-  if (p < 0.01) return p.toFixed(6);
-  if (p < 1) return p.toFixed(4);
-  if (p < 100) return p.toFixed(2);
-  return Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(p);
+  if (p >= 10000) return `$${(p/1000).toFixed(1)}K`;
+  if (p >= 1000) return `$${p.toFixed(0)}`;
+  if (p < 1) return `$${p.toFixed(6)}`;
+  return `$${p.toFixed(2)}`;
 }
 
-export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, language = "en", compact = false }) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [ticker, setTicker] = useState(null);
-  const [price, setPrice] = useState(0);
-  const [premium, setPremium] = useState(null);
+export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
+  const [open, setOpen] = useState(false);
+  const [lastPrice, setLastPrice] = useState(0);
+  const [changePct, setChangePct] = useState(0);
+  const [markPrice, setMarkPrice] = useState(0);
+  const [indexPrice, setIndexPrice] = useState(0);
 
-  const displaySymbol = useMemo(() => {
-    if (!selectedSymbol) return "BTC-USDT";
-    return String(selectedSymbol).replace("-SWAP", "").replace(/-/g, "/");
-  }, [selectedSymbol]);
+  const labels = useMemo(() => {
+    const isAr = language === "ar";
+    return {
+      contractType: isAr ? "عقد دائم" : "Perpetual",
+      mark: isAr ? "مارك" : "Mark",
+      index: isAr ? "مؤشر" : "Index",
+      selectMarketTitle: isAr ? "اختر السوق" : "Select market",
+      selectMarketDesc: isAr ? "اختر رمزًا دائمًا USDT‑M لعرض الشارت." : "Select a USDT-M perpetual symbol to view its live chart and stats.",
+      tap: isAr ? "اضغط للتغيير" : "Tap to change"
+    };
+  }, [language]);
 
   useEffect(() => {
-    const unsub1 = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => setTicker(t || null));
-    const unsub2 = binanceFuturesStore.subscribe(`price:${selectedSymbol}`, (p) => setPrice(Number(p) || 0));
-    const unsub3 = binanceFuturesStore.subscribe(`premium:${selectedSymbol}`, (pr) => setPremium(pr || null));
-    
-    const existingTicker = binanceFuturesStore.getTicker(selectedSymbol);
-    if (existingTicker) setTicker(existingTicker);
-    
-    const existingPremium = binanceFuturesStore.getPremiumIndex?.(selectedSymbol);
-    if (existingPremium) setPremium(existingPremium);
+    const unsubTicker = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
+      if (!t) return;
+      if (t.lastPrice) setLastPrice(t.lastPrice);
+      if (t.priceChangePercent !== undefined) setChangePct(t.priceChangePercent);
+    });
+    const unsubPrice = binanceFuturesStore.subscribe(`price:${selectedSymbol}`, (p) => {
+      if (p) setLastPrice(Number(p));
+    });
+    const unsubPremium = binanceFuturesStore.subscribe(`premium:${selectedSymbol}`, (p) => {
+      if (!p) return;
+      if (p.markPrice !== undefined) setMarkPrice(Number(p.markPrice));
+      if (p.indexPrice !== undefined) setIndexPrice(Number(p.indexPrice));
+    });
 
-    binanceFuturesStore.subscribeToTicker(selectedSymbol);
+    const existing = binanceFuturesStore.getTicker(selectedSymbol);
+    if (existing?.lastPrice) setLastPrice(existing.lastPrice);
+    if (existing?.priceChangePercent !== undefined) setChangePct(existing.priceChangePercent);
+
+    const prem = binanceFuturesStore.getPremiumIndex?.(selectedSymbol);
+    if (prem?.markPrice) setMarkPrice(prem.markPrice);
+    if (prem?.indexPrice) setIndexPrice(prem.indexPrice);
+
+    binanceFuturesStore.startPremiumPolling?.(selectedSymbol, 5000);
 
     return () => {
-      try { unsub1?.(); } catch {}
-      try { unsub2?.(); } catch {}
-      try { unsub3?.(); } catch {}
+      try { unsubTicker?.(); } catch {}
+      try { unsubPrice?.(); } catch {}
+      try { unsubPremium?.(); } catch {}
     };
   }, [selectedSymbol]);
 
-  const displayPrice = price || ticker?.lastPrice || ticker?.price || premium?.markPrice || 0;
-  const change = ticker?.priceChangePercent ?? ticker?.change ?? 0;
-  const isUp = change >= 0;
+  const isPositive = changePct >= 0;
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
 
-  // Compact mobile version
-  if (compact) {
-    return (
-      <>
-        <button
-          onClick={() => setDialogOpen(true)}
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg hover:bg-muted transition-colors"
-        >
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold">{displaySymbol}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-mono">${formatCompactPrice(displayPrice)}</span>
-              <span className={`flex items-center gap-0.5 ${isUp ? "text-emerald-500" : "text-rose-500"}`}>
-                {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                {Math.abs(change).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-        </button>
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden p-0">
-            <BinanceTickerPanel onSelectSymbol={(sym) => { onSelectSymbol(sym); setDialogOpen(false); }} language={language} />
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  }
-
-  // Desktop version
   return (
     <>
       <button
-        onClick={() => setDialogOpen(true)}
-        className="flex items-center gap-3 sm:gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors w-full"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-xl hover:bg-slate-800/50 active:bg-slate-800/70 transition-all min-w-0 touch-manipulation"
+        aria-label="Select symbol"
       >
-        <div className="flex-1 text-left">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-lg sm:text-xl font-bold text-foreground">{displaySymbol}</h2>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        {/* Symbol Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-white font-bold text-base sm:text-lg truncate">{formatOkxSymbolDisplay(selectedSymbol)}</span>
+            <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           </div>
-          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-            <span className="text-base sm:text-lg font-mono font-semibold text-foreground tabular-nums">
-              ${formatPrice(displayPrice, false)}
-            </span>
-            <span className={`flex items-center gap-1 text-sm font-medium ${isUp ? "text-emerald-500" : "text-rose-500"}`}>
-              {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-            </span>
+          <div className="text-[10px] text-slate-500 hidden sm:block">{labels.contractType}</div>
+        </div>
+
+        {/* Price & Change - Mobile Optimized */}
+        <div className="flex items-center gap-3 sm:gap-6">
+          {/* Main Price */}
+          <div className="text-right">
+            <div className="text-foreground font-mono font-bold text-sm sm:text-base">{formatCompactPrice(lastPrice)}</div>
+            <div className={`flex items-center justify-end gap-1 text-[11px] font-semibold ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+              <TrendIcon className="h-3 w-3" />
+              <span>{isPositive ? "+" : ""}{Number(changePct).toFixed(2)}%</span>
+            </div>
+          </div>
+
+          {/* Mark & Index - Desktop Only */}
+          <div className="hidden md:flex items-center gap-4 text-right border-l border-slate-800 pl-4">
+            <div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{labels.mark}</div>
+              <div className="text-[11px] font-mono text-foreground">{formatPrice(markPrice)}</div>
+            </div>
+            <div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{labels.index}</div>
+              <div className="text-[11px] font-mono text-foreground">{formatPrice(indexPrice)}</div>
+            </div>
           </div>
         </div>
       </button>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden p-0">
-          <BinanceTickerPanel onSelectSymbol={(sym) => { onSelectSymbol(sym); setDialogOpen(false); }} language={language} />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-background border-border text-foreground p-0 overflow-hidden w-[min(920px,calc(100vw-1rem))] max-w-[920px] h-[min(85vh,720px)] rounded-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{labels.selectMarketTitle}</DialogTitle>
+            <DialogDescription>{labels.selectMarketDesc}</DialogDescription>
+          </DialogHeader>
+          <BinanceTickerPanel
+            selectedSymbol={selectedSymbol}
+            onSelectSymbol={(s) => onSelectSymbol(s)}
+            onAfterSelect={() => setOpen(false)}
+            language={language}
+            embedded
+          />
         </DialogContent>
       </Dialog>
     </>
@@ -123,6 +137,6 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
 BinanceSymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string.isRequired,
   onSelectSymbol: PropTypes.func.isRequired,
+  height: PropTypes.number,
   language: PropTypes.string,
-  compact: PropTypes.bool,
 };
