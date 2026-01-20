@@ -29,6 +29,7 @@ import {
   Shield
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
+import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
 import AssetsPage from "@/components/profile/AssetsPage";
 import RecentTransactions from "@/components/profile/RecentTransactions";
@@ -198,6 +199,7 @@ export default function Profile({ language = "en" }) {
   const [error, setError] = useState(null);
   const [demoAccount, setDemoAccount] = useState(null);
   const [liveAccount, setLiveAccount] = useState(null);
+  const [okxAccount, setOkxAccount] = useState(null);
   const [wallets, setWallets] = useState([]);
   const [trades, setTrades] = useState([]);
   const [loadingAccount, setLoadingAccount] = useState(false);
@@ -221,17 +223,21 @@ export default function Profile({ language = "en" }) {
   const loadTradingAccounts = useCallback(async () => {
     setLoadingAccount(true);
     try {
-      const [demoResult, liveResult, walletsResult, tradesResult] = await Promise.all([
+      const [demoResult, liveResult, walletsResult, tradesResult, okxResult] = await Promise.all([
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'demo' }),
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
         base44.functions.invoke('wallet', { action: 'list' }),
-        base44.functions.invoke('tradingAccount', { action: 'getTrades' })
+        base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
+        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' })
       ]);
       
       if (demoResult.data?.success) setDemoAccount(demoResult.data.data);
       if (liveResult.data?.success) setLiveAccount(liveResult.data.data);
       if (walletsResult.data?.success) setWallets(walletsResult.data.data || []);
       if (tradesResult.data?.success) setTrades(tradesResult.data.data || []);
+      if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
+        setOkxAccount(okxResult.data.data);
+      }
     } catch (err) {
       console.error("Failed to load accounts", err);
     } finally {
@@ -800,20 +806,21 @@ export default function Profile({ language = "en" }) {
                       <TradingAccountCard account={demoAccount} language={language} onRefresh={loadTradingAccounts} />
                     </div>
                   )}
-                  {liveAccount && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 animate-pulse" />
-                          {language === "en" ? "Live Account" : "حساب حقيقي"}
-                        </h3>
+                  {/* OKX Live Account - Priority */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 animate-pulse" />
+                        {language === "en" ? "Live Account (OKX)" : "حساب حقيقي (OKX)"}
+                      </h3>
+                      {okxAccount && (
                         <Badge className="bg-emerald-100 text-emerald-700 border-0">
                           {language === "en" ? "Real Money" : "مال حقيقي"}
                         </Badge>
-                      </div>
-                      <TradingAccountCard account={liveAccount} language={language} onRefresh={loadTradingAccounts} />
+                      )}
                     </div>
-                  )}
+                    <OKXLiveAccountCard language={language} onRefresh={loadTradingAccounts} />
+                  </div>
                 </div>
 
                 <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
