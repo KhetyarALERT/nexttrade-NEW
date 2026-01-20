@@ -359,6 +359,113 @@ Deno.serve(async (req) => {
       });
     }
 
+    // PLACE ORDER
+    if (action === 'placeOrder') {
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+      const { instId, side, orderType, size, price, reduceOnly, leverage } = params;
+
+      if (!instId || !side || !size) {
+        return Response.json({ ok: false, error: { code: 'MISSING_PARAMS', message: 'instId, side, size required' } }, { status: 400 });
+      }
+
+      // Set leverage first if provided
+      if (leverage && Number.isFinite(Number(leverage))) {
+        await okxRequest({
+          credential,
+          method: 'POST',
+          path: '/api/v5/account/set-leverage',
+          body: {
+            instId,
+            lever: String(leverage),
+            mgnMode: 'cross'
+          },
+          isTradingEndpoint: true
+        });
+      }
+
+      // Place the order
+      const orderBody = {
+        instId,
+        tdMode: 'cross',
+        side: side.toLowerCase(),
+        ordType: orderType === 'limit' ? 'limit' : 'market',
+        sz: String(size),
+        reduceOnly: reduceOnly ? true : false,
+      };
+
+      if (orderType === 'limit' && price) {
+        orderBody.px = String(price);
+      }
+
+      const orderRes = await okxRequest({
+        credential,
+        method: 'POST',
+        path: '/api/v5/trade/order',
+        body: orderBody,
+        isTradingEndpoint: true
+      });
+
+      if (!orderRes.ok) {
+        return Response.json({ ok: false, error: orderRes.error });
+      }
+
+      return Response.json({
+        ok: true,
+        data: {
+          orderId: orderRes.data?.data?.[0]?.ordId,
+          result: orderRes.data?.data?.[0]
+        }
+      });
+    }
+
+    // CLOSE POSITION
+    if (action === 'closePosition') {
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+      const { instId, posSide, size } = params;
+
+      if (!instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_PARAMS', message: 'instId required' } }, { status: 400 });
+      }
+
+      const closeBody = {
+        instId,
+        mgnMode: 'cross',
+      };
+
+      if (posSide) {
+        closeBody.posSide = posSide.toLowerCase();
+      }
+
+      const closeRes = await okxRequest({
+        credential,
+        method: 'POST',
+        path: '/api/v5/trade/close-position',
+        body: closeBody,
+        isTradingEndpoint: true
+      });
+
+      if (!closeRes.ok) {
+        return Response.json({ ok: false, error: closeRes.error });
+      }
+
+      return Response.json({
+        ok: true,
+        data: closeRes.data?.data?.[0]
+      });
+    }
+
     return Response.json({ ok: false, error: { code: 'INVALID_ACTION' } }, { status: 400 });
 
   } catch (error) {
