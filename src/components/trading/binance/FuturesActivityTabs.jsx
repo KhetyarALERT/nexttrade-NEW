@@ -805,7 +805,7 @@ export default function FuturesActivityTabs({
                     <TableRow>
                       <TableHead className="text-muted-foreground">{labels.positions.futures}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.positionValue}</TableHead>
-                      <TableHead className="text-muted-foreground">{labels.positions.unrealized}</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.unrealized}(%)</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.entry}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.mark}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.liq}</TableHead>
