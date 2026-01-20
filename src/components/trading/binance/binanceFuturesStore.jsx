@@ -8,8 +8,8 @@ import { base44 } from "@/api/base44Client";
 
 export const INTERVALS = ["1m", "5m", "15m", "1H", "4H", "1D"];
 
-// OKX Public WebSocket endpoint
-const OKX_WS_URL = "wss://ws.okx.com:8443/ws/v5/public";
+// OKX Public WebSocket endpoint (business endpoint for market data)
+const OKX_WS_URL = "wss://ws.okx.com:8443/ws/v5/business";
 
 // Map our intervals to OKX bar format
 const intervalToOkxBar = {
