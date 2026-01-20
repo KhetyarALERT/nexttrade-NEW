@@ -106,7 +106,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     setLoading(true);
     try {
       const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes] = await Promise.all([
-        base44.functions.invoke('okxProvisioning', { action: 'getDashboardStats' }),
+        base44.functions.invoke('okxProvisioning', { action: 'adminDashboardStats' }),
         base44.functions.invoke('okxProvisioning', { action: 'listPool' }),
         base44.functions.invoke('okxProvisioning', { action: 'listUserAccounts' }),
         base44.functions.invoke('okxProvisioning', { action: 'listUsers' }),
