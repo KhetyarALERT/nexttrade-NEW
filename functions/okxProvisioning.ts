@@ -185,6 +185,22 @@ Deno.serve(async (req) => {
       });
 
       if (!createResult.ok) {
+        console.error('[OKX] Provision error:', createResult.error?.okxMsg);
+        console.log('[OKX] Create subaccount result:', createResult.error?.okxData || createResult.error);
+        
+        // Handle IP binding error specifically
+        if (createResult.error?.okxCode === '50035') {
+          return Response.json(
+            okResponse(false, null, {
+              code: 'OKX_IP_BINDING_ERROR',
+              message: 'OKX API key requires IP whitelist configuration. Please update your OKX API key settings to allow access from cloud servers, or disable IP restrictions.',
+              okxCode: createResult.error?.okxCode,
+              okxMsg: createResult.error?.okxMsg,
+            }),
+            { status: 503 }
+          );
+        }
+        
         return Response.json(
           okResponse(false, null, {
             code: 'PROVISION_FAILED',
