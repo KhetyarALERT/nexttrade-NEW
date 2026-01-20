@@ -53,17 +53,38 @@ EmptyState.propTypes = {
 
 // Mobile Position Card Component
 function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpSl, isSelected }) {
-  const sym = normalizeSymbol(pos?.symbol);
-  const entry = Number(pos?.entry_price);
-  const qty = Number(pos?.quantity);
-  const margin = Number(pos?.margin);
-  const side = String(pos?.side || "LONG").toUpperCase();
-  const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
+  const sym = normalizeSymbol(pos?.symbol || pos?.instId);
+  const entry = Number(pos?.entry_price || pos?.avgPx);
+  const qty = Math.abs(Number(pos?.quantity || pos?.pos || pos?.size || 0));
+  const margin = Number(pos?.margin || pos?.imr || 0);
+  const side = String(pos?.side || pos?.posSide || "LONG").toUpperCase();
+  const baseAsset = sym.replace(/-USDT.*|-SWAP/gi, "");
   
-  const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
-    ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
-    : NaN;
-  const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
+  // Use live mark price for real-time PnL calculation
+  const liveMarkPrice = Number.isFinite(mark) && mark > 0 ? mark : Number(pos?.markPx || entry);
+  
+  // Calculate PnL based on live mark price
+  const pnl = (() => {
+    // First try to use OKX's calculated PnL if available
+    const okxPnl = Number(pos?.upl || pos?.unrealizedPnl);
+    if (Number.isFinite(okxPnl)) return okxPnl;
+    
+    // Otherwise calculate from mark price
+    if (!Number.isFinite(liveMarkPrice) || !Number.isFinite(entry) || !Number.isFinite(qty) || qty === 0) return NaN;
+    const isShort = side === "SHORT" || side === "short";
+    return isShort ? (entry - liveMarkPrice) * qty : (liveMarkPrice - entry) * qty;
+  })();
+  
+  // Calculate ROE % (Return on Equity based on margin)
+  const pnlPct = (() => {
+    // Use OKX's calculated percentage if available
+    const okxPct = Number(pos?.uplRatio);
+    if (Number.isFinite(okxPct)) return okxPct * 100;
+    
+    // Otherwise calculate from margin
+    if (!Number.isFinite(pnl) || !Number.isFinite(margin) || margin <= 0) return NaN;
+    return (pnl / margin) * 100;
+  })();
   const _positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
   const liq = Number(pos?.liquidation_price);
   const liqDistPct = Number.isFinite(mark) && mark > 0 && Number.isFinite(liq) && liq > 0
@@ -816,19 +837,35 @@ export default function FuturesActivityTabs({
                   </TableHeader>
                   <TableBody>
                     {openPositions.map((pos) => {
-                      const sym = normalizeSymbol(pos?.symbol);
-                      const mark = markBySymbol[sym];
-                      const entry = Number(pos?.entry_price);
-                      const qty = Number(pos?.quantity);
-                      const margin = Number(pos?.margin);
-                      const side = String(pos?.side || "LONG").toUpperCase();
-                      const baseAsset = sym.endsWith("USDT") ? sym.slice(0, -4) : sym;
+                      const sym = normalizeSymbol(pos?.symbol || pos?.instId);
+                      const mark = markBySymbol[sym] || Number(pos?.markPx);
+                      const entry = Number(pos?.entry_price || pos?.avgPx);
+                      const qty = Math.abs(Number(pos?.quantity || pos?.pos || pos?.size || 0));
+                      const margin = Number(pos?.margin || pos?.imr || 0);
+                      const side = String(pos?.side || pos?.posSide || "LONG").toUpperCase();
+                      const baseAsset = sym.replace(/-USDT.*|-SWAP/gi, "");
+                      
+                      // Use live mark price
+                      const liveMarkPrice = Number.isFinite(mark) && mark > 0 ? mark : entry;
 
-                      const pnl = Number.isFinite(mark) && Number.isFinite(entry) && Number.isFinite(qty)
-                        ? (side === "SHORT" ? (entry - mark) * qty : (mark - entry) * qty)
-                        : NaN;
-                      const pnlPct = Number.isFinite(pnl) && Number.isFinite(margin) && margin > 0 ? (pnl / margin) * 100 : NaN;
-                      const positionValue = Number.isFinite(mark) && Number.isFinite(qty) ? mark * qty : NaN;
+                      // Calculate PnL - prefer OKX calculated values, fallback to manual calculation
+                      const pnl = (() => {
+                        const okxPnl = Number(pos?.upl || pos?.unrealizedPnl);
+                        if (Number.isFinite(okxPnl)) return okxPnl;
+                        if (!Number.isFinite(liveMarkPrice) || !Number.isFinite(entry) || qty === 0) return NaN;
+                        const isShort = side === "SHORT" || side === "short";
+                        return isShort ? (entry - liveMarkPrice) * qty : (liveMarkPrice - entry) * qty;
+                      })();
+                      
+                      // Calculate ROE %
+                      const pnlPct = (() => {
+                        const okxPct = Number(pos?.uplRatio);
+                        if (Number.isFinite(okxPct)) return okxPct * 100;
+                        if (!Number.isFinite(pnl) || margin <= 0) return NaN;
+                        return (pnl / margin) * 100;
+                      })();
+                      
+                      const positionValue = Number.isFinite(liveMarkPrice) && qty > 0 ? liveMarkPrice * qty : NaN;
 
                       return (
                         <TableRow
