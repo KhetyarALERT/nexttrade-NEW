@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
 
     console.log('[OKX_USER_ACCOUNT] Action:', action, 'User:', user.email);
 
-    // GET MY OKX ACCOUNT - Returns account info + balance
+    // GET MY OKX ACCOUNT - Returns account info + balance + positions for margin calc
     if (action === 'getMyAccount') {
       const credResult = await getUserOkxCredential(base44, user.id);
       
@@ -174,18 +174,27 @@ Deno.serve(async (req) => {
 
       const { account, credential } = credResult.data;
 
-      // Fetch balances from OKX
-      const [tradingRes, fundingRes] = await Promise.all([
+      // Fetch balances and positions from OKX
+      const [tradingRes, fundingRes, posRes] = await Promise.all([
         okxRequest({ credential, method: 'GET', path: '/api/v5/account/balance', isTradingEndpoint: true }),
         okxRequest({ credential, method: 'GET', path: '/api/v5/asset/balances', isTradingEndpoint: false }),
+        okxRequest({ credential, method: 'GET', path: '/api/v5/account/positions', isTradingEndpoint: true }),
       ]);
 
       const tradingDetails = tradingRes.data?.data?.[0]?.details || [];
       const fundingDetails = fundingRes.data?.data || [];
+      const positions = (posRes.data?.data || []).filter(p => parseFloat(p.pos || '0') !== 0);
+
+      // Calculate margin used by open positions
+      const marginUsed = positions.reduce((sum, pos) => sum + parseFloat(pos.margin || '0'), 0);
+      const unrealizedPnl = positions.reduce((sum, pos) => sum + parseFloat(pos.upl || '0'), 0);
 
       const tradingUsdt = parseFloat(tradingDetails.find(d => d.ccy === 'USDT')?.cashBal || '0');
       const fundingUsdt = parseFloat(fundingDetails.find(d => d.ccy === 'USDT')?.bal || '0');
       const totalEquity = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
+      
+      // Available balance = total equity - margin used (what user can actually use for new trades)
+      const availableBalance = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
 
       // Update cached balance
       const now = new Date().toISOString();
@@ -208,8 +217,12 @@ Deno.serve(async (req) => {
             tradingUsdt,
             fundingUsdt,
             totalUsdt: tradingUsdt + fundingUsdt,
-            totalEquity
+            totalEquity,
+            availableBalance,
+            marginUsed,
+            unrealizedPnl
           },
+          positionCount: positions.length,
           accountMode: account.account_mode,
           marginMode: account.margin_mode,
           defaultLeverage: account.default_leverage,
@@ -403,6 +416,8 @@ Deno.serve(async (req) => {
         orderBody.px = String(price);
       }
 
+      console.log('[OKX_USER_ACCOUNT] Placing order:', orderBody);
+
       const orderRes = await okxRequest({
         credential,
         method: 'POST',
@@ -411,15 +426,24 @@ Deno.serve(async (req) => {
         isTradingEndpoint: true
       });
 
+      console.log('[OKX_USER_ACCOUNT] Order result:', JSON.stringify(orderRes));
+
       if (!orderRes.ok) {
-        return Response.json({ ok: false, error: orderRes.error });
+        const errMsg = orderRes.error?.okxMsg || orderRes.error?.message || 'Order failed';
+        return Response.json({ ok: false, error: { code: orderRes.error?.okxCode || 'ORDER_FAILED', message: errMsg, details: orderRes.error } });
+      }
+
+      // Check if the order was actually accepted
+      const orderData = orderRes.data?.data?.[0];
+      if (orderData?.sCode && orderData.sCode !== '0') {
+        return Response.json({ ok: false, error: { code: orderData.sCode, message: orderData.sMsg || 'Order rejected by exchange' } });
       }
 
       return Response.json({
         ok: true,
         data: {
-          orderId: orderRes.data?.data?.[0]?.ordId,
-          result: orderRes.data?.data?.[0]
+          orderId: orderData?.ordId,
+          result: orderData
         }
       });
     }
