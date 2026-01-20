@@ -112,6 +112,10 @@ export default function Trading({ language = "en" }) {
           balance: okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0,
           tradingBalance: okxData.balances?.tradingUsdt || 0,
           fundingBalance: okxData.balances?.fundingUsdt || 0,
+          availableBalance: okxData.balances?.availableBalance || 0,
+          marginUsed: okxData.balances?.marginUsed || 0,
+          unrealizedPnl: okxData.balances?.unrealizedPnl || 0,
+          equity: okxData.balances?.totalEquity || 0,
           defaultLeverage: okxData.defaultLeverage || 10,
           marginMode: okxData.marginMode || 'cross',
           provider: 'OKX'
