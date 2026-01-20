@@ -46,37 +46,39 @@ export default function Trading({ language = "en" }) {
       return;
     }
     try {
+      // Use the user-facing endpoint for positions and orders
       const [posRes, orderRes] = await Promise.all([
-        base44.functions.invoke("okxTrading", { action: "getPositions", accountId: account.id }),
-        base44.functions.invoke("okxTrading", { action: "getOrders", accountId: account.id, status: "open" }),
+        base44.functions.invoke("okxUserAccount", { action: "getPositions" }),
+        base44.functions.invoke("okxUserAccount", { action: "getOrders" }),
       ]);
 
       const positions = posRes?.data?.ok ? posRes.data.data : [];
       const orders = orderRes?.data?.ok ? orderRes.data.data : [];
 
       const mappedPositions = (positions || []).map((p) => ({
-        id: p.id,
+        id: `okx_${p.instId}_${p.posSide}`,
         symbol: p.instId,
         side: String(p.posSide || "").toUpperCase() === "SHORT" ? "SHORT" : "LONG",
         quantity: Math.abs(Number(p.size || 0)),
-        entry_price: Number(p.entryPrice || 0),
+        entry_price: Number(p.avgPx || 0),
         margin: Number(p.margin || 0),
-        leverage: Number(p.leverage || 0),
+        leverage: Number(p.lever || 0),
         status: "OPEN",
-        created_at: p.openedAt,
-        mark_price: p.markPrice,
+        mark_price: Number(p.markPx || 0),
+        unrealized_pnl: Number(p.upl || 0),
+        liq_price: Number(p.liqPx || 0),
       }));
 
       const mappedOrders = (orders || []).map((o) => ({
-        id: o.id,
+        id: o.ordId,
         instId: o.instId,
         symbol: o.instId,
         side: String(o.side || "").toUpperCase() === "SELL" ? "SHORT" : "LONG",
-        quantity: Number(o.size || 0),
-        entry_price: Number(o.price || 0),
-        order_type: String(o.orderType || "").toUpperCase(),
+        quantity: Number(o.sz || 0),
+        entry_price: Number(o.px || 0),
+        order_type: String(o.ordType || "").toUpperCase(),
         status: "PENDING",
-        created_at: o.createdAt,
+        created_at: o.cTime,
       }));
 
       setLiveTrades([...mappedPositions, ...mappedOrders]);
@@ -89,9 +91,9 @@ export default function Trading({ language = "en" }) {
     if (accountsInFlightRef.current) return;
     accountsInFlightRef.current = true;
     try {
-      const [demoResult, liveResult] = await Promise.all([
+      const [demoResult, okxAccountResult] = await Promise.all([
         base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
-        base44.functions.invoke("okxProvisioning", { action: "listSubaccounts" }),
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
       ]);
 
       if (demoResult?.data?.success) {
@@ -99,10 +101,26 @@ export default function Trading({ language = "en" }) {
         setDemoTrades(demoResult.data.data?.trades || []);
       }
 
-      if (liveResult?.data?.ok && Array.isArray(liveResult.data.data)) {
-        const active = liveResult.data.data.find((a) => a.status === "ACTIVE") || liveResult.data.data[0];
-        setLiveAccount(active || null);
-        if (active) await refreshLiveTrades(active);
+      // Use okxUserAccount for live account (user-facing endpoint)
+      if (okxAccountResult?.data?.ok && okxAccountResult.data.data?.hasAccount) {
+        const okxData = okxAccountResult.data.data;
+        const liveAcct = {
+          id: okxData.accountId,
+          externalAccountId: okxData.externalAccountId,
+          label: okxData.accountLabel,
+          status: okxData.status,
+          balance: okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0,
+          tradingBalance: okxData.balances?.tradingUsdt || 0,
+          fundingBalance: okxData.balances?.fundingUsdt || 0,
+          defaultLeverage: okxData.defaultLeverage || 10,
+          marginMode: okxData.marginMode || 'cross',
+          provider: 'OKX'
+        };
+        setLiveAccount(liveAcct);
+        await refreshLiveTrades(liveAcct);
+      } else {
+        setLiveAccount(null);
+        setLiveTrades([]);
       }
     } catch {
       // ignore
