@@ -464,7 +464,7 @@ Deno.serve(async (req) => {
         orderBody.px = String(price);
       }
 
-      console.log('[OKX_USER_ACCOUNT] Placing order:', orderBody);
+      console.log('[OKX_USER_ACCOUNT] Placing order:', JSON.stringify(orderBody));
 
       const orderRes = await okxRequest({
         credential,
@@ -474,7 +474,23 @@ Deno.serve(async (req) => {
         isTradingEndpoint: true
       });
 
-      console.log('[OKX_USER_ACCOUNT] Order result:', JSON.stringify(orderRes));
+      console.log('[OKX_USER_ACCOUNT] Order raw response:', JSON.stringify(orderRes));
+      
+      // OKX returns data array even on partial failures - check inner sCode
+      if (orderRes.data?.data?.[0]) {
+        const innerResult = orderRes.data.data[0];
+        if (innerResult.sCode && innerResult.sCode !== '0') {
+          console.log('[OKX_USER_ACCOUNT] Order inner error:', innerResult.sCode, innerResult.sMsg);
+          return Response.json({ 
+            ok: false, 
+            error: { 
+              code: innerResult.sCode, 
+              message: innerResult.sMsg || 'Order rejected',
+              details: innerResult
+            } 
+          });
+        }
+      }
 
       if (!orderRes.ok) {
         const errMsg = orderRes.error?.okxMsg || orderRes.error?.message || 'Order failed';
