@@ -826,6 +826,7 @@ export default function FuturesTradePanel({
                     />
                     <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{baseAsset}</span>
                   </div>
+
                 </div>
                 <div>
                   <label className="block text-[11px] text-muted-foreground">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>
@@ -866,38 +867,6 @@ export default function FuturesTradePanel({
                       <span className="font-mono text-foreground">{total ? formatNumber(parseNum(total) || 0, 2) : "0"} USDT</span>
                     </div>
                   ) : null}
-                </div>
-
-                {/* Amount Slider - Below inputs */}
-                <div className="col-span-2 mt-2">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
-                    <span className="font-medium">{amountPct}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={amountPct}
-                    onChange={(e) => applyAmountPct(Number(e.target.value))}
-                    className="w-full accent-primary h-1.5"
-                  />
-                  <div className="mt-2 flex justify-between gap-1">
-                    {[0, 25, 50, 75, 100].map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => applyAmountPct(p)}
-                        className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
-                          Math.abs(amountPct - p) < 1
-                            ? "bg-primary text-primary-foreground" 
-                            : "bg-muted text-muted-foreground hover:bg-secondary"
-                        }`}
-                      >
-                        {p}%
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
             </>
