@@ -452,10 +452,13 @@ Deno.serve(async (req) => {
       }
 
       // Place the order
+      // For net position mode, posSide must be "net"
+      // For hedge mode, posSide should be "long" or "short"
       const orderBody = {
         instId,
         tdMode: 'cross',
         side: side.toLowerCase(),
+        posSide: 'net', // Use net position mode (single-direction)
         ordType: orderType === 'limit' ? 'limit' : 'market',
         sz: String(contracts),
       };
