@@ -441,7 +441,7 @@ export default function Trading({ language = "en" }) {
                 language={language}
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
-                displayMode="compact"
+                compact={true}
               />
             </div>
           )}
