@@ -535,8 +535,12 @@ class OKXFuturesStore {
   startTickerPolling() {}
   stopTickerPolling() {}
   stopPremiumPolling() {}
+  startPremiumPolling() {}
 }
 
-export const okxFuturesStore = new OKXFuturesStore();
-// Legacy alias for backwards compatibility
-export const binanceFuturesStore = okxFuturesStore;
+// Create singleton instance
+const storeInstance = new OKXFuturesStore();
+
+// Export with both names for compatibility
+export const okxFuturesStore = storeInstance;
+export const binanceFuturesStore = storeInstance;
