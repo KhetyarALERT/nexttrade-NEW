@@ -114,7 +114,7 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
       {/* PnL Banner */}
       <div className={`px-4 py-2.5 ${isProfit ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL(%)</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL</span>
           <div className="text-right">
             <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
               {isProfit ? "+" : ""}{formatNum(pnl, 2)} <span className="text-xs">USDT</span>
@@ -461,7 +461,7 @@ export default function FuturesActivityTabs({
       positions: {
         futures: isAr ? "العقود" : "Futures",
         positionValue: isAr ? "المركز/القيمة" : "Position/Value",
-        unrealized: isAr ? "الربح غير المحقق(%)" : "Unrealized PnL(%)",
+        unrealized: isAr ? "الربح غير المحقق" : "Unrealized PnL",
         realized: isAr ? "الربح المحقق" : "Realized PnL",
         breakeven: isAr ? "سعر التعادل" : "Breakeven price",
         entry: isAr ? "سعر الدخول" : "Entry Price",
@@ -805,7 +805,7 @@ export default function FuturesActivityTabs({
                     <TableRow>
                       <TableHead className="text-muted-foreground">{labels.positions.futures}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.positionValue}</TableHead>
-                      <TableHead className="text-muted-foreground">{labels.positions.unrealized}(%)</TableHead>
+                      <TableHead className="text-muted-foreground">{labels.positions.unrealized}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.entry}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.mark}</TableHead>
                       <TableHead className="text-muted-foreground">{labels.positions.liq}</TableHead>
