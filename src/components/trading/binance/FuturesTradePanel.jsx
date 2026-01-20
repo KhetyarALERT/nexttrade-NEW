@@ -196,11 +196,16 @@ export default function FuturesTradePanel({
       return { balance: 0, equity: 0, marginUsed: 0, availableMargin: 0, hasAccount: false };
     }
 
-    // NOTE:
-    // Our backend debits `balance`/`demo_balance` by (margin + fees) on open.
-    // `margin_used` is tracked separately, but should NOT be subtracted again
-    // when computing available funds.
-    const balance = Number(account.demo_balance ?? account.balance ?? account.equity ?? 0);
+    // For OKX live account: use tradingBalance (trading account USDT)
+    // For demo account: use demo_balance
+    let balance = 0;
+    if (demoMode) {
+      balance = Number(account.demo_balance ?? account.balance ?? 0);
+    } else {
+      // OKX account structure from okxUserAccount
+      balance = Number(account.tradingBalance ?? account.balance ?? account.equity ?? 0);
+    }
+
     const marginUsed = Number(account.margin_used ?? 0);
     const equity = Number(account.equity ?? (Number.isFinite(balance) ? balance : 0));
     const availableMargin = Number.isFinite(balance) ? Math.max(0, balance) : 0;
