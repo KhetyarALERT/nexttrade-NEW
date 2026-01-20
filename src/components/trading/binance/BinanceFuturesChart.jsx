@@ -174,11 +174,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   // Keep mark price (premium index) in sync for correct PnL math.
   useEffect(() => {
     if (!normalizedSymbol) return;
-    const unsubPremium = binanceFuturesStore.subscribe(`premium:${normalizedSymbol}`, (p) => {
+    const unsubPremium = okxFuturesStore.subscribe(`premium:${normalizedSymbol}`, (p) => {
       const mp = Number(p?.markPrice || 0);
       if (Number.isFinite(mp) && mp > 0) setMarkPrice(mp);
     });
-    const prem = binanceFuturesStore.getPremiumIndex?.(normalizedSymbol);
+    const prem = okxFuturesStore.getPremiumIndex?.(normalizedSymbol);
     if (prem?.markPrice) setMarkPrice(Number(prem.markPrice));
     return () => {
       try {
