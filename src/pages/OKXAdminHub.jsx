@@ -894,6 +894,261 @@ export default function OKXAdminHub({ language = 'en' }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Account Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              {selectedPoolAccount?.subaccountName} - Account Details
+            </DialogTitle>
+            <DialogDescription>
+              Full balance breakdown, positions, and transaction history
+            </DialogDescription>
+          </DialogHeader>
+          
+          {loadingDetails ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : accountDetails ? (
+            <ScrollArea className="h-[60vh] pr-4">
+              <div className="space-y-6">
+                {/* Balance Summary */}
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="bg-blue-500/10 border-blue-500/30">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Trading Account</p>
+                      <p className="text-xl font-bold">{formatUsdt(accountDetails.balances.tradingUsdt)} USDT</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-green-500/10 border-green-500/30">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Funding Account</p>
+                      <p className="text-xl font-bold">{formatUsdt(accountDetails.balances.fundingUsdt)} USDT</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-purple-500/10 border-purple-500/30">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-muted-foreground">Total Equity</p>
+                      <p className="text-xl font-bold">{formatUsdt(accountDetails.balances.totalEquity || accountDetails.balances.totalUsdt)} USDT</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Account Config */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Settings className="h-4 w-4" /> Account Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Account Level</p>
+                        <p className="font-medium">{accountDetails.config.accountLevel || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Position Mode</p>
+                        <p className="font-medium">{accountDetails.config.posMode || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Auto Loan</p>
+                        <p className="font-medium">{accountDetails.config.autoLoan || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge className={statusColors[selectedPoolAccount?.status] || ''}>{selectedPoolAccount?.status}</Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Detailed Balances */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" /> Detailed Balances
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Trading Balances */}
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Trading Account</p>
+                        {accountDetails.balances.trading?.length > 0 ? (
+                          <div className="space-y-1">
+                            {accountDetails.balances.trading.map((b, i) => (
+                              <div key={i} className="flex justify-between text-sm bg-muted/30 rounded px-2 py-1">
+                                <span>{b.currency}</span>
+                                <span className="font-mono">{formatUsdt(b.total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No balances</p>
+                        )}
+                      </div>
+                      {/* Funding Balances */}
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Funding Account</p>
+                        {accountDetails.balances.funding?.length > 0 ? (
+                          <div className="space-y-1">
+                            {accountDetails.balances.funding.map((b, i) => (
+                              <div key={i} className="flex justify-between text-sm bg-muted/30 rounded px-2 py-1">
+                                <span>{b.currency}</span>
+                                <span className="font-mono">{formatUsdt(b.total)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No balances</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Positions */}
+                {accountDetails.positions?.length > 0 && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" /> Open Positions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Instrument</TableHead>
+                            <TableHead>Side</TableHead>
+                            <TableHead>Size</TableHead>
+                            <TableHead>Entry</TableHead>
+                            <TableHead>Leverage</TableHead>
+                            <TableHead>UPL</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {accountDetails.positions.map((p, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-medium">{p.instId}</TableCell>
+                              <TableCell>
+                                <Badge className={p.posSide === 'long' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}>
+                                  {p.posSide}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{p.pos}</TableCell>
+                              <TableCell>{formatUsdt(p.avgPx)}</TableCell>
+                              <TableCell>{p.lever}x</TableCell>
+                              <TableCell className={p.upl >= 0 ? 'text-green-500' : 'text-red-500'}>
+                                {p.upl >= 0 ? '+' : ''}{formatUsdt(p.upl)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Transaction History */}
+                {accountHistory && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <History className="h-4 w-4" /> Transaction History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <Tabs defaultValue="deposits" className="w-full">
+                        <TabsList className="grid grid-cols-3 w-full max-w-md">
+                          <TabsTrigger value="deposits">Deposits ({accountHistory.deposits?.length || 0})</TabsTrigger>
+                          <TabsTrigger value="withdrawals">Withdrawals ({accountHistory.withdrawals?.length || 0})</TabsTrigger>
+                          <TabsTrigger value="bills">Bills ({accountHistory.bills?.length || 0})</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="deposits" className="mt-4">
+                          {accountHistory.deposits?.length > 0 ? (
+                            <div className="space-y-2 max-h-48 overflow-auto">
+                              {accountHistory.deposits.map((d, i) => (
+                                <div key={i} className="flex justify-between items-center text-sm bg-muted/30 rounded px-3 py-2">
+                                  <div>
+                                    <span className="font-medium">{d.amount} {d.currency}</span>
+                                    <span className="text-muted-foreground ml-2">via {d.chain}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <Badge variant="outline" className="text-xs">{d.state}</Badge>
+                                    <p className="text-xs text-muted-foreground mt-1">{d.ts ? new Date(Number(d.ts)).toLocaleString() : '-'}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No deposit history</p>
+                          )}
+                        </TabsContent>
+                        
+                        <TabsContent value="withdrawals" className="mt-4">
+                          {accountHistory.withdrawals?.length > 0 ? (
+                            <div className="space-y-2 max-h-48 overflow-auto">
+                              {accountHistory.withdrawals.map((w, i) => (
+                                <div key={i} className="flex justify-between items-center text-sm bg-muted/30 rounded px-3 py-2">
+                                  <div>
+                                    <span className="font-medium">{w.amount} {w.currency}</span>
+                                    <span className="text-muted-foreground ml-2">Fee: {w.fee}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <Badge variant="outline" className="text-xs">{w.state}</Badge>
+                                    <p className="text-xs text-muted-foreground mt-1">{w.ts ? new Date(Number(w.ts)).toLocaleString() : '-'}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No withdrawal history</p>
+                          )}
+                        </TabsContent>
+                        
+                        <TabsContent value="bills" className="mt-4">
+                          {accountHistory.bills?.length > 0 ? (
+                            <div className="space-y-2 max-h-48 overflow-auto">
+                              {accountHistory.bills.map((b, i) => (
+                                <div key={i} className="flex justify-between items-center text-sm bg-muted/30 rounded px-3 py-2">
+                                  <div>
+                                    <span className="font-medium">{b.instId || b.currency}</span>
+                                    <span className="text-muted-foreground ml-2">{b.subType}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`font-mono ${b.balChg >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                      {b.balChg >= 0 ? '+' : ''}{formatUsdt(b.balChg)} {b.currency}
+                                    </span>
+                                    <p className="text-xs text-muted-foreground mt-1">{b.ts ? new Date(Number(b.ts)).toLocaleString() : '-'}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No bill history</p>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </ScrollArea>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">Failed to load account details</p>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
