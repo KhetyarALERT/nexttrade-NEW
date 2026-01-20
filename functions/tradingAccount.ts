@@ -67,14 +67,30 @@ async function closeTradeInternal(base44, trade, exitPrice, reason) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }
+    });
+  }
+
   const base44 = createClientFromRequest(req);
   
   try {
     const user = await base44.auth.me();
     if (!user) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     
-    const body = await req.json();
-    const { action, ...params } = body;
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
+    }
+    
+    const { action, ...params } = body || {};
+    
+    if (!action) {
+      return Response.json({ success: false, error: 'action parameter required' }, { status: 400 });
+    }
 
     if (action === 'getOrCreate') {
       const { accountType = 'demo' } = params;

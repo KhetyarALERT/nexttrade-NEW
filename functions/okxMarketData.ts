@@ -42,8 +42,18 @@ Deno.serve(async (req) => {
   }
   
   try {
-    const body = await req.json().catch(() => ({}));
-    const { action, ...params } = body;
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ ok: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
+    }
+    
+    const { action, ...params } = body || {};
+    
+    if (!action) {
+      return Response.json({ ok: false, error: { code: 'MISSING_ACTION', message: 'action parameter required' } }, { status: 400 });
+    }
     
     // ==================== LIST SWAP INSTRUMENTS ====================
     if (action === 'listInstrumentsSwap') {

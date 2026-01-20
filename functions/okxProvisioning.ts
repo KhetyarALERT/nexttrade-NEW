@@ -118,8 +118,18 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, { status: 401 });
     
-    const body = await req.json();
-    const { action, ...params } = body;
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ ok: false, error: { code: 'INVALID_JSON', message: 'Invalid JSON body' } }, { status: 400 });
+    }
+    
+    const { action, ...params } = body || {};
+    
+    if (!action) {
+      return Response.json({ ok: false, error: { code: 'MISSING_ACTION', message: 'action parameter required' } }, { status: 400 });
+    }
     
     const masterCredsResult = getMasterCredentials();
     if (!masterCredsResult.ok) {
