@@ -869,6 +869,38 @@ export default function FuturesTradePanel({
                   ) : null}
                 </div>
               </div>
+
+              {/* Amount Slider with % markers - For Limit orders */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span className="font-medium text-foreground">{amountPct}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={amountPct}
+                  onChange={(e) => applyAmountPct(Number(e.target.value))}
+                  className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
+                />
+                <div className="mt-2 flex justify-between gap-1">
+                  {[0, 25, 50, 75, 100].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => applyAmountPct(p)}
+                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                        amountPct === p 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                      }`}
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                </div>
+              </div>
             </>
           ) : null}
 
