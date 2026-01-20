@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
-import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert } from "lucide-react";
+import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert, Loader2 } from "lucide-react";
 
 function formatNum(v, digits = 2) {
   const n = Number(v);
@@ -401,44 +401,44 @@ export default function FuturesActivityTabs({
     return next.toFixed(digitsForPrice(entry));
   };
 
+  // Subscribe to price updates for all position symbols
   useEffect(() => {
     const symbols = Array.from(
       new Set(
         (trades || [])
-          .map((t) => normalizeSymbol(t?.symbol))
+          .map((t) => normalizeSymbol(t?.symbol || t?.instId))
           .filter(Boolean),
       ),
     );
 
     if (!symbols.length) {
-      setMarkBySymbol({});
       return;
     }
 
     const unsubs = symbols.map((s) =>
       binanceFuturesStore.subscribe(`price:${s}`, (p) => {
-        if (!p) return;
-        setMarkBySymbol((prev) => ({ ...prev, [s]: Number(p) }));
+        if (!p || !Number.isFinite(Number(p))) return;
+        setMarkBySymbol((prev) => {
+          if (prev[s] === Number(p)) return prev;
+          return { ...prev, [s]: Number(p) };
+        });
       }),
     );
 
-    setMarkBySymbol((prev) => {
-      const next = { ...prev };
-      symbols.forEach((s) => {
-        const t = binanceFuturesStore.getTicker(s);
-        if (t?.lastPrice) next[s] = Number(t.lastPrice);
-      });
-      return next;
+    // Initialize from existing tickers
+    symbols.forEach((s) => {
+      const t = binanceFuturesStore.getTicker(s);
+      if (t?.lastPrice) {
+        setMarkBySymbol((prev) => ({ ...prev, [s]: Number(t.lastPrice) }));
+      }
     });
 
     return () => {
       unsubs.forEach((u) => {
-        try {
-          u?.();
-        } catch {}
+        try { u?.(); } catch {}
       });
     };
-  }, [trades]);
+  }, [trades.map(t => t?.symbol || t?.instId).join(",")]);
 
   const labels = useMemo(() => {
     const isAr = language === "ar";
@@ -766,6 +766,7 @@ export default function FuturesActivityTabs({
             className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground shrink-0"
             onClick={() => onRefresh?.()}
             disabled={!onRefresh}
+            title={labels.common.refresh}
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
