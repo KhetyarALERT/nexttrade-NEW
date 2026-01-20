@@ -197,9 +197,8 @@ export default function Trading({ language = "en" }) {
     if (!liveAccount?.id || !pos?.symbol) return;
     const posSide = pos.side === "SHORT" ? "short" : "long";
     try {
-      await base44.functions.invoke("okxTrading", {
+      await base44.functions.invoke("okxUserAccount", {
         action: "closePosition",
-        accountId: liveAccount.id,
         instId: pos.symbol,
         posSide,
         size: pos.quantity || undefined,
@@ -250,9 +249,14 @@ export default function Trading({ language = "en" }) {
             <div className={`${chartHeight} w-full min-h-[250px]`}>
               <BinanceFuturesChart
                 symbol={selectedSymbol}
-                onPriceUpdate={setLastPrice}
-                onChangeUpdate={setChangePct}
-                onVolumeUpdate={setQuoteVolume}
+                language={language}
+                onPriceUpdate={(p) => {
+                  setLastPrice(p);
+                  // Also update change/volume from ticker data
+                  const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
+                  if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
+                  if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
+                }}
               />
             </div>
           </div>
