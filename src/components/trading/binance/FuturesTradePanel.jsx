@@ -432,9 +432,8 @@ export default function FuturesTradePanel({
 
       if (isLive) {
         const okxSide = normalizedSide === "SHORT" ? "sell" : "buy";
-        const res = await base44.functions.invoke("okxTrading", {
+        const res = await base44.functions.invoke("okxUserAccount", {
           action: "placeOrder",
-          accountId: tradingAccountId,
           instId: symbol,
           side: okxSide,
           orderType: orderType === "limit" ? "limit" : "market",
@@ -498,10 +497,8 @@ export default function FuturesTradePanel({
       }
 
       if (isLive) {
-        const posRes = await base44.functions.invoke("okxTrading", {
+        const posRes = await base44.functions.invoke("okxUserAccount", {
           action: "getPositions",
-          accountId: tradingAccountId,
-          instId: symbol,
         });
 
         if (!posRes?.data?.ok) {
@@ -510,15 +507,14 @@ export default function FuturesTradePanel({
         }
 
         const positions = posRes?.data?.data || [];
-        const pos = positions.find((p) => Number(p?.size || 0) !== 0);
+        const pos = positions.find((p) => Number(p?.pos || p?.size || 0) !== 0 && p?.instId === symbol);
         if (!pos?.instId) {
           setBotsError(language === "ar" ? "لا يوجد مركز مفتوح" : "No open position to close");
           return;
         }
 
-        const closeRes = await base44.functions.invoke("okxTrading", {
+        const closeRes = await base44.functions.invoke("okxUserAccount", {
           action: "closePosition",
-          accountId: tradingAccountId,
           instId: pos.instId,
           posSide: pos.posSide,
           size: Number.isFinite(parseNum(amount)) && parseNum(amount) > 0 ? parseNum(amount) : undefined,
