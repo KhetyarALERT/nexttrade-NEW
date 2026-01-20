@@ -106,12 +106,12 @@ export default function OKXAdminHub({ language = 'en' }) {
     setLoading(true);
     try {
       const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes] = await Promise.all([
-        base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
-        base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
-        base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
-        base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
-        base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
-        base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
+        base44.functions.invoke('okxProvisioning', { action: 'getDashboardStats' }),
+        base44.functions.invoke('okxProvisioning', { action: 'listPool' }),
+        base44.functions.invoke('okxProvisioning', { action: 'listUserAccounts' }),
+        base44.functions.invoke('okxProvisioning', { action: 'listUsers' }),
+        base44.functions.invoke('okxProvisioning', { action: 'listWithdrawals', limit: 50 }),
+        base44.functions.invoke('okxProvisioning', { action: 'listTransfers', limit: 50 }),
       ]);
       
       if (statsRes.data?.ok) setStats(statsRes.data.data);
@@ -141,7 +141,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     }
     
     try {
-      const res = await base44.functions.invoke('okxAdminHub', {
+      const res = await base44.functions.invoke('okxProvisioning', {
         action: 'addToPool',
         ...newPool,
       });
@@ -161,7 +161,7 @@ export default function OKXAdminHub({ language = 'en' }) {
 
   const handleCheckBalance = async (poolAccountId) => {
     try {
-      const res = await base44.functions.invoke('okxAdminHub', {
+      const res = await base44.functions.invoke('okxProvisioning', {
         action: 'checkPoolBalance',
         poolAccountId,
       });
@@ -187,8 +187,8 @@ export default function OKXAdminHub({ language = 'en' }) {
     
     try {
       const [detailsRes, historyRes] = await Promise.all([
-        base44.functions.invoke('okxAdminHub', { action: 'getPoolAccountDetails', poolAccountId: pool.id }),
-        base44.functions.invoke('okxAdminHub', { action: 'getTransactionHistory', poolAccountId: pool.id, limit: 20 }),
+        base44.functions.invoke('okxProvisioning', { action: 'getPoolAccountDetails', poolAccountId: pool.id }),
+        base44.functions.invoke('okxProvisioning', { action: 'getTransactionHistory', poolAccountId: pool.id, limit: 20 }),
       ]);
       
       if (detailsRes.data?.ok) {
@@ -215,7 +215,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     }
     
     try {
-      const res = await base44.functions.invoke('okxAdminHub', {
+      const res = await base44.functions.invoke('okxProvisioning', {
         action: 'assignToUser',
         poolAccountId: selectedPoolAccount.id,
         userId: selectedUser,
@@ -239,7 +239,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     if (!confirm('Are you sure you want to unassign this account?')) return;
     
     try {
-      const res = await base44.functions.invoke('okxAdminHub', {
+      const res = await base44.functions.invoke('okxProvisioning', {
         action: 'unassignFromUser',
         poolAccountId,
       });
@@ -262,7 +262,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     }
     
     try {
-      const res = await base44.functions.invoke('okxAdminHub', {
+      const res = await base44.functions.invoke('okxProvisioning', {
         action: 'adminTransfer',
         poolAccountId: selectedPoolAccount.id,
         direction: transferForm.direction,
