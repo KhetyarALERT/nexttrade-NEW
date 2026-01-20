@@ -228,10 +228,10 @@ export default function FuturesTradePanel({
   };
 
   useEffect(() => {
-    const unsubPrice = okxFuturesStore.subscribe(`price:${symbol}`, (p) => {
+    const unsubPrice = binanceFuturesStore.subscribe(`price:${symbol}`, (p) => {
       if (p) setLastPrice(Number(p));
     });
-    const existing = okxFuturesStore.getTicker(symbol);
+    const existing = binanceFuturesStore.getTicker(symbol);
     if (existing?.lastPrice) setLastPrice(Number(existing.lastPrice));
     return () => {
       try {

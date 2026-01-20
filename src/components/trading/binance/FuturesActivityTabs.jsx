@@ -416,7 +416,7 @@ export default function FuturesActivityTabs({
     }
 
     const unsubs = symbols.map((s) =>
-      okxFuturesStore.subscribe(`price:${s}`, (p) => {
+      binanceFuturesStore.subscribe(`price:${s}`, (p) => {
         if (!p || !Number.isFinite(Number(p))) return;
         setMarkBySymbol((prev) => {
           if (prev[s] === Number(p)) return prev;
@@ -427,7 +427,7 @@ export default function FuturesActivityTabs({
 
     // Initialize from existing tickers
     symbols.forEach((s) => {
-      const t = okxFuturesStore.getTicker(s);
+      const t = binanceFuturesStore.getTicker(s);
       if (t?.lastPrice) {
         setMarkBySymbol((prev) => ({ ...prev, [s]: Number(t.lastPrice) }));
       }
