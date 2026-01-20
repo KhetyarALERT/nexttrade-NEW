@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
+import { Loader2 } from "lucide-react";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -113,6 +114,7 @@ export default function FuturesTradePanel({
 
   const [botsBusy, setBotsBusy] = useState(false);
   const [botsError, setBotsError] = useState("");
+  const [orderSuccess, setOrderSuccess] = useState("");
 
   const [longTpTargets, setLongTpTargets] = useState(() => [{ id: uid(), closePct: "25", price: "" }]);
   const [longSlTargets, setLongSlTargets] = useState(() => [{ id: uid(), closePct: "100", price: "" }]);
@@ -412,8 +414,9 @@ export default function FuturesTradePanel({
     shortSlTrigger,
   ]);
 
-  const submitOpenTrade = async (sideKey, demoMode) => {
+  const submitOpenTrade = useCallback(async (sideKey, demoMode) => {
     setBotsError("");
+    setOrderSuccess("");
     setBotsBusy(true);
 
     try {
@@ -488,17 +491,23 @@ export default function FuturesTradePanel({
         }
       }
 
+      // Show success message
+      setOrderSuccess(language === "ar" ? "تم تنفيذ الأمر بنجاح" : "Order placed successfully");
+      setTimeout(() => setOrderSuccess(""), 3000);
+      
+      // Refresh data
       await onTradesChanged?.();
       await onAccountsChanged?.();
-    } catch {
-      setBotsError(language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade");
+    } catch (err) {
+      setBotsError(err?.message || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
     } finally {
       setBotsBusy(false);
     }
-  };
+  }, [symbol, refPrice, lastPrice, amount, orderType, leverage, tpSlLongEnabled, tpSlShortEnabled, longTpTrigger, shortTpTrigger, longSlTrigger, shortSlTrigger, liveAccount, demoAccount, language, onTradesChanged, onAccountsChanged]);
 
-  const submitCloseTrade = async (demoMode) => {
+  const submitCloseTrade = useCallback(async (demoMode) => {
     setBotsError("");
+    setOrderSuccess("");
     setBotsBusy(true);
 
     try {
@@ -571,14 +580,18 @@ export default function FuturesTradePanel({
         }
       }
 
+      // Show success message
+      setOrderSuccess(language === "ar" ? "تم إغلاق الصفقة بنجاح" : "Position closed successfully");
+      setTimeout(() => setOrderSuccess(""), 3000);
+      
       await onTradesChanged?.();
       await onAccountsChanged?.();
-    } catch {
-      setBotsError(language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade");
+    } catch (err) {
+      setBotsError(err?.message || (language === "ar" ? "فشل إغلاق الصفقة" : "Failed to close trade"));
     } finally {
       setBotsBusy(false);
     }
-  };
+  }, [symbol, refPrice, lastPrice, amount, liveAccount, demoAccount, language, onTradesChanged, onAccountsChanged]);
 
 
   const renderOrderForm = (opts = {}) => {
@@ -1571,17 +1584,19 @@ export default function FuturesTradePanel({
               type="button"
               disabled={botsBusy}
               onClick={() => submitOpenTrade("LONG", demoMode)}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${botsBusy ? "bg-emerald-600/60 text-white/80 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "bg-emerald-600/60 text-white/80 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25"}`}
             >
-              {botsBusy ? "..." : demoMode ? labels.demoOpenLong : labels.openLong}
+              {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
+              {demoMode ? labels.demoOpenLong : labels.openLong}
             </button>
             <button
               type="button"
               disabled={botsBusy}
               onClick={() => submitOpenTrade("SHORT", demoMode)}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all ${botsBusy ? "bg-rose-600/60 text-white/80 cursor-not-allowed" : "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "bg-rose-600/60 text-white/80 cursor-not-allowed" : "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25"}`}
             >
-              {botsBusy ? "..." : demoMode ? labels.demoOpenShort : labels.openShort}
+              {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
+              {demoMode ? labels.demoOpenShort : labels.openShort}
             </button>
           </div>
 
@@ -1593,6 +1608,12 @@ export default function FuturesTradePanel({
           >
             {botsBusy ? "..." : demoMode ? labels.demoClose : labels.close}
           </button>
+
+          {orderSuccess ? (
+            <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400">
+              ✓ {orderSuccess}
+            </div>
+          ) : null}
 
           {botsError ? (
             <div className="mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive">
