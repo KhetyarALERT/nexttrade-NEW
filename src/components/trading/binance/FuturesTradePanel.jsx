@@ -196,24 +196,31 @@ export default function FuturesTradePanel({
       return { balance: 0, equity: 0, marginUsed: 0, availableMargin: 0, hasAccount: false };
     }
 
-    // For OKX live account: use tradingBalance (trading account USDT)
+    // For OKX live account: use availableBalance (what's actually available after margin)
     // For demo account: use demo_balance
     let balance = 0;
+    let marginUsed = 0;
+    let availableMargin = 0;
+    
     if (demoMode) {
       balance = Number(account.demo_balance ?? account.balance ?? 0);
+      marginUsed = Number(account.margin_used ?? 0);
+      availableMargin = Math.max(0, balance - marginUsed);
     } else {
-      // OKX account structure from okxUserAccount
-      balance = Number(account.tradingBalance ?? account.balance ?? account.equity ?? 0);
+      // OKX account structure from okxUserAccount - use availableBalance directly
+      balance = Number(account.tradingBalance ?? account.balance ?? 0);
+      marginUsed = Number(account.marginUsed ?? 0);
+      // Use OKX's availableBalance if present, otherwise calculate
+      availableMargin = Number(account.availableBalance ?? (balance - marginUsed));
+      availableMargin = Math.max(0, availableMargin);
     }
 
-    const marginUsed = Number(account.margin_used ?? 0);
-    const equity = Number(account.equity ?? (Number.isFinite(balance) ? balance : 0));
-    const availableMargin = Number.isFinite(balance) ? Math.max(0, balance) : 0;
+    const equity = Number(account.equity ?? balance);
     return {
       balance: Number.isFinite(balance) ? balance : 0,
       equity: Number.isFinite(equity) ? equity : 0,
       marginUsed: Number.isFinite(marginUsed) ? marginUsed : 0,
-      availableMargin,
+      availableMargin: Number.isFinite(availableMargin) ? availableMargin : 0,
       hasAccount: true,
     };
   };
@@ -437,6 +444,8 @@ export default function FuturesTradePanel({
 
       if (isLive) {
         const okxSide = normalizedSide === "SHORT" ? "sell" : "buy";
+        console.log('[FuturesTradePanel] Placing OKX order:', { symbol, side: okxSide, orderType, quantity, entryPrice, leverage: levSafe });
+        
         const res = await base44.functions.invoke("okxUserAccount", {
           action: "placeOrder",
           instId: symbol,
@@ -448,8 +457,13 @@ export default function FuturesTradePanel({
           leverage: levSafe,
         });
 
+        console.log('[FuturesTradePanel] OKX order response:', res?.data);
+
         if (!res?.data?.ok) {
-          setBotsError(res?.data?.error?.message || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+          const errorMsg = res?.data?.error?.message || res?.data?.error?.okxMsg || 
+            (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade");
+          const errorCode = res?.data?.error?.code || res?.data?.error?.okxCode || '';
+          setBotsError(`${errorMsg}${errorCode ? ` (${errorCode})` : ''}`);
           return;
         }
       } else {
