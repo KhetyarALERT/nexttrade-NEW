@@ -11,11 +11,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { 
   Plus, RefreshCw, Users, Wallet, ArrowUpDown, AlertCircle, CheckCircle2, 
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
-  ArrowUpFromLine, Settings, Shield, Loader2
+  ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
+  History, ExternalLink, TrendingUp, TrendingDown
 } from 'lucide-react';
 
 const statusColors = {
