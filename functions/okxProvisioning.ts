@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
       const createResult = await okxRequest({
         credential: masterCredsResult.data,
         method: 'POST',
-        path: '/api/v5/users/subaccount/create-subaccount',
+        path: '/api/v5/users/subaccount/create',
         body: {
           subAcct: subAcctName,
           label: (user.full_name || user.email || 'User').substring(0, 20),
