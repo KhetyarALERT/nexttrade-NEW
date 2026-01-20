@@ -188,7 +188,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     try {
       const [detailsRes, historyRes] = await Promise.all([
         base44.functions.invoke('okxProvisioning', { action: 'adminGetDetails', poolAccountId: pool.id }),
-        base44.functions.invoke('okxProvisioning', { action: 'getTransactionHistory', poolAccountId: pool.id, limit: 20 }),
+        base44.functions.invoke('okxProvisioning', { action: 'adminGetHistory', poolAccountId: pool.id, limit: 20 }),
       ]);
       
       if (detailsRes.data?.ok) {
