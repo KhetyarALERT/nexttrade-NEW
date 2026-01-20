@@ -99,24 +99,24 @@ export default function Trading({ language = "en" }) {
   // WebSocket connection status - check both public and business WS
   useEffect(() => {
     const updateConnectionStatus = () => {
-      const publicConnected = binanceFuturesStore.wsConnected?.public;
-      const businessConnected = binanceFuturesStore.wsConnected?.business;
+      const publicConnected = binanceFuturesStore.wsConnected?.public === true;
+      const businessConnected = binanceFuturesStore.wsConnected?.business === true;
       setWsConnected(publicConnected || businessConnected);
     };
 
     const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", (connected) => {
-      setWsConnected(prev => connected || prev);
-      updateConnectionStatus();
+      setWsConnected(connected === true);
     });
     const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", (connected) => {
-      setWsConnected(prev => prev || connected);
-      updateConnectionStatus();
+      if (connected === true) setWsConnected(true);
     });
 
-    // Check initial state
+    // Check initial state after a small delay to allow WS to connect
     updateConnectionStatus();
+    const checkInterval = setInterval(updateConnectionStatus, 2000);
 
     return () => {
+      clearInterval(checkInterval);
       try { unsubPublic?.(); } catch {}
       try { unsubBusiness?.(); } catch {}
     };
