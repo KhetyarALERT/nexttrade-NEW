@@ -142,7 +142,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     
     try {
       const res = await base44.functions.invoke('okxProvisioning', {
-        action: 'addToPool',
+        action: 'adminAddToPool',
         ...newPool,
       });
       
