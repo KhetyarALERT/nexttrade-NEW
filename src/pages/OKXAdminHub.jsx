@@ -239,8 +239,8 @@ export default function OKXAdminHub({ language = 'en' }) {
     if (!confirm('Are you sure you want to unassign this account?')) return;
     
     try {
-      const res = await base44.functions.invoke('okxAdmin', {
-        action: 'unassignFromUser',
+      const res = await base44.functions.invoke('okxAdminHub', {
+                    action: 'unassignFromUser',
         poolAccountId,
       });
       
