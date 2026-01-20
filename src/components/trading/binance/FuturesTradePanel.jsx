@@ -1594,9 +1594,9 @@ export default function FuturesTradePanel({
             {botsBusy ? "..." : demoMode ? labels.demoClose : labels.close}
           </button>
 
-          {demoMode && botsError ? (
-            <div className="mt-2 text-[11px] text-destructive">
-              {botsError}
+          {botsError ? (
+            <div className="mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive">
+              ⚠️ {botsError}
             </div>
           ) : null}
 
