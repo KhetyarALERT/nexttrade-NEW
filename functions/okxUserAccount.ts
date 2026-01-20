@@ -85,6 +85,8 @@ async function okxRequest({ credential, method, path, query, body, isTradingEndp
   }
 
   const url = `${getOkxBaseUrl()}${requestPath}`;
+  
+  console.log('[OKX_REQUEST]', method, requestPath, bodyStr ? bodyStr.substring(0, 200) : '');
 
   try {
     const res = await fetch(url, {
@@ -93,12 +95,15 @@ async function okxRequest({ credential, method, path, query, body, isTradingEndp
       body: method.toUpperCase() === 'GET' ? undefined : (bodyStr || undefined),
     });
     const data = await res.json().catch(() => ({}));
+    
+    console.log('[OKX_RESPONSE]', res.status, JSON.stringify(data).substring(0, 500));
 
     if (!res.ok || (data?.code && data.code !== '0')) {
       return { ok: false, error: { httpStatus: res.status, okxCode: data?.code, okxMsg: data?.msg } };
     }
     return { ok: true, data };
   } catch (error) {
+    console.log('[OKX_ERROR]', error?.message);
     return { ok: false, error: { okxMsg: error?.message || 'Network error' } };
   }
 }
