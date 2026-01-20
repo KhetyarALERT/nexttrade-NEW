@@ -167,7 +167,8 @@ export default function OKXAdminHub({ language = 'en' }) {
       });
       
       if (res.data?.ok) {
-        toast.success(`Balance: ${res.data.data.totalUsdt.toFixed(2)} USDT`);
+        const d = res.data.data;
+        toast.success(`Trading: ${d.tradingUsdt.toFixed(2)} | Funding: ${d.fundingUsdt.toFixed(2)} | Total: ${d.totalUsdt.toFixed(2)} USDT`);
         loadDashboard();
       } else {
         toast.error(res.data?.error?.message || 'Balance check failed');
@@ -175,6 +176,36 @@ export default function OKXAdminHub({ language = 'en' }) {
     } catch (err) {
       toast.error(err.message || 'Balance check failed');
     }
+  };
+
+  const handleViewDetails = async (pool) => {
+    setSelectedPoolAccount(pool);
+    setDetailsDialogOpen(true);
+    setLoadingDetails(true);
+    setAccountDetails(null);
+    setAccountHistory(null);
+    
+    try {
+      const [detailsRes, historyRes] = await Promise.all([
+        base44.functions.invoke('okxAdmin', { action: 'getPoolAccountDetails', poolAccountId: pool.id }),
+        base44.functions.invoke('okxAdmin', { action: 'getTransactionHistory', poolAccountId: pool.id, limit: 20 }),
+      ]);
+      
+      if (detailsRes.data?.ok) {
+        setAccountDetails(detailsRes.data.data);
+      }
+      if (historyRes.data?.ok) {
+        setAccountHistory(historyRes.data.data);
+      }
+    } catch (err) {
+      toast.error('Failed to load account details');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const toggleRowExpand = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleAssignToUser = async () => {
