@@ -9,7 +9,7 @@ import {
   encryptSecret,
   getMasterCredentials,
   okxRequest,
-} from './okxCore.ts';
+} from './okxCore.js';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
