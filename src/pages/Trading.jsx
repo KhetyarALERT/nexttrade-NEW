@@ -6,7 +6,6 @@ import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSel
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import AccountBalanceBar from "@/components/trading/futures/AccountBalanceBar";
-import PositionsList from "@/components/trading/futures/PositionsList";
 import MobileTradeView from "@/components/trading/futures/MobileTradeView";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
@@ -97,14 +96,25 @@ export default function Trading({ language = "en" }) {
     loadDemoAccount();
   }, [isAuthenticated, isLoadingAuth]);
 
-  // WebSocket connection status
+  // WebSocket connection status - check both public and business WS
   useEffect(() => {
+    const updateConnectionStatus = () => {
+      const publicConnected = binanceFuturesStore.wsConnected?.public;
+      const businessConnected = binanceFuturesStore.wsConnected?.business;
+      setWsConnected(publicConnected || businessConnected);
+    };
+
     const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", (connected) => {
-      setWsConnected(connected);
+      setWsConnected(prev => connected || prev);
+      updateConnectionStatus();
     });
     const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", (connected) => {
       setWsConnected(prev => prev || connected);
+      updateConnectionStatus();
     });
+
+    // Check initial state
+    updateConnectionStatus();
 
     return () => {
       try { unsubPublic?.(); } catch {}
@@ -472,24 +482,7 @@ export default function Trading({ language = "en" }) {
                 {tradePanelComponent}
               </div>
               
-              {/* Positions List */}
-              {livePositions.length > 0 && (
-                <div className="border-t border-border max-h-[300px] overflow-auto">
-                  <div className="px-3 py-2 bg-card/50 border-b border-border sticky top-0">
-                    <span className="text-xs font-medium text-foreground">
-                      {isAr ? "المراكز المفتوحة" : "Open Positions"}
-                      <span className="ml-2 text-muted-foreground">({livePositions.length})</span>
-                    </span>
-                  </div>
-                  <PositionsList
-                    positions={livePositions}
-                    markPrices={markPrices}
-                    language={language}
-                    onClosePosition={handleCloseLivePosition}
-                    closingPositionId={closingPositionId}
-                  />
-                </div>
-              )}
+
             </>
           )}
         </div>

@@ -827,33 +827,6 @@ export default function FuturesTradePanel({
                     <span className="text-[11px] px-2 py-1 rounded-md bg-muted text-foreground">{baseAsset}</span>
                   </div>
 
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>{amountPct}%</span>
-                      <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={amountPct}
-                      onChange={(e) => applyAmountPct(Number(e.target.value))}
-                      className="mt-2 w-full accent-primary"
-                    />
-                    <div className="mt-2 flex justify-between gap-1">
-                      {[0, 25, 50, 75, 100].map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => applyAmountPct(p)}
-                          className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
-                        >
-                          {p}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
                 <div>
                   <label className="block text-[11px] text-muted-foreground">{orderMode === "cost" ? labels.cost : orderMode === "value" ? labels.value : labels.total}</label>

@@ -13,7 +13,7 @@ export function AssistantModal({ language = "en" }) {
 
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor className="bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <AssistantModalPrimitive.Anchor className="bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-4 sm:left-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]">
         <AssistantModalPrimitive.Trigger asChild>
           <button
             type="button"
@@ -35,7 +35,7 @@ export function AssistantModal({ language = "en" }) {
       <AssistantModalPrimitive.Content
         sideOffset={16}
         className={cn(
-          "right-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))]",
+          "left-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))]",
           "flex h-[min(85vh,640px)] w-[min(420px,calc(100vw-2rem))] flex-col",
           "rounded-2xl border border-border/70 bg-popover shadow-2xl shadow-black/20",
           "data-[state=open]:translate-y-0 data-[state=closed]:translate-y-2",

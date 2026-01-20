@@ -191,6 +191,11 @@ class OKXFuturesStore {
   // ========== WEBSOCKET MANAGEMENT ==========
   connectPublicWs() {
     if (this.publicWs && (this.publicWs.readyState === WebSocket.OPEN || this.publicWs.readyState === WebSocket.CONNECTING)) {
+      // Already connected or connecting
+      if (this.publicWs.readyState === WebSocket.OPEN) {
+        this.wsConnected.public = true;
+        this.emit("ws:public:connected", true);
+      }
       return;
     }
 
@@ -229,6 +234,11 @@ class OKXFuturesStore {
 
   connectBusinessWs() {
     if (this.businessWs && (this.businessWs.readyState === WebSocket.OPEN || this.businessWs.readyState === WebSocket.CONNECTING)) {
+      // Already connected or connecting
+      if (this.businessWs.readyState === WebSocket.OPEN) {
+        this.wsConnected.business = true;
+        this.emit("ws:business:connected", true);
+      }
       return;
     }
 

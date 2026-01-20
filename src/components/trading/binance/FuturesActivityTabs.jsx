@@ -886,8 +886,8 @@ export default function FuturesActivityTabs({
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onSelectTrade?.(pos); }}>
-                                {labels.common.view}
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); openTpSlDialog(pos); }}>
+                                {labels.common.tpSl}
                               </Button>
                               <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); onCloseTrade?.(pos); }}>
                                 {labels.common.close}
