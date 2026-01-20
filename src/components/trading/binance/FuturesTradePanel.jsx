@@ -938,10 +938,10 @@ export default function FuturesTradePanel({
                 </div>
               ) : null}
 
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{amountPct}%</span>
-                  <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
+              {/* Amount Slider with % markers */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span className="font-medium text-foreground">{amountPct}%</span>
                 </div>
                 <input
                   type="range"
@@ -950,7 +950,7 @@ export default function FuturesTradePanel({
                   step={1}
                   value={amountPct}
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
-                  className="mt-2 w-full accent-primary"
+                  className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
                 <div className="mt-2 flex justify-between gap-1">
                   {[0, 25, 50, 75, 100].map((p) => (
@@ -958,7 +958,11 @@ export default function FuturesTradePanel({
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
+                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                        amountPct === p 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                      }`}
                     >
                       {p}%
                     </button>
@@ -1051,10 +1055,10 @@ export default function FuturesTradePanel({
                 </div>
               ) : null}
 
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>{amountPct}%</span>
-                  <span className="text-[10px] text-muted-foreground">{labels.amountSliderHint}</span>
+              {/* Amount Slider with % markers */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span className="font-medium text-foreground">{amountPct}%</span>
                 </div>
                 <input
                   type="range"
@@ -1063,7 +1067,7 @@ export default function FuturesTradePanel({
                   step={1}
                   value={amountPct}
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
-                  className="mt-2 w-full accent-primary"
+                  className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
                 <div className="mt-2 flex justify-between gap-1">
                   {[0, 25, 50, 75, 100].map((p) => (
@@ -1071,7 +1075,11 @@ export default function FuturesTradePanel({
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className="px-2 py-1 rounded-md bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground text-[11px] transition-colors"
+                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                        amountPct === p 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                      }`}
                     >
                       {p}%
                     </button>
