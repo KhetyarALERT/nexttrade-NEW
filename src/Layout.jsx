@@ -280,43 +280,40 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
-      const [walletsResult, futuresAccountResult, okxAccountResult] = await Promise.all([
+      const [walletsResult, okxAccountResult] = await Promise.all([
         base44.functions.invoke("wallet", { action: "list" }),
-        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
-        base44.functions.invoke("okxUserAccount", { action: "getBalance" }),
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
-      const futuresAccount = futuresAccountResult.data?.success ? futuresAccountResult.data.data : null;
       const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
 
-      const totalUsdt = wallets.reduce((sum, w) => {
+      // Wallets: Fund Account balance
+      const fundingUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
         return sum;
       }, 0);
 
+      // Wallets: Wealth/Staked balance
       const wealthUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.staked_balance || 0);
         return sum;
       }, 0);
 
-      // Use OKX balance if available, otherwise fall back to demo account
-      const okxBalance = okxData?.hasAccount ? (okxData.totalEquity || okxData.balance || 0) : 0;
-      const demoBalance = (futuresAccount?.equity ?? futuresAccount?.balance ?? futuresAccount?.demo_balance ?? 0);
-      const futuresUsdt = okxData?.hasAccount ? okxBalance : demoBalance;
+      // OKX Balances
+      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
+      const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
+      const okxTotalEquity = okxData?.hasAccount ? (okxData.balances?.totalEquity || 0) : 0;
 
-      const totalUsd = wallets.reduce((sum, w) => {
-        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
-        if (w?.currency === "BTC") return sum + (w.balance || 0) * 95000;
-        if (w?.currency === "ETH") return sum + (w.balance || 0) * 3400;
-        return sum + (w.balance || 0);
-      }, 0) + okxBalance;
+      // Combined totals
+      const totalUsdt = fundingUsdt + okxTradingUsdt + okxFundingUsdt + wealthUsdt;
+      const totalUsd = totalUsdt; // 1:1 for USDT
 
-      setAccountTotals({ totalUsd, totalUsdt: totalUsdt + okxBalance });
+      setAccountTotals({ totalUsd, totalUsdt });
       setAccountBalances({
-        fundingUsdt: totalUsdt,
-        spotUsdt: null,
-        futuresUsdt: typeof futuresUsdt === "number" ? futuresUsdt : null,
+        fundingUsdt: fundingUsdt + okxFundingUsdt,
+        spotUsdt: null, // No spot trading yet
+        futuresUsdt: okxTradingUsdt > 0 ? okxTradingUsdt : null,
         wealthUsdt,
       });
     } catch (err) {
