@@ -1,36 +1,202 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Admin Hub v1.1 - Sub-account pool management with balance, history
+// OKX Admin Hub - v2.0.0 - Self-contained admin endpoints for pool management
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { auditLog, decryptSecret, encryptSecret, getMasterCredentials, okxRequest } from './okxCore.ts';
 
-async function buildCred(apiKey, secretEnc, passphraseEnc) {
-  return { apiKey, secretKey: await decryptSecret(secretEnc), passphrase: await decryptSecret(passphraseEnc) };
+// ==================== CRYPTO UTILITIES ====================
+const DEFAULT_OKX_BASE_URL = 'https://www.okx.com';
+
+function base64Encode(bytes) {
+  return btoa(String.fromCharCode(...bytes));
 }
 
-function requireAdmin(user) {
-  return user?.role === 'admin' ? { ok: true } : { ok: false, error: { code: 'FORBIDDEN', message: 'Admin required' } };
+function base64Decode(text) {
+  const bin = atob(text);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' } });
+function getEnv(key) {
+  return Deno.env.get(key);
+}
+
+function getOkxBaseUrl() {
+  return getEnv('OKX_BASE_URL') || DEFAULT_OKX_BASE_URL;
+}
+
+async function importAesKey() {
+  const raw = getEnv('APP_ENCRYPTION_KEY');
+  if (!raw) throw new Error('Missing APP_ENCRYPTION_KEY');
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(raw));
+  return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function encryptSecret(plaintext) {
+  const key = await importAesKey();
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(String(plaintext || '')));
+  const encryptedBytes = new Uint8Array(encrypted);
+  const tag = encryptedBytes.slice(encryptedBytes.length - 16);
+  const ciphertext = encryptedBytes.slice(0, -16);
+  return { iv: base64Encode(iv), tag: base64Encode(tag), ciphertext: base64Encode(ciphertext) };
+}
+
+async function decryptSecret(payload) {
+  if (!payload) return '';
+  const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  const iv = base64Decode(parsed.iv);
+  const tag = base64Decode(parsed.tag);
+  const ciphertext = base64Decode(parsed.ciphertext);
+  const combined = new Uint8Array(ciphertext.length + tag.length);
+  combined.set(ciphertext, 0);
+  combined.set(tag, ciphertext.length);
+  const key = await importAesKey();
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, combined);
+  return new TextDecoder().decode(decrypted);
+}
+
+async function generateOkxSignature(timestamp, method, requestPath, body, secretKey) {
+  const prehash = timestamp + method.toUpperCase() + requestPath + body;
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secretKey);
+  const msgData = encoder.encode(prehash);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  return base64Encode(new Uint8Array(signature));
+}
+
+function getMasterCredentials() {
+  const apiKey = getEnv('OKX_MAIN_API_KEY');
+  const secretKey = getEnv('OKX_MAIN_SECRET');
+  const passphrase = getEnv('OKX_MAIN_PASSPHRASE');
+  if (!apiKey || !secretKey || !passphrase) {
+    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Missing OKX credentials' } };
+  }
+  return { ok: true, data: { apiKey, secretKey, passphrase } };
+}
+
+function buildRequestPath(path, query) {
+  if (!query || Object.keys(query).length === 0) return path;
+  const params = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return;
+    params.set(key, String(value));
+  });
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+async function okxRequest({ credential, method, path, query, body, isTradingEndpoint = false }) {
+  const timestamp = new Date().toISOString();
+  const requestPath = buildRequestPath(path, query);
+  const bodyStr = body ? JSON.stringify(body) : '';
+  const signature = await generateOkxSignature(timestamp, method, requestPath, bodyStr, credential.secretKey);
+
+  const headers = {
+    'OK-ACCESS-KEY': credential.apiKey,
+    'OK-ACCESS-SIGN': signature,
+    'OK-ACCESS-TIMESTAMP': timestamp,
+    'OK-ACCESS-PASSPHRASE': credential.passphrase,
+    'Content-Type': 'application/json',
+  };
+
+  if (isTradingEndpoint && String(getEnv('OKX_TRADING_MODE') || '').toLowerCase() === 'demo') {
+    headers['x-simulated-trading'] = '1';
   }
 
-  const base44 = createClientFromRequest(req);
+  const url = `${getOkxBaseUrl()}${requestPath}`;
 
+  try {
+    const res = await fetch(url, {
+      method: method.toUpperCase(),
+      headers,
+      body: method.toUpperCase() === 'GET' ? undefined : (bodyStr || undefined),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || (data?.code && data.code !== '0')) {
+      return { ok: false, error: { httpStatus: res.status, okxCode: data?.code, okxMsg: data?.msg } };
+    }
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: { okxMsg: error?.message || 'Network error' } };
+  }
+}
+
+function auditLog(action, userId, details) {
+  console.log(`[OKX_AUDIT] [${new Date().toISOString()}] [${action}] User: ${userId}`, JSON.stringify(details));
+}
+
+// ==================== MAIN HANDLER ====================
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }
+    });
+  }
+  
+  const base44 = createClientFromRequest(req);
+  
   try {
     const user = await base44.auth.me();
     if (!user) return Response.json({ ok: false, error: { code: 'UNAUTHORIZED' } }, { status: 401 });
-
-    const body = await req.json().catch(() => ({}));
-    const { action, ...params } = body;
+    if (user.role !== 'admin') return Response.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } }, { status: 403 });
+    
+    let body = {};
+    try { body = await req.json(); } catch { return Response.json({ ok: false, error: { code: 'INVALID_JSON' } }, { status: 400 }); }
+    
+    const { action, ...params } = body || {};
     if (!action) return Response.json({ ok: false, error: { code: 'MISSING_ACTION' } }, { status: 400 });
+
+    console.log('[OKX_ADMIN_HUB] Action:', action, 'User:', user.email);
+
+    const masterCredsResult = getMasterCredentials();
+    if (!masterCredsResult.ok) return Response.json(masterCredsResult, { status: 500 });
+
+    // LIST POOL
+    if (action === 'listPool') {
+      const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter(params.status ? { status: params.status } : {}, '-created_date', 100);
+      return Response.json({ ok: true, data: (pool || []).map(p => ({
+        id: p.id, subaccountName: p.subaccount_name, apiKey: p.api_key?.substring(0, 8) + '...', status: p.status,
+        permissions: p.permissions, assignedToUserId: p.assigned_to_user_id, assignedAt: p.assigned_at,
+        lastBalanceUsdt: p.last_balance_usdt, lastBalanceCheck: p.last_balance_check, notes: p.notes,
+        createdAt: p.created_at || p.created_date, updatedAt: p.updated_at,
+      })) });
+    }
+
+    // DASHBOARD STATS
+    if (action === 'getDashboardStats') {
+      const [pools, accounts, wds, trs] = await Promise.all([
+        base44.asServiceRole.entities.OKXSubAccountPool.filter({}, '-created_date', 1000),
+        base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' }, '-created_date', 1000),
+        base44.asServiceRole.entities.WithdrawalRequest.filter({ provider: 'OKX' }, '-created_date', 1000),
+        base44.asServiceRole.entities.ExchangeTransfer.filter({ provider: 'OKX' }, '-created_date', 1000),
+      ]);
+
+      return Response.json({ ok: true, data: {
+        pool: {
+          total: pools?.length || 0, available: pools?.filter(p => p.status === 'AVAILABLE').length || 0,
+          assigned: pools?.filter(p => p.status === 'ASSIGNED').length || 0, error: pools?.filter(p => p.status === 'ERROR').length || 0,
+          disabled: pools?.filter(p => p.status === 'DISABLED').length || 0,
+          totalBalanceUsdt: pools?.reduce((s, p) => s + (p.last_balance_usdt || 0), 0) || 0,
+        },
+        accounts: { total: accounts?.length || 0, active: accounts?.filter(a => a.status === 'ACTIVE').length || 0, suspended: accounts?.filter(a => a.status === 'SUSPENDED').length || 0 },
+        withdrawals: {
+          total: wds?.length || 0, pending: wds?.filter(w => ['PENDING_CONFIRM', 'PENDING_REVIEW', 'PROCESSING'].includes(w.status)).length || 0,
+          completed: wds?.filter(w => w.status === 'COMPLETED').length || 0, failed: wds?.filter(w => ['REJECTED', 'FAILED', 'CANCELLED'].includes(w.status)).length || 0,
+          totalAmountCompleted: wds?.filter(w => w.status === 'COMPLETED').reduce((s, w) => s + (w.amount || 0), 0) || 0,
+        },
+        transfers: {
+          total: trs?.length || 0, completed: trs?.filter(t => t.status === 'COMPLETED').length || 0,
+          totalAmountCompleted: trs?.filter(t => t.status === 'COMPLETED').reduce((s, t) => s + (t.amount || 0), 0) || 0,
+        },
+      } });
+    }
 
     // ADD TO POOL
     if (action === 'addToPool') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { subaccountName, apiKey, secretKey, passphrase, permissions = ['read', 'trade'], notes = '' } = params;
       if (!subaccountName || !apiKey || !secretKey || !passphrase) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
@@ -58,21 +224,8 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { id: pool.id, subaccountName, status: pool.status, balanceUsdt, testResult: testMsg } });
     }
 
-    // LIST POOL
-    if (action === 'listPool') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
-      const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter(params.status ? { status: params.status } : {}, '-created_date', 100);
-      return Response.json({ ok: true, data: (pool || []).map(p => ({
-        id: p.id, subaccountName: p.subaccount_name, apiKey: p.api_key?.substring(0, 8) + '...', status: p.status,
-        permissions: p.permissions, assignedToUserId: p.assigned_to_user_id, assignedAt: p.assigned_at,
-        lastBalanceUsdt: p.last_balance_usdt, lastBalanceCheck: p.last_balance_check, notes: p.notes,
-        createdAt: p.created_at || p.created_date, updatedAt: p.updated_at,
-      })) });
-    }
-
-    // CHECK BALANCE
+    // CHECK POOL BALANCE
     if (action === 'checkPoolBalance') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { poolAccountId } = params;
       if (!poolAccountId) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
@@ -80,7 +233,7 @@ Deno.serve(async (req) => {
       if (!pools?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
 
       const p = pools[0];
-      const cred = await buildCred(p.api_key, p.secret_enc, p.passphrase_enc);
+      const cred = { apiKey: p.api_key, secretKey: await decryptSecret(p.secret_enc), passphrase: await decryptSecret(p.passphrase_enc) };
       const [tradingRes, fundingRes] = await Promise.all([
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/account/balance', isTradingEndpoint: true }),
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/asset/balances', isTradingEndpoint: false }),
@@ -99,9 +252,8 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { tradingUsdt, fundingUsdt, totalUsdt, checkedAt: now } });
     }
 
-    // GET DETAILS
+    // GET POOL ACCOUNT DETAILS
     if (action === 'getPoolAccountDetails') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { poolAccountId } = params;
       if (!poolAccountId) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
@@ -109,7 +261,7 @@ Deno.serve(async (req) => {
       if (!pools?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
 
       const p = pools[0];
-      const cred = await buildCred(p.api_key, p.secret_enc, p.passphrase_enc);
+      const cred = { apiKey: p.api_key, secretKey: await decryptSecret(p.secret_enc), passphrase: await decryptSecret(p.passphrase_enc) };
       const [tradingRes, fundingRes, configRes, posRes] = await Promise.all([
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/account/balance', isTradingEndpoint: true }),
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/asset/balances', isTradingEndpoint: false }),
@@ -135,16 +287,16 @@ Deno.serve(async (req) => {
       } });
     }
 
-    // GET HISTORY
+    // GET TRANSACTION HISTORY
     if (action === 'getTransactionHistory') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { poolAccountId, limit = 20 } = params;
       if (!poolAccountId) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
       const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: poolAccountId });
       if (!pools?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
 
-      const cred = await buildCred(pools[0].api_key, pools[0].secret_enc, pools[0].passphrase_enc);
+      const p = pools[0];
+      const cred = { apiKey: p.api_key, secretKey: await decryptSecret(p.secret_enc), passphrase: await decryptSecret(p.passphrase_enc) };
       const [depRes, wdRes, billRes] = await Promise.all([
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/asset/deposit-history', query: { limit: String(limit) }, isTradingEndpoint: false }),
         okxRequest({ credential: cred, method: 'GET', path: '/api/v5/asset/withdrawal-history', query: { limit: String(limit) }, isTradingEndpoint: false }),
@@ -158,9 +310,8 @@ Deno.serve(async (req) => {
       } });
     }
 
-    // ASSIGN
+    // ASSIGN TO USER
     if (action === 'assignToUser') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { poolAccountId, userId } = params;
       if (!poolAccountId || !userId) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
@@ -196,9 +347,8 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { exchangeAccountId: acc.id, userId, userEmail: users[0].email, subaccountName: p.subaccount_name } });
     }
 
-    // UNASSIGN
+    // UNASSIGN FROM USER
     if (action === 'unassignFromUser') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { poolAccountId } = params;
       if (!poolAccountId) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
 
@@ -222,9 +372,22 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { poolAccountId, status: 'AVAILABLE' } });
     }
 
+    // LIST USERS
+    if (action === 'listUsers') {
+      const allUsers = await base44.asServiceRole.entities.User.filter({}, '-created_date', 100);
+      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' });
+      const accMap = {};
+      for (const a of accounts || []) accMap[a.user_id] = a;
+
+      return Response.json({ ok: true, data: (allUsers || []).map(u => ({
+        id: u.id, email: u.email, fullName: u.full_name, role: u.role,
+        hasOkxAccount: !!accMap[u.id], okxAccountStatus: accMap[u.id]?.status || null, okxAccountId: accMap[u.id]?.id || null,
+        createdAt: u.created_date,
+      })) });
+    }
+
     // LIST USER ACCOUNTS
     if (action === 'listUserAccounts') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' }, '-created_date', 100);
       return Response.json({ ok: true, data: (accounts || []).map(a => ({
         id: a.id, userId: a.user_id, userEmail: a.user_email, poolAccountId: a.pool_account_id,
@@ -235,7 +398,6 @@ Deno.serve(async (req) => {
 
     // LIST WITHDRAWALS
     if (action === 'listWithdrawals') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const wds = await base44.asServiceRole.entities.WithdrawalRequest.filter({ provider: 'OKX' }, '-created_date', params.limit || 50);
       return Response.json({ ok: true, data: (wds || []).map(w => ({
         id: w.id, userId: w.user_id, userEmail: w.user_email, currency: w.currency, chain: w.chain,
@@ -246,7 +408,6 @@ Deno.serve(async (req) => {
 
     // LIST TRANSFERS
     if (action === 'listTransfers') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const trs = await base44.asServiceRole.entities.ExchangeTransfer.filter({ provider: 'OKX' }, '-created_date', params.limit || 50);
       return Response.json({ ok: true, data: (trs || []).map(t => ({
         id: t.id, userId: t.user_id, fromAccount: t.from_account, toAccount: t.to_account,
@@ -256,7 +417,6 @@ Deno.serve(async (req) => {
 
     // ADMIN TRANSFER
     if (action === 'adminTransfer') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
       const { direction, poolAccountId, currency = 'USDT', amount } = params;
       if (!direction || !poolAccountId || !amount || amount <= 0) return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
       if (!['toSub', 'toMain'].includes(direction)) return Response.json({ ok: false, error: { code: 'INVALID_DIRECTION' } }, { status: 400 });
@@ -264,11 +424,8 @@ Deno.serve(async (req) => {
       const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: poolAccountId });
       if (!pools?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
 
-      const masterCreds = getMasterCredentials();
-      if (!masterCreds.ok) return Response.json(masterCreds, { status: 500 });
-
       const res = await okxRequest({
-        credential: masterCreds.data, method: 'POST', path: '/api/v5/asset/transfer', isTradingEndpoint: false,
+        credential: masterCredsResult.data, method: 'POST', path: '/api/v5/asset/transfer', isTradingEndpoint: false,
         body: { ccy: currency, amt: String(amount), from: '6', to: '6', type: direction === 'toSub' ? '1' : '2', subAcct: pools[0].subaccount_name },
       });
 
@@ -286,54 +443,11 @@ Deno.serve(async (req) => {
       if (!res.ok) return Response.json({ ok: false, error: { code: 'TRANSFER_FAILED', message: res.error?.okxMsg || 'Failed' } }, { status: 502 });
       return Response.json({ ok: true, data: { transferId: tr.id, status: 'COMPLETED', direction, amount } });
     }
-
-    // DASHBOARD STATS
-    if (action === 'getDashboardStats') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
-      const [pools, accounts, wds, trs] = await Promise.all([
-        base44.asServiceRole.entities.OKXSubAccountPool.filter({}, '-created_date', 1000),
-        base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' }, '-created_date', 1000),
-        base44.asServiceRole.entities.WithdrawalRequest.filter({ provider: 'OKX' }, '-created_date', 1000),
-        base44.asServiceRole.entities.ExchangeTransfer.filter({ provider: 'OKX' }, '-created_date', 1000),
-      ]);
-
-      return Response.json({ ok: true, data: {
-        pool: {
-          total: pools?.length || 0, available: pools?.filter(p => p.status === 'AVAILABLE').length || 0,
-          assigned: pools?.filter(p => p.status === 'ASSIGNED').length || 0, error: pools?.filter(p => p.status === 'ERROR').length || 0,
-          totalBalanceUsdt: pools?.reduce((s, p) => s + (p.last_balance_usdt || 0), 0) || 0,
-        },
-        accounts: { total: accounts?.length || 0, active: accounts?.filter(a => a.status === 'ACTIVE').length || 0, suspended: accounts?.filter(a => a.status === 'SUSPENDED').length || 0 },
-        withdrawals: {
-          total: wds?.length || 0, pending: wds?.filter(w => ['PENDING_CONFIRM', 'PENDING_REVIEW', 'PROCESSING'].includes(w.status)).length || 0,
-          completed: wds?.filter(w => w.status === 'COMPLETED').length || 0,
-          totalAmountCompleted: wds?.filter(w => w.status === 'COMPLETED').reduce((s, w) => s + (w.amount || 0), 0) || 0,
-        },
-        transfers: {
-          total: trs?.length || 0, completed: trs?.filter(t => t.status === 'COMPLETED').length || 0,
-          totalAmountCompleted: trs?.filter(t => t.status === 'COMPLETED').reduce((s, t) => s + (t.amount || 0), 0) || 0,
-        },
-      } });
-    }
-
-    // LIST USERS
-    if (action === 'listUsers') {
-      const chk = requireAdmin(user); if (!chk.ok) return Response.json(chk, { status: 403 });
-      const allUsers = await base44.asServiceRole.entities.User.filter({}, '-created_date', 100);
-      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' });
-      const accMap = {};
-      for (const a of accounts || []) accMap[a.user_id] = a;
-
-      return Response.json({ ok: true, data: (allUsers || []).map(u => ({
-        id: u.id, email: u.email, fullName: u.full_name, role: u.role,
-        hasOkxAccount: !!accMap[u.id], okxAccountStatus: accMap[u.id]?.status || null, okxAccountId: accMap[u.id]?.id || null,
-        createdAt: u.created_date,
-      })) });
-    }
-
-    return Response.json({ ok: false, error: { code: 'INVALID_ACTION' } }, { status: 400 });
+    
+    return Response.json({ ok: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });
+    
   } catch (error) {
-    console.error('[OKX_ADMIN_ERROR]', error.message);
+    console.error('[OKX_ADMIN_HUB_ERROR]', error.message);
     return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: error.message } }, { status: 500 });
   }
 });
