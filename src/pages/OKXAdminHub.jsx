@@ -449,97 +449,139 @@ export default function OKXAdminHub({ language = 'en' }) {
             <Card>
               <CardHeader>
                 <CardTitle>Sub-Account Pool</CardTitle>
-                <CardDescription>Manage pre-created OKX sub-accounts</CardDescription>
+                <CardDescription>Manage pre-created OKX sub-accounts with full balance & transaction visibility</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>API Key</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Balance</TableHead>
                       <TableHead>Assigned To</TableHead>
+                      <TableHead>Last Check</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {poolAccounts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           No sub-accounts in pool. Add one to get started.
                         </TableCell>
                       </TableRow>
                     ) : (
                       poolAccounts.map((pool) => (
-                        <TableRow key={pool.id}>
-                          <TableCell className="font-medium">{pool.subaccountName}</TableCell>
-                          <TableCell className="font-mono text-xs">{pool.apiKey}</TableCell>
-                          <TableCell>
-                            <Badge className={statusColors[pool.status] || ''}>
-                              {pool.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{formatUsdt(pool.lastBalanceUsdt)} USDT</TableCell>
-                          <TableCell>
-                            {pool.assignedToUserId ? (
-                              <span className="text-sm">
-                                {users.find(u => u.id === pool.assignedToUserId)?.email || pool.assignedToUserId}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleCheckBalance(pool.id)}
-                                title="Check Balance"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
-                              {pool.status === 'AVAILABLE' && (
+                        <React.Fragment key={pool.id}>
+                          <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRowExpand(pool.id)}>
+                            <TableCell>
+                              {expandedRows[pool.id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </TableCell>
+                            <TableCell className="font-medium">{pool.subaccountName}</TableCell>
+                            <TableCell className="font-mono text-xs">{pool.apiKey}</TableCell>
+                            <TableCell>
+                              <Badge className={statusColors[pool.status] || ''}>
+                                {pool.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium">{formatUsdt(pool.lastBalanceUsdt)} USDT</TableCell>
+                            <TableCell>
+                              {pool.assignedToUserId ? (
+                                <span className="text-sm">
+                                  {users.find(u => u.id === pool.assignedToUserId)?.email || pool.assignedToUserId}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {pool.lastBalanceCheck ? new Date(pool.lastBalanceCheck).toLocaleString() : '-'}
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => {
-                                    setSelectedPoolAccount(pool);
-                                    setAssignDialogOpen(true);
-                                  }}
-                                  title="Assign to User"
+                                  onClick={() => handleViewDetails(pool)}
+                                  title="View Details"
                                 >
-                                  <UserPlus className="h-4 w-4" />
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
-                              {pool.status === 'ASSIGNED' && (
-                                <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleCheckBalance(pool.id)}
+                                  title="Refresh Balance"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                {pool.status === 'AVAILABLE' && (
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => {
                                       setSelectedPoolAccount(pool);
-                                      setTransferDialogOpen(true);
+                                      setAssignDialogOpen(true);
                                     }}
-                                    title="Transfer Funds"
+                                    title="Assign to User"
                                   >
-                                    <ArrowUpDown className="h-4 w-4" />
+                                    <UserPlus className="h-4 w-4" />
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleUnassign(pool.id)}
-                                    title="Unassign"
-                                    className="text-red-500 hover:text-red-600"
-                                  >
-                                    <Unlink className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                                )}
+                                {pool.status === 'ASSIGNED' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setSelectedPoolAccount(pool);
+                                        setTransferDialogOpen(true);
+                                      }}
+                                      title="Transfer Funds"
+                                    >
+                                      <ArrowUpDown className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleUnassign(pool.id)}
+                                      title="Unassign"
+                                      className="text-red-500 hover:text-red-600"
+                                    >
+                                      <Unlink className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                          {expandedRows[pool.id] && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/30 p-4">
+                                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground mb-1">Permissions</p>
+                                    <div className="flex gap-1 flex-wrap">
+                                      {(pool.permissions || ['read', 'trade']).map(p => (
+                                        <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground mb-1">Created</p>
+                                    <p>{formatDate(pool.createdAt)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground mb-1">Notes</p>
+                                    <p className="text-xs">{pool.notes || '-'}</p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </TableBody>
