@@ -8,8 +8,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 
-const POLL_INTERVAL = 10000; // 10 seconds for account data
-const POSITIONS_POLL_INTERVAL = 5000; // 5 seconds for positions (more time-sensitive)
+const POLL_INTERVAL = 30000; // 30 seconds for account data (avoid 429)
+const POSITIONS_POLL_INTERVAL = 15000; // 15 seconds for positions
 
 export function useOKXAccount({ enabled = true, symbol = null } = {}) {
   // Account state
@@ -28,7 +28,7 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
 
   // Fetch account data
   const fetchAccount = useCallback(async () => {
-    if (!enabled || inFlightRef.current) return;
+    if (!enabled || inFlightRef.current || !mountedRef.current) return;
     
     inFlightRef.current = true;
     
@@ -79,7 +79,7 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
 
   // Fetch positions
   const fetchPositions = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled || !mountedRef.current) return;
     
     try {
       const res = await base44.functions.invoke("okxUserAccount", {
@@ -119,7 +119,7 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabled || !mountedRef.current) return;
     
     try {
       const res = await base44.functions.invoke("okxUserAccount", {
@@ -166,24 +166,29 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
 
   // Start polling
   const startPolling = useCallback(() => {
+    // Initial fetch only - polling starts after
+    refresh();
+
     // Account polling (slower)
     const pollAccount = async () => {
       if (!mountedRef.current || !enabled) return;
       await fetchAccount();
-      pollTimeoutRef.current = setTimeout(pollAccount, POLL_INTERVAL);
+      if (mountedRef.current && enabled) {
+        pollTimeoutRef.current = setTimeout(pollAccount, POLL_INTERVAL);
+      }
     };
 
-    // Positions polling (faster)
+    // Positions polling (combined with orders to reduce calls)
     const pollPositions = async () => {
       if (!mountedRef.current || !enabled) return;
-      await Promise.all([fetchPositions(), fetchOrders()]);
-      positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
+      await fetchPositions();
+      await fetchOrders();
+      if (mountedRef.current && enabled) {
+        positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
+      }
     };
 
-    // Initial fetch
-    refresh();
-
-    // Start polling loops
+    // Start polling loops after initial delay
     pollTimeoutRef.current = setTimeout(pollAccount, POLL_INTERVAL);
     positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
   }, [enabled, fetchAccount, fetchPositions, fetchOrders, refresh]);
