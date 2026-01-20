@@ -106,12 +106,12 @@ export default function OKXAdminHub({ language = 'en' }) {
     setLoading(true);
     try {
       const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes] = await Promise.all([
-        base44.functions.invoke('okxAdmin', { action: 'getDashboardStats' }),
-        base44.functions.invoke('okxAdmin', { action: 'listPool' }),
-        base44.functions.invoke('okxAdmin', { action: 'listUserAccounts' }),
-        base44.functions.invoke('okxAdmin', { action: 'listUsers' }),
-        base44.functions.invoke('okxAdmin', { action: 'listWithdrawals', limit: 50 }),
-        base44.functions.invoke('okxAdmin', { action: 'listTransfers', limit: 50 }),
+        base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
+                      base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
+                      base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
+                      base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
+                      base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
+                      base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
       ]);
       
       if (statsRes.data?.ok) setStats(statsRes.data.data);
