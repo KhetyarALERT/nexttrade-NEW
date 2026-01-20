@@ -78,8 +78,13 @@ export default function OKXAdminHub({ language = 'en' }) {
   const [addPoolDialogOpen, setAddPoolDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedPoolAccount, setSelectedPoolAccount] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [accountDetails, setAccountDetails] = useState(null);
+  const [accountHistory, setAccountHistory] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [expandedRows, setExpandedRows] = useState({});
   
   // Form states
   const [newPool, setNewPool] = useState({
