@@ -238,11 +238,12 @@ export default function Dashboard({ language = "en" }) {
     setLoading(true);
     
     try {
-      const [liveRes, walletsRes, tradesRes, stakingRes] = await Promise.all([
+      const [liveRes, walletsRes, tradesRes, stakingRes, okxRes] = await Promise.all([
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
         base44.functions.invoke('wallet', { action: 'list' }),
         base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
-        base44.functions.invoke('wallet', { action: 'getStakingPositions' })
+        base44.functions.invoke('wallet', { action: 'getStakingPositions' }),
+        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' })
       ]);
 
       if (liveRes.data?.success) setLiveAccount(liveRes.data.data);
@@ -250,24 +251,50 @@ export default function Dashboard({ language = "en" }) {
       const nextWallets = walletsRes.data?.success ? (walletsRes.data.data || []) : [];
       setWallets(nextWallets);
 
+      // OKX balance
+      const okxData = okxRes.data?.ok ? okxRes.data.data : null;
+      const okxBalance = okxData?.hasAccount ? (okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0) : 0;
+
       const usdtWallets = nextWallets.filter((w) => (w.currency || '').toUpperCase() === 'USDT');
       const spot = sum(usdtWallets.map((w) => w.balance));
       const locked = sum(usdtWallets.map((w) => w.locked_balance || 0));
       const staked = sum(usdtWallets.map((w) => w.staked_balance || 0));
 
       setBalanceData({
-        total: spot + locked + staked,
-        available: Math.max(0, spot - locked),
+        total: spot + locked + staked + okxBalance,
+        available: Math.max(0, spot - locked) + okxBalance,
         inPositions: locked + staked
       });
 
       const allTrades = tradesRes.data?.success ? (tradesRes.data.data || []) : [];
-      const openTrades = allTrades.filter((tr) => tr.status === 'OPEN');
+
+      // If user has OKX account, fetch OKX positions
+      let okxPositions = [];
+      if (okxData?.hasAccount) {
+        try {
+          const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' });
+          if (posRes.data?.ok) {
+            okxPositions = (posRes.data.data || []).map(p => ({
+              id: `okx_${p.instId}_${p.posSide}`,
+              symbol: p.instId,
+              side: String(p.posSide || '').toUpperCase() === 'SHORT' ? 'SHORT' : 'LONG',
+              quantity: Math.abs(p.size || 0),
+              entry_price: p.avgPx || 0,
+              unrealized_pnl: p.upl || 0,
+              leverage: p.lever || 0,
+              status: 'OPEN',
+              source: 'OKX'
+            }));
+          }
+        } catch { /* ignore */ }
+      }
+
+      const openTrades = [...allTrades.filter((tr) => tr.status === 'OPEN'), ...okxPositions];
       const pendingTrades = allTrades.filter((tr) => tr.status === 'PENDING');
 
       setPositions(openTrades);
       setOrders(pendingTrades);
-      logActivity('LOAD_TRADES', { open: openTrades.length, pending: pendingTrades.length });
+      logActivity('LOAD_TRADES', { open: openTrades.length, pending: pendingTrades.length, okxPositions: okxPositions.length });
 
       const nextStakingPositions = stakingRes.data?.success ? (stakingRes.data.data || []) : [];
       setStakingPositions(nextStakingPositions);
