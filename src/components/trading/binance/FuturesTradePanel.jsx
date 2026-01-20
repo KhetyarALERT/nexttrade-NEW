@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
 import { Loader2 } from "lucide-react";

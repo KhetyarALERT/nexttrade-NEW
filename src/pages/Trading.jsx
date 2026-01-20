@@ -7,7 +7,7 @@ import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import AccountBalanceBar from "@/components/trading/futures/AccountBalanceBar";
 import MobileTradeView from "@/components/trading/futures/MobileTradeView";
-import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";

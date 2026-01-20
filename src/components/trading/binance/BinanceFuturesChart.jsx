@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
-import { okxFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
+import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
 import { Settings, TrendingUp, BarChart3, Grid3X3, Volume2, Maximize2 } from "lucide-react";
 import {
   DropdownMenu,

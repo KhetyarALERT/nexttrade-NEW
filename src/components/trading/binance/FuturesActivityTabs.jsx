@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert, Loader2 } from "lucide-react";
 
