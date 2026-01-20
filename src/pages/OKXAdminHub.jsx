@@ -215,8 +215,8 @@ export default function OKXAdminHub({ language = 'en' }) {
     }
     
     try {
-      const res = await base44.functions.invoke('okxAdmin', {
-        action: 'assignToUser',
+      const res = await base44.functions.invoke('okxAdminHub', {
+                    action: 'assignToUser',
         poolAccountId: selectedPoolAccount.id,
         userId: selectedUser,
       });
