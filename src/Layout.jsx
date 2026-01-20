@@ -280,13 +280,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
-      const [walletsResult, futuresAccountResult] = await Promise.all([
+      const [walletsResult, futuresAccountResult, okxAccountResult] = await Promise.all([
         base44.functions.invoke("wallet", { action: "list" }),
         base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "live" }),
+        base44.functions.invoke("okxUserAccount", { action: "getBalance" }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
       const futuresAccount = futuresAccountResult.data?.success ? futuresAccountResult.data.data : null;
+      const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
 
       const totalUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
@@ -298,16 +300,19 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         return sum;
       }, 0);
 
-      const futuresUsdt = (futuresAccount?.equity ?? futuresAccount?.balance ?? futuresAccount?.demo_balance);
+      // Use OKX balance if available, otherwise fall back to demo account
+      const okxBalance = okxData?.hasAccount ? (okxData.totalEquity || okxData.balance || 0) : 0;
+      const demoBalance = (futuresAccount?.equity ?? futuresAccount?.balance ?? futuresAccount?.demo_balance ?? 0);
+      const futuresUsdt = okxData?.hasAccount ? okxBalance : demoBalance;
 
       const totalUsd = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
         if (w?.currency === "BTC") return sum + (w.balance || 0) * 95000;
         if (w?.currency === "ETH") return sum + (w.balance || 0) * 3400;
         return sum + (w.balance || 0);
-      }, 0);
+      }, 0) + okxBalance;
 
-      setAccountTotals({ totalUsd, totalUsdt });
+      setAccountTotals({ totalUsd, totalUsdt: totalUsdt + okxBalance });
       setAccountBalances({
         fundingUsdt: totalUsdt,
         spotUsdt: null,
