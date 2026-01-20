@@ -113,11 +113,13 @@ function PositionCard({
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-sm text-foreground">{symbol}</span>
               <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                isLong ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"
+                isLong 
+                  ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" 
+                  : "bg-rose-500/20 text-rose-700 dark:text-rose-300"
               }`}>
                 {actualSide}
               </span>
-              <span className="text-[9px] font-medium text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
+              <span className="text-[9px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/20 px-1 py-0.5 rounded">
                 {leverage}x
               </span>
             </div>
@@ -126,10 +128,18 @@ function PositionCard({
         
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <div className={`font-mono text-sm font-semibold ${isPnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
+            <div className={`font-mono text-sm font-semibold ${
+              isPnlPositive 
+                ? "text-emerald-600 dark:text-emerald-400" 
+                : "text-rose-600 dark:text-rose-400"
+            }`}>
               {isPnlPositive ? "+" : ""}{formatNum(pnl, 2)}
             </div>
-            <div className={`text-[10px] font-mono ${isPnlPositive ? "text-emerald-400/70" : "text-rose-400/70"}`}>
+            <div className={`text-[10px] font-mono ${
+              isPnlPositive 
+                ? "text-emerald-600/80 dark:text-emerald-400/70" 
+                : "text-rose-600/80 dark:text-rose-400/70"
+            }`}>
               {isPnlPositive ? "+" : ""}{pnlPct.toFixed(2)}%
             </div>
           </div>
@@ -167,10 +177,10 @@ function PositionCard({
           {/* Liquidation Warning */}
           {isLiqNear && (
             <div className="mt-2.5 flex items-center gap-2 px-2.5 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+              <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
               <div className="flex-1">
-                <span className="text-[10px] text-rose-300">{labels.liqWarning}</span>
-                <span className="ml-2 text-[10px] font-mono text-rose-400">
+                <span className="text-[10px] text-rose-700 dark:text-rose-300">{labels.liqWarning}</span>
+                <span className="ml-2 text-[10px] font-mono text-rose-600 dark:text-rose-400">
                   {formatCompactPrice(liqPrice)} ({liqDistPct.toFixed(1)}%)
                 </span>
               </div>
@@ -182,18 +192,18 @@ function PositionCard({
             <div className="mt-2.5 flex gap-2">
               {position?.take_profit && (
                 <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <Target className="h-3 w-3 text-emerald-400" />
-                  <span className="text-[10px] text-emerald-300">TP</span>
-                  <span className="ml-auto font-mono text-[10px] text-emerald-300">
+                  <Target className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-300">TP</span>
+                  <span className="ml-auto font-mono text-[10px] text-emerald-700 dark:text-emerald-300">
                     {formatCompactPrice(position.take_profit)}
                   </span>
                 </div>
               )}
               {position?.stop_loss && (
                 <div className="flex-1 flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                  <ShieldAlert className="h-3 w-3 text-rose-400" />
-                  <span className="text-[10px] text-rose-300">SL</span>
-                  <span className="ml-auto font-mono text-[10px] text-rose-300">
+                  <ShieldAlert className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+                  <span className="text-[10px] text-rose-700 dark:text-rose-300">SL</span>
+                  <span className="ml-auto font-mono text-[10px] text-rose-700 dark:text-rose-300">
                     {formatCompactPrice(position.stop_loss)}
                   </span>
                 </div>
@@ -206,7 +216,7 @@ function PositionCard({
             type="button"
             variant="destructive"
             size="sm"
-            className="w-full mt-3 h-9 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30"
+            className="w-full mt-3 h-9 rounded-lg bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/30"
             onClick={() => onClose?.(position)}
             disabled={isClosing}
           >
