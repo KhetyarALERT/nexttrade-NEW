@@ -110,7 +110,7 @@ export default function OKXAdminHub({ language = 'en' }) {
         base44.functions.invoke('okxProvisioning', { action: 'adminListPool' }),
         base44.functions.invoke('okxProvisioning', { action: 'adminListUserAccounts' }),
         base44.functions.invoke('okxProvisioning', { action: 'adminListUsers' }),
-        base44.functions.invoke('okxProvisioning', { action: 'listWithdrawals', limit: 50 }),
+        base44.functions.invoke('okxProvisioning', { action: 'adminListWithdrawals', limit: 50 }),
         base44.functions.invoke('okxProvisioning', { action: 'listTransfers', limit: 50 }),
       ]);
       
