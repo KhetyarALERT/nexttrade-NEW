@@ -1,6 +1,6 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Provisioning - Create subaccounts, API keys, configure accounts
+// OKX Provisioning - Create subaccounts, API keys, configure accounts, pool management
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import {
