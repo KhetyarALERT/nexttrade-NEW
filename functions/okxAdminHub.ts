@@ -1,6 +1,6 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Admin Hub - Sub-account pool management
+// OKX Admin Hub v1.0 - Sub-account pool management
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import { auditLog, decryptSecret, encryptSecret, getMasterCredentials, okxRequest } from './okxCore.ts';
