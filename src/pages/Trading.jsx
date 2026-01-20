@@ -7,7 +7,7 @@ import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import AccountBalanceBar from "@/components/trading/futures/AccountBalanceBar";
 import MobileTradeView from "@/components/trading/futures/MobileTradeView";
-import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
@@ -100,19 +100,19 @@ export default function Trading({ language = "en" }) {
   useEffect(() => {
     const checkWsStatus = () => {
       // Check internal state first
-      const statePublic = binanceFuturesStore.wsConnected?.public === true;
-      const stateBusiness = binanceFuturesStore.wsConnected?.business === true;
+      const statePublic = okxFuturesStore.wsConnected?.public === true;
+      const stateBusiness = okxFuturesStore.wsConnected?.business === true;
       
       // Also check actual WebSocket readyState as backup
-      const wsPublicOpen = binanceFuturesStore.publicWs?.readyState === WebSocket.OPEN;
-      const wsBusinessOpen = binanceFuturesStore.businessWs?.readyState === WebSocket.OPEN;
+      const wsPublicOpen = okxFuturesStore.publicWs?.readyState === WebSocket.OPEN;
+      const wsBusinessOpen = okxFuturesStore.businessWs?.readyState === WebSocket.OPEN;
       
       const isConnected = statePublic || stateBusiness || wsPublicOpen || wsBusinessOpen;
       setWsConnected(isConnected);
     };
 
-    const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", checkWsStatus);
-    const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", checkWsStatus);
+    const unsubPublic = okxFuturesStore.subscribe("ws:public:connected", checkWsStatus);
+    const unsubBusiness = okxFuturesStore.subscribe("ws:business:connected", checkWsStatus);
 
     // Check immediately and then periodically
     checkWsStatus();
@@ -132,7 +132,7 @@ export default function Trading({ language = "en" }) {
     const symbols = [...new Set(livePositions.map(p => p.instId || p.symbol).filter(Boolean))];
     
     const unsubs = symbols.map(sym => 
-      binanceFuturesStore.subscribe(`price:${sym}`, (price) => {
+      okxFuturesStore.subscribe(`price:${sym}`, (price) => {
         if (Number.isFinite(price)) {
           setMarkPrices(prev => ({ ...prev, [sym]: price }));
         }
@@ -141,7 +141,7 @@ export default function Trading({ language = "en" }) {
 
     // Initialize from tickers
     symbols.forEach(sym => {
-      const ticker = binanceFuturesStore.getTicker(sym);
+      const ticker = okxFuturesStore.getTicker(sym);
       if (ticker?.lastPrice) {
         setMarkPrices(prev => ({ ...prev, [sym]: Number(ticker.lastPrice) }));
       }
@@ -155,7 +155,7 @@ export default function Trading({ language = "en" }) {
   // Cleanup WebSocket on unmount
   useEffect(() => {
     return () => {
-      try { binanceFuturesStore.closeChartWs(); } catch {}
+      try { okxFuturesStore.closeChartWs(); } catch {}
     };
   }, []);
 
@@ -221,7 +221,7 @@ export default function Trading({ language = "en" }) {
   // Price update handler
   const handlePriceUpdate = useCallback((p) => {
     setLastPrice(p);
-    const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
+    const ticker = okxFuturesStore.getTicker?.(selectedSymbol);
     if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
     if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
   }, [selectedSymbol]);

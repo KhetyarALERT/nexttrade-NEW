@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
 import { Loader2 } from "lucide-react";
@@ -228,10 +228,10 @@ export default function FuturesTradePanel({
   };
 
   useEffect(() => {
-    const unsubPrice = binanceFuturesStore.subscribe(`price:${symbol}`, (p) => {
+    const unsubPrice = okxFuturesStore.subscribe(`price:${symbol}`, (p) => {
       if (p) setLastPrice(Number(p));
     });
-    const existing = binanceFuturesStore.getTicker(symbol);
+    const existing = okxFuturesStore.getTicker(symbol);
     if (existing?.lastPrice) setLastPrice(Number(existing.lastPrice));
     return () => {
       try {

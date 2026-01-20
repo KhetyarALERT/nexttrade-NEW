@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
-import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
+import { okxFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
 import { Settings, TrendingUp, BarChart3, Grid3X3, Volume2, Maximize2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -515,7 +515,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       setLoading(true);
 
       try {
-        const candles = await binanceFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
+        const candles = await okxFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
         if (cancelled) return;
 
         const chartCandles = candles.map((c) => ({
@@ -548,7 +548,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         }
 
         // Subscribe for incremental updates
-        unsubCandle = binanceFuturesStore.subscribe(`candle:${key}`, (c) => {
+        unsubCandle = okxFuturesStore.subscribe(`candle:${key}`, (c) => {
           if (cancelled || disposedRef.current) return;
           if (!c || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
@@ -584,7 +584,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           }
         });
 
-        unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
+        unsubPrice = okxFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
           if (cancelled || disposedRef.current) return;
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
@@ -617,7 +617,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           } catch {}
         });
 
-        binanceFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
+        okxFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -634,7 +634,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         unsubPrice?.();
       } catch {}
       try {
-        binanceFuturesStore.closeChartWs();
+        okxFuturesStore.closeChartWs();
       } catch {}
     };
   }, [normalizedSymbol, timeframe, key, animateCandle, smoothAnimations, chartColors.priceLineColor, isDark, resetView]);

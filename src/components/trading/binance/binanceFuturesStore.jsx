@@ -537,4 +537,6 @@ class OKXFuturesStore {
   stopPremiumPolling() {}
 }
 
-export const binanceFuturesStore = new OKXFuturesStore();
+export const okxFuturesStore = new OKXFuturesStore();
+// Legacy alias for backwards compatibility
+export const binanceFuturesStore = okxFuturesStore;

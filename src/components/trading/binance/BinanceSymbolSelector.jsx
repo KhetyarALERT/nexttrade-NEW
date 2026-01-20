@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import BinanceTickerPanel from "@/components/trading/binance/BinanceTickerPanel";
-import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { okxFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { formatOkxSymbolDisplay } from "@/lib/market/okxSymbols";
 
 function formatPrice(p) {
