@@ -504,16 +504,14 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     } catch {}
   }, [chartType, showGrid, showVolume, autoScale, chartColors]);
 
-  // Seed + WS lifecycle - with debounce to prevent duplicate calls
+  // Seed + WS lifecycle
   useEffect(() => {
     let unsubCandle;
     let unsubPrice;
     let cancelled = false;
-    let debounceTimer;
 
     const run = async () => {
       if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current || !lineSeriesRef.current) return;
-      if (cancelled) return;
       setLoading(true);
 
       try {
@@ -625,12 +623,10 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       }
     };
 
-    // Debounce to prevent rapid duplicate calls on mount/remount
-    debounceTimer = setTimeout(run, 100);
+    run();
 
     return () => {
       cancelled = true;
-      if (debounceTimer) clearTimeout(debounceTimer);
       try {
         unsubCandle?.();
       } catch {}

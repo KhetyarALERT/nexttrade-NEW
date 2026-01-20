@@ -535,12 +535,6 @@ class OKXFuturesStore {
   startTickerPolling() {}
   stopTickerPolling() {}
   stopPremiumPolling() {}
-  startPremiumPolling() {}
 }
 
-// Create singleton instance
-const storeInstance = new OKXFuturesStore();
-
-// Export with both names for compatibility
-export const okxFuturesStore = storeInstance;
-export const binanceFuturesStore = storeInstance;
+export const binanceFuturesStore = new OKXFuturesStore();

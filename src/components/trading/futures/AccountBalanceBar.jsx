@@ -38,9 +38,6 @@ export default function AccountBalanceBar({
   const unrealizedPnl = Number(totalUnrealizedPnl || account?.unrealizedPnl || 0);
 
   const isPnlPositive = unrealizedPnl >= 0;
-  const pnlColorClass = isPnlPositive 
-    ? "text-emerald-600 dark:text-emerald-400" 
-    : "text-rose-600 dark:text-rose-400";
   const marginRatio = equity > 0 ? (marginUsed / equity) * 100 : 0;
   const isHighRisk = marginRatio > 80;
 
@@ -64,7 +61,7 @@ export default function AccountBalanceBar({
               <div className="text-[10px] text-muted-foreground">{labels.equity}</div>
               <div className="font-mono text-sm font-semibold text-foreground">{formatNumber(equity)} USDT</div>
             </div>
-            <div className={`text-right ${pnlColorClass}`}>
+            <div className={`text-right ${isPnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
               <div className="text-[10px] text-muted-foreground">PnL</div>
               <div className="font-mono text-sm font-semibold">
                 {isPnlPositive ? "+" : ""}{formatNumber(unrealizedPnl)}
@@ -133,7 +130,7 @@ export default function AccountBalanceBar({
             <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">{labels.marginUsed}</span>
             {isHighRisk && <AlertTriangle className="h-3 w-3 text-rose-400" />}
           </div>
-          <div className={`mt-1 font-mono text-base sm:text-lg font-semibold ${isHighRisk ? "text-rose-600 dark:text-rose-400" : "text-foreground"}`}>
+          <div className={`mt-1 font-mono text-base sm:text-lg font-semibold ${isHighRisk ? "text-rose-400" : "text-foreground"}`}>
             {formatNumber(marginUsed)}
             <span className="text-xs ml-1 text-muted-foreground">USDT</span>
           </div>
@@ -149,12 +146,12 @@ export default function AccountBalanceBar({
           <div className="flex items-center gap-1">
             <span className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">{labels.unrealizedPnl}</span>
             {isPnlPositive ? (
-              <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <TrendingUp className="h-3 w-3 text-emerald-400" />
             ) : (
-              <TrendingDown className="h-3 w-3 text-rose-600 dark:text-rose-400" />
+              <TrendingDown className="h-3 w-3 text-rose-400" />
             )}
           </div>
-          <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${pnlColorClass}`}>
+          <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${isPnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
             {isPnlPositive ? "+" : ""}{formatNumber(unrealizedPnl)}
             <span className="text-xs ml-1">USDT</span>
           </div>
