@@ -114,16 +114,16 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
       {/* PnL Banner */}
       <div className={`px-4 py-2.5 ${isProfit ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL(%)</span>
           <div className="text-right">
             <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
               {isProfit ? "+" : ""}{formatNum(pnl, 2)} <span className="text-xs">USDT</span>
+              {Number.isFinite(pnlPct) && (
+                <span className={`ml-1 text-sm ${isProfit ? "text-emerald-400/80" : "text-rose-400/80"}`}>
+                  ({isProfit ? "+" : ""}{pnlPct.toFixed(2)}%)
+                </span>
+              )}
             </div>
-            {Number.isFinite(pnlPct) && (
-              <div className={`text-xs font-mono ${isProfit ? "text-emerald-400/80" : "text-rose-400/80"}`}>
-                {isProfit ? "+" : ""}{pnlPct.toFixed(2)}%
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -859,8 +859,8 @@ export default function FuturesActivityTabs({
                           </TableCell>
                           <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                             <div className="leading-tight">
-                              <div className="font-mono">{formatNum(pnl, 2)} USDT</div>
-                              <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `${pnlPct.toFixed(2)}%` : "—"}</div>
+                              <div className="font-mono">{Number(pnl) >= 0 ? "+" : ""}{formatNum(pnl, 2)} USDT</div>
+                              <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `(${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%)` : "—"}</div>
                             </div>
                           </TableCell>
                           <TableCell className="text-foreground font-mono">{formatPrice(entry)}</TableCell>

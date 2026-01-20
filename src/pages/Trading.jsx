@@ -356,24 +356,24 @@ export default function Trading({ language = "en" }) {
 
   // Desktop Layout
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Desktop Header */}
-      <div className="border-b border-border px-4 py-3 sm:px-6 shrink-0">
+    <div className="flex h-screen flex-col bg-background overflow-hidden">
+      {/* Desktop Header - Compact */}
+      <div className="border-b border-border px-4 py-2 shrink-0 bg-card/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+            <h1 className="text-lg font-semibold text-foreground">
               {isAr ? "التداول" : "Trading"}
             </h1>
             
             {/* Connection status */}
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-              wsConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+              wsConnected ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
             }`}>
               {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              <span>{wsConnected ? "Live" : "Connecting..."}</span>
+              <span>{wsConnected ? "Live" : "Connecting"}</span>
             </div>
           </div>
           
@@ -382,20 +382,20 @@ export default function Trading({ language = "en" }) {
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                <span>{isAr ? "تحديث" : "Refresh"}</span>
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{isAr ? "تحديث" : "Refresh"}</span>
               </button>
             )}
             
             {!isAuthenticated && !isLoadingAuth && (
               <button
                 onClick={navigateToLogin}
-                className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
-                <Lock className="h-4 w-4" />
-                {isAr ? "تسجيل الدخول" : "Login"}
+                <Lock className="h-3.5 w-3.5" />
+                {isAr ? "دخول" : "Login"}
               </button>
             )}
           </div>
@@ -406,20 +406,20 @@ export default function Trading({ language = "en" }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Symbol Selector + Stats */}
-          <div className="border-b border-border px-4 py-3">
-            <div className="flex items-center justify-between gap-4">
+          {/* Symbol Selector + Stats - Compact */}
+          <div className="border-b border-border px-4 py-2 bg-card/30">
+            <div className="flex items-center justify-between gap-3">
               <BinanceSymbolSelector 
                 selectedSymbol={selectedSymbol} 
                 onSelectSymbol={handleSymbolChange} 
                 language={language} 
               />
               
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4 lg:gap-6">
                 {stats.map((stat) => (
-                  <div key={stat.label}>
-                    <div className="text-xs text-muted-foreground">{stat.label}</div>
-                    <div className={`text-sm font-semibold ${
+                  <div key={stat.label} className="text-center">
+                    <div className="text-[10px] text-muted-foreground">{stat.label}</div>
+                    <div className={`text-xs lg:text-sm font-semibold font-mono ${
                       stat.isPositive !== undefined 
                         ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
                         : "text-foreground"
@@ -432,34 +432,35 @@ export default function Trading({ language = "en" }) {
             </div>
           </div>
 
-          {/* Balance Bar (Desktop) */}
+          {/* Balance Bar (Desktop) - Compact */}
           {isAuthenticated && hasLiveAccount && (
-            <div className="px-4 py-3 border-b border-border">
+            <div className="px-4 py-2 border-b border-border bg-card/20">
               <AccountBalanceBar
                 account={liveAccount}
                 totalUnrealizedPnl={totalUnrealizedPnl}
                 language={language}
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
+                displayMode="compact"
               />
             </div>
           )}
 
-          {/* Chart */}
-          <div className="flex-1 overflow-hidden px-4 py-3">
-            <div className="h-full min-h-[300px]">
+          {/* Chart - Optimized height */}
+          <div className="flex-1 overflow-hidden px-3 py-2 min-h-0">
+            <div className="h-full min-h-[250px]">
               {chartComponent}
             </div>
           </div>
 
-          {/* Activity Tabs */}
-          <div className="border-t border-border h-[280px] overflow-hidden">
+          {/* Activity Tabs - Optimized height */}
+          <div className="border-t border-border h-[240px] lg:h-[260px] overflow-hidden shrink-0">
             {activityComponent}
           </div>
         </div>
 
-        {/* Right: Trade Panel + Positions */}
-        <div className="w-80 lg:w-96 border-l border-border flex flex-col overflow-hidden shrink-0">
+        {/* Right: Trade Panel */}
+        <div className="w-[320px] lg:w-[360px] border-l border-border flex flex-col overflow-hidden shrink-0">
           {!isAuthenticated ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <div>

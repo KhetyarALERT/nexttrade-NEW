@@ -1,5 +1,6 @@
-import { X } from "lucide-react";
+import { X, MessageCircle } from "lucide-react";
 import { AssistantModalPrimitive } from "@/lib/assistant-ui/react";
+import { useLocation } from "react-router-dom";
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { tAssistant } from "@/lib/i18n/assistant";
@@ -10,24 +11,37 @@ import nextTradeLogo from "@/assets/nexttrade-logo.png";
 export function AssistantModal({ language = "en" }) {
   const t = tAssistant(language);
   const isRtl = language === "ar";
+  const location = useLocation();
+  
+  // Check if we're on futures/trading page
+  const isTradingPage = location.pathname.includes("Futures") || location.pathname.includes("Trading");
 
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor className="bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-4 sm:left-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <AssistantModalPrimitive.Anchor className={cn(
+        isTradingPage 
+          ? "fixed top-24 right-4 z-40" // Trading page: top-right, below navbar
+          : "bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-4 sm:left-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]"
+      )}>
         <AssistantModalPrimitive.Trigger asChild>
           <button
             type="button"
             className={cn(
-              "relative flex h-14 w-14 items-center justify-center rounded-full",
+              "relative flex items-center justify-center rounded-full",
               "border border-border/70 bg-background",
               "shadow-lg shadow-black/10 transition duration-200",
               "hover:scale-[1.04] hover:shadow-xl hover:shadow-black/15",
-              "active:scale-[0.98]"
+              "active:scale-[0.98]",
+              isTradingPage ? "h-10 w-10" : "h-14 w-14"
             )}
             aria-label={t.support}
           >
             <span className="absolute inset-0 rounded-full bg-white/10 blur-md" />
-            <img src={nextTradeLogo} alt="NextTrade" className="relative h-8 w-8 object-contain" />
+            {isTradingPage ? (
+              <MessageCircle className="relative h-5 w-5 text-primary" />
+            ) : (
+              <img src={nextTradeLogo} alt="NextTrade" className="relative h-8 w-8 object-contain" />
+            )}
           </button>
         </AssistantModalPrimitive.Trigger>
       </AssistantModalPrimitive.Anchor>
@@ -35,13 +49,14 @@ export function AssistantModal({ language = "en" }) {
       <AssistantModalPrimitive.Content
         sideOffset={16}
         className={cn(
-          "left-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))]",
-          "flex h-[min(85vh,640px)] w-[min(420px,calc(100vw-2rem))] flex-col",
+          isTradingPage
+            ? "fixed top-36 right-4 z-50"
+            : "left-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))]",
+          "flex h-[min(70vh,580px)] w-[min(380px,calc(100vw-2rem))] flex-col",
           "rounded-2xl border border-border/70 bg-popover shadow-2xl shadow-black/20",
           "data-[state=open]:translate-y-0 data-[state=closed]:translate-y-2",
           "data-[state=open]:duration-200 data-[state=closed]:duration-150",
-          "max-sm:left-4 max-sm:right-4 max-sm:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]",
-          "max-sm:h-[85vh]"
+          !isTradingPage && "max-sm:left-4 max-sm:right-4 max-sm:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-sm:h-[85vh]"
         )}
       >
         <div
