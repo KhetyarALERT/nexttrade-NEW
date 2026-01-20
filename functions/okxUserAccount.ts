@@ -387,19 +387,63 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'MISSING_PARAMS', message: 'instId, side, size required' } }, { status: 400 });
       }
 
+      // Get instrument info to properly calculate contract size
+      const instRes = await fetch(`${getOkxBaseUrl()}/api/v5/public/instruments?instType=SWAP&instId=${encodeURIComponent(instId)}`);
+      const instData = await instRes.json().catch(() => ({}));
+      const instrument = instData?.data?.[0];
+      
+      if (!instrument) {
+        return Response.json({ ok: false, error: { code: 'INVALID_INSTRUMENT', message: `Unknown instrument: ${instId}` } }, { status: 400 });
+      }
+
+      const ctVal = parseFloat(instrument.ctVal || '1'); // Contract value in base currency
+      const minSz = parseFloat(instrument.minSz || '1'); // Minimum order size in contracts
+      const lotSz = parseFloat(instrument.lotSz || '1'); // Lot size for rounding
+
+      // OKX sz is in contracts, NOT in base asset quantity
+      // If user passes quantity in base asset, convert to contracts
+      // contracts = quantity / ctVal
+      let contracts = Math.abs(parseFloat(size));
+      
+      // If the size looks like it's already in small contract units (e.g., < 100 for most coins)
+      // and the instrument's ctVal is small (< 1), treat it as base asset quantity
+      // Otherwise if ctVal >= 1, user is probably passing contracts directly
+      if (ctVal > 0 && ctVal < 1) {
+        // For USDT-margined swaps, ctVal is typically small (e.g., 0.001 for BTC)
+        // User passes quantity in base asset, convert to contracts
+        contracts = contracts / ctVal;
+      }
+      
+      // Round to lot size and ensure minimum
+      contracts = Math.max(minSz, Math.floor(contracts / lotSz) * lotSz);
+      
+      // Ensure it's an integer if lotSz is 1
+      if (lotSz === 1) {
+        contracts = Math.floor(contracts);
+      }
+
+      console.log('[OKX_USER_ACCOUNT] Order calc:', { 
+        inputSize: size, 
+        ctVal, 
+        minSz, 
+        lotSz, 
+        calculatedContracts: contracts 
+      });
+
       // Set leverage first if provided
       if (leverage && Number.isFinite(Number(leverage))) {
-        await okxRequest({
+        const leverRes = await okxRequest({
           credential,
           method: 'POST',
           path: '/api/v5/account/set-leverage',
           body: {
             instId,
-            lever: String(leverage),
+            lever: String(Math.min(100, Math.max(1, Math.floor(leverage)))),
             mgnMode: 'cross'
           },
           isTradingEndpoint: true
         });
+        console.log('[OKX_USER_ACCOUNT] Set leverage result:', JSON.stringify(leverRes));
       }
 
       // Place the order
@@ -408,9 +452,13 @@ Deno.serve(async (req) => {
         tdMode: 'cross',
         side: side.toLowerCase(),
         ordType: orderType === 'limit' ? 'limit' : 'market',
-        sz: String(size),
-        reduceOnly: reduceOnly ? true : false,
+        sz: String(contracts),
       };
+
+      // Only set reduceOnly if it's true (OKX doesn't like reduceOnly: false)
+      if (reduceOnly) {
+        orderBody.reduceOnly = true;
+      }
 
       if (orderType === 'limit' && price) {
         orderBody.px = String(price);
@@ -443,7 +491,8 @@ Deno.serve(async (req) => {
         ok: true,
         data: {
           orderId: orderData?.ordId,
-          result: orderData
+          result: orderData,
+          contractsOrdered: contracts
         }
       });
     }
