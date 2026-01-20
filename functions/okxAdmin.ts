@@ -1,6 +1,6 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Admin Control Hub v1.4 - Deploy trigger
+// OKX Admin Control Hub v1.5 - Fresh deploy
 // Manage sub-account pool, assignments, withdrawals, balances, transaction history
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';

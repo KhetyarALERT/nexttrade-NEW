@@ -1,6 +1,6 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Pool Admin - v1.0.0 - Dedicated admin endpoints for pool management
+// OKX Pool Admin - v1.0.1 - Fresh deploy trigger
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import {
