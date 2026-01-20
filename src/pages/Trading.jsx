@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
+import AccountBalanceBar from "@/components/trading/futures/AccountBalanceBar";
+import PositionsList from "@/components/trading/futures/PositionsList";
+import MobileTradeView from "@/components/trading/futures/MobileTradeView";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
@@ -24,6 +27,16 @@ function formatCompactNumber(value) {
 
 export default function Trading({ language = "en" }) {
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  const isAr = language === "ar";
+  
+  // Responsive breakpoint detection
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   
   // Symbol selection with persistence
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
@@ -36,10 +49,13 @@ export default function Trading({ language = "en" }) {
   const [changePct, setChangePct] = useState(0);
   const [quoteVolume, setQuoteVolume] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
+  const [markPrices, setMarkPrices] = useState({});
 
   // Demo account state (separate from OKX)
   const [demoAccount, setDemoAccount] = useState(null);
-  const [demoTrades, setDemoTrades] = useState([]);
+
+  // Closing position state
+  const [closingPositionId, setClosingPositionId] = useState(null);
 
   // Use the OKX account hook for live trading
   const {
@@ -74,7 +90,6 @@ export default function Trading({ language = "en" }) {
         });
         if (res?.data?.success) {
           setDemoAccount(res.data.data);
-          setDemoTrades(res.data.data?.trades || []);
         }
       } catch {}
     };
@@ -97,6 +112,33 @@ export default function Trading({ language = "en" }) {
     };
   }, []);
 
+  // Subscribe to mark prices for all positions
+  useEffect(() => {
+    if (!livePositions.length) return;
+
+    const symbols = [...new Set(livePositions.map(p => p.instId || p.symbol).filter(Boolean))];
+    
+    const unsubs = symbols.map(sym => 
+      binanceFuturesStore.subscribe(`price:${sym}`, (price) => {
+        if (Number.isFinite(price)) {
+          setMarkPrices(prev => ({ ...prev, [sym]: price }));
+        }
+      })
+    );
+
+    // Initialize from tickers
+    symbols.forEach(sym => {
+      const ticker = binanceFuturesStore.getTicker(sym);
+      if (ticker?.lastPrice) {
+        setMarkPrices(prev => ({ ...prev, [sym]: Number(ticker.lastPrice) }));
+      }
+    });
+
+    return () => {
+      unsubs.forEach(u => { try { u?.(); } catch {} });
+    };
+  }, [livePositions.map(p => p.instId).join(",")]);
+
   // Cleanup WebSocket on unmount
   useEffect(() => {
     return () => {
@@ -104,24 +146,14 @@ export default function Trading({ language = "en" }) {
     };
   }, []);
 
-  // Responsive chart height
-  const chartHeight = useMemo(() => {
-    if (typeof window === "undefined") return "h-[400px]";
-    const width = window.innerWidth;
-    if (width < 640) return "h-[280px]";
-    if (width < 768) return "h-[320px]";
-    if (width < 1024) return "h-[360px]";
-    return "h-[400px]";
-  }, []);
-
   // Stats display
   const stats = useMemo(
     () => [
-      { label: language === "ar" ? "السعر" : "Price", value: formatPrice(lastPrice) },
-      { label: language === "ar" ? "التغير" : "Change", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, isPositive: changePct >= 0 },
-      { label: language === "ar" ? "الحجم" : "Volume", value: formatCompactNumber(quoteVolume) },
+      { label: isAr ? "السعر" : "Price", value: formatPrice(lastPrice) },
+      { label: isAr ? "التغير" : "Change", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, isPositive: changePct >= 0 },
+      { label: isAr ? "الحجم" : "Volume", value: formatCompactNumber(quoteVolume) },
     ],
-    [lastPrice, changePct, quoteVolume, language]
+    [lastPrice, changePct, quoteVolume, isAr]
   );
 
   // Symbol change handler
@@ -142,19 +174,25 @@ export default function Trading({ language = "en" }) {
 
   // Close position handler
   const handleCloseLivePosition = useCallback(async (pos) => {
-    if (!hasLiveAccount || !pos?.symbol) return;
+    if (!hasLiveAccount || !pos) return;
     
+    const id = pos?.id || `${pos?.instId}_${pos?.posSide}`;
     const posSide = pos.posSide || (pos.side === "SHORT" ? "short" : "long");
+    
+    setClosingPositionId(id);
     
     try {
       await base44.functions.invoke("okxUserAccount", {
         action: "closePosition",
-        instId: pos.symbol || pos.instId,
+        instId: pos.instId || pos.symbol,
         posSide,
-        size: pos.quantity || pos.size || undefined,
+        size: pos.size || pos.quantity || undefined,
       });
-    } finally {
       await refreshPositions();
+    } catch (err) {
+      console.error("Failed to close position:", err);
+    } finally {
+      setClosingPositionId(null);
     }
   }, [hasLiveAccount, refreshPositions]);
 
@@ -167,27 +205,165 @@ export default function Trading({ language = "en" }) {
     await refreshOKXAccount();
   }, [refreshOKXAccount]);
 
+  // Price update handler
+  const handlePriceUpdate = useCallback((p) => {
+    setLastPrice(p);
+    const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
+    if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
+    if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
+  }, [selectedSymbol]);
+
+  // Chart component (shared between mobile and desktop)
+  const chartComponent = (
+    <div className="h-full w-full min-h-[250px]">
+      <BinanceFuturesChart
+        symbol={selectedSymbol}
+        language={language}
+        onPriceUpdate={handlePriceUpdate}
+        positionTrade={livePositions.find(p => p.instId === selectedSymbol)}
+        pendingOrders={liveOrders.filter(o => o.instId === selectedSymbol)}
+      />
+    </div>
+  );
+
+  // Trade panel component
+  const tradePanelComponent = (
+    <FuturesTradePanel
+      liveAccount={liveAccount}
+      demoAccount={demoAccount}
+      symbol={selectedSymbol}
+      onTradesChanged={handleTradesChanged}
+      onAccountsChanged={handleAccountsChanged}
+      language={language}
+    />
+  );
+
+  // Activity component
+  const activityComponent = (
+    <FuturesActivityTabs
+      trades={liveTrades}
+      symbol={selectedSymbol}
+      language={language}
+      dataSource="okx"
+      accountId={liveAccount?.id}
+      onRefresh={handleRefresh}
+      onCloseTrade={handleCloseLivePosition}
+    />
+  );
+
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <div className="flex h-screen flex-col bg-background">
+        {/* Mobile Header */}
+        <div className="border-b border-border px-3 py-2.5 shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <BinanceSymbolSelector 
+                selectedSymbol={selectedSymbol} 
+                onSelectSymbol={handleSymbolChange} 
+                language={language}
+                height="compact"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Connection status */}
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${
+                wsConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+              }`}>
+                {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              </div>
+              
+              {!isAuthenticated && !isLoadingAuth && (
+                <button
+                  onClick={navigateToLogin}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground"
+                >
+                  <Lock className="h-3 w-3" />
+                  {isAr ? "دخول" : "Login"}
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Price stats row */}
+          <div className="flex items-center gap-4 mt-2">
+            {stats.map((stat) => (
+              <div key={stat.label} className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">{stat.label}:</span>
+                <span className={`text-xs font-semibold ${
+                  stat.isPositive !== undefined 
+                    ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
+                    : "text-foreground"
+                }`}>
+                  {stat.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile Trade View */}
+        {!isAuthenticated ? (
+          <div className="flex flex-1 items-center justify-center p-4 text-center">
+            <div>
+              <Lock className="mx-auto mb-3 h-10 w-10 text-foreground/40" />
+              <p className="text-sm text-foreground/60 mb-4">
+                {isAr ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
+              </p>
+              <button
+                onClick={navigateToLogin}
+                className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+              >
+                {isAr ? "تسجيل الدخول" : "Login"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <MobileTradeView
+            account={liveAccount}
+            positions={livePositions}
+            orders={liveOrders}
+            markPrices={markPrices}
+            totalUnrealizedPnl={totalUnrealizedPnl}
+            language={language}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            onClosePosition={handleCloseLivePosition}
+            closingPositionId={closingPositionId}
+            chartComponent={chartComponent}
+            tradePanelComponent={tradePanelComponent}
+            activityComponent={activityComponent}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="flex h-screen flex-col bg-background">
-      {/* Header */}
-      <div className="border-b border-border px-4 py-3 sm:px-6">
+      {/* Desktop Header */}
+      <div className="border-b border-border px-4 py-3 sm:px-6 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
-              {language === "ar" ? "التداول" : "Trading"}
+              {isAr ? "التداول" : "Trading"}
             </h1>
             
-            {/* Connection status indicator */}
+            {/* Connection status */}
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
-              wsConnected 
-                ? "bg-emerald-500/10 text-emerald-500" 
-                : "bg-amber-500/10 text-amber-500"
+              wsConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
             }`}>
               {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              <span className="hidden sm:inline">{wsConnected ? "Live" : "Connecting..."}</span>
+              <span>{wsConnected ? "Live" : "Connecting..."}</span>
             </div>
           </div>
           
@@ -199,7 +375,7 @@ export default function Trading({ language = "en" }) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">{language === "ar" ? "تحديث" : "Refresh"}</span>
+                <span>{isAr ? "تحديث" : "Refresh"}</span>
               </button>
             )}
             
@@ -209,127 +385,111 @@ export default function Trading({ language = "en" }) {
                 className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 <Lock className="h-4 w-4" />
-                {language === "ar" ? "تسجيل الدخول" : "Login"}
+                {isAr ? "تسجيل الدخول" : "Login"}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
-        {/* Chart Section */}
+      {/* Desktop Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Symbol Selector */}
-          <div className="border-b border-border px-4 py-3 sm:px-6">
-            <BinanceSymbolSelector 
-              selectedSymbol={selectedSymbol} 
-              onSelectSymbol={handleSymbolChange} 
-              language={language} 
-            />
-          </div>
-
-          {/* Stats Bar */}
-          <div className="grid grid-cols-3 gap-2 border-b border-border px-4 py-3 sm:gap-4 sm:px-6">
-            {stats.map((stat) => (
-              <div key={stat.label}>
-                <div className="text-xs font-medium text-foreground/60 sm:text-sm">{stat.label}</div>
-                <div className={`text-sm font-semibold sm:text-base ${
-                  stat.isPositive !== undefined 
-                    ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
-                    : "text-foreground"
-                }`}>
-                  {stat.value}
-                </div>
-              </div>
-            ))}
-            
-            {/* Account balance indicator (mobile) */}
-            {isAuthenticated && hasLiveAccount && (
-              <div className="col-span-3 flex items-center justify-between pt-2 border-t border-border/50 sm:hidden">
-                <span className="text-xs text-muted-foreground">
-                  {language === "ar" ? "الرصيد المتاح" : "Available"}
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatCompactNumber(liveAccount?.availableBalance || 0)} USDT
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Chart */}
-          <div className="flex-1 overflow-hidden px-2 py-2 sm:px-4 sm:py-3">
-            <div className={`${chartHeight} w-full min-h-[250px]`}>
-              <BinanceFuturesChart
-                symbol={selectedSymbol}
-                language={language}
-                onPriceUpdate={(p) => {
-                  setLastPrice(p);
-                  const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
-                  if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
-                  if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
-                }}
-                positionTrade={livePositions.find(p => p.instId === selectedSymbol)}
-                pendingOrders={liveOrders.filter(o => o.instId === selectedSymbol)}
+          {/* Symbol Selector + Stats */}
+          <div className="border-b border-border px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <BinanceSymbolSelector 
+                selectedSymbol={selectedSymbol} 
+                onSelectSymbol={handleSymbolChange} 
+                language={language} 
               />
+              
+              <div className="flex items-center gap-6">
+                {stats.map((stat) => (
+                  <div key={stat.label}>
+                    <div className="text-xs text-muted-foreground">{stat.label}</div>
+                    <div className={`text-sm font-semibold ${
+                      stat.isPositive !== undefined 
+                        ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
+                        : "text-foreground"
+                    }`}>
+                      {stat.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Activity Tabs (main area) */}
-          <div className="border-t border-border">
-            <FuturesActivityTabs
-              trades={liveTrades}
-              symbol={selectedSymbol}
-              language={language}
-              dataSource="okx"
-              accountId={liveAccount?.id}
-              onRefresh={handleRefresh}
-              onCloseTrade={handleCloseLivePosition}
-            />
+          {/* Balance Bar (Desktop) */}
+          {isAuthenticated && hasLiveAccount && (
+            <div className="px-4 py-3 border-b border-border">
+              <AccountBalanceBar
+                account={liveAccount}
+                totalUnrealizedPnl={totalUnrealizedPnl}
+                language={language}
+                onRefresh={handleRefresh}
+                isRefreshing={isRefreshing}
+              />
+            </div>
+          )}
+
+          {/* Chart */}
+          <div className="flex-1 overflow-hidden px-4 py-3">
+            <div className="h-full min-h-[300px]">
+              {chartComponent}
+            </div>
+          </div>
+
+          {/* Activity Tabs */}
+          <div className="border-t border-border h-[280px] overflow-hidden">
+            {activityComponent}
           </div>
         </div>
 
-        {/* Trade Panel Sidebar */}
-        <div className="flex w-full flex-col border-t border-border sm:w-80 sm:flex-col sm:border-l sm:border-t-0">
+        {/* Right: Trade Panel + Positions */}
+        <div className="w-80 lg:w-96 border-l border-border flex flex-col overflow-hidden shrink-0">
           {!isAuthenticated ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <div>
                 <Lock className="mx-auto mb-3 h-8 w-8 text-foreground/40" />
                 <p className="text-sm text-foreground/60">
-                  {language === "ar" ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
+                  {isAr ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
                 </p>
                 <button
                   onClick={navigateToLogin}
                   className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  {language === "ar" ? "تسجيل الدخول" : "Login"}
+                  {isAr ? "تسجيل الدخول" : "Login"}
                 </button>
               </div>
             </div>
           ) : (
             <>
-              <FuturesTradePanel
-                liveAccount={liveAccount}
-                demoAccount={demoAccount}
-                symbol={selectedSymbol}
-                onTradesChanged={handleTradesChanged}
-                onAccountsChanged={handleAccountsChanged}
-                language={language}
-              />
-              
-              {/* Compact activity tabs in sidebar */}
-              <div className="flex-1 overflow-hidden border-t border-border hidden lg:block">
-                <FuturesActivityTabs
-                  trades={liveTrades}
-                  symbol={selectedSymbol}
-                  language={language}
-                  dataSource="okx"
-                  accountId={liveAccount?.id}
-                  onRefresh={handleRefresh}
-                  compact={true}
-                  onCloseTrade={handleCloseLivePosition}
-                />
+              {/* Trade Panel */}
+              <div className="flex-1 overflow-auto">
+                {tradePanelComponent}
               </div>
+              
+              {/* Positions List */}
+              {livePositions.length > 0 && (
+                <div className="border-t border-border max-h-[300px] overflow-auto">
+                  <div className="px-3 py-2 bg-card/50 border-b border-border sticky top-0">
+                    <span className="text-xs font-medium text-foreground">
+                      {isAr ? "المراكز المفتوحة" : "Open Positions"}
+                      <span className="ml-2 text-muted-foreground">({livePositions.length})</span>
+                    </span>
+                  </div>
+                  <PositionsList
+                    positions={livePositions}
+                    markPrices={markPrices}
+                    language={language}
+                    onClosePosition={handleCloseLivePosition}
+                    closingPositionId={closingPositionId}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
