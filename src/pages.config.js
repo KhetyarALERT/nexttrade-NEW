@@ -15,6 +15,7 @@ import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import index from './pages/index';
+import OKXAdminHub from './pages/OKXAdminHub';
 import __Layout from './Layout.jsx';
 
 
@@ -36,6 +37,7 @@ export const PAGES = {
     "TermsOfService": TermsOfService,
     "Trading": Trading,
     "index": index,
+    "OKXAdminHub": OKXAdminHub,
 }
 
 export const pagesConfig = {
