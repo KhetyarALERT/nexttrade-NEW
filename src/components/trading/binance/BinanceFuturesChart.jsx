@@ -174,11 +174,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   // Keep mark price (premium index) in sync for correct PnL math.
   useEffect(() => {
     if (!normalizedSymbol) return;
-    const unsubPremium = okxFuturesStore.subscribe(`premium:${normalizedSymbol}`, (p) => {
+    const unsubPremium = binanceFuturesStore.subscribe(`premium:${normalizedSymbol}`, (p) => {
       const mp = Number(p?.markPrice || 0);
       if (Number.isFinite(mp) && mp > 0) setMarkPrice(mp);
     });
-    const prem = okxFuturesStore.getPremiumIndex?.(normalizedSymbol);
+    const prem = binanceFuturesStore.getPremiumIndex?.(normalizedSymbol);
     if (prem?.markPrice) setMarkPrice(Number(prem.markPrice));
     return () => {
       try {
@@ -515,7 +515,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       setLoading(true);
 
       try {
-        const candles = await okxFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
+        const candles = await binanceFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
         if (cancelled) return;
 
         const chartCandles = candles.map((c) => ({
@@ -548,7 +548,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         }
 
         // Subscribe for incremental updates
-        unsubCandle = okxFuturesStore.subscribe(`candle:${key}`, (c) => {
+        unsubCandle = binanceFuturesStore.subscribe(`candle:${key}`, (c) => {
           if (cancelled || disposedRef.current) return;
           if (!c || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
@@ -584,7 +584,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           }
         });
 
-        unsubPrice = okxFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
+        unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
           if (cancelled || disposedRef.current) return;
           if (!p || !candleSeriesRef.current) return;
           setLastPrice(Number(p));
@@ -617,7 +617,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           } catch {}
         });
 
-        okxFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
+        binanceFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -634,7 +634,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         unsubPrice?.();
       } catch {}
       try {
-        okxFuturesStore.closeChartWs();
+        binanceFuturesStore.closeChartWs();
       } catch {}
     };
   }, [normalizedSymbol, timeframe, key, animateCandle, smoothAnimations, chartColors.priceLineColor, isDark, resetView]);
