@@ -94,13 +94,13 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
                 <span className="font-bold text-foreground">{sym}</span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   side === "LONG" 
-                    ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" 
-                    : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
+                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30" 
+                    : "bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30"
                 }`}>
                   {side}
                 </span>
                 {pos?.leverage && (
-                  <span className="text-[10px] font-medium text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded">
                     {pos.leverage}x
                   </span>
                 )}
@@ -116,10 +116,10 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Unrealized PnL</span>
           <div className="text-right">
-            <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-400" : "text-rose-400"}`}>
+            <div className={`text-lg font-bold font-mono ${isProfit ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
               {isProfit ? "+" : ""}{formatNum(pnl, 2)} <span className="text-xs">USDT</span>
               {Number.isFinite(pnlPct) && (
-                <span className={`ml-1 text-sm ${isProfit ? "text-emerald-400/80" : "text-rose-400/80"}`}>
+                <span className={`ml-1 text-sm ${isProfit ? "text-emerald-600/80 dark:text-emerald-400/80" : "text-rose-600/80 dark:text-rose-400/80"}`}>
                   ({isProfit ? "+" : ""}{pnlPct.toFixed(2)}%)
                 </span>
               )}
@@ -190,10 +190,10 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
       {Number.isFinite(liqDistPct) && liqDistPct < 10 && (
         <div className={`px-4 py-2 border-t ${liqDistPct < 3 ? "bg-rose-500/15 border-rose-500/30" : "bg-amber-500/10 border-amber-500/20"}`}>
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-medium ${liqDistPct < 3 ? "text-rose-400" : "text-amber-400"}`}>
+            <span className={`text-[10px] font-medium ${liqDistPct < 3 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-400"}`}>
               ⚠️ Liq. at {formatCompactPrice(liq)}
             </span>
-            <span className={`text-[10px] font-mono ${liqDistPct < 3 ? "text-rose-400" : "text-amber-400"}`}>
+            <span className={`text-[10px] font-mono ${liqDistPct < 3 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-400"}`}>
               {liqDistPct.toFixed(1)}% away
             </span>
           </div>
@@ -216,7 +216,7 @@ function PositionCard({ pos, mark, labels: _labels, onSelect, onClose, onEditTpS
           type="button"
           size="sm"
           variant="destructive"
-          className="flex-1 h-10 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30"
+          className="flex-1 h-10 rounded-xl bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/30"
           onClick={(e) => { e.stopPropagation(); onClose?.(pos); }}
         >
           <X className="h-3.5 w-3.5 mr-1.5" />
@@ -857,7 +857,7 @@ export default function FuturesActivityTabs({
                               <div className="font-mono text-[11px] text-muted-foreground">{formatNum(positionValue, 2)} USDT</div>
                             </div>
                           </TableCell>
-                          <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                          <TableCell className={`${Number(pnl) >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
                             <div className="leading-tight">
                               <div className="font-mono">{Number(pnl) >= 0 ? "+" : ""}{formatNum(pnl, 2)} USDT</div>
                               <div className="font-mono text-[11px] opacity-80">{Number.isFinite(pnlPct) ? `(${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%)` : "—"}</div>
@@ -865,7 +865,7 @@ export default function FuturesActivityTabs({
                           </TableCell>
                           <TableCell className="text-foreground font-mono">{formatPrice(entry)}</TableCell>
                           <TableCell className="text-foreground font-mono">{formatPrice(mark)}</TableCell>
-                          <TableCell className="text-amber-300 font-mono">{formatPrice(pos?.liquidation_price)}</TableCell>
+                          <TableCell className="text-amber-700 dark:text-amber-300 font-mono">{formatPrice(pos?.liquidation_price)}</TableCell>
                           <TableCell className="text-foreground font-mono">{formatNum(margin, 2)} USDT</TableCell>
                           <TableCell className="text-foreground">
                             <div className="flex items-center gap-2">
@@ -996,7 +996,7 @@ export default function FuturesActivityTabs({
                         <TableCell className="text-foreground">{t?.closed_at ? new Date(t.closed_at).toLocaleString() : "—"}</TableCell>
                         <TableCell className="text-foreground">{normalizeSymbol(t?.symbol)}</TableCell>
                         <TableCell className="text-foreground">{t?.side}</TableCell>
-                        <TableCell className={`text-right font-mono ${Number(t?.pnl) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                        <TableCell className={`text-right font-mono ${Number(t?.pnl) >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300"}`}>
                           {t?.pnl !== undefined ? `${Number(t.pnl) >= 0 ? "+" : ""}${formatNum(t.pnl, 2)} USDT` : "—"}
                         </TableCell>
                       </TableRow>
