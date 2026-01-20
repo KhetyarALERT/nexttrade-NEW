@@ -40,29 +40,29 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
   }, [language]);
 
   useEffect(() => {
-    const unsubTicker = okxFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
+    const unsubTicker = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (t) => {
       if (!t) return;
       if (t.lastPrice) setLastPrice(t.lastPrice);
       if (t.priceChangePercent !== undefined) setChangePct(t.priceChangePercent);
     });
-    const unsubPrice = okxFuturesStore.subscribe(`price:${selectedSymbol}`, (p) => {
+    const unsubPrice = binanceFuturesStore.subscribe(`price:${selectedSymbol}`, (p) => {
       if (p) setLastPrice(Number(p));
     });
-    const unsubPremium = okxFuturesStore.subscribe(`premium:${selectedSymbol}`, (p) => {
+    const unsubPremium = binanceFuturesStore.subscribe(`premium:${selectedSymbol}`, (p) => {
       if (!p) return;
       if (p.markPrice !== undefined) setMarkPrice(Number(p.markPrice));
       if (p.indexPrice !== undefined) setIndexPrice(Number(p.indexPrice));
     });
 
-    const existing = okxFuturesStore.getTicker(selectedSymbol);
+    const existing = binanceFuturesStore.getTicker(selectedSymbol);
     if (existing?.lastPrice) setLastPrice(existing.lastPrice);
     if (existing?.priceChangePercent !== undefined) setChangePct(existing.priceChangePercent);
 
-    const prem = okxFuturesStore.getPremiumIndex?.(selectedSymbol);
+    const prem = binanceFuturesStore.getPremiumIndex?.(selectedSymbol);
     if (prem?.markPrice) setMarkPrice(prem.markPrice);
     if (prem?.indexPrice) setIndexPrice(prem.indexPrice);
 
-    okxFuturesStore.startPremiumPolling?.(selectedSymbol, 5000);
+    binanceFuturesStore.startPremiumPolling?.(selectedSymbol, 5000);
 
     return () => {
       try { unsubTicker?.(); } catch {}
