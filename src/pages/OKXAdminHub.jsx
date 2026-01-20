@@ -162,7 +162,7 @@ export default function OKXAdminHub({ language = 'en' }) {
   const handleCheckBalance = async (poolAccountId) => {
     try {
       const res = await base44.functions.invoke('okxProvisioning', {
-        action: 'checkPoolBalance',
+        action: 'adminCheckBalance',
         poolAccountId,
       });
       
