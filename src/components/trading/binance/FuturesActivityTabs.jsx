@@ -461,7 +461,7 @@ export default function FuturesActivityTabs({
       positions: {
         futures: isAr ? "العقود" : "Futures",
         positionValue: isAr ? "المركز/القيمة" : "Position/Value",
-        unrealized: isAr ? "الربح غير المحقق" : "Unrealized PnL",
+        unrealized: isAr ? "الربح غير المحقق(%)" : "Unrealized PnL(%)",
         realized: isAr ? "الربح المحقق" : "Realized PnL",
         breakeven: isAr ? "سعر التعادل" : "Breakeven price",
         entry: isAr ? "سعر الدخول" : "Entry Price",
