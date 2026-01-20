@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
@@ -23,158 +24,87 @@ function formatCompactNumber(value) {
 
 export default function Trading({ language = "en" }) {
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  
+  // Symbol selection with persistence
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
     const stored = localStorage.getItem("trading_symbol");
-    const normalized = normalizeOkxSymbol(stored || "BTC-USDT-SWAP");
-    return normalized || "BTC-USDT-SWAP";
+    return normalizeOkxSymbol(stored || "BTC-USDT-SWAP") || "BTC-USDT-SWAP";
   });
 
+  // Market data state
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
   const [quoteVolume, setQuoteVolume] = useState(0);
+  const [wsConnected, setWsConnected] = useState(false);
 
-  const [liveAccount, setLiveAccount] = useState(null);
+  // Demo account state (separate from OKX)
   const [demoAccount, setDemoAccount] = useState(null);
-
-  const [liveTrades, setLiveTrades] = useState([]);
   const [demoTrades, setDemoTrades] = useState([]);
 
-  const accountsInFlightRef = useRef(false);
-  const refreshLiveTrades = useCallback(async (account) => {
-    if (!account?.id) {
-      setLiveTrades([]);
-      return;
-    }
-    try {
-      // Use the user-facing endpoint for positions and orders
-      const [posRes, orderRes] = await Promise.all([
-        base44.functions.invoke("okxUserAccount", { action: "getPositions" }),
-        base44.functions.invoke("okxUserAccount", { action: "getOrders" }),
-      ]);
+  // Use the OKX account hook for live trading
+  const {
+    account: liveAccount,
+    hasAccount: hasLiveAccount,
+    positions: livePositions,
+    orders: liveOrders,
+    trades: liveTrades,
+    totalUnrealizedPnl,
+    loading: accountLoading,
+    refresh: refreshOKXAccount,
+    refreshPositions,
+  } = useOKXAccount({ enabled: isAuthenticated && !isLoadingAuth });
 
-      const positions = posRes?.data?.ok ? posRes.data.data : [];
-      const orders = orderRes?.data?.ok ? orderRes.data.data : [];
+  // Track refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-      const mappedPositions = (positions || []).map((p) => ({
-        id: `okx_${p.instId}_${p.posSide}`,
-        symbol: p.instId,
-        side: String(p.posSide || "").toUpperCase() === "SHORT" ? "SHORT" : "LONG",
-        quantity: Math.abs(Number(p.size || 0)),
-        entry_price: Number(p.avgPx || 0),
-        margin: Number(p.margin || 0),
-        leverage: Number(p.lever || 0),
-        status: "OPEN",
-        mark_price: Number(p.markPx || 0),
-        unrealized_pnl: Number(p.upl || 0),
-        liq_price: Number(p.liqPx || 0),
-      }));
-
-      const mappedOrders = (orders || []).map((o) => ({
-        id: o.ordId,
-        instId: o.instId,
-        symbol: o.instId,
-        side: String(o.side || "").toUpperCase() === "SELL" ? "SHORT" : "LONG",
-        quantity: Number(o.sz || 0),
-        entry_price: Number(o.px || 0),
-        order_type: String(o.ordType || "").toUpperCase(),
-        status: "PENDING",
-        created_at: o.cTime,
-      }));
-
-      setLiveTrades([...mappedPositions, ...mappedOrders]);
-    } catch {
-      setLiveTrades([]);
-    }
-  }, []);
-
-  const refreshAccounts = useCallback(async () => {
-    if (accountsInFlightRef.current) return;
-    accountsInFlightRef.current = true;
-    try {
-      const [demoResult, okxAccountResult] = await Promise.all([
-        base44.functions.invoke("tradingAccount", { action: "getOrCreate", accountType: "demo" }),
-        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
-      ]);
-
-      if (demoResult?.data?.success) {
-        setDemoAccount(demoResult.data.data);
-        setDemoTrades(demoResult.data.data?.trades || []);
-      }
-
-      // Use okxUserAccount for live account (user-facing endpoint)
-      if (okxAccountResult?.data?.ok && okxAccountResult.data.data?.hasAccount) {
-        const okxData = okxAccountResult.data.data;
-        const liveAcct = {
-          id: okxData.accountId,
-          externalAccountId: okxData.externalAccountId,
-          label: okxData.accountLabel,
-          status: okxData.status,
-          balance: okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0,
-          tradingBalance: okxData.balances?.tradingUsdt || 0,
-          fundingBalance: okxData.balances?.fundingUsdt || 0,
-          availableBalance: okxData.balances?.availableBalance || 0,
-          marginUsed: okxData.balances?.marginUsed || 0,
-          unrealizedPnl: okxData.balances?.unrealizedPnl || 0,
-          equity: okxData.balances?.totalEquity || 0,
-          defaultLeverage: okxData.defaultLeverage || 10,
-          marginMode: okxData.marginMode || 'cross',
-          provider: 'OKX'
-        };
-        setLiveAccount(liveAcct);
-        await refreshLiveTrades(liveAcct);
-      } else {
-        setLiveAccount(null);
-        setLiveTrades([]);
-      }
-    } catch {
-      // ignore
-    } finally {
-      accountsInFlightRef.current = false;
-    }
-  }, [refreshLiveTrades]);
-
+  // Persist symbol selection
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
   }, [selectedSymbol]);
 
+  // Load demo account
   useEffect(() => {
-    // Ensure background tasks are active while this page is mounted
-    binanceFuturesStore.startTickerPolling?.(7000);
+    if (!isAuthenticated || isLoadingAuth) return;
+    
+    const loadDemoAccount = async () => {
+      try {
+        const res = await base44.functions.invoke("tradingAccount", {
+          action: "getOrCreate",
+          accountType: "demo"
+        });
+        if (res?.data?.success) {
+          setDemoAccount(res.data.data);
+          setDemoTrades(res.data.data?.trades || []);
+        }
+      } catch {}
+    };
+    
+    loadDemoAccount();
+  }, [isAuthenticated, isLoadingAuth]);
+
+  // WebSocket connection status
+  useEffect(() => {
+    const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", (connected) => {
+      setWsConnected(connected);
+    });
+    const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", (connected) => {
+      setWsConnected(prev => prev || connected);
+    });
+
     return () => {
-      try {
-        binanceFuturesStore.stopTickerPolling?.();
-      } catch {}
-      try {
-        binanceFuturesStore.stopPremiumPolling?.();
-      } catch {}
-      try {
-        binanceFuturesStore.closeChartWs?.();
-      } catch {}
+      try { unsubPublic?.(); } catch {}
+      try { unsubBusiness?.(); } catch {}
     };
   }, []);
 
+  // Cleanup WebSocket on unmount
   useEffect(() => {
-    let cancelled = false;
-
-    const loadAccounts = async () => {
-      if (!isAuthenticated || isLoadingAuth) {
-        setLiveAccount(null);
-        setDemoAccount(null);
-        return;
-      }
-
-      await refreshAccounts();
-
-      if (cancelled) return;
-    };
-
-    loadAccounts();
-
     return () => {
-      cancelled = true;
+      try { binanceFuturesStore.closeChartWs(); } catch {}
     };
-  }, [isAuthenticated, isLoadingAuth, refreshAccounts]);
+  }, []);
 
+  // Responsive chart height
   const chartHeight = useMemo(() => {
     if (typeof window === "undefined") return "h-[400px]";
     const width = window.innerWidth;
@@ -184,71 +114,150 @@ export default function Trading({ language = "en" }) {
     return "h-[400px]";
   }, []);
 
+  // Stats display
   const stats = useMemo(
     () => [
-      { label: language === "fa" ? "قیمت" : "Price", value: formatPrice(lastPrice) },
-      { label: language === "fa" ? "تغیر" : "Change", value: `${changePct.toFixed(2)}%` },
-      { label: language === "fa" ? "حجم" : "Volume", value: formatCompactNumber(quoteVolume) },
+      { label: language === "ar" ? "السعر" : "Price", value: formatPrice(lastPrice) },
+      { label: language === "ar" ? "التغير" : "Change", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, isPositive: changePct >= 0 },
+      { label: language === "ar" ? "الحجم" : "Volume", value: formatCompactNumber(quoteVolume) },
     ],
     [lastPrice, changePct, quoteVolume, language]
   );
 
+  // Symbol change handler
   const handleSymbolChange = useCallback((symbol) => {
     setSelectedSymbol(normalizeOkxSymbol(symbol));
   }, []);
 
+  // Manual refresh handler
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await refreshOKXAccount();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, refreshOKXAccount]);
+
+  // Close position handler
   const handleCloseLivePosition = useCallback(async (pos) => {
-    if (!liveAccount?.id || !pos?.symbol) return;
-    const posSide = pos.side === "SHORT" ? "short" : "long";
+    if (!hasLiveAccount || !pos?.symbol) return;
+    
+    const posSide = pos.posSide || (pos.side === "SHORT" ? "short" : "long");
+    
     try {
       await base44.functions.invoke("okxUserAccount", {
         action: "closePosition",
-        instId: pos.symbol,
+        instId: pos.symbol || pos.instId,
         posSide,
-        size: pos.quantity || undefined,
+        size: pos.quantity || pos.size || undefined,
       });
     } finally {
-      await refreshLiveTrades(liveAccount);
+      await refreshPositions();
     }
-  }, [liveAccount, refreshLiveTrades]);
+  }, [hasLiveAccount, refreshPositions]);
+
+  // Callback after trade placed
+  const handleTradesChanged = useCallback(async () => {
+    await refreshPositions();
+  }, [refreshPositions]);
+
+  const handleAccountsChanged = useCallback(async () => {
+    await refreshOKXAccount();
+  }, [refreshOKXAccount]);
 
   return (
     <div className="flex h-screen flex-col bg-background">
+      {/* Header */}
       <div className="border-b border-border px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <h1 className="text-xl font-semibold text-foreground sm:text-2xl">{language === "fa" ? "معاملات" : "Trading"}</h1>
+            <h1 className="text-xl font-semibold text-foreground sm:text-2xl">
+              {language === "ar" ? "التداول" : "Trading"}
+            </h1>
+            
+            {/* Connection status indicator */}
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs ${
+              wsConnected 
+                ? "bg-emerald-500/10 text-emerald-500" 
+                : "bg-amber-500/10 text-amber-500"
+            }`}>
+              {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              <span className="hidden sm:inline">{wsConnected ? "Live" : "Connecting..."}</span>
+            </div>
           </div>
-          {!isAuthenticated && !isLoadingAuth && (
-            <button
-              onClick={navigateToLogin}
-              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              <Lock className="h-4 w-4" />
-              {language === "fa" ? "ورود" : "Login"}
-            </button>
-          )}
+          
+          <div className="flex items-center gap-2">
+            {isAuthenticated && (
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{language === "ar" ? "تحديث" : "Refresh"}</span>
+              </button>
+            )}
+            
+            {!isAuthenticated && !isLoadingAuth && (
+              <button
+                onClick={navigateToLogin}
+                className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Lock className="h-4 w-4" />
+                {language === "ar" ? "تسجيل الدخول" : "Login"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
+        {/* Chart Section */}
         <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Symbol Selector */}
           <div className="border-b border-border px-4 py-3 sm:px-6">
-            <BinanceSymbolSelector selectedSymbol={selectedSymbol} onSelectSymbol={handleSymbolChange} language={language} />
+            <BinanceSymbolSelector 
+              selectedSymbol={selectedSymbol} 
+              onSelectSymbol={handleSymbolChange} 
+              language={language} 
+            />
           </div>
 
+          {/* Stats Bar */}
           <div className="grid grid-cols-3 gap-2 border-b border-border px-4 py-3 sm:gap-4 sm:px-6">
             {stats.map((stat) => (
               <div key={stat.label}>
                 <div className="text-xs font-medium text-foreground/60 sm:text-sm">{stat.label}</div>
-                <div className="text-sm font-semibold text-foreground sm:text-base">{stat.value}</div>
+                <div className={`text-sm font-semibold sm:text-base ${
+                  stat.isPositive !== undefined 
+                    ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
+                    : "text-foreground"
+                }`}>
+                  {stat.value}
+                </div>
               </div>
             ))}
+            
+            {/* Account balance indicator (mobile) */}
+            {isAuthenticated && hasLiveAccount && (
+              <div className="col-span-3 flex items-center justify-between pt-2 border-t border-border/50 sm:hidden">
+                <span className="text-xs text-muted-foreground">
+                  {language === "ar" ? "الرصيد المتاح" : "Available"}
+                </span>
+                <span className="text-sm font-semibold text-foreground">
+                  {formatCompactNumber(liveAccount?.availableBalance || 0)} USDT
+                </span>
+              </div>
+            )}
           </div>
 
+          {/* Chart */}
           <div className="flex-1 overflow-hidden px-2 py-2 sm:px-4 sm:py-3">
             <div className={`${chartHeight} w-full min-h-[250px]`}>
               <BinanceFuturesChart
@@ -256,15 +265,17 @@ export default function Trading({ language = "en" }) {
                 language={language}
                 onPriceUpdate={(p) => {
                   setLastPrice(p);
-                  // Also update change/volume from ticker data
                   const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
                   if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
                   if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
                 }}
+                positionTrade={livePositions.find(p => p.instId === selectedSymbol)}
+                pendingOrders={liveOrders.filter(o => o.instId === selectedSymbol)}
               />
             </div>
           </div>
 
+          {/* Activity Tabs (main area) */}
           <div className="border-t border-border">
             <FuturesActivityTabs
               trades={liveTrades}
@@ -272,25 +283,26 @@ export default function Trading({ language = "en" }) {
               language={language}
               dataSource="okx"
               accountId={liveAccount?.id}
-              onRefresh={() => refreshLiveTrades(liveAccount)}
+              onRefresh={handleRefresh}
               onCloseTrade={handleCloseLivePosition}
             />
           </div>
         </div>
 
+        {/* Trade Panel Sidebar */}
         <div className="flex w-full flex-col border-t border-border sm:w-80 sm:flex-col sm:border-l sm:border-t-0">
           {!isAuthenticated ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <div>
                 <Lock className="mx-auto mb-3 h-8 w-8 text-foreground/40" />
                 <p className="text-sm text-foreground/60">
-                  {language === "fa" ? "برای معاملات باید وارد شوید" : "Login required to trade"}
+                  {language === "ar" ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
                 </p>
                 <button
                   onClick={navigateToLogin}
                   className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  {language === "fa" ? "ورود" : "Login"}
+                  {language === "ar" ? "تسجيل الدخول" : "Login"}
                 </button>
               </div>
             </div>
@@ -300,18 +312,20 @@ export default function Trading({ language = "en" }) {
                 liveAccount={liveAccount}
                 demoAccount={demoAccount}
                 symbol={selectedSymbol}
-                onTradesChanged={() => refreshLiveTrades(liveAccount)}
-                onAccountsChanged={() => refreshAccounts()}
+                onTradesChanged={handleTradesChanged}
+                onAccountsChanged={handleAccountsChanged}
                 language={language}
               />
-              <div className="flex-1 overflow-hidden border-t border-border">
+              
+              {/* Compact activity tabs in sidebar */}
+              <div className="flex-1 overflow-hidden border-t border-border hidden lg:block">
                 <FuturesActivityTabs
                   trades={liveTrades}
                   symbol={selectedSymbol}
                   language={language}
                   dataSource="okx"
                   accountId={liveAccount?.id}
-                  onRefresh={() => refreshLiveTrades(liveAccount)}
+                  onRefresh={handleRefresh}
                   compact={true}
                   onCloseTrade={handleCloseLivePosition}
                 />
