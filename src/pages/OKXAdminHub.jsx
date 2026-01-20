@@ -262,8 +262,8 @@ export default function OKXAdminHub({ language = 'en' }) {
     }
     
     try {
-      const res = await base44.functions.invoke('okxAdmin', {
-        action: 'adminTransfer',
+      const res = await base44.functions.invoke('okxAdminHub', {
+                    action: 'adminTransfer',
         poolAccountId: selectedPoolAccount.id,
         direction: transferForm.direction,
         amount: parseFloat(transferForm.amount),
