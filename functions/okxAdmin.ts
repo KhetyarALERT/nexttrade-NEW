@@ -11,7 +11,7 @@ import {
   getMasterCredentials,
   okResponse,
   okxRequest,
-} from './okxCore.ts';
+} from './okxCore.js';
 
 // Build credential object from encrypted data
 async function buildCredential(apiKey, secretEnc, passphraseEnc) {

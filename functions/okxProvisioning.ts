@@ -11,7 +11,7 @@ import {
   getMasterCredentials,
   okResponse,
   okxRequest,
-} from './okxCore.ts';
+} from './okxCore.js';
 
 async function loadCredential(base44, account) {
   const credentials = await base44.asServiceRole.entities.ExchangeCredential.filter({

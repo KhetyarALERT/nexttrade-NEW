@@ -3,7 +3,7 @@
 // OKX Market Data - Public endpoints for instruments, tickers, candles
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { okResponse } from './okxCore.ts';
+import { okResponse } from './okxCore.js';
 
 const OKX_API_URL = Deno.env.get('OKX_BASE_URL') || 'https://www.okx.com';
 

@@ -3,7 +3,7 @@
 // OKX Transfers & Balances - Internal transfers, deposit/withdraw
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { decryptSecret, getCached, okResponse, okxRequest, setCache } from './okxCore.ts';
+import { decryptSecret, getCached, okResponse, okxRequest, setCache } from './okxCore.js';
 
 function auditLog(action, userId, details) {
   console.log(`[OKX_TRANSFER] [${new Date().toISOString()}] [${action}] User: ${userId}`, JSON.stringify(details));

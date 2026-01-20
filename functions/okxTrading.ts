@@ -3,7 +3,7 @@
 // OKX Trading Functions - Orders, Positions, Close
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { decryptSecret, okResponse, okxRequest } from './okxCore.ts';
+import { decryptSecret, okResponse, okxRequest } from './okxCore.js';
 
 function generateClientOrderId() {
   return `NT${Date.now()}${Math.random().toString(36).substring(2, 8)}`;
