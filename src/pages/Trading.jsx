@@ -98,22 +98,25 @@ export default function Trading({ language = "en" }) {
 
   // WebSocket connection status - check both public and business WS
   useEffect(() => {
-    const updateConnectionStatus = () => {
-      const publicConnected = binanceFuturesStore.wsConnected?.public === true;
-      const businessConnected = binanceFuturesStore.wsConnected?.business === true;
-      setWsConnected(publicConnected || businessConnected);
+    const checkWsStatus = () => {
+      // Check internal state first
+      const statePublic = binanceFuturesStore.wsConnected?.public === true;
+      const stateBusiness = binanceFuturesStore.wsConnected?.business === true;
+      
+      // Also check actual WebSocket readyState as backup
+      const wsPublicOpen = binanceFuturesStore.publicWs?.readyState === WebSocket.OPEN;
+      const wsBusinessOpen = binanceFuturesStore.businessWs?.readyState === WebSocket.OPEN;
+      
+      const isConnected = statePublic || stateBusiness || wsPublicOpen || wsBusinessOpen;
+      setWsConnected(isConnected);
     };
 
-    const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", (connected) => {
-      setWsConnected(connected === true);
-    });
-    const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", (connected) => {
-      if (connected === true) setWsConnected(true);
-    });
+    const unsubPublic = binanceFuturesStore.subscribe("ws:public:connected", checkWsStatus);
+    const unsubBusiness = binanceFuturesStore.subscribe("ws:business:connected", checkWsStatus);
 
-    // Check initial state after a small delay to allow WS to connect
-    updateConnectionStatus();
-    const checkInterval = setInterval(updateConnectionStatus, 2000);
+    // Check immediately and then periodically
+    checkWsStatus();
+    const checkInterval = setInterval(checkWsStatus, 1500);
 
     return () => {
       clearInterval(checkInterval);
