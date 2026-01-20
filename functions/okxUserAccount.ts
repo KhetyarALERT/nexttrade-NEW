@@ -435,7 +435,19 @@ Deno.serve(async (req) => {
         calculatedContracts: contracts 
       });
 
-      // Set leverage first if provided
+      // Get account config to determine position mode (net vs hedge)
+      const configRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/account/config',
+        isTradingEndpoint: true
+      });
+      
+      const posMode = configRes.data?.data?.[0]?.posMode || 'net_mode';
+      const isHedgeMode = posMode === 'long_short_mode';
+      console.log('[OKX_USER_ACCOUNT] Account pos mode:', posMode, 'isHedge:', isHedgeMode);
+
+      // Set leverage first if provided (cap at 5x for regional restrictions)
       if (leverage && Number.isFinite(Number(leverage))) {
         const leverRes = await okxRequest({
           credential,
@@ -443,25 +455,38 @@ Deno.serve(async (req) => {
           path: '/api/v5/account/set-leverage',
           body: {
             instId,
-            lever: String(Math.min(100, Math.max(1, Math.floor(leverage)))),
-            mgnMode: 'cross'
+            lever: String(Math.min(5, Math.max(1, Math.floor(leverage)))), // Cap at 5x for regional limits
+            mgnMode: 'cross',
+            posSide: isHedgeMode ? (side.toLowerCase() === 'buy' ? 'long' : 'short') : undefined
           },
           isTradingEndpoint: true
         });
         console.log('[OKX_USER_ACCOUNT] Set leverage result:', JSON.stringify(leverRes));
       }
 
+      // Determine posSide based on account mode
+      // Net mode: don't send posSide at all (OKX will use default)
+      // Hedge mode: buy -> long, sell -> short (for opening positions)
+      let posSide;
+      if (isHedgeMode) {
+        // In hedge mode, side=buy opens long, side=sell opens short
+        posSide = side.toLowerCase() === 'buy' ? 'long' : 'short';
+      }
+      // If net mode, don't include posSide
+
       // Place the order
-      // For net position mode, posSide must be "net"
-      // For hedge mode, posSide should be "long" or "short"
       const orderBody = {
         instId,
         tdMode: 'cross',
         side: side.toLowerCase(),
-        posSide: 'net', // Use net position mode (single-direction)
         ordType: orderType === 'limit' ? 'limit' : 'market',
         sz: String(contracts),
       };
+      
+      // Only add posSide for hedge mode
+      if (posSide) {
+        orderBody.posSide = posSide;
+      }
 
       // Only set reduceOnly if it's true (OKX doesn't like reduceOnly: false)
       if (reduceOnly) {
