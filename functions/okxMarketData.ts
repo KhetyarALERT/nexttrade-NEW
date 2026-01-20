@@ -2,14 +2,11 @@
 /// <reference lib="deno.ns" />
 // OKX Market Data - Public endpoints for instruments, tickers, candles
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { okResponse } from './okxCore.js';
-
 const OKX_API_URL = Deno.env.get('OKX_BASE_URL') || 'https://www.okx.com';
 
 // Simple cache
 const dataCache = new Map();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 5000; // 5 seconds for faster updates
 
 function getCached(key) {
   const entry = dataCache.get(key);
@@ -30,15 +27,6 @@ Deno.serve(async (req) => {
     return new Response(null, {
       headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }
     });
-  }
-  
-  // Allow public access for market data
-  let user = null;
-  try {
-    const base44 = createClientFromRequest(req);
-    user = await base44.auth.me().catch(() => null);
-  } catch {
-    // Public endpoint
   }
   
   try {
@@ -65,7 +53,7 @@ Deno.serve(async (req) => {
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch instruments' }), { status: 502 });
+        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch instruments' } }, { status: 502 });
       }
       
       const instruments = (result.data || []).map(i => ({
@@ -96,7 +84,7 @@ Deno.serve(async (req) => {
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch tickers' }), { status: 502 });
+        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch tickers' } }, { status: 502 });
       }
       
       const tickers = (result.data || []).map(t => ({
@@ -117,6 +105,78 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: tickers });
     }
     
+    // ==================== GET SINGLE TICKER ====================
+    if (action === 'getTicker') {
+      const { instId } = params;
+      if (!instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID', message: 'instId required' } }, { status: 400 });
+      }
+      
+      const cacheKey = `okx_ticker_${instId}`;
+      const cached = getCached(cacheKey);
+      if (cached) return Response.json({ ok: true, data: cached });
+      
+      const res = await fetch(`${OKX_API_URL}/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`);
+      const result = await res.json();
+      
+      if (result.code !== '0' || !result.data?.[0]) {
+        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch ticker' } }, { status: 502 });
+      }
+      
+      const t = result.data[0];
+      const ticker = {
+        instId: t.instId,
+        last: parseFloat(t.last),
+        lastSz: parseFloat(t.lastSz),
+        askPx: parseFloat(t.askPx),
+        bidPx: parseFloat(t.bidPx),
+        open24h: parseFloat(t.open24h),
+        high24h: parseFloat(t.high24h),
+        low24h: parseFloat(t.low24h),
+        vol24h: parseFloat(t.vol24h),
+        volCcy24h: parseFloat(t.volCcy24h),
+        priceChangePercent: t.open24h ? (((parseFloat(t.last) - parseFloat(t.open24h)) / parseFloat(t.open24h)) * 100).toFixed(2) : '0'
+      };
+      
+      setCache(cacheKey, ticker);
+      return Response.json({ ok: true, data: ticker });
+    }
+    
+    // ==================== GET PREMIUM INDEX (Mark Price + Funding) ====================
+    if (action === 'getPremiumIndex') {
+      const { instId } = params;
+      if (!instId) {
+        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID', message: 'instId required' } }, { status: 400 });
+      }
+      
+      const cacheKey = `okx_premium_${instId}`;
+      const cached = getCached(cacheKey);
+      if (cached) return Response.json({ ok: true, data: cached });
+      
+      // Fetch mark price and funding rate in parallel
+      const [markRes, fundingRes] = await Promise.all([
+        fetch(`${OKX_API_URL}/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`),
+        fetch(`${OKX_API_URL}/api/v5/public/funding-rate?instId=${encodeURIComponent(instId)}`)
+      ]);
+      
+      const [markResult, fundingResult] = await Promise.all([markRes.json(), fundingRes.json()]);
+      
+      const markData = markResult.data?.[0] || {};
+      const fundingData = fundingResult.data?.[0] || {};
+      
+      const premium = {
+        instId,
+        markPrice: parseFloat(markData.markPx || '0'),
+        indexPrice: parseFloat(markData.idxPx || '0'),
+        fundingRate: parseFloat(fundingData.fundingRate || '0'),
+        nextFundingRate: parseFloat(fundingData.nextFundingRate || '0'),
+        fundingTime: fundingData.fundingTime
+      };
+      
+      setCache(cacheKey, premium);
+      return Response.json({ ok: true, data: premium });
+    }
+    
     // ==================== GET CANDLES ====================
     if (action === 'getCandles') {
       const { instId, bar = '15m', limit = 300 } = params;
@@ -129,12 +189,12 @@ Deno.serve(async (req) => {
       const cached = getCached(cacheKey);
       if (cached) return Response.json({ ok: true, data: cached });
       
-      const endpoint = `/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}`;
+      const endpoint = `/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${limit}`;
       const res = await fetch(`${OKX_API_URL}${endpoint}`);
       const result = await res.json();
       
       if (result.code !== '0') {
-        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch candles' }), { status: 502 });
+        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch candles' } }, { status: 502 });
       }
       
       const candles = (result.data || []).map(c => ({
@@ -162,12 +222,12 @@ Deno.serve(async (req) => {
       const cached = getCached(cacheKey);
       if (cached) return Response.json({ ok: true, data: cached });
 
-      const endpoint = `/api/v5/public/mark-price?instType=SWAP&instId=${instId}`;
+      const endpoint = `/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`;
       const res = await fetch(`${OKX_API_URL}${endpoint}`);
       const result = await res.json();
 
       if (result.code !== '0') {
-        return Response.json(okResponse(false, null, { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch mark price' }), { status: 502 });
+        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg || 'Failed to fetch mark price' } }, { status: 502 });
       }
 
       const mark = result.data?.[0] || null;
