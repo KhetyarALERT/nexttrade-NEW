@@ -1,6 +1,6 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Admin Control Hub v1.2
+// OKX Admin Control Hub v1.3
 // Manage sub-account pool, assignments, withdrawals, balances, transaction history
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
