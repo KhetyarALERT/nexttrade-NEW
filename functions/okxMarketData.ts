@@ -1,27 +1,44 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// OKX Market Data - Public endpoints with aggressive caching
+// OKX Market Data - caching + in-flight dedupe + safe upstream parsing (no 429 throttle)
 
-const OKX_API_URL = Deno.env.get('OKX_BASE_URL') || 'https://www.okx.com';
+const OKX_API_URL = Deno.env.get("OKX_BASE_URL") || "https://www.okx.com";
 
-// In-memory cache with longer TTLs
-const dataCache = new Map();
-
-// Cache TTLs by type (in ms)
-const CACHE_TTL = {
-  instruments: 300000,  // 5 minutes - rarely changes
-  tickers: 3000,        // 3 seconds - fast moving
-  ticker: 2000,         // 2 seconds - single ticker
-  premium: 5000,        // 5 seconds - funding rate
-  candles: 30000,       // 30 seconds - historical data
-  mark: 3000,           // 3 seconds - mark price
+// CORS for ALL responses
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-function getCached(key, type = 'default') {
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      ...CORS_HEADERS,
+    },
+  });
+}
+
+// In-memory cache
+const dataCache = new Map();
+
+// Cache TTLs (ms)
+const CACHE_TTL = {
+  instruments: 300000, // 5 min
+  tickers: 3000,       // 3 sec
+  ticker: 2000,        // 2 sec
+  premium: 5000,       // 5 sec
+  candles: 30000,      // 30 sec
+  mark: 3000,          // 3 sec
+};
+
+function getCached(key, type) {
   const entry = dataCache.get(key);
   if (!entry) return null;
-  
-  const ttl = CACHE_TTL[type] || 5000;
+
+  const ttl = CACHE_TTL[type] ?? 5000;
   if (Date.now() - entry.timestamp > ttl) {
     dataCache.delete(key);
     return null;
@@ -33,276 +50,269 @@ function setCache(key, data) {
   dataCache.set(key, { data, timestamp: Date.now() });
 }
 
-// Rate limiting - track request times
-const requestTimes = new Map();
-const MIN_REQUEST_INTERVAL = 500; // 500ms minimum between same requests
+// In-flight de-duplication (same cacheKey in parallel => one upstream call)
+const inflight = new Map();
 
-function shouldThrottle(key) {
-  const lastTime = requestTimes.get(key);
-  if (lastTime && Date.now() - lastTime < MIN_REQUEST_INTERVAL) {
-    return true;
+class HttpError extends Error {
+  constructor(status, code, message, details) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.details = details;
   }
-  requestTimes.set(key, Date.now());
-  return false;
+}
+
+function num(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Safe OKX JSON fetch (handles WAF/HTML/non-JSON without crashing)
+async function okxGetJson(url) {
+  const res = await fetch(url, { headers: { accept: "application/json" } });
+  const text = await res.text();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new HttpError(
+      502,
+      "UPSTREAM_NON_JSON",
+      `OKX returned non-JSON (HTTP ${res.status})`,
+      { url, sample: text.slice(0, 200) }
+    );
+  }
+
+  if (!res.ok) {
+    throw new HttpError(
+      502,
+      "UPSTREAM_HTTP",
+      `OKX HTTP error (HTTP ${res.status})`,
+      { url, upstream: parsed }
+    );
+  }
+
+  if (parsed?.code !== "0") {
+    throw new HttpError(
+      502,
+      "OKX_ERROR",
+      parsed?.msg || "OKX error",
+      { url, upstream: parsed }
+    );
+  }
+
+  return parsed;
+}
+
+async function getOrFetch(cacheKey, type, fetcher) {
+  const cached = getCached(cacheKey, type);
+  if (cached) return { data: cached, cached: true };
+
+  const existing = inflight.get(cacheKey);
+  if (existing) return { data: await existing, shared: true };
+
+  const p = (async () => {
+    const data = await fetcher();
+    setCache(cacheKey, data);
+    return data;
+  })().finally(() => inflight.delete(cacheKey));
+
+  inflight.set(cacheKey, p);
+  return { data: await p };
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: { 
-        'Access-Control-Allow-Origin': '*', 
-        'Access-Control-Allow-Methods': 'POST, OPTIONS', 
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization' 
-      }
-    });
-  }
-  
+  if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
+  if (req.method !== "POST") return json({ ok: false, error: { code: "METHOD_NOT_ALLOWED" } }, 405);
+
   try {
-    let body = {};
+    let body;
     try {
       body = await req.json();
     } catch {
-      return Response.json({ ok: false, error: { code: 'INVALID_JSON' } }, { status: 400 });
-    }
-    
-    const { action, ...params } = body || {};
-    
-    if (!action) {
-      return Response.json({ ok: false, error: { code: 'MISSING_ACTION' } }, { status: 400 });
+      return json({ ok: false, error: { code: "INVALID_JSON" } }, 400);
     }
 
+    const { action, ...params } = body || {};
+    if (!action) return json({ ok: false, error: { code: "MISSING_ACTION" } }, 400);
+
     // ==================== LIST SWAP INSTRUMENTS ====================
-    if (action === 'listInstrumentsSwap') {
-      const cacheKey = 'instruments_swap';
-      const cached = getCached(cacheKey, 'instruments');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
-      
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
-      
-      const res = await fetch(`${OKX_API_URL}/api/v5/public/instruments?instType=SWAP`);
-      const result = await res.json();
-      
-      if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg } }, { status: 502 });
-      }
-      
-      const instruments = (result.data || []).map(i => ({
-        instId: i.instId,
-        instType: i.instType,
-        baseCcy: i.baseCcy,
-        quoteCcy: i.quoteCcy,
-        settleCcy: i.settleCcy,
-        ctVal: i.ctVal,
-        ctMult: i.ctMult,
-        minSz: i.minSz,
-        lotSz: i.lotSz,
-        tickSz: i.tickSz,
-        lever: i.lever,
-        state: i.state
-      }));
-      
-      setCache(cacheKey, instruments);
-      return Response.json({ ok: true, data: instruments });
+    if (action === "listInstrumentsSwap") {
+      const cacheKey = "instruments_swap";
+
+      const { data, cached, shared } = await getOrFetch(cacheKey, "instruments", async () => {
+        const result = await okxGetJson(`${OKX_API_URL}/api/v5/public/instruments?instType=SWAP`);
+        return (result.data || []).map((i) => ({
+          instId: i.instId,
+          instType: i.instType,
+          baseCcy: i.baseCcy,
+          quoteCcy: i.quoteCcy,
+          settleCcy: i.settleCcy,
+          ctVal: i.ctVal,
+          ctMult: i.ctMult,
+          minSz: i.minSz,
+          lotSz: i.lotSz,
+          tickSz: i.tickSz,
+          lever: i.lever,
+          state: i.state,
+        }));
+      });
+
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
-    
+
     // ==================== GET SWAP TICKERS (ALL) ====================
-    if (action === 'getTickersSwap') {
-      const cacheKey = 'tickers_swap';
-      const cached = getCached(cacheKey, 'tickers');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
-      
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
-      
-      const res = await fetch(`${OKX_API_URL}/api/v5/market/tickers?instType=SWAP`);
-      const result = await res.json();
-      
-      if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg } }, { status: 502 });
-      }
-      
-      const tickers = (result.data || []).map(t => ({
-        instId: t.instId,
-        last: parseFloat(t.last),
-        lastSz: parseFloat(t.lastSz),
-        askPx: parseFloat(t.askPx),
-        bidPx: parseFloat(t.bidPx),
-        open24h: parseFloat(t.open24h),
-        high24h: parseFloat(t.high24h),
-        low24h: parseFloat(t.low24h),
-        vol24h: parseFloat(t.vol24h),
-        volCcy24h: parseFloat(t.volCcy24h),
-        priceChangePercent: t.open24h ? (((parseFloat(t.last) - parseFloat(t.open24h)) / parseFloat(t.open24h)) * 100).toFixed(2) : '0'
-      }));
-      
-      setCache(cacheKey, tickers);
-      return Response.json({ ok: true, data: tickers });
+    if (action === "getTickersSwap") {
+      const cacheKey = "tickers_swap";
+
+      const { data, cached, shared } = await getOrFetch(cacheKey, "tickers", async () => {
+        const result = await okxGetJson(`${OKX_API_URL}/api/v5/market/tickers?instType=SWAP`);
+        return (result.data || []).map((t) => ({
+          instId: t.instId,
+          last: num(t.last),
+          lastSz: num(t.lastSz),
+          askPx: num(t.askPx),
+          bidPx: num(t.bidPx),
+          open24h: num(t.open24h),
+          high24h: num(t.high24h),
+          low24h: num(t.low24h),
+          vol24h: num(t.vol24h),
+          volCcy24h: num(t.volCcy24h),
+          priceChangePercent: t.open24h
+            ? (((num(t.last) - num(t.open24h)) / num(t.open24h)) * 100).toFixed(2)
+            : "0",
+        }));
+      });
+
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
-    
+
     // ==================== GET SINGLE TICKER ====================
-    if (action === 'getTicker') {
+    if (action === "getTicker") {
       const { instId } = params;
-      if (!instId) {
-        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID' } }, { status: 400 });
-      }
-      
+      if (!instId) return json({ ok: false, error: { code: "MISSING_INST_ID" } }, 400);
+
       const cacheKey = `ticker_${instId}`;
-      const cached = getCached(cacheKey, 'ticker');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
-      
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
-      
-      const res = await fetch(`${OKX_API_URL}/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`);
-      const result = await res.json();
-      
-      if (result.code !== '0' || !result.data?.[0]) {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg } }, { status: 502 });
-      }
-      
-      const t = result.data[0];
-      const ticker = {
-        instId: t.instId,
-        last: parseFloat(t.last),
-        lastSz: parseFloat(t.lastSz),
-        askPx: parseFloat(t.askPx),
-        bidPx: parseFloat(t.bidPx),
-        open24h: parseFloat(t.open24h),
-        high24h: parseFloat(t.high24h),
-        low24h: parseFloat(t.low24h),
-        vol24h: parseFloat(t.vol24h),
-        volCcy24h: parseFloat(t.volCcy24h),
-        priceChangePercent: t.open24h ? (((parseFloat(t.last) - parseFloat(t.open24h)) / parseFloat(t.open24h)) * 100).toFixed(2) : '0'
-      };
-      
-      setCache(cacheKey, ticker);
-      return Response.json({ ok: true, data: ticker });
+
+      const { data, cached, shared } = await getOrFetch(cacheKey, "ticker", async () => {
+        const result = await okxGetJson(
+          `${OKX_API_URL}/api/v5/market/ticker?instId=${encodeURIComponent(instId)}`
+        );
+        const t = result.data?.[0];
+        if (!t) throw new HttpError(502, "UPSTREAM_EMPTY", "OKX returned empty ticker", { instId });
+
+        return {
+          instId: t.instId,
+          last: num(t.last),
+          lastSz: num(t.lastSz),
+          askPx: num(t.askPx),
+          bidPx: num(t.bidPx),
+          open24h: num(t.open24h),
+          high24h: num(t.high24h),
+          low24h: num(t.low24h),
+          vol24h: num(t.vol24h),
+          volCcy24h: num(t.volCcy24h),
+          priceChangePercent: t.open24h
+            ? (((num(t.last) - num(t.open24h)) / num(t.open24h)) * 100).toFixed(2)
+            : "0",
+        };
+      });
+
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
-    
+
     // ==================== GET PREMIUM INDEX ====================
-    if (action === 'getPremiumIndex') {
+    if (action === "getPremiumIndex") {
       const { instId } = params;
-      if (!instId) {
-        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID' } }, { status: 400 });
-      }
-      
+      if (!instId) return json({ ok: false, error: { code: "MISSING_INST_ID" } }, 400);
+
       const cacheKey = `premium_${instId}`;
-      const cached = getCached(cacheKey, 'premium');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
-      
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
-      
-      const [markRes, fundingRes] = await Promise.all([
-        fetch(`${OKX_API_URL}/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`),
-        fetch(`${OKX_API_URL}/api/v5/public/funding-rate?instId=${encodeURIComponent(instId)}`)
-      ]);
-      
-      const [markResult, fundingResult] = await Promise.all([markRes.json(), fundingRes.json()]);
-      
-      const markData = markResult.data?.[0] || {};
-      const fundingData = fundingResult.data?.[0] || {};
-      
-      const premium = {
-        instId,
-        markPrice: parseFloat(markData.markPx || '0'),
-        indexPrice: parseFloat(markData.idxPx || '0'),
-        fundingRate: parseFloat(fundingData.fundingRate || '0'),
-        nextFundingRate: parseFloat(fundingData.nextFundingRate || '0'),
-        fundingTime: fundingData.fundingTime
-      };
-      
-      setCache(cacheKey, premium);
-      return Response.json({ ok: true, data: premium });
+
+      const { data, cached, shared } = await getOrFetch(cacheKey, "premium", async () => {
+        const [markResult, fundingResult] = await Promise.all([
+          okxGetJson(
+            `${OKX_API_URL}/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`
+          ),
+          okxGetJson(
+            `${OKX_API_URL}/api/v5/public/funding-rate?instId=${encodeURIComponent(instId)}`
+          ),
+        ]);
+
+        const markData = markResult.data?.[0] || {};
+        const fundingData = fundingResult.data?.[0] || {};
+
+        return {
+          instId,
+          markPrice: num(markData.markPx),
+          indexPrice: num(markData.idxPx),
+          fundingRate: num(fundingData.fundingRate),
+          nextFundingRate: num(fundingData.nextFundingRate),
+          fundingTime: fundingData.fundingTime,
+        };
+      });
+
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
-    
+
     // ==================== GET CANDLES ====================
-    if (action === 'getCandles') {
-      const { instId, bar = '15m', limit = 300 } = params;
-      
-      if (!instId) {
-        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID' } }, { status: 400 });
-      }
-      
-      const cacheKey = `candles_${instId}_${bar}`;
-      const cached = getCached(cacheKey, 'candles');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
-      
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
-      
-      const endpoint = `/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${Math.min(limit, 300)}`;
-      const res = await fetch(`${OKX_API_URL}${endpoint}`);
-      const result = await res.json();
-      
-      if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg } }, { status: 502 });
-      }
-      
-      const candles = (result.data || []).map(c => ({
-        time: parseInt(c[0]) / 1000,
-        open: parseFloat(c[1]),
-        high: parseFloat(c[2]),
-        low: parseFloat(c[3]),
-        close: parseFloat(c[4]),
-        volume: parseFloat(c[5]),
-        volCcy: parseFloat(c[6])
-      })).reverse();
-      
-      setCache(cacheKey, candles);
-      return Response.json({ ok: true, data: candles });
+    if (action === "getCandles") {
+      const { instId, bar = "15m", limit = 300 } = params;
+      if (!instId) return json({ ok: false, error: { code: "MISSING_INST_ID" } }, 400);
+
+      const safeLimit = Math.min(Number(limit) || 300, 300);
+      const cacheKey = `candles_${instId}_${bar}_${safeLimit}`;
+
+      const { data, cached, shared } = await getOrFetch(cacheKey, "candles", async () => {
+        const endpoint =
+          `/api/v5/market/candles?instId=${encodeURIComponent(instId)}&bar=${encodeURIComponent(bar)}&limit=${safeLimit}`;
+        const result = await okxGetJson(`${OKX_API_URL}${endpoint}`);
+
+        const candles = (result.data || [])
+          .map((c) => ({
+            time: Math.floor(Number(c[0]) / 1000),
+            open: num(c[1]),
+            high: num(c[2]),
+            low: num(c[3]),
+            close: num(c[4]),
+            volume: num(c[5]),
+            volCcy: num(c[6]),
+          }))
+          .reverse();
+
+        return candles;
+      });
+
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
 
     // ==================== GET MARK PRICE ====================
-    if (action === 'getMarkPrice') {
+    if (action === "getMarkPrice") {
       const { instId } = params;
-      if (!instId) {
-        return Response.json({ ok: false, error: { code: 'MISSING_INST_ID' } }, { status: 400 });
-      }
+      if (!instId) return json({ ok: false, error: { code: "MISSING_INST_ID" } }, 400);
 
       const cacheKey = `mark_${instId}`;
-      const cached = getCached(cacheKey, 'mark');
-      if (cached) {
-        return Response.json({ ok: true, data: cached, cached: true });
-      }
 
-      if (shouldThrottle(cacheKey)) {
-        return Response.json({ ok: false, error: { code: 'RATE_LIMITED' } }, { status: 429 });
-      }
+      const { data, cached, shared } = await getOrFetch(cacheKey, "mark", async () => {
+        const result = await okxGetJson(
+          `${OKX_API_URL}/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`
+        );
+        return result.data?.[0] || null;
+      });
 
-      const endpoint = `/api/v5/public/mark-price?instType=SWAP&instId=${encodeURIComponent(instId)}`;
-      const res = await fetch(`${OKX_API_URL}${endpoint}`);
-      const result = await res.json();
-
-      if (result.code !== '0') {
-        return Response.json({ ok: false, error: { code: 'FETCH_FAILED', message: result.msg } }, { status: 502 });
-      }
-
-      const mark = result.data?.[0] || null;
-      setCache(cacheKey, mark);
-      return Response.json({ ok: true, data: mark });
+      return json({ ok: true, data, cached: !!cached, shared: !!shared });
     }
-    
-    return Response.json({ ok: false, error: { code: 'INVALID_ACTION' } }, { status: 400 });
-    
-  } catch (error) {
-    console.error('[OKX_MARKET_ERROR]', error.message);
-    return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: error.message } }, { status: 500 });
+
+    return json({ ok: false, error: { code: "INVALID_ACTION" } }, 400);
+  } catch (e) {
+    if (e instanceof HttpError) {
+      return json(
+        { ok: false, error: { code: e.code, message: e.message, details: e.details } },
+        e.status
+      );
+    }
+
+    console.error("[OKX_MARKET_FATAL]", e?.message || e);
+    return json({ ok: false, error: { code: "INTERNAL_ERROR", message: e?.message || "Unknown error" } }, 500);
   }
 });
