@@ -390,7 +390,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         }
       `}</style>
 
-      {/* Navigation */}
+      {/* Navigation - Hidden on trading pages */}
+      {!isTradingPage && (
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? 'glass-effect shadow-lg' : 'bg-transparent'}`
@@ -775,9 +776,10 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           </div>
         )}
       </nav>
+      )}
 
       {/* Main Content */}
-      <main className="pt-16 md:pb-0 pb-20">
+      <main className={`${isTradingPage ? 'pt-0' : 'pt-16'} md:pb-0 pb-20`}>
         {React.cloneElement(children, { language })}
       </main>
 
@@ -863,8 +865,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </footer>
       )}
       
-      {/* Mobile Bottom Navigation */}
-      {!isMemeCoinsPage && (
+      {/* Mobile Bottom Navigation - Hidden on trading pages */}
+      {!isMemeCoinsPage && !isTradingPage && (
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-border safe-area-bottom">
         <div className="flex items-center justify-around h-16 px-2">
           <Link
