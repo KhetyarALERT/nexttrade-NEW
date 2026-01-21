@@ -82,7 +82,7 @@ export default function FuturesTradePanel({
   // - value: notional in USDT
   // - cost: margin in USDT (notional = cost * leverage)
   const [orderMode, setOrderMode] = useState("cost");
-  const [leverage, setLeverage] = useState(10);
+  const [leverage, setLeverage] = useState(5);
 
   const [lastPrice, setLastPrice] = useState(0);
 
@@ -437,7 +437,7 @@ export default function FuturesTradePanel({
 
       const normalizedSide = sideKey === "SHORT" ? "SHORT" : "LONG";
       const lev = Number(leverage);
-      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(125, Math.max(1, lev)) : Number((demoMode ? demoAccount : liveAccount)?.default_leverage ?? demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 10);
+      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(5, Math.max(1, lev)) : Math.min(5, Number((demoMode ? demoAccount : liveAccount)?.default_leverage ?? demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 5));
 
       const tpRaw = normalizedSide === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
       const slRaw = normalizedSide === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
@@ -706,7 +706,7 @@ export default function FuturesTradePanel({
         <div className="mt-3 rounded-xl bg-card/50 border border-border p-4">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{labels.orderMode}</span>
-            <span className="text-foreground font-medium">{labels.leverage}: {Math.min(125, Math.max(1, Number(leverage) || 10))}×</span>
+            <span className="text-foreground font-medium">{labels.leverage}: {Math.min(5, Math.max(1, Number(leverage) || 5))}×</span>
           </div>
 
           <div className="mt-3 flex gap-2 text-xs">
@@ -748,9 +748,9 @@ export default function FuturesTradePanel({
               <input
                 type="range"
                 min={1}
-                max={125}
+                max={5}
                 step={1}
-                value={Math.min(125, Math.max(1, Number(leverage) || 10))}
+                value={Math.min(5, Math.max(1, Number(leverage) || 5))}
                 onChange={(e) => {
                   setLeverage(Number(e.target.value));
                   setLastEdited("leverage");
@@ -760,15 +760,15 @@ export default function FuturesTradePanel({
                   e.stopPropagation();
                   const dir = e.deltaY > 0 ? -1 : 1;
                   setLeverage((v) => {
-                    const curr = Number(v) || 10;
-                    const next = Math.min(125, Math.max(1, curr + dir));
+                    const curr = Number(v) || 5;
+                    const next = Math.min(5, Math.max(1, curr + dir));
                     return next;
                   });
                   setLastEdited("leverage");
                 }}
                 className="w-full accent-primary"
               />
-              <div className="w-16 text-right font-mono text-sm text-foreground">{Math.min(125, Math.max(1, Number(leverage) || 10))}×</div>
+              <div className="w-16 text-right font-mono text-sm text-foreground">{Math.min(5, Math.max(1, Number(leverage) || 5))}×</div>
             </div>
           </div>
         </div>
