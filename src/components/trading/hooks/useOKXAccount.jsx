@@ -8,8 +8,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 
-const POLL_INTERVAL = 60000; // 60 seconds for account data (avoid 429)
-const POSITIONS_POLL_INTERVAL = 45000; // 45 seconds for positions - reduced to prevent 429
+const POLL_INTERVAL = 120000; // 2 MINUTES for account data (avoid 429)
+const POSITIONS_POLL_INTERVAL = 90000; // 90 seconds for positions - reduced to prevent 429
 
 export function useOKXAccount({ enabled = true, symbol = null } = {}) {
   // Account state

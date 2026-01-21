@@ -47,10 +47,11 @@ class OKXFuturesStore {
     this.pingIntervals = { public: null, business: null };
     this.reconnectAttempts = { public: 0, business: 0 };
     
-    // Cache control - AGGRESSIVE throttling to prevent 429 errors
+    // Cache control - MAXIMUM throttling to prevent 429 errors
     this.pendingFetches = new Map();
     this.lastFetchTime = new Map();
-    this.FETCH_COOLDOWN = 120000; // 2 MINUTES minimum between REST calls - prevent 429
+    this.FETCH_COOLDOWN = 300000; // 5 MINUTES minimum between REST calls - prevent 429
+    this.initialFetchDone = new Set(); // Track if initial fetch completed for symbol/interval
     
     // Singleton instance tracking
     this.initialized = false;
@@ -98,12 +99,20 @@ class OKXFuturesStore {
     const bar = intervalToOkxBar[interval] || "15m";
     const cacheKey = `candles_${normalized}_${bar}`;
     
+    // STRICT: Only fetch ONCE per session per symbol/interval combo
+    // After initial fetch, rely 100% on WebSocket updates
+    if (this.initialFetchDone.has(cacheKey)) {
+      const existing = this.candles[`${normalized}_${interval}`];
+      if (existing?.length > 0) {
+        return existing;
+      }
+    }
+    
     // Check cooldown to prevent API spam
     const lastFetch = this.lastFetchTime.get(cacheKey);
     if (lastFetch && Date.now() - lastFetch < this.FETCH_COOLDOWN) {
       const existing = this.candles[`${normalized}_${interval}`];
       if (existing?.length > 0) {
-        console.log(`[OKX Store] Using cached candles for ${cacheKey}`);
         return existing;
       }
     }
@@ -127,7 +136,7 @@ class OKXFuturesStore {
           const key = `${normalized}_${interval}`;
           this.candles[key] = candles;
           this.lastFetchTime.set(cacheKey, Date.now());
-          console.log(`[OKX Store] Fetched ${candles.length} candles for ${key}`);
+          this.initialFetchDone.add(cacheKey); // Mark as done - no more REST calls
           return candles;
         }
         
@@ -148,6 +157,12 @@ class OKXFuturesStore {
   async fetchPremiumIndex(symbol) {
     const normalized = String(symbol || "").toUpperCase();
     const cacheKey = `premium_${normalized}`;
+    
+    // STRICT: Only fetch ONCE per session - WebSocket provides updates
+    if (this.initialFetchDone.has(cacheKey)) {
+      const existing = this.premiumIndex[normalized];
+      if (existing) return existing;
+    }
     
     // Check cooldown
     const lastFetch = this.lastFetchTime.get(cacheKey);
@@ -172,6 +187,7 @@ class OKXFuturesStore {
           const data = res.data.data;
           this.premiumIndex[normalized] = data;
           this.lastFetchTime.set(cacheKey, Date.now());
+          this.initialFetchDone.add(cacheKey); // Mark as done
           this.emit(`premium:${normalized}`, data);
           return data;
         }
