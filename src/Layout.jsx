@@ -343,24 +343,20 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     <div className={`min-h-screen overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
-          --primary-600: #2563eb;
-          --primary-700: #1d4ed8;
-          --accent-500: #06b6d4;
-          --accent-600: #0891b2;
-          --success-500: #10B981;
-          --gradient-primary: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+          --gradient-primary: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
           --gradient-gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
         .glass-effect {
-          background: hsl(var(--background) / 0.75);
-          backdrop-filter: blur(12px);
-          border: 1px solid hsl(var(--border) / 0.6);
+          background: hsl(var(--background) / 0.85);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid hsl(var(--border) / 0.5);
         }
 
         .nav-link {
           position: relative;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .nav-link::after {
@@ -370,8 +366,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           left: 0;
           width: 0;
           height: 2px;
-          background: var(--gradient-primary);
-          transition: width 0.3s ease;
+          background: hsl(160 100% 38%);
+          transition: width 0.2s ease;
+          border-radius: 1px;
         }
 
         .nav-link:hover::after,
@@ -382,13 +379,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         .glow-button {
           position: relative;
           overflow: hidden;
-          box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
-          transition: all 0.3s ease;
+          background: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
+          box-shadow: 0 4px 20px hsl(160 100% 38% / 0.3);
+          transition: all 0.2s ease;
         }
 
         .glow-button:hover {
-          box-shadow: 0 0 30px rgba(37, 99, 235, 0.5);
-          transform: translateY(-2px);
+          box-shadow: 0 6px 30px hsl(160 100% 38% / 0.4);
+          transform: translateY(-1px);
         }
       `}</style>
 
@@ -399,13 +397,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         }>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+          <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to={createPageUrl("Home")} className="flex items-center">
               <img
                 src={nextTradeLogo}
                 alt="NextTrade"
-                className="h-12 w-auto" />
+                className="h-10 w-auto" />
 
             </Link>
 
@@ -452,7 +450,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     to={item.url}
                     className={`nav-link text-sm font-medium transition-all transform ${
                       isActive
-                        ? 'text-blue-600 active'
+                        ? 'text-primary active'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -498,7 +496,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-4 hover:from-blue-700 hover:to-cyan-700">
+                    <Button className="glow-button text-white border-0 rounded-xl px-4">
                       <span className="max-w-[160px] truncate">{accountMenuLabel}</span>
                       <ChevronDown className="w-4 h-4 ml-2 opacity-90" />
                     </Button>
@@ -532,7 +530,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                             {language === "ar" ? "سحب" : "Withdraw"}
                           </Link>
                         </Button>
-                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
                           <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=deposit"}>
                             {language === "ar" ? "إيداع" : "Deposit"}
                           </Link>
@@ -656,7 +654,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                 </DropdownMenu>
               ) : (
                 <Button
-                  className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-6 hover:from-blue-700 hover:to-cyan-700"
+                  className="glow-button text-white border-0 rounded-xl px-6"
                   type="button"
                   onClick={() => navigateToLogin()}
                 >
@@ -754,7 +752,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                 );
               })}
               <Button
-                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700"
+                className="w-full glow-button text-white"
                 asChild
               >
                 {isAuthenticated ? (
@@ -779,7 +777,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       </nav>
 
       {/* Main Content */}
-      <main className="pt-20 md:pb-0 pb-20">
+      <main className="pt-16 md:pb-0 pb-20">
         {React.cloneElement(children, { language })}
       </main>
 
