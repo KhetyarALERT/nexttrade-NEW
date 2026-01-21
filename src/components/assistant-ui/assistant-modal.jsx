@@ -13,8 +13,8 @@ export function AssistantModal({ language = "en" }) {
   const isRtl = language === "ar";
   const location = useLocation();
   
-  // Hide completely on futures/trading page
-  const isTradingPage = location.pathname.includes("Futures") || location.pathname.includes("Trading");
+  // Hide completely on futures/trading/memecoins pages
+  const isTradingPage = location.pathname.includes("Futures") || location.pathname.includes("Trading") || location.pathname.includes("MemeCoins");
   
   if (isTradingPage) {
     return null;
