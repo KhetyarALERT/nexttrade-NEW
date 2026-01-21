@@ -369,8 +369,8 @@ export default function Trading({ language = "en" }) {
   // Desktop Layout
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
-      {/* Desktop Header - Compact */}
-      <div className="border-b border-border px-4 py-2 shrink-0 bg-card/50">
+      {/* Desktop Header - Glass Effect */}
+      <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
@@ -418,8 +418,8 @@ export default function Trading({ language = "en" }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Symbol Selector + Stats - Compact */}
-          <div className="border-b border-border px-4 py-2 bg-card/30">
+          {/* Symbol Selector + Stats - Glass Panel */}
+          <div className="border-b border-border/50 px-4 py-2 glass-panel">
             <div className="flex items-center justify-between gap-3">
               <BinanceSymbolSelector 
                 selectedSymbol={selectedSymbol} 
@@ -444,9 +444,9 @@ export default function Trading({ language = "en" }) {
             </div>
           </div>
 
-          {/* Balance Bar (Desktop) - Compact */}
+          {/* Balance Bar (Desktop) - Glass */}
           {isAuthenticated && hasLiveAccount && (
-            <div className="px-4 py-2 border-b border-border bg-card/20">
+            <div className="px-4 py-2 border-b border-border/50 glass-panel">
               <AccountBalanceBar
                 account={liveAccount}
                 totalUnrealizedPnl={totalUnrealizedPnl}
@@ -465,14 +465,14 @@ export default function Trading({ language = "en" }) {
             </div>
           </div>
 
-          {/* Activity Tabs - Optimized height */}
-          <div className="border-t border-border h-[240px] lg:h-[260px] overflow-hidden shrink-0">
+          {/* Activity Tabs - Glass Panel */}
+          <div className="border-t border-border/50 h-[240px] lg:h-[260px] overflow-hidden shrink-0 glass-panel">
             {activityComponent}
           </div>
         </div>
 
-        {/* Right: Trade Panel */}
-        <div className="w-[320px] lg:w-[360px] border-l border-border flex flex-col overflow-hidden shrink-0">
+        {/* Right: Trade Panel - Glass */}
+        <div className="w-[320px] lg:w-[360px] border-l border-border/50 flex flex-col overflow-hidden shrink-0 glass-panel">
           {!isAuthenticated ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <div>

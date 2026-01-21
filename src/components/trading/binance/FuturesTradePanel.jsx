@@ -1597,7 +1597,7 @@ export default function FuturesTradePanel({
               type="button"
               disabled={botsBusy}
               onClick={() => submitOpenTrade("LONG", demoMode)}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "bg-emerald-600/60 text-white/80 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/25"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "btn-long opacity-60 cursor-not-allowed" : "btn-long text-white hover:opacity-90"}`}
             >
               {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
               {demoMode ? labels.demoOpenLong : labels.openLong}
@@ -1606,7 +1606,7 @@ export default function FuturesTradePanel({
               type="button"
               disabled={botsBusy}
               onClick={() => submitOpenTrade("SHORT", demoMode)}
-              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "bg-rose-600/60 text-white/80 cursor-not-allowed" : "bg-rose-600 text-white hover:bg-rose-500 shadow-lg hover:shadow-rose-500/25"}`}
+              className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "btn-short opacity-60 cursor-not-allowed" : "btn-short text-white hover:opacity-90"}`}
             >
               {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
               {demoMode ? labels.demoOpenShort : labels.openShort}
@@ -1641,7 +1641,7 @@ export default function FuturesTradePanel({
   };
 
   return (
-    <aside className="h-full w-full bg-card/70 text-foreground border border-border/60 rounded-2xl shadow-xl backdrop-blur flex flex-col overflow-hidden">
+    <aside className="h-full w-full trading-panel text-foreground rounded-2xl shadow-xl flex flex-col overflow-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
         <div className="p-3 border-b border-border shrink-0 bg-card">
           <TabsList className="bg-muted">
