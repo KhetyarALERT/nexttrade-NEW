@@ -504,10 +504,11 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     } catch {}
   }, [chartType, showGrid, showVolume, autoScale, chartColors]);
 
-  // Seed + WS lifecycle
+  // Seed + WS lifecycle - ONLY 1 API CALL for initial data, then pure WebSocket
   useEffect(() => {
     let unsubCandle;
     let unsubPrice;
+    let unsubTicker;
     let cancelled = false;
 
     const run = async () => {
@@ -515,6 +516,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       setLoading(true);
 
       try {
+        // ONE TIME API CALL for historical candles - no repeated calls
         const candles = await binanceFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
         if (cancelled) return;
 
@@ -584,6 +586,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           }
         });
 
+        // Subscribe to price updates from WebSocket ticker stream
         unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
           if (cancelled || disposedRef.current) return;
           if (!p || !candleSeriesRef.current) return;
@@ -617,6 +620,19 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
           } catch {}
         });
 
+        // Also subscribe to ticker for redundant price updates
+        unsubTicker = binanceFuturesStore.subscribe(`ticker:${normalizedSymbol}`, (ticker) => {
+          if (cancelled || disposedRef.current) return;
+          if (!ticker?.lastPrice) return;
+          const p = Number(ticker.lastPrice);
+          if (Number.isFinite(p) && p > 0) {
+            setLastPrice(p);
+            setLastTickAt(Date.now());
+            onPriceUpdateRef.current?.(p);
+          }
+        });
+
+        // Connect WebSocket streams - this is where real-time updates come from
         binanceFuturesStore.connectChartStreams({ symbol: normalizedSymbol, interval: timeframe, seeded: true });
       } finally {
         if (!cancelled) setLoading(false);
@@ -627,17 +643,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
     return () => {
       cancelled = true;
-      try {
-        unsubCandle?.();
-      } catch {}
-      try {
-        unsubPrice?.();
-      } catch {}
-      try {
-        binanceFuturesStore.closeChartWs();
-      } catch {}
+      try { unsubCandle?.(); } catch {}
+      try { unsubPrice?.(); } catch {}
+      try { unsubTicker?.(); } catch {}
+      try { binanceFuturesStore.closeChartWs(); } catch {}
     };
-  }, [normalizedSymbol, timeframe, key, animateCandle, smoothAnimations, chartColors.priceLineColor, isDark, resetView]);
+    }, [normalizedSymbol, timeframe, key, animateCandle, smoothAnimations, chartColors.priceLineColor, isDark, resetView]);
 
   // Position trade overlay - NATIVE PRICE LINES ONLY (no HTML labels)
   useEffect(() => {

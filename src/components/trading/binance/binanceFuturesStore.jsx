@@ -50,7 +50,7 @@ class OKXFuturesStore {
     // Cache control - prevent duplicate REST calls
     this.pendingFetches = new Map();
     this.lastFetchTime = new Map();
-    this.FETCH_COOLDOWN = 30000; // 30 seconds minimum between REST calls
+    this.FETCH_COOLDOWN = 60000; // 60 seconds minimum between REST calls - NO API SPAM
     
     // Singleton instance tracking
     this.initialized = false;
@@ -372,7 +372,7 @@ class OKXFuturesStore {
       }
     }
 
-    // Ticker updates
+    // Ticker updates - PRIMARY SOURCE FOR REAL-TIME PRICES
     if (channel === "tickers") {
       for (const t of msg.data) {
         const symbol = t.instId;
@@ -380,6 +380,8 @@ class OKXFuturesStore {
         const open24h = parseFloat(t.open24h || t.sodUtc0 || 0);
         const change = open24h > 0 ? ((price - open24h) / open24h) * 100 : 0;
 
+        const prevPrice = this.tickers[symbol]?.lastPrice;
+        
         this.tickers[symbol] = {
           symbol,
           lastPrice: price,
@@ -393,8 +395,14 @@ class OKXFuturesStore {
           ts: t.ts,
         };
 
+        // Always emit price updates from WebSocket tickers - this is the primary real-time feed
         this.emit(`price:${symbol}`, price);
         this.emit(`ticker:${symbol}`, this.tickers[symbol]);
+        
+        // Log significant price changes for debugging
+        if (prevPrice && Math.abs(price - prevPrice) > 0) {
+          // Price changed - WebSocket is working
+        }
       }
     }
   }
