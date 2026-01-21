@@ -273,10 +273,10 @@ export default function Trading({ language = "en" }) {
     />
   );
 
-  // Mobile Layout
+  // Mobile Layout - Full screen without Layout padding
   if (isMobile) {
     return (
-      <div className="flex h-screen flex-col bg-background">
+      <div className="flex h-screen flex-col bg-background -mt-16">
         {/* Mobile Header */}
         <div className="border-b border-border px-3 py-2.5 shrink-0">
           <div className="flex items-center justify-between">
@@ -366,9 +366,9 @@ export default function Trading({ language = "en" }) {
     );
   }
 
-  // Desktop Layout
+  // Desktop Layout - Full screen without Layout padding
   return (
-    <div className="flex h-screen flex-col bg-background overflow-hidden">
+    <div className="flex h-screen flex-col bg-background overflow-hidden -mt-16">
       {/* Desktop Header - Glass Effect */}
       <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel">
         <div className="flex items-center justify-between">
