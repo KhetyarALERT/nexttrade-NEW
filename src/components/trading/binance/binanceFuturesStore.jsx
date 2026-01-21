@@ -47,10 +47,10 @@ class OKXFuturesStore {
     this.pingIntervals = { public: null, business: null };
     this.reconnectAttempts = { public: 0, business: 0 };
     
-    // Cache control - prevent duplicate REST calls
+    // Cache control - AGGRESSIVE throttling to prevent 429 errors
     this.pendingFetches = new Map();
     this.lastFetchTime = new Map();
-    this.FETCH_COOLDOWN = 60000; // 60 seconds minimum between REST calls - NO API SPAM
+    this.FETCH_COOLDOWN = 120000; // 2 MINUTES minimum between REST calls - prevent 429
     
     // Singleton instance tracking
     this.initialized = false;

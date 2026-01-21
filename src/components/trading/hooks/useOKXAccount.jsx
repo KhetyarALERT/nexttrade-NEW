@@ -8,8 +8,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 
-const POLL_INTERVAL = 30000; // 30 seconds for account data (avoid 429)
-const POSITIONS_POLL_INTERVAL = 15000; // 15 seconds for positions
+const POLL_INTERVAL = 60000; // 60 seconds for account data (avoid 429)
+const POSITIONS_POLL_INTERVAL = 45000; // 45 seconds for positions - reduced to prevent 429
 
 export function useOKXAccount({ enabled = true, symbol = null } = {}) {
   // Account state
@@ -164,12 +164,12 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
     ]);
   }, [fetchAccount, fetchPositions, fetchOrders]);
 
-  // Start polling
+  // Start polling - REDUCED FREQUENCY to prevent 429 errors
   const startPolling = useCallback(() => {
-    // Initial fetch only - polling starts after
+    // Initial fetch only once
     refresh();
 
-    // Account polling (slower)
+    // Account polling (slower - every 60s)
     const pollAccount = async () => {
       if (!mountedRef.current || !enabled) return;
       await fetchAccount();
@@ -178,19 +178,22 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
       }
     };
 
-    // Positions polling (combined with orders to reduce calls)
+    // Positions polling - combined with orders (every 45s)
     const pollPositions = async () => {
       if (!mountedRef.current || !enabled) return;
+      // Batch these together in sequence to avoid parallel 429
       await fetchPositions();
+      // Small delay between calls
+      await new Promise(r => setTimeout(r, 500));
       await fetchOrders();
       if (mountedRef.current && enabled) {
         positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
       }
     };
 
-    // Start polling loops after initial delay
+    // Start polling loops after longer initial delay to stagger
     pollTimeoutRef.current = setTimeout(pollAccount, POLL_INTERVAL);
-    positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
+    positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL + 5000);
   }, [enabled, fetchAccount, fetchPositions, fetchOrders, refresh]);
 
   // Stop polling

@@ -7,45 +7,45 @@
 
 @layer base {
   :root {
-    /* NextTrade Premium Light Theme - High Contrast */
-    --background: 0 0% 98%;
-    --foreground: 222 47% 8%;
+    /* NextTrade Premium Light Theme - MAXIMUM CONTRAST */
+    --background: 0 0% 99%;
+    --foreground: 222 47% 5%; /* Very dark for maximum readability */
     
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 8%;
+    --card-foreground: 222 47% 5%;
     
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 8%;
+    --popover-foreground: 222 47% 5%;
     
-    --primary: 160 100% 32%; /* Darker Mint Emerald for better contrast */
+    --primary: 160 100% 28%; /* Darker Mint Emerald for better contrast */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 220 14% 94%;
-    --secondary-foreground: 222 47% 8%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222 47% 5%;
     
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 13% 35%; /* Much darker for better readability */
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 15% 25%; /* MUCH darker - almost black for readability */
     
-    --accent: 220 14% 94%;
-    --accent-foreground: 222 47% 8%;
+    --accent: 220 14% 92%;
+    --accent-foreground: 222 47% 5%;
     
-    --destructive: 0 84% 50%;
+    --destructive: 0 84% 45%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 220 13% 85%;
-    --input: 220 13% 88%;
-    --ring: 160 100% 32%;
+    --border: 220 13% 80%;
+    --input: 220 13% 85%;
+    --ring: 160 100% 28%;
     
     --radius: 0.75rem;
     
-    /* Trading Colors - High Contrast for Light Mode */
-    --profit: 160 84% 30%; /* Darker emerald for light mode */
-    --loss: 0 84% 45%; /* Darker red for light mode */
-    --warning: 38 92% 45%;
+    /* Trading Colors - HIGH CONTRAST for Light Mode */
+    --profit: 160 84% 25%; /* Very dark emerald for light mode */
+    --loss: 0 84% 40%; /* Very dark red for light mode */
+    --warning: 38 92% 40%;
     
     /* Glass Effect Variables */
-    --glass-bg: 0 0% 100% / 0.9;
-    --glass-border: 220 13% 80% / 0.8;
+    --glass-bg: 0 0% 100% / 0.95;
+    --glass-border: 220 13% 75% / 0.9;
   }
 
   .dark {
