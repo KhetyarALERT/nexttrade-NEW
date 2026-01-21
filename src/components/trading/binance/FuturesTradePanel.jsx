@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, Clock } from "lucide-react";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -94,8 +94,9 @@ export default function FuturesTradePanel({
 
   const [amountPct, setAmountPct] = useState(0);
 
+  // TP/SL enabled by default for safety
   const [tpSlLongEnabled, setTpSlLongEnabled] = useState(true);
-  const [tpSlShortEnabled, setTpSlShortEnabled] = useState(false);
+  const [tpSlShortEnabled, setTpSlShortEnabled] = useState(true);
 
   const [longTpTrigger, setLongTpTrigger] = useState("");
   const [longTpRatio, setLongTpRatio] = useState("");
@@ -110,6 +111,10 @@ export default function FuturesTradePanel({
   const [tpSlAdvancedOpen, setTpSlAdvancedOpen] = useState(false);
 
   const [tpSlLastEdited, setTpSlLastEdited] = useState("");
+
+  // Funding rate countdown
+  const [fundingCountdown, setFundingCountdown] = useState("");
+  const [fundingRate, setFundingRate] = useState(null);
 
 
   const [botsBusy, setBotsBusy] = useState(false);
@@ -146,6 +151,9 @@ export default function FuturesTradePanel({
       total: isAr ? "الإجمالي" : "Total",
       enter: isAr ? "أدخل" : "Enter",
       estCost: isAr ? "التكلفة التقديرية" : "Est. cost",
+      estLiq: isAr ? "سعر التصفية المتوقع" : "Est. Liquidation",
+      fundingIn: isAr ? "التمويل في" : "Funding in",
+      fundingRate: isAr ? "معدل التمويل" : "Funding Rate",
       marketHint: isAr ? "أوامر السوق تُنفذ بأفضل سعر متاح." : "Market orders execute at the best available price.",
       triggerHint: isAr ? "أمر التفعيل يضع أمرًا عند الوصول لسعر التفعيل." : "Trigger order places an order once a trigger price is reached.",
       triggerPrice: isAr ? "سعر التفعيل" : "Trigger price",
@@ -238,6 +246,50 @@ export default function FuturesTradePanel({
         unsubPrice?.();
       } catch {}
     };
+  }, [symbol]);
+
+  // Funding rate countdown timer - updates every second
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const utcHour = now.getUTCHours();
+      const utcMin = now.getUTCMinutes();
+      const utcSec = now.getUTCSeconds();
+      
+      // Funding times are 00:00, 08:00, 16:00 UTC
+      const fundingHours = [0, 8, 16];
+      let nextFunding = fundingHours.find(h => h > utcHour);
+      if (nextFunding === undefined) nextFunding = 24; // Next day 00:00
+      
+      const hoursLeft = nextFunding - utcHour - 1;
+      const minsLeft = 59 - utcMin;
+      const secsLeft = 59 - utcSec;
+      
+      setFundingCountdown(
+        `${String(hoursLeft).padStart(2, '0')}:${String(minsLeft).padStart(2, '0')}:${String(secsLeft).padStart(2, '0')}`
+      );
+    };
+    
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Subscribe to premium/funding rate updates
+  useEffect(() => {
+    const unsub = binanceFuturesStore.subscribe(`premium:${symbol}`, (data) => {
+      if (data?.fundingRate !== undefined) {
+        setFundingRate(Number(data.fundingRate));
+      }
+    });
+    
+    // Get initial value
+    const prem = binanceFuturesStore.getPremiumIndex?.(symbol);
+    if (prem?.fundingRate !== undefined) {
+      setFundingRate(Number(prem.fundingRate));
+    }
+    
+    return () => { try { unsub?.(); } catch {} };
   }, [symbol]);
 
   // keep total/amount in sync (UI helper)
@@ -594,9 +646,37 @@ export default function FuturesTradePanel({
   }, [symbol, refPrice, lastPrice, amount, liveAccount, demoAccount, language, onTradesChanged, onAccountsChanged]);
 
 
+  // Calculate estimated liquidation price based on entry, leverage, and side
+  const calcEstimatedLiquidation = useCallback((entrySide, entryPriceVal, leverageVal, marginVal) => {
+    const entry = Number(entryPriceVal);
+    const lev = Number(leverageVal);
+    const margin = Number(marginVal);
+    
+    if (!Number.isFinite(entry) || entry <= 0) return null;
+    if (!Number.isFinite(lev) || lev <= 0) return null;
+    
+    // Maintenance margin rate (approx 0.5% for most pairs)
+    const mmr = 0.005;
+    const isLong = entrySide === "LONG";
+    
+    // Liq price formula: 
+    // LONG: entry * (1 - 1/leverage + mmr)
+    // SHORT: entry * (1 + 1/leverage - mmr)
+    if (isLong) {
+      return entry * (1 - (1 / lev) + mmr);
+    } else {
+      return entry * (1 + (1 / lev) - mmr);
+    }
+  }, []);
+
   const renderOrderForm = (opts = {}) => {
     const demoMode = Boolean(opts.demoMode);
     const accountSnap = getAccountSnapshot(demoMode);
+    
+    // Calculate estimated liquidation for display
+    const currentRefPrice = refPrice || lastPrice;
+    const estLiqLong = calcEstimatedLiquidation("LONG", currentRefPrice, leverage, cost);
+    const estLiqShort = calcEstimatedLiquidation("SHORT", currentRefPrice, leverage, cost);
 
     const applyAmountPct = (pct) => {
       const p = Math.min(100, Math.max(0, Number(pct)));
@@ -673,6 +753,25 @@ export default function FuturesTradePanel({
           >
             {labels.close}
           </button>
+        </div>
+
+        {/* Funding Rate Countdown Banner */}
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-amber-500" />
+            <span className="text-[11px] text-muted-foreground">{labels.fundingIn}</span>
+            <span className="font-mono text-xs font-semibold text-amber-500">{fundingCountdown}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground">{labels.fundingRate}:</span>
+            <span className={`font-mono text-xs font-semibold ${
+              fundingRate !== null 
+                ? (fundingRate >= 0 ? "text-emerald-500" : "text-rose-500")
+                : "text-muted-foreground"
+            }`}>
+              {fundingRate !== null ? `${(fundingRate * 100).toFixed(4)}%` : "—"}
+            </span>
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -1122,42 +1221,40 @@ export default function FuturesTradePanel({
           ) : null}
 
 
-          <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
+          {/* TP/SL Section - Always Visible & Expanded by Default */}
+          <div className="mt-4 rounded-xl bg-gradient-to-br from-card/80 to-card/40 border-2 border-primary/20 p-4">
             <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.tpSl}</div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <div className="text-xs uppercase tracking-wider text-primary font-semibold">{labels.tpSl}</div>
+              </div>
               <button
                 type="button"
                 onClick={() => setTpSlAdvancedOpen((v) => !v)}
-                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md bg-muted/50 hover:bg-muted"
               >
                 {labels.advanced}
               </button>
             </div>
 
             <div className="mt-3 flex items-center gap-4 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex-1">
                 <input
                   type="checkbox"
                   checked={tpSlLongEnabled}
-                  onChange={(e) => {
-                    setTpSlLongEnabled(e.target.checked);
-                    if (e.target.checked) setTpSlShortEnabled(false);
-                  }}
-                  className="h-4 w-4 accent-primary rounded"
+                  onChange={(e) => setTpSlLongEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500 rounded"
                 />
-                <span className="text-foreground">{labels.longTpSl}</span>
+                <span className="text-foreground font-medium">{labels.longTpSl}</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 flex-1">
                 <input
                   type="checkbox"
                   checked={tpSlShortEnabled}
-                  onChange={(e) => {
-                    setTpSlShortEnabled(e.target.checked);
-                    if (e.target.checked) setTpSlLongEnabled(false);
-                  }}
-                  className="h-4 w-4 accent-primary rounded"
+                  onChange={(e) => setTpSlShortEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-rose-500 rounded"
                 />
-                <span className="text-foreground">{labels.shortTpSl}</span>
+                <span className="text-foreground font-medium">{labels.shortTpSl}</span>
               </label>
             </div>
 
@@ -1591,6 +1688,36 @@ export default function FuturesTradePanel({
               </div>
             ) : null}
           </div>
+
+          {/* Real-time Liquidation Price Display */}
+          {(estLiqLong || estLiqShort) && parseNum(amount) > 0 && (
+            <div className="mt-4 rounded-xl bg-rose-500/5 border border-rose-500/20 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-rose-500" />
+                <span className="text-[11px] font-semibold text-rose-500 uppercase tracking-wider">{labels.estLiq}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5">
+                  <div className="text-[10px] text-muted-foreground mb-1">LONG</div>
+                  <div className="font-mono text-sm font-semibold text-emerald-500">
+                    {estLiqLong ? `$${formatNumber(estLiqLong, estLiqLong < 1 ? 6 : 2)}` : "—"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {estLiqLong && currentRefPrice ? `${((1 - estLiqLong / currentRefPrice) * 100).toFixed(1)}% below` : ""}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2.5">
+                  <div className="text-[10px] text-muted-foreground mb-1">SHORT</div>
+                  <div className="font-mono text-sm font-semibold text-rose-500">
+                    {estLiqShort ? `$${formatNumber(estLiqShort, estLiqShort < 1 ? 6 : 2)}` : "—"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {estLiqShort && currentRefPrice ? `${((estLiqShort / currentRefPrice - 1) * 100).toFixed(1)}% above` : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
