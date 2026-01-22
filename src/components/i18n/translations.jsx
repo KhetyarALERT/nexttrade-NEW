@@ -366,11 +366,22 @@ export function t(section, key, language = "en") {
   return key;
 }
 
-// Helper to get entire section
+// Helper to get entire section with English fallback for missing keys
 export function tSection(section, language = "en") {
   const sectionData = translations[section];
-  if (!sectionData) return {};
-  return sectionData[language] || sectionData.en || {};
+  if (!sectionData) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`[i18n] Missing section: ${section}`);
+    }
+    return {};
+  }
+  
+  const enData = sectionData.en || {};
+  const langData = sectionData[language] || {};
+  
+  // Merge: English as base, then override with requested language
+  // This ensures missing keys in target language fallback to English
+  return { ...enData, ...langData };
 }
 
 // Assistant translations (for support chat)
