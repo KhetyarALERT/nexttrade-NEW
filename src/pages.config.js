@@ -17,6 +17,8 @@ import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
+import ReferralRedirect from './pages/ReferralRedirect';
+import Invite from './pages/Invite';
 import __Layout from './Layout.jsx';
 
 
@@ -40,6 +42,8 @@ export const PAGES = {
     "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
+    "ReferralRedirect": ReferralRedirect,
+    "Invite": Invite,
 }
 
 export const pagesConfig = {
