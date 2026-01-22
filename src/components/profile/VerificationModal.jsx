@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Loader2, ChevronDown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Loader2, ChevronDown, HelpCircle, MessageSquare } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -104,6 +105,9 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [showHelpForm, setShowHelpForm] = useState(false);
+  const [helpMessage, setHelpMessage] = useState("");
+  const [sendingHelp, setSendingHelp] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -124,11 +128,20 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       // Reset to step 1 when modal closes
       setStep(1);
       setCountryDropdownOpen(false);
+      setShowHelpForm(false);
+      setHelpMessage("");
     } else {
       // Track verification started when modal opens
-      base44.analytics.track({
-        eventName: "verification_started",
-        properties: { language }
+      base44.auth.me().then(user => {
+        base44.analytics.track({
+          eventName: "verification_started",
+          properties: { language, user_id: user?.id, user_email: user?.email }
+        });
+      }).catch(() => {
+        base44.analytics.track({
+          eventName: "verification_started",
+          properties: { language }
+        });
       });
     }
   }, [open, language]);
@@ -136,12 +149,67 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   // Track step changes
   useEffect(() => {
     if (open && step > 1) {
-      base44.analytics.track({
-        eventName: "verification_step_reached",
-        properties: { step, language }
+      base44.auth.me().then(user => {
+        base44.analytics.track({
+          eventName: "verification_step_reached",
+          properties: { step, language, user_id: user?.id, user_email: user?.email }
+        });
+      }).catch(() => {
+        base44.analytics.track({
+          eventName: "verification_step_reached",
+          properties: { step, language }
+        });
       });
     }
   }, [step, open, language]);
+
+  const handleAskForHelp = async () => {
+    if (!helpMessage.trim()) {
+      toast.error(language === "ar" ? "يرجى وصف مشكلتك" : "Please describe your issue");
+      return;
+    }
+
+    setSendingHelp(true);
+    try {
+      const user = await base44.auth.me();
+
+      // Upload document if available
+      let frontUrl = null;
+      if (form.frontFile) {
+        const result = await base44.integrations.Core.UploadFile({ file: form.frontFile });
+        frontUrl = result.file_url;
+      }
+
+      // Create a help request verification entry
+      await base44.entities.VerificationRequest.create({
+        user_id: user.id,
+        user_email: user.email,
+        full_name: form.fullName || user.full_name || "",
+        document_type: form.documentType,
+        document_front_url: frontUrl,
+        status: "needs_help",
+        help_message: helpMessage,
+        help_requested_at: new Date().toISOString(),
+        submitted_at: new Date().toISOString(),
+      });
+
+      // Track help request
+      base44.analytics.track({
+        eventName: "verification_help_requested",
+        properties: { user_id: user.id, user_email: user.email, has_document: Boolean(frontUrl) }
+      });
+
+      toast.success(t.helpSent);
+      setShowHelpForm(false);
+      setHelpMessage("");
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Help request error:", err);
+      toast.error(language === "ar" ? "فشل إرسال طلب المساعدة" : "Failed to send help request");
+    } finally {
+      setSendingHelp(false);
+    }
+  };
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
@@ -216,7 +284,9 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         properties: { 
           document_type: form.documentType,
           has_selfie: Boolean(selfieUrl),
-          country: form.country || "not_provided"
+          country: form.country || "not_provided",
+          user_id: user.id,
+          user_email: user.email
         }
       });
 
@@ -236,6 +306,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       under_review: { icon: AlertCircle, color: "text-blue-500", bg: "bg-blue-500/10", msg: t.underReview },
       approved: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10", msg: t.approved },
       rejected: { icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-500/10", msg: `${t.rejected}: ${existingRequest.rejection_reason || ""}` },
+      needs_help: { icon: HelpCircle, color: "text-amber-500", bg: "bg-amber-500/10", msg: t.helpPending },
     };
     const status = statusMessages[existingRequest.status] || statusMessages.pending;
     const Icon = status.icon;
@@ -282,12 +353,105 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
           ))}
         </div>
 
-        {/* Step 1: Personal Info */}
+        {/* Step 1: Document Upload (FIRST) */}
         {step === 1 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
-              <User className="w-5 h-5 text-blue-600" />
+              <FileText className="w-5 h-5 text-blue-600" />
               {t.step1}
+            </h3>
+
+            <div>
+              <Label>{t.docType}</Label>
+              <div className="relative">
+                <select
+                  value={form.documentType}
+                  onChange={(e) => setForm({ ...form, documentType: e.target.value })}
+                  className="flex h-11 w-full items-center justify-between whitespace-nowrap rounded-xl border-2 border-input bg-background/50 px-4 py-2 text-sm shadow-sm ring-offset-background transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
+                >
+                  <option value="passport">{t.passport}</option>
+                  <option value="national_id">{t.nationalId}</option>
+                  <option value="drivers_license">{t.driversLicense}</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+
+            <FileUploadBox
+              label={t.uploadFront + " *"}
+              preview={frontPreview}
+              onFileChange={(f) => handleFileChange("front", f)}
+              language={language}
+              t={t}
+            />
+
+            <FileUploadBox
+              label={t.uploadBack}
+              preview={backPreview}
+              onFileChange={(f) => handleFileChange("back", f)}
+              language={language}
+              t={t}
+            />
+
+            <Button 
+              onClick={() => setStep(2)} 
+              className="w-full bg-blue-600 hover:bg-blue-700" 
+              disabled={!form.frontFile}
+            >
+              {language === "ar" ? "متابعة" : "Continue"}
+            </Button>
+
+            {/* Ask for Help Button */}
+            <div className="border-t border-border pt-4 mt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowHelpForm(!showHelpForm)}
+                className="w-full text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                {t.needHelp}
+              </Button>
+
+              {showHelpForm && (
+                <div className="mt-3 space-y-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-start gap-2">
+                    <MessageSquare className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
+                        {language === "ar" ? "صف مشكلتك وسنساعدك" : "Describe your issue and we'll help you"}
+                      </p>
+                      <Textarea
+                        value={helpMessage}
+                        onChange={(e) => setHelpMessage(e.target.value)}
+                        placeholder={t.helpPlaceholder}
+                        className="h-24 resize-none text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleAskForHelp}
+                    disabled={sendingHelp || !helpMessage.trim()}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {sendingHelp ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {language === "ar" ? "جاري الإرسال..." : "Sending..."}</>
+                    ) : (
+                      <><HelpCircle className="w-4 h-4 mr-2" /> {t.askForHelp}</>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Personal Info */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold flex items-center gap-2">
+              <User className="w-5 h-5 text-blue-600" />
+              {t.step2}
             </h3>
             <div className="space-y-3">
               <div>
@@ -324,7 +488,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               </div>
               <div>
                 <Label>{t.country}</Label>
-                {/* Native select for better mobile compatibility */}
                 <div className="relative">
                   <select
                     value={form.country}
@@ -340,18 +503,23 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                 </div>
               </div>
             </div>
-            <Button 
-              onClick={() => setStep(2)} 
-              className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={!form.fullName || (form.dob && !isValidDateFormat(form.dob))}
-            >
-              {language === "ar" ? "يكمل" : "Continue"}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                {language === "ar" ? "السابق" : "Back"}
+              </Button>
+              <Button 
+                onClick={() => setStep(3)} 
+                className="flex-1 bg-blue-600 hover:bg-blue-700" 
+                disabled={!form.fullName || (form.dob && !isValidDateFormat(form.dob))}
+              >
+                {language === "ar" ? "متابعة" : "Continue"}
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Step 2: Document Upload */}
-        {step === 2 && (
+        {/* Step 3: Selfie */}
+        {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -409,7 +577,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <Camera className="w-5 h-5 text-blue-600" />
               {t.step3}
             </h3>
-            
+
             <FileUploadBox
               label={t.uploadSelfie}
               hint={t.selfieHint}
@@ -423,7 +591,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <Button variant="outline" onClick={() => setStep(2)} className="flex-1" disabled={loading}>
                 {language === "ar" ? "السابق" : "Back"}
               </Button>
-              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading}>
+              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading || !form.frontFile}>
                 {loading ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.submitting}</>
                 ) : t.submit}
