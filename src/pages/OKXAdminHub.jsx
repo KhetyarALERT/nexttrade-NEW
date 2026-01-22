@@ -398,7 +398,7 @@ export default function OKXAdminHub({ language = 'en' }) {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               {/* Pool Summary */}
               <Card>
                 <CardHeader>
@@ -426,7 +426,54 @@ export default function OKXAdminHub({ language = 'en' }) {
                 </CardContent>
               </Card>
 
-              {/* Recent Activity */}
+              {/* Account Requests Summary */}
+              <Card className="border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-orange-600/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-orange-500" />
+                    Account Requests
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pending</span>
+                      <span className="font-medium text-yellow-500">
+                        {accountRequests.filter(r => r.status === 'pending').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Under Review</span>
+                      <span className="font-medium text-blue-500">
+                        {accountRequests.filter(r => r.status === 'under_review').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Approved</span>
+                      <span className="font-medium text-green-500">
+                        {accountRequests.filter(r => r.status === 'approved' || r.status === 'assigned').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rejected</span>
+                      <span className="font-medium text-red-500">
+                        {accountRequests.filter(r => r.status === 'rejected').length}
+                      </span>
+                    </div>
+                  </div>
+                  {accountRequests.filter(r => r.status === 'pending').length > 0 && (
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-3" 
+                      onClick={() => setActiveTab('requests')}
+                    >
+                      Review Pending Requests
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Withdrawal Stats */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Withdrawal Stats</CardTitle>
@@ -453,6 +500,17 @@ export default function OKXAdminHub({ language = 'en' }) {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+          
+          {/* Account Requests Tab */}
+          <TabsContent value="requests">
+            <AccountRequestsTab 
+              requests={accountRequests}
+              users={users}
+              poolAccounts={poolAccounts}
+              onRefresh={loadDashboard}
+              formatDate={formatDate}
+            />
           </TabsContent>
 
           {/* Pool Tab */}
