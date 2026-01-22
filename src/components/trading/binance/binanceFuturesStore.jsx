@@ -206,13 +206,22 @@ class OKXFuturesStore {
 
   // ========== WEBSOCKET MANAGEMENT ==========
   connectPublicWs() {
-    if (this.publicWs && (this.publicWs.readyState === WebSocket.OPEN || this.publicWs.readyState === WebSocket.CONNECTING)) {
-      // Already connected or connecting
-      if (this.publicWs.readyState === WebSocket.OPEN) {
-        this.wsConnected.public = true;
-        this.emit("ws:public:connected", true);
-      }
+    // Check if already connected
+    if (this.publicWs && this.publicWs.readyState === WebSocket.OPEN) {
+      this.wsConnected.public = true;
+      this.emit("ws:public:connected", true);
       return;
+    }
+    
+    // If connecting, wait
+    if (this.publicWs && this.publicWs.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+    
+    // Close stale connection if exists
+    if (this.publicWs) {
+      try { this.publicWs.close(); } catch {}
+      this.publicWs = null;
     }
 
     console.log("[OKX Store] Connecting Public WebSocket...");
@@ -249,13 +258,22 @@ class OKXFuturesStore {
   }
 
   connectBusinessWs() {
-    if (this.businessWs && (this.businessWs.readyState === WebSocket.OPEN || this.businessWs.readyState === WebSocket.CONNECTING)) {
-      // Already connected or connecting
-      if (this.businessWs.readyState === WebSocket.OPEN) {
-        this.wsConnected.business = true;
-        this.emit("ws:business:connected", true);
-      }
+    // Check if already connected
+    if (this.businessWs && this.businessWs.readyState === WebSocket.OPEN) {
+      this.wsConnected.business = true;
+      this.emit("ws:business:connected", true);
       return;
+    }
+    
+    // If connecting, wait
+    if (this.businessWs && this.businessWs.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+    
+    // Close stale connection if exists
+    if (this.businessWs) {
+      try { this.businessWs.close(); } catch {}
+      this.businessWs = null;
     }
 
     console.log("[OKX Store] Connecting Business WebSocket...");
@@ -492,19 +510,28 @@ class OKXFuturesStore {
     this.connectPublicWs();
     this.connectBusinessWs();
 
-    // Subscribe to channels
+    // Subscribe to channels with retry
     const okxBar = intervalToOkxBar[interval] || "15m";
     
-    // Public channels: mark-price, tickers
-    if (this.publicWs?.readyState === WebSocket.OPEN) {
-      this.sendSubscribe(this.publicWs, { channel: "mark-price", instId: normalized });
-      this.sendSubscribe(this.publicWs, { channel: "tickers", instId: normalized });
-    }
+    const subscribeToChannels = () => {
+      // Public channels: mark-price, tickers
+      if (this.publicWs?.readyState === WebSocket.OPEN) {
+        this.sendSubscribe(this.publicWs, { channel: "mark-price", instId: normalized });
+        this.sendSubscribe(this.publicWs, { channel: "tickers", instId: normalized });
+      }
+      
+      // Business channels: candles
+      if (this.businessWs?.readyState === WebSocket.OPEN) {
+        this.sendSubscribe(this.businessWs, { channel: `candle${okxBar}`, instId: normalized });
+      }
+    };
     
-    // Business channels: candles
-    if (this.businessWs?.readyState === WebSocket.OPEN) {
-      this.sendSubscribe(this.businessWs, { channel: `candle${okxBar}`, instId: normalized });
-    }
+    // Subscribe immediately if connected
+    subscribeToChannels();
+    
+    // Also retry subscription after connection established (in case WS wasn't ready)
+    setTimeout(subscribeToChannels, 500);
+    setTimeout(subscribeToChannels, 1500);
 
     // Fetch premium index once (will be updated via WS)
     if (!seeded) {
