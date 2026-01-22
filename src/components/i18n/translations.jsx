@@ -349,5 +349,19 @@ export function tSection(section, language = "en") {
 
 // Assistant translations (for support chat)
 export function tAssistant(language = "en") {
-  return translations.support[language] || translations.support.en;
+  const base = translations.support[language] || translations.support.en;
+  return {
+    ...base,
+    support: base.title,
+    closeLabel: base.closeChat,
+    composerPlaceholder: base.placeholder,
+    sendLabel: base.send,
+    attachLabel: language === 'ar' ? 'إرفاق ملف' : 'Attach file',
+    attachmentsTitle: language === 'ar' ? 'المرفقات' : 'Attachments',
+    thinking: language === 'ar' ? 'جارٍ التفكير...' : 'Thinking...',
+    dropHint: language === 'ar' ? 'أفلت الملف هنا' : 'Drop file here',
+    errorMessage: language === 'ar' ? 'حدث خطأ ما. يرجى المحاولة مرة أخرى.' : 'Something went wrong. Please try again.',
+    fallbackMessage: language === 'ar' ? 'كيف يمكنني مساعدتك؟' : 'How can I help you?',
+    systemPrompt: `You are a helpful support assistant for NextTrade, a cryptocurrency trading platform. Answer questions about trading, deposits, withdrawals, and account management. Be concise and friendly.`
+  };
 }
