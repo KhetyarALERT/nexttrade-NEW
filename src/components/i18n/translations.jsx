@@ -332,12 +332,38 @@ export const translations = {
 };
 
 // Helper function to get translation
+// IMPORTANT: Never return keys in production - always fallback to English
 export function t(section, key, language = "en") {
   const sectionData = translations[section];
-  if (!sectionData) return key;
-  const langData = sectionData[language] || sectionData.en;
-  if (!langData) return key;
-  return langData[key] || key;
+  if (!sectionData) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`[i18n] Missing section: ${section}`);
+    }
+    return key; // Fallback: key itself (should not happen with proper structure)
+  }
+  
+  // Try requested language first, then English fallback
+  const langData = sectionData[language];
+  const enData = sectionData.en;
+  
+  // Check if key exists in requested language
+  if (langData && langData[key] !== undefined) {
+    return langData[key];
+  }
+  
+  // Fallback to English
+  if (enData && enData[key] !== undefined) {
+    if (process.env.NODE_ENV === "development" && language !== "en") {
+      console.warn(`[i18n] Missing ${language} translation for: ${section}.${key}`);
+    }
+    return enData[key];
+  }
+  
+  // Last resort: log and return key (should never happen)
+  if (process.env.NODE_ENV === "development") {
+    console.error(`[i18n] Missing key entirely: ${section}.${key}`);
+  }
+  return key;
 }
 
 // Helper to get entire section
