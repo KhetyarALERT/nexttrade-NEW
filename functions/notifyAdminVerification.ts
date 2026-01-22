@@ -4,10 +4,84 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const body = await req.json();
-    const { action, verificationId, userId } = body;
+    
+    // Handle entity automation payload format: { event, data, old_data }
+    // OR manual call format: { action, verificationId }
+    const { action, verificationId, event, data } = body;
+    
+    // If triggered by entity automation (create event)
+    if (event && event.type === 'create' && data) {
+      console.log(`Processing new verification request from automation: ${event.entity_id}`);
+      
+      const verification = data;
+      const isHelpRequest = verification.request_type === "help_request" || verification.status === "needs_help";
+      const subject = isHelpRequest 
+        ? `[HELP NEEDED] KYC Help Request - ${verification.full_name || verification.user_email}`
+        : `[ACTION REQUIRED] New KYC Verification Request - ${verification.full_name || 'New User'}`;
 
-    // Action: notifyAdmin - Notify admin of new verification request
-    if (action === "notifyAdmin" || !action) {
+      let emailBody = "";
+      if (isHelpRequest) {
+        emailBody = `
+A user needs help with their identity verification.
+
+User Details:
+- Name: ${verification.full_name || "Not provided"}
+- Email: ${verification.user_email || "N/A"}
+- User ID: ${verification.user_id}
+- Requested: ${new Date(verification.help_requested_at || verification.created_date).toLocaleString()}
+
+Help Message:
+"${verification.help_message || "No message provided"}"
+
+Document (if attached):
+- Front: ${verification.document_front_url || "Not attached"}
+
+Please respond to this user in the admin dashboard.
+
+---
+NextTrade Platform
+        `.trim();
+      } else {
+        emailBody = `
+A new identity verification request has been submitted.
+
+User Details:
+- Name: ${verification.full_name || "Not provided"}
+- Email: ${verification.user_email || "N/A"}
+- Country: ${verification.country || "N/A"}
+- Document Type: ${verification.document_type || "N/A"}
+- Submitted: ${new Date(verification.submitted_at || verification.created_date).toLocaleString()}
+
+Document URLs:
+- Front: ${verification.document_front_url || "Not provided"}
+- Back: ${verification.document_back_url || "Not provided"}
+- Selfie: ${verification.selfie_url || "Not provided"}
+
+Please review this request in the admin dashboard.
+
+---
+NextTrade Platform
+        `.trim();
+      }
+
+      // Send to registered admin user email
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: "admin@ruyaacapital.com",
+          subject,
+          body: emailBody,
+        });
+        console.log("Admin notification email sent successfully");
+      } catch (emailErr) {
+        console.error("Failed to send admin email:", emailErr);
+        // Don't fail the whole function if email fails
+      }
+
+      return Response.json({ success: true, message: "Admin notified via automation" });
+    }
+
+    // Action: notifyAdmin - Manual call to notify admin
+    if (action === "notifyAdmin") {
       if (!verificationId) {
         return Response.json({ error: "Missing verificationId" }, { status: 400 });
       }
@@ -67,11 +141,15 @@ NextTrade Platform
         `.trim();
       }
 
-      await base44.integrations.Core.SendEmail({
-        to: "admin@nexttrade.exchange",
-        subject,
-        body: emailBody,
-      });
+      try {
+        await base44.integrations.Core.SendEmail({
+          to: "admin@ruyaacapital.com",
+          subject,
+          body: emailBody,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send admin email:", emailErr);
+      }
 
       return Response.json({ success: true, message: "Admin notified" });
     }
