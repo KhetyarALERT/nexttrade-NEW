@@ -106,13 +106,14 @@ export default function OKXAdminHub({ language = 'en' }) {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes] = await Promise.all([
+      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes, requestsRes] = await Promise.all([
         base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
-                      base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
-                      base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
-                      base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
-                      base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
-                      base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
+        base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
+        base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
+        base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
+        base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
+        base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
+        base44.asServiceRole.entities.LiveAccountRequest.list('-created_date', 100),
       ]);
       
       if (statsRes.data?.ok) setStats(statsRes.data.data);
@@ -121,6 +122,7 @@ export default function OKXAdminHub({ language = 'en' }) {
       if (usersRes.data?.ok) setUsers(usersRes.data.data || []);
       if (withdrawalsRes.data?.ok) setWithdrawals(withdrawalsRes.data.data || []);
       if (transfersRes.data?.ok) setTransfers(transfersRes.data.data || []);
+      if (requestsRes) setAccountRequests(requestsRes || []);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
       toast.error('Failed to load dashboard data');
