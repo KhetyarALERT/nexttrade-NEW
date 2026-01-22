@@ -252,10 +252,23 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         submitted_at: new Date().toISOString(),
       });
 
+      // Track successful submission
+      base44.analytics.track({
+        eventName: "kyc_verification_submitted",
+        properties: { success: true }
+      });
+      
       toast.success(t.success);
       onOpenChange(false);
     } catch (err) {
       console.error("Verification submission error:", err);
+      
+      // Track failed submission
+      base44.analytics.track({
+        eventName: "kyc_verification_submitted",
+        properties: { success: false }
+      });
+      
       toast.error(t.error);
     } finally {
       setLoading(false);
