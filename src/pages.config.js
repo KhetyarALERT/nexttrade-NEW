@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Futures from './pages/Futures';
 import Home from './pages/Home';
 import Investing from './pages/Investing';
+import Invite from './pages/Invite';
 import LearnEarn from './pages/LearnEarn';
 import MemeCoins from './pages/MemeCoins';
 import MemeCoinsNew from './pages/MemeCoinsNew';
@@ -12,13 +13,12 @@ import OKXAdminHub from './pages/OKXAdminHub';
 import OnChainDeposit from './pages/OnChainDeposit';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Profile from './pages/Profile';
+import ReferralRedirect from './pages/ReferralRedirect';
 import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
-import ReferralRedirect from './pages/ReferralRedirect';
-import Invite from './pages/Invite';
 import __Layout from './Layout.jsx';
 
 
@@ -30,6 +30,7 @@ export const PAGES = {
     "Futures": Futures,
     "Home": Home,
     "Investing": Investing,
+    "Invite": Invite,
     "LearnEarn": LearnEarn,
     "MemeCoins": MemeCoins,
     "MemeCoinsNew": MemeCoinsNew,
@@ -37,13 +38,12 @@ export const PAGES = {
     "OnChainDeposit": OnChainDeposit,
     "PrivacyPolicy": PrivacyPolicy,
     "Profile": Profile,
+    "ReferralRedirect": ReferralRedirect,
     "Rewards": Rewards,
     "TermsOfService": TermsOfService,
     "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
-    "ReferralRedirect": ReferralRedirect,
-    "Invite": Invite,
 }
 
 export const pagesConfig = {
