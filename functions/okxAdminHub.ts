@@ -343,6 +343,24 @@ Deno.serve(async (req) => {
         status: 'ASSIGNED', assigned_to_user_id: userId, assigned_to_account_id: acc.id, assigned_at: now, updated_at: now,
       });
 
+      // Create notification for user about trading account approval
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: userId,
+          type: 'system',
+          title: 'Trading Account Approved! 🎉',
+          message: 'Your live trading account has been approved and is ready to use. Deposit funds to start trading!',
+          data: { 
+            action: 'trading_account_approved',
+            link: '/Profile?tab=accounts'
+          },
+          read: false,
+          priority: 'high'
+        });
+      } catch (e) {
+        console.error('Failed to create notification:', e);
+      }
+
       auditLog('POOL_ASSIGN', user.id, { poolAccountId, userId });
       return Response.json({ ok: true, data: { exchangeAccountId: acc.id, userId, userEmail: users[0].email, subaccountName: p.subaccount_name } });
     }
