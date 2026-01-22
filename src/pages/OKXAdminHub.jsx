@@ -524,21 +524,21 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
             {reviewAction === 'changeStatus' ? (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button 
                   onClick={() => handleChangeStatus('approved')}
                   disabled={processing}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Approve
+                  Verified
                 </Button>
                 <Button 
                   onClick={() => handleChangeStatus('rejected')}
                   disabled={processing}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  Reject
+                  Rejected
                 </Button>
                 <Button 
                   onClick={() => handleChangeStatus('pending')}
@@ -546,6 +546,13 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                   className="bg-yellow-600 hover:bg-yellow-700"
                 >
                   Pending
+                </Button>
+                <Button 
+                  onClick={() => handleChangeStatus('under_review')}
+                  disabled={processing}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Under Review
                 </Button>
               </div>
             ) : (

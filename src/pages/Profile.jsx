@@ -177,7 +177,7 @@ function VerificationBadge({ status, language, onClickNotVerified, onClickPendin
   
   if (status === 'approved') {
     return (
-      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
+      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-default">
         <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
       </Badge>
     );
@@ -1051,9 +1051,14 @@ export default function Profile({ language = "en" }) {
                         {language === "en" ? "Identity Verification (KYC)" : "التحقق من الهوية (KYC)"}
                       </h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {language === "en" 
-                          ? "Complete verification to unlock withdrawals and higher limits"
-                          : "أكمل التحقق لفتح السحوبات والحدود الأعلى"}
+                        {existingVerification?.status === 'approved'
+                          ? (language === "en" 
+                              ? "Your identity has been verified successfully"
+                              : "تم التحقق من هويتك بنجاح")
+                          : (language === "en" 
+                              ? "Complete verification to unlock withdrawals and higher limits"
+                              : "أكمل التحقق لفتح السحوبات والحدود الأعلى")
+                        }
                       </p>
                       {existingVerification && (
                           <Badge className={`mt-2 ${
@@ -1079,16 +1084,17 @@ export default function Profile({ language = "en" }) {
                         )}
                     </div>
                   </div>
-                  <Button
-                    onClick={() => setVerificationModalOpen(true)}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-lg"
-                  >
-                    {existingVerification?.status === 'approved' 
-                      ? (language === "en" ? "View Status" : "عرض الحالة")
-                      : existingVerification 
+                  {/* Hide button when verified */}
+                  {existingVerification?.status !== 'approved' && (
+                    <Button
+                      onClick={() => setVerificationModalOpen(true)}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-lg"
+                    >
+                      {existingVerification 
                         ? (language === "en" ? "Check Status" : "تحقق من الحالة")
                         : (language === "en" ? "Start Verification" : "بدء التحقق")}
-                  </Button>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

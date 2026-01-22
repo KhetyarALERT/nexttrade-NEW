@@ -365,7 +365,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     }
   };
 
-  if (existingRequest) {
+  if (existingRequest && existingRequest.status !== 'rejected') {
     const statusMessages = {
       pending: { icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-500/10", msg: t.pending },
       under_review: { icon: AlertCircle, color: "text-blue-500", bg: "bg-blue-500/10", msg: t.underReview },
@@ -385,11 +385,17 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
           <div className={`flex flex-col items-center gap-4 p-6 rounded-xl ${status.bg}`}>
             <Icon className={`w-12 h-12 ${status.color}`} />
             <p className={`text-center font-medium ${status.color}`}>{status.msg}</p>
-            {existingRequest.status === "rejected" && (
-              <Button onClick={() => onOpenChange(false)} variant="outline">
-                {language === "ar" ? "حاول مرة أخرى" : "Try Again"}
-              </Button>
+            {existingRequest.admin_response && (
+              <div className="w-full p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-sm">
+                <p className="font-medium text-blue-700 dark:text-blue-400 mb-1">
+                  {language === "ar" ? "رد الإدارة:" : "Admin Response:"}
+                </p>
+                <p className="text-blue-600 dark:text-blue-300">{existingRequest.admin_response}</p>
+              </div>
             )}
+            <Button onClick={() => onOpenChange(false)} variant="outline">
+              {language === "ar" ? "إغلاق" : "Close"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
