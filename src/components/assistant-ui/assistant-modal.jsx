@@ -26,6 +26,7 @@ export function AssistantModal({ language = "en" }) {
         <AssistantModalPrimitive.Trigger asChild>
           <button
             type="button"
+            data-support-trigger="true"
             className={cn(
               "relative flex items-center justify-center rounded-full h-14 w-14",
               "border border-border/70 bg-background",
