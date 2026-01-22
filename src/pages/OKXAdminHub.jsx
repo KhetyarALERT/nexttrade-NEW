@@ -38,6 +38,383 @@ const statusColors = {
   CANCELLED: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
 };
 
+// Account Requests Tab Component
+function AccountRequestsTab({ requests, users, poolAccounts, onRefresh, formatDate }) {
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState(null); // 'approve' or 'reject'
+  const [adminNotes, setAdminNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedPoolAccountId, setSelectedPoolAccountId] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'under_review');
+  const processedRequests = requests.filter(r => r.status !== 'pending' && r.status !== 'under_review');
+
+  const handleReview = async () => {
+    if (!selectedRequest) return;
+    
+    setProcessing(true);
+    try {
+      const user = await base44.auth.me();
+      
+      if (reviewAction === 'reject') {
+        await base44.entities.LiveAccountRequest.update(selectedRequest.id, {
+          status: 'rejected',
+          rejection_reason: rejectionReason || 'Request declined',
+          admin_notes: adminNotes,
+          reviewed_by: user.email,
+          reviewed_at: new Date().toISOString()
+        });
+        toast.success('Request rejected');
+      } else if (reviewAction === 'approve') {
+        await base44.entities.LiveAccountRequest.update(selectedRequest.id, {
+          status: 'approved',
+          admin_notes: adminNotes,
+          reviewed_by: user.email,
+          reviewed_at: new Date().toISOString()
+        });
+        toast.success('Request approved - Now assign a pool account');
+        setReviewDialogOpen(false);
+        setAssignDialogOpen(true);
+        setProcessing(false);
+        return;
+      }
+      
+      setReviewDialogOpen(false);
+      setSelectedRequest(null);
+      setAdminNotes('');
+      setRejectionReason('');
+      onRefresh();
+    } catch (err) {
+      toast.error('Failed to process request: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedRequest || !selectedPoolAccountId) {
+      toast.error('Please select a pool account');
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      // Assign the pool account to the user
+      const res = await base44.functions.invoke('okxAdminHub', {
+        action: 'assignToUser',
+        poolAccountId: selectedPoolAccountId,
+        userId: selectedRequest.user_id,
+      });
+      
+      if (res.data?.ok) {
+        // Update the request status
+        await base44.entities.LiveAccountRequest.update(selectedRequest.id, {
+          status: 'assigned',
+          assigned_pool_account_id: selectedPoolAccountId,
+          assigned_at: new Date().toISOString()
+        });
+        
+        toast.success('Account assigned successfully!');
+        setAssignDialogOpen(false);
+        setSelectedRequest(null);
+        setSelectedPoolAccountId('');
+        onRefresh();
+      } else {
+        toast.error(res.data?.error?.message || 'Failed to assign account');
+      }
+    } catch (err) {
+      toast.error('Failed to assign: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const availablePoolAccounts = poolAccounts.filter(p => p.status === 'AVAILABLE');
+
+  const INCOME_LABELS = {
+    under_1000: 'Under $1,000',
+    '1000_5000': '$1,000 - $5,000',
+    '5000_10000': '$5,000 - $10,000',
+    '10000_50000': '$10,000 - $50,000',
+    over_50000: 'Over $50,000'
+  };
+
+  const DEPOSIT_LABELS = {
+    under_500: 'Under $500',
+    '500_1000': '$500 - $1,000',
+    '1000_5000': '$1,000 - $5,000',
+    '5000_10000': '$5,000 - $10,000',
+    over_10000: 'Over $10,000'
+  };
+
+  const EXPERIENCE_LABELS = {
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
+    professional: 'Professional'
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Pending Requests */}
+      <Card className={pendingRequests.length > 0 ? 'border-orange-500/50' : ''}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-orange-500" />
+            Pending Requests ({pendingRequests.length})
+          </CardTitle>
+          <CardDescription>Review and approve live trading account requests</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pendingRequests.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No pending requests</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingRequests.map((req) => (
+                <div 
+                  key={req.id} 
+                  className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{req.user_full_name || 'Unknown'}</span>
+                        <Badge className={statusColors[req.status] || ''}>
+                          {req.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{req.user_email}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Monthly Income</p>
+                          <p className="font-medium">{INCOME_LABELS[req.monthly_income] || req.monthly_income}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Expected Deposit</p>
+                          <p className="font-medium">{DEPOSIT_LABELS[req.expected_deposit] || req.expected_deposit}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Experience</p>
+                          <p className="font-medium">{EXPERIENCE_LABELS[req.trading_experience] || req.trading_experience}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Requested</p>
+                          <p className="font-medium">{formatDate(req.created_date)}</p>
+                        </div>
+                      </div>
+                      {req.previous_platforms && (
+                        <p className="text-xs text-muted-foreground">
+                          Previous platforms: {req.previous_platforms}
+                        </p>
+                      )}
+                      {req.additional_notes && (
+                        <p className="text-xs text-muted-foreground">
+                          Notes: {req.additional_notes}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600 border-green-500/50 hover:bg-green-500/10"
+                        onClick={() => {
+                          setSelectedRequest(req);
+                          setReviewAction('approve');
+                          setReviewDialogOpen(true);
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 border-red-500/50 hover:bg-red-500/10"
+                        onClick={() => {
+                          setSelectedRequest(req);
+                          setReviewAction('reject');
+                          setReviewDialogOpen(true);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Processed Requests */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Processed Requests ({processedRequests.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Income</TableHead>
+                <TableHead>Deposit</TableHead>
+                <TableHead>Experience</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reviewed By</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {processedRequests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    No processed requests yet
+                  </TableCell>
+                </TableRow>
+              ) : (
+                processedRequests.map((req) => (
+                  <TableRow key={req.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{req.user_full_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">{req.user_email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{INCOME_LABELS[req.monthly_income] || req.monthly_income}</TableCell>
+                    <TableCell className="text-sm">{DEPOSIT_LABELS[req.expected_deposit] || req.expected_deposit}</TableCell>
+                    <TableCell className="text-sm">{EXPERIENCE_LABELS[req.trading_experience] || req.trading_experience}</TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[req.status] || ''}>
+                        {req.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{req.reviewed_by || '-'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(req.reviewed_at || req.created_date)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {reviewAction === 'approve' ? 'Approve Request' : 'Reject Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {reviewAction === 'approve' 
+                ? 'Approve this live trading account request?' 
+                : 'Are you sure you want to reject this request?'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedRequest && (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                <p><strong>User:</strong> {selectedRequest.user_full_name} ({selectedRequest.user_email})</p>
+                <p><strong>Income:</strong> {INCOME_LABELS[selectedRequest.monthly_income]}</p>
+                <p><strong>Expected Deposit:</strong> {DEPOSIT_LABELS[selectedRequest.expected_deposit]}</p>
+              </div>
+            )}
+            
+            {reviewAction === 'reject' && (
+              <div>
+                <Label>Rejection Reason</Label>
+                <Textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for rejection..."
+                  className="mt-1"
+                />
+              </div>
+            )}
+            
+            <div>
+              <Label>Admin Notes (optional)</Label>
+              <Textarea
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="Internal notes..."
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleReview}
+              disabled={processing || (reviewAction === 'reject' && !rejectionReason)}
+              className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {reviewAction === 'approve' ? 'Approve' : 'Reject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Pool Account Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Pool Account</DialogTitle>
+            <DialogDescription>
+              Select a pool account to assign to {selectedRequest?.user_full_name || selectedRequest?.user_email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {availablePoolAccounts.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                <p>No available pool accounts</p>
+                <p className="text-sm">Add more sub-accounts to the pool first</p>
+              </div>
+            ) : (
+              <div>
+                <Label>Select Pool Account</Label>
+                <Select value={selectedPoolAccountId} onValueChange={setSelectedPoolAccountId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select an account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePoolAccounts.map((pool) => (
+                      <SelectItem key={pool.id} value={pool.id}>
+                        {pool.subaccountName} - ${pool.lastBalanceUsdt?.toFixed(2) || '0.00'} USDT
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleAssign}
+              disabled={processing || !selectedPoolAccountId}
+            >
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Assign Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function StatCard({ title, value, subtitle, icon: Icon, color = 'blue' }) {
   const colors = {
     blue: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
