@@ -212,7 +212,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[85vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-xl">{t.title}</DialogTitle>
           <DialogDescription>{t.subtitle}</DialogDescription>
