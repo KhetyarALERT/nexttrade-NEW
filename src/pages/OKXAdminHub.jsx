@@ -43,12 +43,19 @@ const statusColors = {
 function VerificationTab({ verifications, onRefresh, formatDate }) {
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminResponse, setAdminResponse] = useState('');
   const [processing, setProcessing] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    date_of_birth: '',
+    country: '',
+    document_type: 'passport'
+  });
 
   const pendingVerifications = verifications.filter(v => 
     v.status === 'pending' || v.status === 'under_review' || v.status === 'needs_help'
@@ -107,6 +114,44 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleEditDetails = async () => {
+    if (!selectedVerification) return;
+    
+    setProcessing(true);
+    try {
+      const user = await base44.auth.me();
+      
+      await base44.entities.VerificationRequest.update(selectedVerification.id, {
+        full_name: editForm.full_name,
+        date_of_birth: editForm.date_of_birth || null,
+        country: editForm.country || null,
+        document_type: editForm.document_type,
+        reviewed_by: user.email,
+        updated_at: new Date().toISOString()
+      });
+      
+      toast.success('Verification details updated');
+      setEditDialogOpen(false);
+      setSelectedVerification(null);
+      onRefresh();
+    } catch (err) {
+      toast.error('Failed to update: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const openEditDialog = (verification) => {
+    setSelectedVerification(verification);
+    setEditForm({
+      full_name: verification.full_name || '',
+      date_of_birth: verification.date_of_birth || '',
+      country: verification.country || '',
+      document_type: verification.document_type || 'passport'
+    });
+    setEditDialogOpen(true);
   };
 
   const DOC_TYPE_LABELS = {
@@ -238,6 +283,16 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                     </div>
                     
                     <div className="flex gap-2 flex-wrap">
+                      {/* Edit Button - Always available */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-slate-600 border-slate-500/50 hover:bg-slate-500/10"
+                        onClick={() => openEditDialog(v)}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
                       {v.status === 'needs_help' && (
                         <Button
                           size="sm"
@@ -400,6 +455,74 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
             >
               {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {reviewAction === 'approve' ? 'Approve' : reviewAction === 'reject' ? 'Reject' : 'Send Response'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Details Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Verification Details</DialogTitle>
+            <DialogDescription>
+              Update user verification information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Full Name</Label>
+              <Input
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                placeholder="Full name as on ID"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Date of Birth</Label>
+              <Input
+                type="text"
+                value={editForm.date_of_birth}
+                onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
+                placeholder="YYYY-MM-DD"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Country</Label>
+              <Input
+                value={editForm.country}
+                onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                placeholder="Country of residence"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Document Type</Label>
+              <Select 
+                value={editForm.document_type} 
+                onValueChange={(val) => setEditForm({ ...editForm, document_type: val })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="passport">Passport</SelectItem>
+                  <SelectItem value="national_id">National ID</SelectItem>
+                  <SelectItem value="drivers_license">Driver's License</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleEditDetails}
+              disabled={processing || !editForm.full_name}
+            >
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

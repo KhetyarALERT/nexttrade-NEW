@@ -253,9 +253,13 @@ export default function Profile({ language = "en" }) {
       if (requests && requests.length > 0) {
         setExistingVerification(requests[0]);
 
-        // Update formState with verification status if user is verified
+        // Update formState with verification status
         if (requests[0].status === 'approved') {
           setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
+        } else if (requests[0].status === 'rejected') {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
+        } else if (requests[0].status === 'pending' || requests[0].status === 'under_review' || requests[0].status === 'needs_help') {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
         }
       }
     } catch {
@@ -274,6 +278,32 @@ export default function Profile({ language = "en" }) {
     loadTradingAccounts();
     loadVerificationRequest();
   }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts, loadVerificationRequest]);
+
+  // Subscribe to verification request changes for real-time badge update
+  useEffect(() => {
+    if (!isAuthenticated || isLoadingAuth) return;
+
+    const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
+      // Only react to changes for current user's verification
+      base44.auth.me().then(user => {
+        if (event.data?.user_id === user.id) {
+          // Update verification state
+          setExistingVerification(event.data);
+          
+          // Update badge based on status
+          if (event.data.status === 'approved') {
+            setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
+          } else if (event.data.status === 'rejected') {
+            setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
+          } else {
+            setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
+          }
+        }
+      }).catch(() => {});
+    });
+
+    return () => unsubscribe();
+  }, [isAuthenticated, isLoadingAuth]);
 
   // Auto-open verification modal if requested via URL
   useEffect(() => {
@@ -509,9 +539,32 @@ export default function Profile({ language = "en" }) {
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {formState.fullName || "User"}
                     </h1>
-                    {formState.verificationStatus === 'verified' ? (
-                      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
+                    {formState.verificationStatus === 'verified' || existingVerification?.status === 'approved' ? (
+                      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium animate-pulse">
                         <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
+                      </Badge>
+                    ) : existingVerification?.status === 'rejected' ? (
+                      <Badge 
+                        className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
+                        onClick={() => {
+                          setSearchParams({ tab: 'security' });
+                          setVerificationModalOpen(true);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
+                      </Badge>
+                    ) : existingVerification?.status === 'pending' || existingVerification?.status === 'under_review' || existingVerification?.status === 'needs_help' ? (
+                      <Badge 
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+                        onClick={() => {
+                          setSearchParams({ tab: 'security' });
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
                       </Badge>
                     ) : (
                       <Badge 
