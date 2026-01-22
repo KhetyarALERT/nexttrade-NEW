@@ -89,19 +89,7 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
 
       await base44.entities.VerificationRequest.update(selectedVerification.id, updateData);
       
-      // Update User entity verification_status
-      try {
-        const userStatus = updateData.status === 'approved' ? 'verified' : updateData.status;
-        await base44.asServiceRole.entities.User.update(selectedVerification.user_id, {
-          verification_status: userStatus,
-          verification_request_id: selectedVerification.id,
-          verification_completed_at: updateData.status === 'approved' ? new Date().toISOString() : null
-        });
-      } catch (e) {
-        console.error("Failed to update user verification status:", e);
-      }
-      
-      // Notify the user of the status change
+      // Notify the user of the status change (this also updates User entity via backend)
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyUser",
@@ -194,19 +182,7 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
         reviewed_at: new Date().toISOString()
       });
       
-      // Update User entity verification_status
-      try {
-        const userStatus = newStatus === 'approved' ? 'verified' : newStatus;
-        await base44.asServiceRole.entities.User.update(selectedVerification.user_id, {
-          verification_status: userStatus,
-          verification_request_id: selectedVerification.id,
-          verification_completed_at: newStatus === 'approved' ? new Date().toISOString() : null
-        });
-      } catch (e) {
-        console.error("Failed to update user verification status:", e);
-      }
-      
-      // Notify the user of the status change
+      // Notify the user of the status change (this also updates User entity via backend)
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyUser",
