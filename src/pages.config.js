@@ -1,4 +1,3 @@
-import About from './pages/About';
 import BuyWithCard from './pages/BuyWithCard';
 import Contact from './pages/Contact';
 import Dashboard from './pages/Dashboard';
@@ -15,12 +14,12 @@ import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import index from './pages/index';
+import About from './pages/About';
 import Profile from './pages/Profile';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "About": About,
     "BuyWithCard": BuyWithCard,
     "Contact": Contact,
     "Dashboard": Dashboard,
@@ -37,6 +36,7 @@ export const PAGES = {
     "TermsOfService": TermsOfService,
     "Trading": Trading,
     "index": index,
+    "About": About,
     "Profile": Profile,
 }
 

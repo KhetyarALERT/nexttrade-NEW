@@ -104,20 +104,20 @@ const logActivity = (action, details) => {
 };
 
 const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg, emphasis = false, className = "" }) => (
-  <div className={`rounded-2xl border border-border/60 bg-card/70 p-5 shadow-sm transition-shadow hover:shadow-md ${emphasis ? "bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 border-blue-500/20" : ""} ${className}`}>
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
-        <p className={`font-semibold text-foreground mt-2 ${emphasis ? "text-3xl" : "text-2xl"}`}>{value}</p>
+  <div className={`rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-5 shadow-sm transition-shadow hover:shadow-md ${emphasis ? "bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 border-blue-500/20" : ""} ${className}`}>
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+        <p className={`font-semibold text-foreground mt-1 sm:mt-2 truncate ${emphasis ? "text-xl sm:text-3xl" : "text-lg sm:text-2xl"}`}>{value}</p>
         {change !== undefined && (
-          <div className={`flex items-center gap-1 mt-2 text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {change >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+          <div className={`flex items-center gap-1 mt-1 sm:mt-2 text-xs sm:text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {change >= 0 ? <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownRight className="h-3 w-3 sm:h-4 sm:w-4" />}
             {change >= 0 ? '+' : ''}{change.toFixed(2)}%
           </div>
         )}
       </div>
-      <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center ${emphasis ? "shadow-lg shadow-blue-500/20" : ""}`}>
-        <Icon className={`h-6 w-6 ${accent}`} />
+      <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl ${accentBg} flex items-center justify-center flex-shrink-0 ${emphasis ? "shadow-lg shadow-blue-500/20" : ""}`}>
+        <Icon className={`h-4 w-4 sm:h-6 sm:w-6 ${accent}`} />
       </div>
     </div>
   </div>
@@ -421,20 +421,20 @@ export default function Dashboard({ language = "en" }) {
 
         {/* PnL Statistics - Compact Mobile */}
         <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-          <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
-            <CardTitle className="text-base font-semibold">{t.pnl}</CardTitle>
+          <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
+            <CardTitle className="text-sm sm:text-base font-semibold">{t.pnl}</CardTitle>
           </CardHeader>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <CardContent className="p-3 sm:p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
               {[
                 { label: t.dailyPnl, value: pnlData.daily },
                 { label: t.weeklyPnl, value: pnlData.weekly },
                 { label: t.monthlyPnl, value: pnlData.monthly },
                 { label: t.totalPnl, value: pnlData.total }
               ].map((item, i) => (
-                <div key={i} className="text-center p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{item.label}</p>
-                  <p className={`text-lg sm:text-xl font-bold font-mono ${item.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <div key={i} className="text-center p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-1 truncate">{item.label}</p>
+                  <p className={`text-sm sm:text-xl font-bold font-mono truncate ${item.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {item.value >= 0 ? '+' : ''}{formatMoney(item.value)}
                   </p>
                 </div>
@@ -572,77 +572,77 @@ export default function Dashboard({ language = "en" }) {
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Referral Program */}
           <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-blue-500" />
+            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
+              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
                 </div>
-                {t.referrals}
+                <span className="truncate">{t.referrals}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-3 gap-3 mb-4">
+            <CardContent className="p-3 sm:p-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
                 {[
                   { value: '0', label: language === 'ar' ? 'الإجمالي' : 'Total', color: 'text-foreground' },
                   { value: '0', label: language === 'ar' ? 'نشط' : 'Active', color: 'text-emerald-400' },
                   { value: '$0', label: language === 'ar' ? 'العمولة' : 'Earned', color: 'text-blue-400' }
                 ].map((stat, i) => (
-                  <div key={i} className="text-center p-3 rounded-xl bg-muted/30 border border-border/40">
-                    <p className={`text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{stat.label}</p>
+                  <div key={i} className="text-center p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40">
+                    <p className={`text-base sm:text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase truncate">{stat.label}</p>
                   </div>
                 ))}
               </div>
               
-              <div className="rounded-xl bg-muted/30 border border-border/40 p-3 space-y-2">
-                <p className="text-[10px] text-muted-foreground uppercase mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
+              <div className="rounded-xl bg-muted/30 border border-border/40 p-2 sm:p-3 space-y-2">
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase mb-1 sm:mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-background border border-border rounded-lg px-3 py-2.5 font-mono font-bold text-sm">
+                  <code className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 sm:px-3 py-2 font-mono font-bold text-xs sm:text-sm truncate">
                     {referralCode || '—'}
                   </code>
                   <Button 
                     variant="secondary" 
                     size="icon" 
-                    className="h-10 w-10 rounded-lg shrink-0"
+                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0"
                     onClick={copyReferralCode} 
                     disabled={!referralCode}
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{t.referralHint}</p>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2">{t.referralHint}</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Vouchers */}
           <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center">
-                  <Gift className="h-4 w-4 text-purple-500" />
+            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
+              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                  <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
                 </div>
-                {t.vouchers}
+                <span className="truncate">{t.vouchers}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3">
+            <CardContent className="p-2 sm:p-3">
               {vouchers.length === 0 ? (
-                <div className="py-6 text-center space-y-2">
-                  <Gift className="h-10 w-10 mx-auto text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">{t.voucherHint}</p>
+                <div className="py-4 sm:py-6 text-center space-y-2">
+                  <Gift className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/40" />
+                  <p className="text-xs sm:text-sm text-muted-foreground px-2">{t.voucherHint}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {vouchers.map(voucher => (
-                  <div key={voucher.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
-                      <Gift className="h-5 w-5 text-white" />
+                  <div key={voucher.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
+                      <Gift className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">{pickLang(language, voucher.title)}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{pickLang(language, voucher.condition)}</p>
+                      <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{pickLang(language, voucher.title)}</p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{pickLang(language, voucher.condition)}</p>
                     </div>
-                    <Badge className={`shrink-0 ${voucher.status === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
+                    <Badge className={`flex-shrink-0 text-[10px] sm:text-xs ${voucher.status === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
                       {voucher.status}
                     </Badge>
                   </div>

@@ -525,56 +525,56 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
         </div>
       </CardHeader>
       
-      <CardContent className="p-5 space-y-4">
-        {/* Balance Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-4">
-            <p className="text-xs text-muted-foreground mb-1">{t.equity}</p>
-            <p className="text-2xl font-bold text-foreground">
-              ${formatUsdt(accountData.balances?.totalEquity || accountData.balances?.totalUsdt)}
-            </p>
-          </div>
-          <div className="rounded-xl bg-muted/30 border border-border p-4">
-            <p className="text-xs text-muted-foreground mb-1">{t.unrealizedPnl}</p>
-            <p className={`text-2xl font-bold ${totalUpl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {totalUpl >= 0 ? '+' : ''}{formatUsdt(totalUpl)}
-            </p>
-          </div>
+      <CardContent className="p-3 sm:p-5 space-y-3 sm:space-y-4">
+      {/* Balance Cards */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 truncate">{t.equity}</p>
+          <p className="text-lg sm:text-2xl font-bold text-foreground truncate">
+            ${formatUsdt(accountData.balances?.totalEquity || accountData.balances?.totalUsdt)}
+          </p>
         </div>
+        <div className="rounded-xl bg-muted/30 border border-border p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 truncate">{t.unrealizedPnl}</p>
+          <p className={`text-lg sm:text-2xl font-bold truncate ${totalUpl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {totalUpl >= 0 ? '+' : ''}{formatUsdt(totalUpl)}
+          </p>
+        </div>
+      </div>
 
         {/* Detailed Balances */}
-        <div className="rounded-xl bg-muted/20 border border-border/50 p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t.tradingBalance}</span>
-            <span className="font-mono font-medium">${formatUsdt(accountData.balances?.tradingUsdt)} USDT</span>
+        <div className="rounded-xl bg-muted/20 border border-border/50 p-3 sm:p-4 space-y-2">
+          <div className="flex justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground truncate">{t.tradingBalance}</span>
+            <span className="font-mono font-medium truncate ml-2">${formatUsdt(accountData.balances?.tradingUsdt)}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t.fundingBalance}</span>
-            <span className="font-mono font-medium">${formatUsdt(accountData.balances?.fundingUsdt)} USDT</span>
+          <div className="flex justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground truncate">{t.fundingBalance}</span>
+            <span className="font-mono font-medium truncate ml-2">${formatUsdt(accountData.balances?.fundingUsdt)}</span>
           </div>
-          <div className="flex justify-between text-sm pt-2 border-t border-border/50">
+          <div className="flex justify-between text-xs sm:text-sm pt-2 border-t border-border/50">
             <span className="text-muted-foreground">{t.leverage}</span>
             <span className="font-medium">{accountData.defaultLeverage || accountData.accountConfig?.leverage || 5}x</span>
           </div>
         </div>
 
         {/* Action Buttons: Transfer & Deposit */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={() => setTransferModalOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-xl border-border hover:bg-muted"
+            className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl border-border hover:bg-muted text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10"
           >
-            <ArrowRightLeft className="h-4 w-4" />
-            {t.transfer}
+            <ArrowRightLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="truncate">{t.transfer}</span>
           </Button>
           <Button
             variant="outline"
             onClick={() => setDepositExpanded(!depositExpanded)}
-            className="flex items-center justify-center gap-2 rounded-xl border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600"
+            className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10"
           >
-            <ArrowDownToLine className="h-4 w-4" />
-            {t.depositFunds}
+            <ArrowDownToLine className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="truncate">{t.depositFunds}</span>
           </Button>
         </div>
 
