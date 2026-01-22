@@ -80,7 +80,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const t = translations[language];
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [transitioning, setTransitioning] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -94,16 +93,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const [frontPreview, setFrontPreview] = useState(null);
   const [backPreview, setBackPreview] = useState(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
-
-  // Safe step transition to prevent blank screen
-  const goToStep = useCallback((newStep) => {
-    setTransitioning(true);
-    // Small delay to ensure React state updates properly
-    setTimeout(() => {
-      setStep(newStep);
-      setTransitioning(false);
-    }, 50);
-  }, []);
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
