@@ -237,8 +237,8 @@ const formatNum = (v, digits = 2) => {
 
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
-  const { user } = useAuth();
-  const { nextAction, loading: loadingReadiness } = useUserReadiness();
+  const { user, isAuthenticated } = useAuth();
+  const { nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated });
   const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   

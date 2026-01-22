@@ -34,7 +34,7 @@ function formatCompactNumber(value) {
 
 export default function Trading({ language = "en" }) {
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
-  const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness();
+  const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated && !isLoadingAuth });
   const isAr = language === "ar";
   
   // Responsive breakpoint detection

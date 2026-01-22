@@ -10,16 +10,34 @@ import { createPageUrl } from "@/utils";
  * - nextAction: { route, label: {en, ar}, reason, blocking } - where to send user if not ready
  * - loading: boolean
  * - refresh: function - manually reload status
+ * 
+ * IMPORTANT: Only runs for authenticated users to avoid unnecessary API calls
  */
-export function useUserReadiness() {
-  const [loading, setLoading] = useState(true);
+export function useUserReadiness({ enabled = true } = {}) {
+  const [loading, setLoading] = useState(enabled);
   const [isReady, setIsReady] = useState(false);
   const [nextAction, setNextAction] = useState(null);
 
   const checkReadiness = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      setIsReady(false);
+      setNextAction(null);
+      return;
+    }
+    
     setLoading(true);
     
     try {
+      // Check authentication first without making heavy API calls
+      const isAuth = await base44.auth.isAuthenticated();
+      if (!isAuth) {
+        setIsReady(false);
+        setNextAction(null);
+        setLoading(false);
+        return;
+      }
+      
       const user = await base44.auth.me();
       if (!user) {
         setIsReady(false);
@@ -144,8 +162,14 @@ export function useUserReadiness() {
   }, []);
 
   useEffect(() => {
-    checkReadiness();
-  }, [checkReadiness]);
+    if (enabled) {
+      checkReadiness();
+    } else {
+      setLoading(false);
+      setIsReady(false);
+      setNextAction(null);
+    }
+  }, [enabled, checkReadiness]);
 
   return {
     isReady,

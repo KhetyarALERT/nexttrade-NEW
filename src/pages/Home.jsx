@@ -30,7 +30,7 @@ import { useAuth } from "@/lib/AuthContext";
 export default function Home({ language = "en" }) {
   const shouldReduceMotion = useReducedMotion();
   const { isAuthenticated, navigateToLogin } = useAuth();
-  const { nextAction, loading: loadingReadiness } = useUserReadiness();
+  const { nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated });
   
   const content = {
     en: {
