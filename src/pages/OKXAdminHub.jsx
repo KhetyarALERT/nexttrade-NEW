@@ -18,7 +18,8 @@ import {
   Plus, RefreshCw, Users, Wallet, ArrowUpDown, AlertCircle, CheckCircle2, 
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
   ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
-  History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck
+  History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck,
+  HelpCircle, MessageSquare, Image
 } from 'lucide-react';
 
 const statusColors = {
@@ -37,6 +38,387 @@ const statusColors = {
   REJECTED: 'bg-red-500/10 text-red-500 border-red-500/20',
   CANCELLED: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
 };
+
+// Verification Tab Component
+function VerificationTab({ verifications, onRefresh, formatDate }) {
+  const [selectedVerification, setSelectedVerification] = useState(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewAction, setReviewAction] = useState(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [adminResponse, setAdminResponse] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+
+  const pendingVerifications = verifications.filter(v => 
+    v.status === 'pending' || v.status === 'under_review' || v.status === 'needs_help'
+  );
+  const processedVerifications = verifications.filter(v => 
+    v.status !== 'pending' && v.status !== 'under_review' && v.status !== 'needs_help'
+  );
+
+  const handleReview = async () => {
+    if (!selectedVerification) return;
+    
+    setProcessing(true);
+    try {
+      const user = await base44.auth.me();
+      
+      const updateData = {
+        reviewed_by: user.email,
+        reviewed_at: new Date().toISOString()
+      };
+
+      if (reviewAction === 'approve') {
+        updateData.status = 'approved';
+      } else if (reviewAction === 'reject') {
+        updateData.status = 'rejected';
+        updateData.rejection_reason = rejectionReason || 'Verification declined';
+      } else if (reviewAction === 'respond') {
+        updateData.admin_response = adminResponse;
+        updateData.status = 'under_review';
+      }
+
+      await base44.entities.VerificationRequest.update(selectedVerification.id, updateData);
+      
+      toast.success(reviewAction === 'approve' ? 'Verification approved' : 
+                    reviewAction === 'reject' ? 'Verification rejected' : 
+                    'Response sent');
+      
+      setReviewDialogOpen(false);
+      setSelectedVerification(null);
+      setAdminNotes('');
+      setRejectionReason('');
+      setAdminResponse('');
+      onRefresh();
+    } catch (err) {
+      toast.error('Failed to process: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const DOC_TYPE_LABELS = {
+    passport: 'Passport',
+    national_id: 'National ID',
+    drivers_license: "Driver's License"
+  };
+
+  const STATUS_LABELS = {
+    pending: 'Pending',
+    under_review: 'Under Review',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    needs_help: 'Needs Help'
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Pending/Help Requests */}
+      <Card className={pendingVerifications.length > 0 ? 'border-orange-500/50' : ''}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-orange-500" />
+            Pending Verifications ({pendingVerifications.length})
+          </CardTitle>
+          <CardDescription>Review KYC submissions and help requests</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pendingVerifications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>No pending verifications</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingVerifications.map((v) => (
+                <div 
+                  key={v.id} 
+                  className={`rounded-xl border p-4 ${
+                    v.status === 'needs_help' 
+                      ? 'border-amber-500/50 bg-amber-500/5' 
+                      : 'border-blue-500/30 bg-blue-500/5'
+                  }`}
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold">{v.full_name || 'Unknown'}</span>
+                        <Badge className={
+                          v.status === 'needs_help' 
+                            ? 'bg-amber-500/20 text-amber-600 border-amber-500/30'
+                            : statusColors[v.status] || ''
+                        }>
+                          {v.status === 'needs_help' && <HelpCircle className="h-3 w-3 mr-1" />}
+                          {STATUS_LABELS[v.status] || v.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{v.user_email}</p>
+                      <p className="text-xs text-muted-foreground">User ID: {v.user_id}</p>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mt-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Document</p>
+                          <p className="font-medium">{DOC_TYPE_LABELS[v.document_type] || v.document_type}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Country</p>
+                          <p className="font-medium">{v.country || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">DOB</p>
+                          <p className="font-medium">{v.date_of_birth || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Submitted</p>
+                          <p className="font-medium">{formatDate(v.submitted_at || v.created_date)}</p>
+                        </div>
+                      </div>
+
+                      {/* Help Message */}
+                      {v.status === 'needs_help' && v.help_message && (
+                        <div className="mt-3 p-3 rounded-lg bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800">
+                          <div className="flex items-start gap-2">
+                            <MessageSquare className="h-4 w-4 text-amber-600 mt-0.5" />
+                            <div>
+                              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Help Request:</p>
+                              <p className="text-sm text-amber-600 dark:text-amber-300 mt-1">{v.help_message}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Document Preview Links */}
+                      <div className="flex gap-2 mt-2 flex-wrap">
+                        {v.document_front_url && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setImagePreviewUrl(v.document_front_url)}
+                            className="text-xs"
+                          >
+                            <Image className="h-3 w-3 mr-1" />
+                            Front
+                          </Button>
+                        )}
+                        {v.document_back_url && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setImagePreviewUrl(v.document_back_url)}
+                            className="text-xs"
+                          >
+                            <Image className="h-3 w-3 mr-1" />
+                            Back
+                          </Button>
+                        )}
+                        {v.selfie_url && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setImagePreviewUrl(v.selfie_url)}
+                            className="text-xs"
+                          >
+                            <Image className="h-3 w-3 mr-1" />
+                            Selfie
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 flex-wrap">
+                      {v.status === 'needs_help' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 border-blue-500/50 hover:bg-blue-500/10"
+                          onClick={() => {
+                            setSelectedVerification(v);
+                            setReviewAction('respond');
+                            setReviewDialogOpen(true);
+                          }}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Respond
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600 border-green-500/50 hover:bg-green-500/10"
+                        onClick={() => {
+                          setSelectedVerification(v);
+                          setReviewAction('approve');
+                          setReviewDialogOpen(true);
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 border-red-500/50 hover:bg-red-500/10"
+                        onClick={() => {
+                          setSelectedVerification(v);
+                          setReviewAction('reject');
+                          setReviewDialogOpen(true);
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Processed Verifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Processed Verifications ({processedVerifications.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Document</TableHead>
+                <TableHead>Country</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reviewed By</TableHead>
+                <TableHead>Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {processedVerifications.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    No processed verifications yet
+                  </TableCell>
+                </TableRow>
+              ) : (
+                processedVerifications.map((v) => (
+                  <TableRow key={v.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{v.full_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">{v.user_email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{DOC_TYPE_LABELS[v.document_type] || v.document_type}</TableCell>
+                    <TableCell>{v.country || '-'}</TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[v.status?.toUpperCase()] || ''}>
+                        {STATUS_LABELS[v.status] || v.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{v.reviewed_by || '-'}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(v.reviewed_at || v.created_date)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {reviewAction === 'approve' ? 'Approve Verification' : 
+               reviewAction === 'reject' ? 'Reject Verification' : 
+               'Respond to Help Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedVerification?.full_name} ({selectedVerification?.user_email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedVerification && (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                <p><strong>Document:</strong> {DOC_TYPE_LABELS[selectedVerification.document_type]}</p>
+                <p><strong>Country:</strong> {selectedVerification.country || '-'}</p>
+                {selectedVerification.help_message && (
+                  <div className="mt-2 p-2 bg-amber-100 dark:bg-amber-900/30 rounded">
+                    <p className="text-xs font-medium text-amber-700">Help Request:</p>
+                    <p className="text-sm">{selectedVerification.help_message}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {reviewAction === 'reject' && (
+              <div>
+                <Label>Rejection Reason</Label>
+                <Textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for rejection..."
+                  className="mt-1"
+                />
+              </div>
+            )}
+            
+            {reviewAction === 'respond' && (
+              <div>
+                <Label>Your Response</Label>
+                <Textarea
+                  value={adminResponse}
+                  onChange={(e) => setAdminResponse(e.target.value)}
+                  placeholder="Type your response to help the user..."
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleReview}
+              disabled={processing || (reviewAction === 'reject' && !rejectionReason) || (reviewAction === 'respond' && !adminResponse)}
+              className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 
+                        reviewAction === 'reject' ? 'bg-red-600 hover:bg-red-700' : 
+                        'bg-blue-600 hover:bg-blue-700'}
+            >
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {reviewAction === 'approve' ? 'Approve' : reviewAction === 'reject' ? 'Reject' : 'Send Response'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!imagePreviewUrl} onOpenChange={() => setImagePreviewUrl(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Document Preview</DialogTitle>
+          </DialogHeader>
+          {imagePreviewUrl && (
+            <div className="flex justify-center">
+              <img src={imagePreviewUrl} alt="Document" className="max-h-[70vh] object-contain rounded-lg" />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImagePreviewUrl(null)}>Close</Button>
+            <Button asChild>
+              <a href={imagePreviewUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open Full Size
+              </a>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
 
 // Account Requests Tab Component
 function AccountRequestsTab({ requests, users, poolAccounts, onRefresh, formatDate }) {
@@ -451,6 +833,7 @@ export default function OKXAdminHub({ language = 'en' }) {
   const [transfers, setTransfers] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [accountRequests, setAccountRequests] = useState([]);
+  const [verifications, setVerifications] = useState([]);
   
   // Dialog states
   const [addPoolDialogOpen, setAddPoolDialogOpen] = useState(false);
@@ -483,7 +866,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes, requestsRes] = await Promise.all([
+      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes, requestsRes, verificationsRes] = await Promise.all([
         base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
         base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
         base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
@@ -491,6 +874,7 @@ export default function OKXAdminHub({ language = 'en' }) {
         base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
         base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
         base44.functions.invoke('okxAdminHub', { action: 'listAccountRequests', limit: 100 }),
+        base44.entities.VerificationRequest.list('-created_date', 100),
       ]);
       
       if (statsRes.data?.ok) setStats(statsRes.data.data);
@@ -500,6 +884,7 @@ export default function OKXAdminHub({ language = 'en' }) {
       if (withdrawalsRes.data?.ok) setWithdrawals(withdrawalsRes.data.data || []);
       if (transfersRes.data?.ok) setTransfers(transfersRes.data.data || []);
       if (requestsRes.data?.ok) setAccountRequests(requestsRes.data.data || []);
+      if (verificationsRes) setVerifications(verificationsRes || []);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
       toast.error('Failed to load dashboard data');
@@ -757,8 +1142,16 @@ export default function OKXAdminHub({ language = 'en' }) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="verification" className="relative">
+              KYC
+              {verifications.filter(v => v.status === 'pending' || v.status === 'needs_help').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {verifications.filter(v => v.status === 'pending' || v.status === 'needs_help').length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="requests" className="relative">
               Requests
               {accountRequests.filter(r => r.status === 'pending' || r.status === 'under_review').length > 0 && (
@@ -775,7 +1168,7 @@ export default function OKXAdminHub({ language = 'en' }) {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               {/* Pool Summary */}
               <Card>
                 <CardHeader>
@@ -800,6 +1193,53 @@ export default function OKXAdminHub({ language = 'en' }) {
                       <span className="font-medium text-gray-500">{stats?.pool.disabled || 0}</span>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* KYC Verification Summary */}
+              <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-600/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-amber-500" />
+                    KYC Verification
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pending</span>
+                      <span className="font-medium text-yellow-500">
+                        {verifications.filter(v => v.status === 'pending').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Needs Help</span>
+                      <span className="font-medium text-amber-500">
+                        {verifications.filter(v => v.status === 'needs_help').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Approved</span>
+                      <span className="font-medium text-green-500">
+                        {verifications.filter(v => v.status === 'approved').length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rejected</span>
+                      <span className="font-medium text-red-500">
+                        {verifications.filter(v => v.status === 'rejected').length}
+                      </span>
+                    </div>
+                  </div>
+                  {(verifications.filter(v => v.status === 'pending' || v.status === 'needs_help').length > 0) && (
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-3 bg-amber-600 hover:bg-amber-700" 
+                      onClick={() => setActiveTab('verification')}
+                    >
+                      Review KYC
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
 
@@ -879,6 +1319,15 @@ export default function OKXAdminHub({ language = 'en' }) {
             </div>
           </TabsContent>
           
+          {/* Verification Tab */}
+          <TabsContent value="verification">
+            <VerificationTab
+              verifications={verifications}
+              onRefresh={loadDashboard}
+              formatDate={formatDate}
+            />
+          </TabsContent>
+
           {/* Account Requests Tab */}
           <TabsContent value="requests">
             <AccountRequestsTab 
