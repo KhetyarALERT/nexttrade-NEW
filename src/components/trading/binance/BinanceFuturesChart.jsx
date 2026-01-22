@@ -672,7 +672,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
       try { unsubTicker?.(); } catch {}
       try { binanceFuturesStore.closeChartWs(); } catch {}
     };
-    }, [normalizedSymbol, timeframe, key, animateCandle, smoothAnimations, chartColors.priceLineColor, isDark, resetView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [normalizedSymbol, timeframe, key, smoothAnimations, chartColors.priceLineColor, isDark]);
 
   // Position trade overlay - NATIVE PRICE LINES ONLY (no HTML labels)
   useEffect(() => {
