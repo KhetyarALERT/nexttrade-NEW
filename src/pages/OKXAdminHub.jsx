@@ -490,7 +490,7 @@ export default function OKXAdminHub({ language = 'en' }) {
         base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
         base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
         base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
-        base44.asServiceRole.entities.LiveAccountRequest.list('-created_date', 100),
+        base44.functions.invoke('okxAdminHub', { action: 'listAccountRequests', limit: 100 }),
       ]);
       
       if (statsRes.data?.ok) setStats(statsRes.data.data);
@@ -499,7 +499,7 @@ export default function OKXAdminHub({ language = 'en' }) {
       if (usersRes.data?.ok) setUsers(usersRes.data.data || []);
       if (withdrawalsRes.data?.ok) setWithdrawals(withdrawalsRes.data.data || []);
       if (transfersRes.data?.ok) setTransfers(transfersRes.data.data || []);
-      if (requestsRes) setAccountRequests(requestsRes || []);
+      if (requestsRes.data?.ok) setAccountRequests(requestsRes.data.data || []);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
       toast.error('Failed to load dashboard data');
