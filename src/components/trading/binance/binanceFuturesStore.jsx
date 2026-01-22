@@ -233,7 +233,8 @@ class OKXFuturesStore {
       this.reconnectAttempts.public = 0;
       this.emit("ws:public:connected", true);
       this.startPing("public");
-      this.resubscribeChannels("public");
+      // Resubscribe after short delay to ensure connection is stable
+      setTimeout(() => this.resubscribeChannels("public"), 100);
     };
 
     this.publicWs.onmessage = (event) => {
@@ -285,7 +286,8 @@ class OKXFuturesStore {
       this.reconnectAttempts.business = 0;
       this.emit("ws:business:connected", true);
       this.startPing("business");
-      this.resubscribeChannels("business");
+      // Resubscribe after short delay to ensure connection is stable
+      setTimeout(() => this.resubscribeChannels("business"), 100);
     };
 
     this.businessWs.onmessage = (event) => {
