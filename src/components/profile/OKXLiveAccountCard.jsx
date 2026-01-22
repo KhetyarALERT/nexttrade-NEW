@@ -371,22 +371,38 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
           </div>
         </div>
 
-        {/* Deposit Section - Collapsible */}
-        <div className="rounded-xl border border-blue-500/30 overflow-hidden">
-          <button
-            onClick={() => setDepositExpanded(!depositExpanded)}
-            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 transition-colors"
+        {/* Action Buttons: Transfer & Deposit */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setTransferModalOpen(true)}
+            className="flex items-center justify-center gap-2 rounded-xl border-border hover:bg-muted"
           >
+            <ArrowRightLeft className="h-4 w-4" />
+            {t.transfer}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setDepositExpanded(!depositExpanded)}
+            className="flex items-center justify-center gap-2 rounded-xl border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600"
+          >
+            <ArrowDownToLine className="h-4 w-4" />
+            {t.depositFunds}
+          </Button>
+        </div>
+
+        {/* Deposit Section - Collapsible */}
+        {depositExpanded && (
+        <div className="rounded-xl border border-blue-500/30 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10">
             <div className="flex items-center gap-2">
               <ArrowDownToLine className="h-5 w-5 text-blue-600" />
               <span className="font-semibold text-foreground">{t.depositFunds}</span>
             </div>
-            {depositExpanded ? (
-              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-            )}
-          </button>
+            <button onClick={() => setDepositExpanded(false)}>
+              <ChevronUp className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            </button>
+          </div>
           
           {depositExpanded && (
             <div className="p-4 space-y-4 bg-card/50">
@@ -529,12 +545,12 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+                </div>
+                </div>
+                )}
 
-        {/* Positions */}
+                {/* Positions */}
         {positions.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -584,6 +600,17 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
           </p>
         )}
       </CardContent>
+      
+      {/* Transfer Modal */}
+      <OKXTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        language={language}
+        onSuccess={() => {
+          loadAccount();
+          if (onRefresh) onRefresh();
+        }}
+      />
     </Card>
   );
 }
