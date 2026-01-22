@@ -24,7 +24,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
-import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
+import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { useAuth } from "@/lib/AuthContext";
 
 export default function Home({ language = "en" }) {

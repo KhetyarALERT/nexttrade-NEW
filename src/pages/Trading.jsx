@@ -14,7 +14,7 @@ import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
-import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
+import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

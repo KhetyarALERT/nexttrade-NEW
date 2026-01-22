@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
-import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
+import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 
 // Dashboard voucher data (inline to avoid missing dependency)
 const DASHBOARD_VOUCHERS = [
