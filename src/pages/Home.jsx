@@ -491,7 +491,7 @@ export default function Home({ language = "en" }) {
                   className="mt-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-10 py-7 text-xl font-bold shadow-2xl shadow-blue-500/30 hover:scale-105 transition-all w-full sm:w-auto"
                   asChild>
 
-                  <Link to={createPageUrl("Contact")}>
+                  <Link to={createPageUrl("Profile") + "?tab=accounts"}>
                     {language === "en" ? "Get Started Now" : "ابدأ الآن"}
                     <ArrowRight className="ml-2 w-6 h-6" />
                   </Link>
@@ -666,7 +666,7 @@ export default function Home({ language = "en" }) {
               size="lg"
               className="bg-white text-slate-900 hover:bg-gray-100 rounded-full px-12 py-8 text-xl font-bold shadow-2xl hover:scale-105 transition-all"
               asChild>
-              <Link to={createPageUrl("Contact")}>
+              <Link to={createPageUrl("Profile") + "?tab=accounts"}>
                 {language === "en" ? "Open Your Account Now" : "افتح حسابك الآن"}
               </Link>
             </Button>
