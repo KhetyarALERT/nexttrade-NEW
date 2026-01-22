@@ -302,28 +302,13 @@ export default function Profile({ language = "en" }) {
       // Get the most recent verification request for this user
       const requests = await base44.entities.VerificationRequest.filter({ user_id: user.id }, "-created_date", 1);
       
-      console.log("Loaded verification requests:", requests);
-      
       if (requests && requests.length > 0) {
         const latestRequest = requests[0];
-        console.log("Latest verification status:", latestRequest.status);
-        
-        // Always update the verification state
+        // Always update the verification state with the latest data
         setExistingVerification(latestRequest);
-
-        // Update formState based on actual status from database
-        if (latestRequest.status === 'approved') {
-          console.log("Setting status to VERIFIED");
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
-        } else if (latestRequest.status === 'rejected') {
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
-        } else {
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
-        }
       } else {
         // No verification request exists
         setExistingVerification(null);
-        setFormState(prev => prev ? { ...prev, verificationStatus: 'not_verified' } : prev);
       }
     } catch (err) {
       console.error("Failed to load verification:", err);
@@ -356,32 +341,21 @@ export default function Profile({ language = "en" }) {
     const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
       // Check if this update is for the current user
       if (userId && event.data?.user_id === userId) {
-        console.log("Real-time verification update received:", event.data.status);
-        
         // Update verification state immediately
         setExistingVerification(event.data);
-        
-        // Force UI update by updating formState
-        if (event.data.status === 'approved') {
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
-        } else if (event.data.status === 'rejected') {
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
-        } else {
-          setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
-        }
       }
     });
 
     return () => unsubscribe();
   }, [isAuthenticated, isLoadingAuth]);
 
-  // Poll for verification status changes as backup (every 10 seconds)
+  // Poll for verification status changes as backup (every 5 seconds)
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
     
     const pollInterval = setInterval(() => {
       loadVerificationRequest();
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(pollInterval);
   }, [isAuthenticated, isLoadingAuth, loadVerificationRequest]);
