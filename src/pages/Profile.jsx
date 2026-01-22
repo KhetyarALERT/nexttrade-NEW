@@ -31,9 +31,6 @@ import {
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
-import AssetsPage from "@/components/profile/AssetsPage";
-import RecentTransactions from "@/components/profile/RecentTransactions";
-import StakingPanel from "@/components/profile/StakingPanel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -722,7 +719,6 @@ export default function Profile({ language = "en" }) {
               {[
                 { value: "personal", label: t.personalInfo, icon: User },
                 { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Activity },
-                { value: "assets", label: language === "en" ? "Assets" : "الأصول", icon: DollarSign },
                 { value: "notifications", label: language === "en" ? "Notifications" : "الإشعارات", icon: Bell },
                 { value: "security", label: t.security, icon: Shield },
                 { value: "referrals", label: t.referrals, icon: Users },
@@ -738,7 +734,6 @@ export default function Profile({ language = "en" }) {
                   <span className="xs:hidden sm:hidden">
                     {tab.value === "personal" ? (language === "en" ? "Info" : "معلومات") :
                      tab.value === "accounts" ? (language === "en" ? "Acc" : "حساب") :
-                     tab.value === "assets" ? (language === "en" ? "Assets" : "أصول") :
                      tab.value === "notifications" ? (language === "en" ? "Notif" : "إشعار") :
                      tab.value === "security" ? (language === "en" ? "Sec" : "أمان") :
                      tab.value === "referrals" ? (language === "en" ? "Ref" : "إحالة") :
@@ -999,34 +994,6 @@ export default function Profile({ language = "en" }) {
                     <TradesTable trades={trades.filter(t => t.status === 'CLOSED').slice(0, 10)} language={language} />
                   </CardContent>
                 </Card>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Assets Tab */}
-          <TabsContent value="assets" className="space-y-6">
-            {loadingAccount ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <RefreshCw className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-                <p className="text-slate-600 font-medium">
-                  {language === "en" ? "Loading assets..." : "جاري تحميل الأصول..."}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-                <AssetsPage 
-                  wallets={wallets} 
-                  language={language} 
-                  onRefresh={loadTradingAccounts}
-                />
-                <div className="space-y-6">
-                  <RecentTransactions language={language} />
-                  <StakingPanel 
-                    wallets={wallets} 
-                    language={language} 
-                    onRefresh={loadTradingAccounts} 
-                  />
-                </div>
               </div>
             )}
           </TabsContent>
