@@ -520,9 +520,10 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh })
         </TabsContent>
       </Tabs>
 
-      {/* Deposit Modal */}
+      {/* NOWPayments Deposit Modal - HIDDEN but kept for future use */}
+      {/* Set to false to hide this modal - using OKX deposit instead */}
       <Dialog
-        open={activeModal === 'deposit'}
+        open={false && activeModal === 'deposit'}
         onOpenChange={(open) => {
           if (!open) {
             setActiveModal(null);
