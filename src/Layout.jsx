@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { tSection } from "@/components/i18n/translations";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import {
