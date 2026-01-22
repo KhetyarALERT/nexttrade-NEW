@@ -217,15 +217,8 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
           ))}
         </div>
 
-        {/* Loading/Transition State */}
-        {transitioning && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        )}
-
         {/* Step 1: Personal Info */}
-        {!transitioning && step === 1 && (
+        {step === 1 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <User className="w-5 h-5 text-blue-600" />
@@ -241,7 +234,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                 />
               </div>
               <div>
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 flex-wrap">
                   {t.dob}
                   <span className="text-xs text-muted-foreground font-normal">
                     ({language === "ar" ? "اضغط لفتح التقويم أو اكتب" : "Tap to open calendar or type"})
@@ -281,17 +274,17 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               </div>
             </div>
             <Button 
-              onClick={() => goToStep(2)} 
+              onClick={() => setStep(2)} 
               className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={!form.fullName || transitioning}
+              disabled={!form.fullName}
             >
-              {language === "ar" ? "التالي" : "Continue"}
+              {language === "ar" ? "يكمل" : "Continue"}
             </Button>
           </div>
         )}
 
         {/* Step 2: Document Upload */}
-        {!transitioning && step === 2 && (
+        {step === 2 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -329,18 +322,18 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => goToStep(1)} className="flex-1" disabled={transitioning}>
+              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                 {language === "ar" ? "السابق" : "Back"}
               </Button>
-              <Button onClick={() => goToStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!form.frontFile || transitioning}>
-                {language === "ar" ? "التالي" : "Continue"}
+              <Button onClick={() => setStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!form.frontFile}>
+                {language === "ar" ? "يكمل" : "Continue"}
               </Button>
             </div>
           </div>
         )}
 
         {/* Step 3: Selfie */}
-        {!transitioning && step === 3 && (
+        {step === 3 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Camera className="w-5 h-5 text-blue-600" />
@@ -357,10 +350,10 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => goToStep(2)} className="flex-1" disabled={transitioning || loading}>
+              <Button variant="outline" onClick={() => setStep(2)} className="flex-1" disabled={loading}>
                 {language === "ar" ? "السابق" : "Back"}
               </Button>
-              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading || transitioning}>
+              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading}>
                 {loading ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.submitting}</>
                 ) : t.submit}
