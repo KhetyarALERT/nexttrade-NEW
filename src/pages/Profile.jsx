@@ -24,7 +24,6 @@ import {
   Sparkles,
   Award,
   Users,
-  DollarSign,
   BarChart3,
   Shield
 } from "lucide-react";
