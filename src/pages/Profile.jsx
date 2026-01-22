@@ -494,19 +494,29 @@ export default function Profile({ language = "en" }) {
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {formState.fullName || "User"}
                     </h1>
-                    <Badge 
-                      className={`${
-                        formState.verificationStatus === 'verified' 
-                          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0' 
-                          : 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0'
-                      } shadow-lg px-3 py-1 font-medium`}
-                    >
-                      {formState.verificationStatus === 'verified' ? (
-                        <><CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}</>
-                      ) : (
-                        <><AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}</>
-                      )}
-                    </Badge>
+                    {formState.verificationStatus === 'verified' ? (
+                      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
+                        <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
+                      </Badge>
+                    ) : (
+                      <Badge 
+                        className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
+                        onClick={() => {
+                          setSearchParams({ tab: 'security' });
+                          setVerificationModalOpen(true);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setSearchParams({ tab: 'security' });
+                            setVerificationModalOpen(true);
+                          }
+                        }}
+                      >
+                        <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
+                      </Badge>
+                    )}
                   </div>
                   
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
