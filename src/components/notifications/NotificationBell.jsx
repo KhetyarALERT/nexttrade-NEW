@@ -1,5 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import { Bell, Check, CheckCheck, Settings, TrendingUp, AlertTriangle, Wallet, Lock, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,10 +40,17 @@ const NOTIFICATION_COLORS = {
 export default function NotificationBell({ onSettingsClick }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, formatDate } = useNotifications();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+    }
+    
+    // Navigate if the notification has a link
+    if (notification.data?.link) {
+      setOpen(false);
+      navigate(notification.data.link);
     }
   };
 
