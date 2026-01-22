@@ -1,18 +1,22 @@
 /**
- * OKX Futures Store - Production Grade
- * Single WebSocket connection for all market data
- * REST API only for initial seed, then pure WebSocket updates
+ * OKX Futures Store - Production Grade WebSocket-First Architecture
+ * 
+ * STRATEGY: WebSocket PUSH for all real-time data
+ * - REST API only for initial candle snapshot (once per symbol/interval)
+ * - WebSocket provides: tickers (prices), mark prices, candle updates
+ * - Single WebSocket connection per endpoint (public + business)
+ * - Multiplex subscriptions over same connection
  */
 
 import { base44 } from "@/api/base44Client";
 
 export const INTERVALS = ["1m", "5m", "15m", "1H", "4H", "1D"];
 
-// OKX Public WebSocket endpoints
+// OKX WebSocket endpoints
 const OKX_WS_PUBLIC = "wss://ws.okx.com:8443/ws/v5/public";
 const OKX_WS_BUSINESS = "wss://ws.okx.com:8443/ws/v5/business";
 
-// Map intervals to OKX bar format
+// Map our intervals to OKX bar format
 const intervalToOkxBar = {
   "1m": "1m",
   "5m": "5m",
@@ -22,76 +26,89 @@ const intervalToOkxBar = {
   "1D": "1D",
 };
 
+// Singleton flag - prevent multiple instances
+let SINGLETON_CREATED = false;
+
 class OKXFuturesStore {
   constructor() {
-    // Market data
-    this.tickers = {};
-    this.candles = {};
-    this.premiumIndex = {};
+    // Enforce singleton
+    if (SINGLETON_CREATED) {
+      console.warn("[OKX Store] Singleton already exists, returning");
+      return;
+    }
+    SINGLETON_CREATED = true;
     
-    // Event subscribers
-    this.subscribers = {};
+    // ========== DATA STORES ==========
+    this.tickers = {};        // symbol -> ticker data
+    this.candles = {};        // "SYMBOL_interval" -> candle array
+    this.premiumIndex = {};   // symbol -> mark/funding data
     
-    // WebSocket state
+    // ========== EVENT SYSTEM ==========
+    this.subscribers = {};    // event -> callback[]
+    
+    // ========== WEBSOCKET STATE ==========
     this.publicWs = null;
     this.businessWs = null;
-    this.wsConnected = { public: false, business: false };
+    this.wsState = { 
+      public: "disconnected",   // disconnected | connecting | connected
+      business: "disconnected" 
+    };
     
-    // Current subscriptions
+    // ========== SUBSCRIPTION TRACKING ==========
     this.currentSymbol = null;
     this.currentInterval = null;
-    this.activeChannels = new Set();
+    this.subscribedChannels = new Set(); // "public:tickers:BTC-USDT-SWAP"
     
-    // Reconnect state
+    // ========== RECONNECT STATE ==========
     this.reconnectTimeouts = { public: null, business: null };
-    this.pingIntervals = { public: null, business: null };
     this.reconnectAttempts = { public: 0, business: 0 };
+    this.pingIntervals = { public: null, business: null };
+    this.lastPong = { public: 0, business: 0 };
     
-    // Cache control - MAXIMUM throttling to prevent API spam
-    this.pendingFetches = new Map(); // In-flight deduplication (key -> Promise)
-    this.lastFetchTime = new Map();
-    this.FETCH_COOLDOWN = 600000; // 10 MINUTES minimum between REST calls
-    this.initialFetchDone = new Set(); // Track if initial fetch completed
+    // ========== REST API DEDUPE (snapshot only) ==========
+    this.pendingFetches = new Map();   // cacheKey -> Promise
+    this.snapshotLoaded = new Set();   // Track which snapshots we've loaded
+    this.lastRestCall = 0;
+    this.REST_MIN_INTERVAL = 3000;     // 3s between REST calls
     
-    // Singleton instance tracking
-    this.initialized = false;
+    // ========== CONNECTION GUARDS ==========
+    this.connectingPublic = false;
+    this.connectingBusiness = false;
     
-    // Global rate limiting - STRICT
-    this.lastApiCall = 0;
-    this.API_MIN_INTERVAL = 5000; // 5 seconds minimum between ANY API call
-    this.apiCallQueue = []; // Queue for sequential calls
-    this.isProcessingQueue = false;
+    console.log("[OKX Store] Singleton instance created");
   }
 
-  // ========== EVENT SYSTEM ==========
+  // ==================== EVENT SYSTEM ====================
   subscribe(event, callback) {
     if (!this.subscribers[event]) {
       this.subscribers[event] = [];
     }
     this.subscribers[event].push(callback);
+    
     return () => {
-      this.subscribers[event] = this.subscribers[event].filter(cb => cb !== callback);
+      const arr = this.subscribers[event];
+      if (arr) {
+        this.subscribers[event] = arr.filter(cb => cb !== callback);
+      }
     };
   }
 
   emit(event, data) {
     const callbacks = this.subscribers[event];
-    if (callbacks) {
-      callbacks.forEach(cb => {
-        try { cb(data); } catch (e) { console.warn('[Store] Event callback error:', e); }
-      });
+    if (callbacks?.length) {
+      for (const cb of callbacks) {
+        try { cb(data); } catch (e) { /* ignore */ }
+      }
     }
   }
 
-  // ========== GETTERS ==========
+  // ==================== GETTERS ====================
   getTicker(symbol) {
-    const normalized = String(symbol || "").toUpperCase();
-    return this.tickers[normalized] || null;
+    return this.tickers[String(symbol || "").toUpperCase()] || null;
   }
 
   getPremiumIndex(symbol) {
-    const normalized = String(symbol || "").toUpperCase();
-    return this.premiumIndex[normalized] || null;
+    return this.premiumIndex[String(symbol || "").toUpperCase()] || null;
   }
 
   getCandles(symbol, interval) {
@@ -99,280 +116,153 @@ class OKXFuturesStore {
     return this.candles[key] || [];
   }
 
-  // ========== REST API (Initial Seed Only - STRICT RATE LIMITING) ==========
-  async fetchCandles(symbol, interval = "15m", limit = 300) {
-    const normalized = String(symbol || "").toUpperCase();
-    const bar = intervalToOkxBar[interval] || "15m";
-    const cacheKey = `candles_${normalized}_${bar}`;
-    const dataKey = `${normalized}_${interval}`;
-    
-    // 1. Return cached data if we already fetched this session
-    if (this.initialFetchDone.has(cacheKey)) {
-      const existing = this.candles[dataKey];
-      if (existing?.length > 0) {
-        console.log(`[OKX Store] Using cached candles for ${cacheKey}`);
-        return existing;
-      }
-    }
-    
-    // 2. Check cooldown - prevent any API call within cooldown period
-    const lastFetch = this.lastFetchTime.get(cacheKey);
-    if (lastFetch && Date.now() - lastFetch < this.FETCH_COOLDOWN) {
-      const existing = this.candles[dataKey];
-      console.log(`[OKX Store] Cooldown active for ${cacheKey}, returning cached (${existing?.length || 0} candles)`);
-      return existing || [];
-    }
-    
-    // 3. Return existing in-flight promise if same request is pending
-    const pending = this.pendingFetches.get(cacheKey);
-    if (pending) {
-      console.log(`[OKX Store] Deduping request for ${cacheKey}`);
-      return pending;
-    }
-    
-    // 4. Create single fetch promise with global rate limiting
-    const fetchPromise = (async () => {
-      try {
-        // Global rate limit - wait if any API call happened recently
-        const timeSinceLastCall = Date.now() - this.lastApiCall;
-        if (timeSinceLastCall < this.API_MIN_INTERVAL) {
-          const waitTime = this.API_MIN_INTERVAL - timeSinceLastCall;
-          console.log(`[OKX Store] Rate limiting: waiting ${waitTime}ms`);
-          await new Promise(r => setTimeout(r, waitTime));
-        }
-        
-        this.lastApiCall = Date.now();
-        console.log(`[OKX Store] Fetching candles for ${normalized} ${bar}`);
-        
-        const res = await base44.functions.invoke("okxMarketData", {
-          action: "getCandles",
-          instId: normalized,
-          bar,
-          limit
-        });
-        
-        if (res?.data?.ok && Array.isArray(res.data.data)) {
-          const candles = res.data.data;
-          this.candles[dataKey] = candles;
-          this.lastFetchTime.set(cacheKey, Date.now());
-          this.initialFetchDone.add(cacheKey);
-          console.log(`[OKX Store] Fetched ${candles.length} candles for ${cacheKey}`);
-          return candles;
-        }
-        
-        console.warn("[OKX Store] Failed to fetch candles:", res?.data?.error);
-        return this.candles[dataKey] || [];
-      } catch (err) {
-        console.error("[OKX Store] fetchCandles error:", err);
-        return this.candles[dataKey] || [];
-      } finally {
-        // Clear pending after a short delay to prevent immediate re-fetch
-        setTimeout(() => this.pendingFetches.delete(cacheKey), 1000);
-      }
-    })();
-    
-    this.pendingFetches.set(cacheKey, fetchPromise);
-    return fetchPromise;
-  }
-
-  async fetchPremiumIndex(symbol) {
-    const normalized = String(symbol || "").toUpperCase();
-    const cacheKey = `premium_${normalized}`;
-    
-    // 1. Return cached data if we already fetched this session
-    if (this.initialFetchDone.has(cacheKey)) {
-      const existing = this.premiumIndex[normalized];
-      if (existing) {
-        console.log(`[OKX Store] Using cached premium for ${cacheKey}`);
-        return existing;
-      }
-    }
-    
-    // 2. Check cooldown
-    const lastFetch = this.lastFetchTime.get(cacheKey);
-    if (lastFetch && Date.now() - lastFetch < this.FETCH_COOLDOWN) {
-      const existing = this.premiumIndex[normalized];
-      console.log(`[OKX Store] Cooldown active for ${cacheKey}`);
-      return existing || null;
-    }
-    
-    // 3. Return existing in-flight promise
-    const pending = this.pendingFetches.get(cacheKey);
-    if (pending) {
-      console.log(`[OKX Store] Deduping premium request for ${cacheKey}`);
-      return pending;
-    }
-    
-    // 4. Create single fetch promise with rate limiting
-    const fetchPromise = (async () => {
-      try {
-        // Global rate limit
-        const timeSinceLastCall = Date.now() - this.lastApiCall;
-        if (timeSinceLastCall < this.API_MIN_INTERVAL) {
-          const waitTime = this.API_MIN_INTERVAL - timeSinceLastCall;
-          console.log(`[OKX Store] Rate limiting premium: waiting ${waitTime}ms`);
-          await new Promise(r => setTimeout(r, waitTime));
-        }
-        
-        this.lastApiCall = Date.now();
-        console.log(`[OKX Store] Fetching premium for ${normalized}`);
-        
-        const res = await base44.functions.invoke("okxMarketData", {
-          action: "getPremiumIndex",
-          instId: normalized
-        });
-        
-        if (res?.data?.ok && res.data.data) {
-          const data = res.data.data;
-          this.premiumIndex[normalized] = data;
-          this.lastFetchTime.set(cacheKey, Date.now());
-          this.initialFetchDone.add(cacheKey);
-          this.emit(`premium:${normalized}`, data);
-          console.log(`[OKX Store] Fetched premium for ${cacheKey}`);
-          return data;
-        }
-        return this.premiumIndex[normalized] || null;
-      } catch (err) {
-        console.error("[OKX Store] fetchPremiumIndex error:", err);
-        return this.premiumIndex[normalized] || null;
-      } finally {
-        setTimeout(() => this.pendingFetches.delete(cacheKey), 1000);
-      }
-    })();
-    
-    this.pendingFetches.set(cacheKey, fetchPromise);
-    return fetchPromise;
-  }
-
-  // ========== WEBSOCKET MANAGEMENT ==========
+  // ==================== WEBSOCKET: PUBLIC ====================
   connectPublicWs() {
-    // Check if already connected
-    if (this.publicWs && this.publicWs.readyState === WebSocket.OPEN) {
-      this.wsConnected.public = true;
-      this.emit("ws:public:connected", true);
+    // Guard: already connected or connecting
+    if (this.wsState.public === "connected") {
+      return;
+    }
+    if (this.connectingPublic) {
       return;
     }
     
-    // If connecting, wait
-    if (this.publicWs && this.publicWs.readyState === WebSocket.CONNECTING) {
-      return;
-    }
-    
-    // Close stale connection if exists
+    // Close any stale socket
     if (this.publicWs) {
       try { this.publicWs.close(); } catch {}
       this.publicWs = null;
     }
-
-    console.log("[OKX Store] Connecting Public WebSocket...");
-    this.publicWs = new WebSocket(OKX_WS_PUBLIC);
+    
+    this.connectingPublic = true;
+    this.wsState.public = "connecting";
+    this.emit("ws:public:state", "connecting");
+    
+    console.log("[OKX Store] Connecting Public WS...");
+    
+    try {
+      this.publicWs = new WebSocket(OKX_WS_PUBLIC);
+    } catch (err) {
+      console.error("[OKX Store] Failed to create Public WS:", err);
+      this.connectingPublic = false;
+      this.wsState.public = "disconnected";
+      this.scheduleReconnect("public");
+      return;
+    }
 
     this.publicWs.onopen = () => {
-      console.log("[OKX Store] Public WebSocket connected");
-      this.wsConnected.public = true;
+      console.log("[OKX Store] Public WS connected");
+      this.connectingPublic = false;
+      this.wsState.public = "connected";
       this.reconnectAttempts.public = 0;
+      this.lastPong.public = Date.now();
       this.emit("ws:public:connected", true);
+      this.emit("ws:public:state", "connected");
       this.startPing("public");
-      // Resubscribe after short delay to ensure connection is stable
-      setTimeout(() => this.resubscribeChannels("public"), 100);
+      
+      // Resubscribe to channels after connection
+      setTimeout(() => this.resubscribePublic(), 100);
     };
 
     this.publicWs.onmessage = (event) => {
-      try {
-        if (event.data === "pong") return;
-        const msg = JSON.parse(event.data);
-        this.handlePublicMessage(msg);
-      } catch {}
+      this.handlePublicMessage(event.data);
     };
 
     this.publicWs.onclose = (evt) => {
-      console.log("[OKX Store] Public WebSocket closed:", evt?.code);
-      this.wsConnected.public = false;
+      console.log("[OKX Store] Public WS closed:", evt?.code, evt?.reason);
+      this.connectingPublic = false;
+      this.wsState.public = "disconnected";
       this.emit("ws:public:connected", false);
+      this.emit("ws:public:state", "disconnected");
       this.stopPing("public");
       this.scheduleReconnect("public");
     };
 
-    this.publicWs.onerror = () => {
-      console.log("[OKX Store] Public WebSocket error");
+    this.publicWs.onerror = (err) => {
+      console.error("[OKX Store] Public WS error:", err);
     };
   }
 
+  // ==================== WEBSOCKET: BUSINESS ====================
   connectBusinessWs() {
-    // Check if already connected
-    if (this.businessWs && this.businessWs.readyState === WebSocket.OPEN) {
-      this.wsConnected.business = true;
-      this.emit("ws:business:connected", true);
+    // Guard: already connected or connecting
+    if (this.wsState.business === "connected") {
+      return;
+    }
+    if (this.connectingBusiness) {
       return;
     }
     
-    // If connecting, wait
-    if (this.businessWs && this.businessWs.readyState === WebSocket.CONNECTING) {
-      return;
-    }
-    
-    // Close stale connection if exists
+    // Close any stale socket
     if (this.businessWs) {
       try { this.businessWs.close(); } catch {}
       this.businessWs = null;
     }
-
-    console.log("[OKX Store] Connecting Business WebSocket...");
-    this.businessWs = new WebSocket(OKX_WS_BUSINESS);
+    
+    this.connectingBusiness = true;
+    this.wsState.business = "connecting";
+    this.emit("ws:business:state", "connecting");
+    
+    console.log("[OKX Store] Connecting Business WS...");
+    
+    try {
+      this.businessWs = new WebSocket(OKX_WS_BUSINESS);
+    } catch (err) {
+      console.error("[OKX Store] Failed to create Business WS:", err);
+      this.connectingBusiness = false;
+      this.wsState.business = "disconnected";
+      this.scheduleReconnect("business");
+      return;
+    }
 
     this.businessWs.onopen = () => {
-      console.log("[OKX Store] Business WebSocket connected");
-      this.wsConnected.business = true;
+      console.log("[OKX Store] Business WS connected");
+      this.connectingBusiness = false;
+      this.wsState.business = "connected";
       this.reconnectAttempts.business = 0;
+      this.lastPong.business = Date.now();
       this.emit("ws:business:connected", true);
+      this.emit("ws:business:state", "connected");
       this.startPing("business");
-      // Resubscribe after short delay to ensure connection is stable
-      setTimeout(() => this.resubscribeChannels("business"), 100);
+      
+      // Resubscribe to channels after connection
+      setTimeout(() => this.resubscribeBusiness(), 100);
     };
 
     this.businessWs.onmessage = (event) => {
-      try {
-        if (event.data === "pong") return;
-        const msg = JSON.parse(event.data);
-        this.handleBusinessMessage(msg);
-      } catch {}
+      this.handleBusinessMessage(event.data);
     };
 
     this.businessWs.onclose = (evt) => {
-      console.log("[OKX Store] Business WebSocket closed:", evt?.code);
-      this.wsConnected.business = false;
+      console.log("[OKX Store] Business WS closed:", evt?.code, evt?.reason);
+      this.connectingBusiness = false;
+      this.wsState.business = "disconnected";
       this.emit("ws:business:connected", false);
+      this.emit("ws:business:state", "disconnected");
       this.stopPing("business");
       this.scheduleReconnect("business");
     };
 
-    this.businessWs.onerror = () => {
-      console.log("[OKX Store] Business WebSocket error");
+    this.businessWs.onerror = (err) => {
+      console.error("[OKX Store] Business WS error:", err);
     };
   }
 
-  scheduleReconnect(type) {
-    if (this.reconnectTimeouts[type]) {
-      clearTimeout(this.reconnectTimeouts[type]);
-    }
-    
-    this.reconnectAttempts[type] = Math.min(this.reconnectAttempts[type] + 1, 5);
-    const delays = [1000, 2000, 5000, 15000, 30000];
-    const delay = delays[this.reconnectAttempts[type] - 1] || 30000;
-    
-    console.log(`[OKX Store] Reconnecting ${type} in ${delay}ms`);
-    this.reconnectTimeouts[type] = setTimeout(() => {
-      if (type === "public") this.connectPublicWs();
-      else this.connectBusinessWs();
-    }, delay);
-  }
-
+  // ==================== PING/PONG HEARTBEAT ====================
   startPing(type) {
     this.stopPing(type);
+    
+    // OKX requires ping every 30s, we do 25s to be safe
     this.pingIntervals[type] = setInterval(() => {
       const ws = type === "public" ? this.publicWs : this.businessWs;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send("ping");
+      if (ws?.readyState === WebSocket.OPEN) {
+        try {
+          ws.send("ping");
+        } catch {}
+      }
+      
+      // Check for stale connection (no pong in 60s)
+      if (Date.now() - this.lastPong[type] > 60000) {
+        console.warn(`[OKX Store] ${type} WS seems dead, forcing reconnect`);
+        try { ws?.close(); } catch {}
       }
     }, 25000);
   }
@@ -384,79 +274,132 @@ class OKXFuturesStore {
     }
   }
 
-  // ========== CHANNEL SUBSCRIPTION ==========
-  sendSubscribe(ws, channel) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  // ==================== RECONNECT LOGIC ====================
+  scheduleReconnect(type) {
+    // Clear existing timeout
+    if (this.reconnectTimeouts[type]) {
+      clearTimeout(this.reconnectTimeouts[type]);
+      this.reconnectTimeouts[type] = null;
+    }
+    
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+    const attempt = Math.min(this.reconnectAttempts[type], 5);
+    const delay = Math.min(1000 * Math.pow(2, attempt), 30000);
+    this.reconnectAttempts[type]++;
+    
+    console.log(`[OKX Store] Scheduling ${type} reconnect in ${delay}ms (attempt ${this.reconnectAttempts[type]})`);
+    
+    this.reconnectTimeouts[type] = setTimeout(() => {
+      if (type === "public") {
+        this.connectPublicWs();
+      } else {
+        this.connectBusinessWs();
+      }
+    }, delay);
+  }
+
+  // ==================== SUBSCRIPTION MANAGEMENT ====================
+  sendSubscribe(type, channel) {
+    const ws = type === "public" ? this.publicWs : this.businessWs;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return false;
+    }
+    
+    const channelKey = `${type}:${channel.channel}:${channel.instId}`;
+    if (this.subscribedChannels.has(channelKey)) {
+      return true; // Already subscribed
+    }
     
     try {
-      ws.send(JSON.stringify({ op: "subscribe", args: [channel] }));
+      const msg = JSON.stringify({ op: "subscribe", args: [channel] });
+      ws.send(msg);
+      this.subscribedChannels.add(channelKey);
+      console.log(`[OKX Store] Subscribed: ${channelKey}`);
       return true;
-    } catch {
+    } catch (err) {
+      console.error(`[OKX Store] Subscribe failed:`, err);
       return false;
     }
   }
 
-  sendUnsubscribe(ws, channel) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  sendUnsubscribe(type, channel) {
+    const ws = type === "public" ? this.publicWs : this.businessWs;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    
+    const channelKey = `${type}:${channel.channel}:${channel.instId}`;
+    this.subscribedChannels.delete(channelKey);
     
     try {
-      ws.send(JSON.stringify({ op: "unsubscribe", args: [channel] }));
+      const msg = JSON.stringify({ op: "unsubscribe", args: [channel] });
+      ws.send(msg);
+      console.log(`[OKX Store] Unsubscribed: ${channelKey}`);
     } catch {}
   }
 
-  resubscribeChannels(type) {
+  resubscribePublic() {
     if (!this.currentSymbol) return;
+    if (this.wsState.public !== "connected") return;
     
     const symbol = this.currentSymbol;
-    const interval = this.currentInterval || "15m";
-    const okxBar = intervalToOkxBar[interval] || "15m";
     
-    if (type === "public") {
-      // Mark price and tickers on public endpoint
-      this.sendSubscribe(this.publicWs, { channel: "mark-price", instId: symbol });
-      this.sendSubscribe(this.publicWs, { channel: "tickers", instId: symbol });
-    } else {
-      // Candles on business endpoint
-      this.sendSubscribe(this.businessWs, { channel: `candle${okxBar}`, instId: symbol });
-    }
+    // Subscribe to tickers (primary price source)
+    this.sendSubscribe("public", { channel: "tickers", instId: symbol });
+    
+    // Subscribe to mark price
+    this.sendSubscribe("public", { channel: "mark-price", instId: symbol });
   }
 
-  // ========== MESSAGE HANDLERS ==========
-  handlePublicMessage(msg) {
-    if (msg.event === "subscribe" || msg.event === "unsubscribe" || msg.event === "error") {
+  resubscribeBusiness() {
+    if (!this.currentSymbol || !this.currentInterval) return;
+    if (this.wsState.business !== "connected") return;
+    
+    const symbol = this.currentSymbol;
+    const okxBar = intervalToOkxBar[this.currentInterval] || "15m";
+    
+    // Subscribe to candles
+    this.sendSubscribe("business", { channel: `candle${okxBar}`, instId: symbol });
+  }
+
+  // ==================== MESSAGE HANDLERS ====================
+  handlePublicMessage(raw) {
+    // Handle pong
+    if (raw === "pong") {
+      this.lastPong.public = Date.now();
       return;
     }
-
-    if (!msg.arg || !msg.data) return;
-
-    const channel = msg.arg.channel;
-    const instId = msg.arg.instId;
-
-    // Mark price updates
-    if (channel === "mark-price") {
-      for (const d of msg.data) {
-        const symbol = d.instId;
-        const markPrice = parseFloat(d.markPx);
-        
-        if (!this.premiumIndex[symbol]) {
-          this.premiumIndex[symbol] = {};
-        }
-        this.premiumIndex[symbol].markPrice = markPrice;
-        this.premiumIndex[symbol].ts = d.ts;
-        this.emit(`premium:${symbol}`, this.premiumIndex[symbol]);
-        this.emit(`markPrice:${symbol}`, markPrice);
-      }
+    
+    let msg;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      return;
     }
-
-    // Ticker updates - PRIMARY SOURCE FOR REAL-TIME PRICES
+    
+    // Handle subscribe/unsubscribe confirmations
+    if (msg.event === "subscribe" || msg.event === "unsubscribe") {
+      return;
+    }
+    
+    // Handle errors
+    if (msg.event === "error") {
+      console.error("[OKX Store] Public WS error:", msg);
+      return;
+    }
+    
+    // Handle data messages
+    if (!msg.arg || !msg.data) return;
+    
+    const channel = msg.arg.channel;
+    
+    // ===== TICKERS: Primary price source =====
     if (channel === "tickers") {
       for (const t of msg.data) {
         const symbol = t.instId;
         const price = parseFloat(t.last);
         const open24h = parseFloat(t.open24h || t.sodUtc0 || 0);
         const change = open24h > 0 ? ((price - open24h) / open24h) * 100 : 0;
-
-        const prevPrice = this.tickers[symbol]?.lastPrice;
         
         this.tickers[symbol] = {
           symbol,
@@ -470,37 +413,70 @@ class OKXFuturesStore {
           askPx: parseFloat(t.askPx),
           ts: t.ts,
         };
-
-        // Always emit price updates from WebSocket tickers - this is the primary real-time feed
+        
+        // Emit price update (this drives chart/UI updates)
         this.emit(`price:${symbol}`, price);
         this.emit(`ticker:${symbol}`, this.tickers[symbol]);
+      }
+    }
+    
+    // ===== MARK PRICE =====
+    if (channel === "mark-price") {
+      for (const d of msg.data) {
+        const symbol = d.instId;
+        const markPrice = parseFloat(d.markPx);
         
-        // Log significant price changes for debugging
-        if (prevPrice && Math.abs(price - prevPrice) > 0) {
-          // Price changed - WebSocket is working
+        if (!this.premiumIndex[symbol]) {
+          this.premiumIndex[symbol] = {};
         }
+        this.premiumIndex[symbol].markPrice = markPrice;
+        this.premiumIndex[symbol].ts = d.ts;
+        
+        this.emit(`premium:${symbol}`, this.premiumIndex[symbol]);
+        this.emit(`markPrice:${symbol}`, markPrice);
       }
     }
   }
 
-  handleBusinessMessage(msg) {
-    if (msg.event === "subscribe" || msg.event === "unsubscribe" || msg.event === "error") {
+  handleBusinessMessage(raw) {
+    // Handle pong
+    if (raw === "pong") {
+      this.lastPong.business = Date.now();
       return;
     }
-
+    
+    let msg;
+    try {
+      msg = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    
+    // Handle subscribe/unsubscribe confirmations
+    if (msg.event === "subscribe" || msg.event === "unsubscribe") {
+      return;
+    }
+    
+    // Handle errors
+    if (msg.event === "error") {
+      console.error("[OKX Store] Business WS error:", msg);
+      return;
+    }
+    
+    // Handle data messages
     if (!msg.arg || !msg.data) return;
-
+    
     const channel = msg.arg.channel;
     const instId = msg.arg.instId;
-
-    // Candle updates
+    
+    // ===== CANDLES =====
     if (channel?.startsWith("candle")) {
       const interval = channel.replace("candle", "");
       const key = `${instId}_${interval}`;
       
       for (const d of msg.data) {
         const candle = {
-          time: parseInt(d[0]) / 1000,
+          time: Math.floor(parseInt(d[0]) / 1000),
           open: parseFloat(d[1]),
           high: parseFloat(d[2]),
           low: parseFloat(d[3]),
@@ -509,14 +485,16 @@ class OKXFuturesStore {
           volCcy: parseFloat(d[6]),
           confirm: d[8] === "1",
         };
-
+        
         // Update candles array
         const existing = this.candles[key];
-        if (existing && existing.length > 0) {
+        if (existing?.length > 0) {
           const lastIdx = existing.length - 1;
           if (existing[lastIdx].time === candle.time) {
+            // Update existing candle
             existing[lastIdx] = candle;
           } else if (candle.time > existing[lastIdx].time) {
+            // New candle
             existing.push(candle);
             // Keep last 500 candles
             if (existing.length > 500) {
@@ -524,11 +502,11 @@ class OKXFuturesStore {
             }
           }
         }
-
-        // Emit updates
+        
+        // Emit candle update
         this.emit(`candle:${key}`, candle);
         
-        // Also emit price from candle close
+        // Also emit price from candle close (backup)
         if (candle.close > 0) {
           this.emit(`price:${instId}`, candle.close);
         }
@@ -536,47 +514,159 @@ class OKXFuturesStore {
     }
   }
 
-  // ========== MAIN CONNECT/DISCONNECT ==========
+  // ==================== REST API: SNAPSHOT ONLY ====================
+  async fetchCandles(symbol, interval = "15m", limit = 300) {
+    const normalized = String(symbol || "").toUpperCase();
+    const bar = intervalToOkxBar[interval] || "15m";
+    const cacheKey = `candles_${normalized}_${bar}`;
+    const dataKey = `${normalized}_${interval}`;
+    
+    // 1. Return cached if already loaded this session
+    if (this.snapshotLoaded.has(cacheKey)) {
+      const existing = this.candles[dataKey];
+      if (existing?.length > 0) {
+        return existing;
+      }
+    }
+    
+    // 2. Return in-flight promise if exists (dedupe)
+    const pending = this.pendingFetches.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+    
+    // 3. Create fetch promise
+    const fetchPromise = (async () => {
+      try {
+        // Rate limit
+        const elapsed = Date.now() - this.lastRestCall;
+        if (elapsed < this.REST_MIN_INTERVAL) {
+          await new Promise(r => setTimeout(r, this.REST_MIN_INTERVAL - elapsed));
+        }
+        this.lastRestCall = Date.now();
+        
+        console.log(`[OKX Store] REST: Fetching candles for ${normalized} ${bar}`);
+        
+        const res = await base44.functions.invoke("okxMarketData", {
+          action: "getCandles",
+          instId: normalized,
+          bar,
+          limit
+        });
+        
+        if (res?.data?.ok && Array.isArray(res.data.data)) {
+          const candles = res.data.data;
+          this.candles[dataKey] = candles;
+          this.snapshotLoaded.add(cacheKey);
+          console.log(`[OKX Store] REST: Loaded ${candles.length} candles for ${cacheKey}`);
+          return candles;
+        }
+        
+        console.warn("[OKX Store] REST: Failed to fetch candles:", res?.data?.error);
+        return this.candles[dataKey] || [];
+      } catch (err) {
+        console.error("[OKX Store] REST: fetchCandles error:", err);
+        return this.candles[dataKey] || [];
+      } finally {
+        // Clear pending after delay
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 500);
+      }
+    })();
+    
+    this.pendingFetches.set(cacheKey, fetchPromise);
+    return fetchPromise;
+  }
+
+  async fetchPremiumIndex(symbol) {
+    const normalized = String(symbol || "").toUpperCase();
+    const cacheKey = `premium_${normalized}`;
+    
+    // 1. Return cached if exists
+    if (this.snapshotLoaded.has(cacheKey)) {
+      const existing = this.premiumIndex[normalized];
+      if (existing) return existing;
+    }
+    
+    // 2. Return in-flight promise
+    const pending = this.pendingFetches.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+    
+    // 3. Create fetch promise
+    const fetchPromise = (async () => {
+      try {
+        // Rate limit
+        const elapsed = Date.now() - this.lastRestCall;
+        if (elapsed < this.REST_MIN_INTERVAL) {
+          await new Promise(r => setTimeout(r, this.REST_MIN_INTERVAL - elapsed));
+        }
+        this.lastRestCall = Date.now();
+        
+        console.log(`[OKX Store] REST: Fetching premium for ${normalized}`);
+        
+        const res = await base44.functions.invoke("okxMarketData", {
+          action: "getPremiumIndex",
+          instId: normalized
+        });
+        
+        if (res?.data?.ok && res.data.data) {
+          const data = res.data.data;
+          this.premiumIndex[normalized] = data;
+          this.snapshotLoaded.add(cacheKey);
+          this.emit(`premium:${normalized}`, data);
+          return data;
+        }
+        return this.premiumIndex[normalized] || null;
+      } catch (err) {
+        console.error("[OKX Store] REST: fetchPremiumIndex error:", err);
+        return this.premiumIndex[normalized] || null;
+      } finally {
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 500);
+      }
+    })();
+    
+    this.pendingFetches.set(cacheKey, fetchPromise);
+    return fetchPromise;
+  }
+
+  // ==================== MAIN API ====================
   connectChartStreams({ symbol, interval, seeded = false }) {
     const normalized = String(symbol || "").toUpperCase();
     
-    // If symbol changed, clear old subscriptions
+    // If symbol changed, unsubscribe from old
     if (this.currentSymbol && this.currentSymbol !== normalized) {
       this.unsubscribeFromSymbol(this.currentSymbol, this.currentInterval);
     }
     
+    // If interval changed, unsubscribe old candle channel
+    if (this.currentSymbol === normalized && this.currentInterval !== interval) {
+      const oldBar = intervalToOkxBar[this.currentInterval] || "15m";
+      this.sendUnsubscribe("business", { channel: `candle${oldBar}`, instId: normalized });
+      // Clear channel key
+      this.subscribedChannels.delete(`business:candle${oldBar}:${normalized}`);
+    }
+    
     this.currentSymbol = normalized;
     this.currentInterval = interval;
-
-    // Connect both WebSockets
+    
+    // Connect WebSockets (idempotent - won't duplicate)
     this.connectPublicWs();
     this.connectBusinessWs();
-
-    // Subscribe to channels with retry
-    const okxBar = intervalToOkxBar[interval] || "15m";
     
-    const subscribeToChannels = () => {
-      // Public channels: mark-price, tickers
-      if (this.publicWs?.readyState === WebSocket.OPEN) {
-        this.sendSubscribe(this.publicWs, { channel: "mark-price", instId: normalized });
-        this.sendSubscribe(this.publicWs, { channel: "tickers", instId: normalized });
-      }
-      
-      // Business channels: candles
-      if (this.businessWs?.readyState === WebSocket.OPEN) {
-        this.sendSubscribe(this.businessWs, { channel: `candle${okxBar}`, instId: normalized });
-      }
+    // Subscribe after short delay (allow WS to connect)
+    const doSubscribe = () => {
+      this.resubscribePublic();
+      this.resubscribeBusiness();
     };
     
-    // Subscribe immediately if connected
-    subscribeToChannels();
+    // Try immediately + retries
+    doSubscribe();
+    setTimeout(doSubscribe, 300);
+    setTimeout(doSubscribe, 1000);
     
-    // Also retry subscription after connection established (in case WS wasn't ready)
-    setTimeout(subscribeToChannels, 500);
-    setTimeout(subscribeToChannels, 1500);
-
-    // Fetch premium index once (will be updated via WS)
-    if (!seeded) {
+    // Fetch initial premium index (REST snapshot)
+    if (!seeded && !this.snapshotLoaded.has(`premium_${normalized}`)) {
       this.fetchPremiumIndex(normalized);
     }
   }
@@ -584,32 +674,32 @@ class OKXFuturesStore {
   unsubscribeFromSymbol(symbol, interval) {
     const okxBar = intervalToOkxBar[interval] || "15m";
     
-    if (this.publicWs?.readyState === WebSocket.OPEN) {
-      this.sendUnsubscribe(this.publicWs, { channel: "mark-price", instId: symbol });
-      this.sendUnsubscribe(this.publicWs, { channel: "tickers", instId: symbol });
-    }
-    
-    if (this.businessWs?.readyState === WebSocket.OPEN) {
-      this.sendUnsubscribe(this.businessWs, { channel: `candle${okxBar}`, instId: symbol });
-    }
+    this.sendUnsubscribe("public", { channel: "tickers", instId: symbol });
+    this.sendUnsubscribe("public", { channel: "mark-price", instId: symbol });
+    this.sendUnsubscribe("business", { channel: `candle${okxBar}`, instId: symbol });
   }
 
   closeChartWs() {
     // Clear reconnect timeouts
-    if (this.reconnectTimeouts.public) clearTimeout(this.reconnectTimeouts.public);
-    if (this.reconnectTimeouts.business) clearTimeout(this.reconnectTimeouts.business);
-    this.reconnectTimeouts = { public: null, business: null };
-
+    if (this.reconnectTimeouts.public) {
+      clearTimeout(this.reconnectTimeouts.public);
+      this.reconnectTimeouts.public = null;
+    }
+    if (this.reconnectTimeouts.business) {
+      clearTimeout(this.reconnectTimeouts.business);
+      this.reconnectTimeouts.business = null;
+    }
+    
     // Stop pings
     this.stopPing("public");
     this.stopPing("business");
-
+    
     // Unsubscribe from current symbol
     if (this.currentSymbol) {
       this.unsubscribeFromSymbol(this.currentSymbol, this.currentInterval);
     }
-
-    // Close WebSockets
+    
+    // Close sockets
     if (this.publicWs) {
       try { this.publicWs.close(); } catch {}
       this.publicWs = null;
@@ -618,16 +708,31 @@ class OKXFuturesStore {
       try { this.businessWs.close(); } catch {}
       this.businessWs = null;
     }
-
-    this.wsConnected = { public: false, business: false };
+    
+    // Reset state
+    this.wsState = { public: "disconnected", business: "disconnected" };
+    this.connectingPublic = false;
+    this.connectingBusiness = false;
+    this.subscribedChannels.clear();
     this.currentSymbol = null;
     this.currentInterval = null;
+    
+    this.emit("ws:public:connected", false);
+    this.emit("ws:business:connected", false);
   }
 
-  // Compatibility methods
-  startTickerPolling() {}
-  stopTickerPolling() {}
-  stopPremiumPolling() {}
+  // Compatibility aliases
+  get wsConnected() {
+    return {
+      public: this.wsState.public === "connected",
+      business: this.wsState.business === "connected"
+    };
+  }
+  
+  startTickerPolling() {} // No-op, WS handles this
+  stopTickerPolling() {}  // No-op
+  stopPremiumPolling() {} // No-op
 }
 
+// Export singleton instance
 export const binanceFuturesStore = new OKXFuturesStore();
