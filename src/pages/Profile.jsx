@@ -906,7 +906,7 @@ export default function Profile({ language = "en" }) {
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 animate-pulse" />
-                        {language === "en" ? "Live Account (OKX)" : "حساب حقيقي (OKX)"}
+                        {language === "en" ? "Trading Account" : "حساب تداول"}
                       </h3>
                       {okxAccount && (
                         <Badge className="bg-emerald-100 text-emerald-700 border-0">

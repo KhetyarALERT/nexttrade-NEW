@@ -407,7 +407,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                         {language === 'ar' ? 'الهوية موثقة' : 'Identity Verified'}
                       </p>
                       <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-500">
-                        {language === 'ar' ? 'يمكنك طلب حساب حقيقي الآن' : 'You can now request a live account'}
+                        {language === 'ar' ? 'يمكنك طلب حساب تداول الآن' : 'You can now request a trading account'}
                       </p>
                     </div>
                   </>
@@ -422,31 +422,12 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                 )}
               </div>
               
-              {/* Steps guide */}
-              <div className="space-y-2">
-                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {language === 'ar' ? 'الخطوات' : 'Steps to Get Started'}
-                </p>
-                <div className="space-y-1.5 sm:space-y-2">
-                  {[
-                    { step: 1, label: language === 'ar' ? 'تحقق من هويتك' : 'Verify your identity (KYC)', done: isVerified },
-                    { step: 2, label: language === 'ar' ? 'أكمل نموذج الطلب' : 'Complete the request form', done: false },
-                    { step: 3, label: language === 'ar' ? 'انتظر الموافقة' : 'Wait for approval', done: false },
-                    { step: 4, label: language === 'ar' ? 'ابدأ التداول!' : 'Start trading!', done: false }
-                  ].map((item) => (
-                    <div key={item.step} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium flex-shrink-0 ${
-                        item.done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {item.done ? <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" /> : item.step}
-                      </div>
-                      <span className={`truncate ${item.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Steps guide - DB-driven stepper */}
+              <TradingAccountStepper 
+                language={language}
+                isVerified={isVerified}
+                existingRequest={existingRequest}
+              />
               
               <Button
                 onClick={async () => {
