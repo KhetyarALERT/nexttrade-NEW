@@ -137,6 +137,6 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
 BinanceSymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string.isRequired,
   onSelectSymbol: PropTypes.func.isRequired,
-  height: PropTypes.number,
+  height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   language: PropTypes.string,
 };
