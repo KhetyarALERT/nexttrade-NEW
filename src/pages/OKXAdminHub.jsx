@@ -76,14 +76,25 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
         updateData.rejection_reason = rejectionReason || 'Verification declined';
       } else if (reviewAction === 'respond') {
         updateData.admin_response = adminResponse;
+        updateData.admin_responded_at = new Date().toISOString();
         updateData.status = 'under_review';
       }
 
       await base44.entities.VerificationRequest.update(selectedVerification.id, updateData);
       
-      toast.success(reviewAction === 'approve' ? 'Verification approved' : 
-                    reviewAction === 'reject' ? 'Verification rejected' : 
-                    'Response sent');
+      // Notify the user of the status change
+      try {
+        await base44.functions.invoke("notifyAdminVerification", {
+          action: "notifyUser",
+          verificationId: selectedVerification.id
+        });
+      } catch (e) {
+        console.error("Failed to notify user:", e);
+      }
+      
+      toast.success(reviewAction === 'approve' ? 'Verification approved - User notified' : 
+                    reviewAction === 'reject' ? 'Verification rejected - User notified' : 
+                    'Response sent - User notified');
       
       setReviewDialogOpen(false);
       setSelectedVerification(null);

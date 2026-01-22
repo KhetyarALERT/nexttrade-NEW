@@ -118,6 +118,8 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const [showHelpForm, setShowHelpForm] = useState(false);
   const [helpMessage, setHelpMessage] = useState("");
   const [sendingHelp, setSendingHelp] = useState(false);
+  const [helpDocumentFile, setHelpDocumentFile] = useState(null);
+  const [helpDocumentPreview, setHelpDocumentPreview] = useState(null);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -140,6 +142,8 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       setCountryDropdownOpen(false);
       setShowHelpForm(false);
       setHelpMessage("");
+      setHelpDocumentFile(null);
+      setHelpDocumentPreview(null);
     } else {
       // Track verification started when modal opens
       base44.auth.me().then(user => {
@@ -174,8 +178,8 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   }, [step, open, language]);
 
   const handleAskForHelp = async () => {
-    if (!helpMessage.trim()) {
-      toast.error(language === "ar" ? "يرجى وصف مشكلتك" : "Please describe your issue");
+    if (!helpMessage.trim() && !helpDocumentFile) {
+      toast.error(language === "ar" ? "يرجى وصف مشكلتك أو إرفاق الهوية" : "Please describe your issue or attach your ID");
       return;
     }
 
@@ -183,25 +187,53 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     try {
       const user = await base44.auth.me();
 
-      // Upload document if available
-      let frontUrl = null;
-      if (form.frontFile) {
+      // Upload help document if provided
+      let helpDocUrl = null;
+      if (helpDocumentFile) {
+        const result = await base44.integrations.Core.UploadFile({ file: helpDocumentFile });
+        helpDocUrl = result.file_url;
+      }
+
+      // Also check if user already uploaded front doc in main form
+      let frontUrl = helpDocUrl;
+      if (!frontUrl && form.frontFile) {
         const result = await base44.integrations.Core.UploadFile({ file: form.frontFile });
         frontUrl = result.file_url;
       }
 
       // Create a help request verification entry
-      await base44.entities.VerificationRequest.create({
+      const helpRequest = await base44.entities.VerificationRequest.create({
         user_id: user.id,
         user_email: user.email,
         full_name: form.fullName || user.full_name || "",
-        document_type: form.documentType,
+        document_type: form.documentType || "passport",
         document_front_url: frontUrl,
         status: "needs_help",
-        help_message: helpMessage,
+        request_type: "help_request",
+        help_message: helpMessage || (language === "ar" ? "طلب مساعدة مع إرفاق الهوية" : "Help request with ID attached"),
         help_requested_at: new Date().toISOString(),
         submitted_at: new Date().toISOString(),
       });
+
+      // Update user's verification status
+      try {
+        await base44.auth.updateMe({
+          verification_status: "pending",
+          verification_request_id: helpRequest.id
+        });
+      } catch (e) {
+        console.error("Failed to update user verification status:", e);
+      }
+
+      // Notify admin immediately
+      try {
+        await base44.functions.invoke("notifyAdminVerification", {
+          action: "notifyAdmin",
+          verificationId: helpRequest.id
+        });
+      } catch (e) {
+        console.error("Failed to notify admin:", e);
+      }
 
       // Track help request
       base44.analytics.track({
@@ -212,6 +244,8 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       toast.success(t.helpSent);
       setShowHelpForm(false);
       setHelpMessage("");
+      setHelpDocumentFile(null);
+      setHelpDocumentPreview(null);
       onOpenChange(false);
     } catch (err) {
       console.error("Help request error:", err);
@@ -274,7 +308,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
 
       const user = await base44.auth.me();
 
-      await base44.entities.VerificationRequest.create({
+      const verificationRecord = await base44.entities.VerificationRequest.create({
         user_id: user.id,
         user_email: user.email,
         full_name: form.fullName,
@@ -285,8 +319,29 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         date_of_birth: form.dob || null,
         country: form.country || null,
         status: "pending",
+        request_type: "full",
         submitted_at: new Date().toISOString(),
       });
+
+      // Update user's verification status
+      try {
+        await base44.auth.updateMe({
+          verification_status: "pending",
+          verification_request_id: verificationRecord.id
+        });
+      } catch (e) {
+        console.error("Failed to update user verification status:", e);
+      }
+
+      // Notify admin
+      try {
+        await base44.functions.invoke("notifyAdminVerification", {
+          action: "notifyAdmin",
+          verificationId: verificationRecord.id
+        });
+      } catch (e) {
+        console.error("Failed to notify admin:", e);
+      }
 
       // Track verification completed
       base44.analytics.track({
@@ -424,24 +479,76 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               </Button>
 
               {showHelpForm && (
-                <div className="mt-3 space-y-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="mt-3 space-y-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
                   <div className="flex items-start gap-2">
-                    <MessageSquare className="w-5 h-5 text-amber-600 mt-0.5" />
+                    <MessageSquare className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
-                        {language === "ar" ? "صف مشكلتك وسنساعدك" : "Describe your issue and we'll help you"}
+                        {language === "ar" ? "صف مشكلتك وارفق الهوية وسنساعدك" : "Describe your issue, attach your ID, and we'll help you"}
                       </p>
                       <Textarea
                         value={helpMessage}
                         onChange={(e) => setHelpMessage(e.target.value)}
                         placeholder={t.helpPlaceholder}
-                        className="h-24 resize-none text-sm"
+                        className="h-20 resize-none text-sm"
                       />
                     </div>
                   </div>
+
+                  {/* ID Document Upload for Help */}
+                  <div className="border-t border-amber-500/30 pt-3">
+                    <Label className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2 mb-2">
+                      <Upload className="w-4 h-4" />
+                      {language === "ar" ? "إرفاق صورة الهوية (موصى به)" : "Attach ID Document (Recommended)"}
+                    </Label>
+                    <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-amber-500/50 rounded-xl cursor-pointer hover:bg-amber-500/10 transition-colors overflow-hidden">
+                      {helpDocumentPreview ? (
+                        <div className="relative w-full h-full">
+                          <img src={helpDocumentPreview} alt="ID Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setHelpDocumentFile(null);
+                              setHelpDocumentPreview(null);
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-amber-600">
+                          <Upload className="w-6 h-6" />
+                          <span className="text-xs">{language === "ar" ? "انقر لرفع الهوية" : "Click to upload ID"}</span>
+                          <span className="text-[10px] opacity-70">JPG, PNG (max 5MB)</span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error(language === "ar" ? "الملف كبير جدًا" : "File too large");
+                              return;
+                            }
+                            setHelpDocumentFile(file);
+                            const reader = new FileReader();
+                            reader.onload = (ev) => setHelpDocumentPreview(ev.target?.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+
                   <Button
                     onClick={handleAskForHelp}
-                    disabled={sendingHelp || !helpMessage.trim()}
+                    disabled={sendingHelp || (!helpMessage.trim() && !helpDocumentFile)}
                     className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                   >
                     {sendingHelp ? (
