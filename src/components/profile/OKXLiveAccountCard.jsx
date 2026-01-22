@@ -201,14 +201,15 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
         setExistingRequest(requests[0]);
       }
       
-      // Check verification status
+      // Check verification status - get the latest verification for this user
       const verifications = await base44.entities.VerificationRequest.filter(
-        { user_id: user.id, status: 'approved' },
+        { user_id: user.id },
         '-created_date',
         1
       );
       
-      setIsVerified(verifications && verifications.length > 0);
+      // Only set as verified if status is explicitly 'approved'
+      setIsVerified(verifications && verifications.length > 0 && verifications[0].status === 'approved');
     } catch (err) {
       console.error('[OKXLiveAccountCard] Load request status error:', err);
     } finally {
