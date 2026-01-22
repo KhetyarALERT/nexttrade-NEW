@@ -415,6 +415,12 @@ Deno.serve(async (req) => {
       })) });
     }
 
+    // LIST ACCOUNT REQUESTS
+    if (action === 'listAccountRequests') {
+      const requests = await base44.asServiceRole.entities.LiveAccountRequest.filter({}, '-created_date', params.limit || 100);
+      return Response.json({ ok: true, data: requests || [] });
+    }
+
     // ADMIN TRANSFER
     if (action === 'adminTransfer') {
       const { direction, poolAccountId, currency = 'USDT', amount } = params;
