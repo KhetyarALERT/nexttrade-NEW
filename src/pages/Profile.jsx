@@ -190,6 +190,7 @@ export default function Profile({ language = "en" }) {
   };
 
   const activeProfileTab = new URLSearchParams(location.search).get('tab') || "personal";
+  const shouldOpenVerification = new URLSearchParams(location.search).get('openVerification') === 'true';
 
   const avatarInputRef = useRef(null);
 
@@ -268,6 +269,15 @@ export default function Profile({ language = "en" }) {
     loadTradingAccounts();
     loadVerificationRequest();
   }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts, loadVerificationRequest]);
+
+  // Auto-open verification modal if requested via URL
+  useEffect(() => {
+    if (shouldOpenVerification && !isLoadingAuth && isAuthenticated) {
+      setVerificationModalOpen(true);
+      // Clear the query param after opening
+      setSearchParams({ openVerification: null });
+    }
+  }, [shouldOpenVerification, isLoadingAuth, isAuthenticated]);
 
   const handleCopy = useCallback((text) => {
     navigator.clipboard.writeText(text).then(() => {
