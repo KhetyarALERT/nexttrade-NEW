@@ -441,15 +441,6 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                           size="sm"
                           variant="ghost"
                           className="h-8 w-8 p-0"
-                          onClick={() => openEditDialog(v)}
-                          title="Edit Details"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
                           onClick={() => {
                             setSelectedVerification(v);
                             setReviewAction('changeStatus');
@@ -465,9 +456,8 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                           className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
                           onClick={() => handleDeleteVerification(v.id)}
                           title="Delete"
-                          disabled={processing}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <XCircle className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -486,16 +476,11 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
             <DialogTitle>
               {reviewAction === 'approve' ? 'Approve Verification' : 
                reviewAction === 'reject' ? 'Reject Verification' : 
-               reviewAction === 'changeStatus' ? 'Change KYC Status' :
+               reviewAction === 'changeStatus' ? 'Change Verification Status' :
                'Respond to Help Request'}
             </DialogTitle>
             <DialogDescription>
               {selectedVerification?.full_name} ({selectedVerification?.user_email})
-              {reviewAction === 'changeStatus' && (
-                <span className="block mt-1 text-xs">
-                  Current status: <Badge variant="outline" className="ml-1">{selectedVerification?.status}</Badge>
-                </span>
-              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -539,39 +524,28 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
             {reviewAction === 'changeStatus' ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2">
                 <Button 
                   onClick={() => handleChangeStatus('approved')}
                   disabled={processing}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                  Verified
-                </Button>
-                <Button 
-                  onClick={() => handleChangeStatus('pending')}
-                  disabled={processing}
-                  className="bg-yellow-600 hover:bg-yellow-700"
-                >
-                  <Clock className="h-4 w-4 mr-1" />
-                  Pending
-                </Button>
-                <Button 
-                  onClick={() => handleChangeStatus('under_review')}
-                  disabled={processing}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Under Review
+                  Approve
                 </Button>
                 <Button 
                   onClick={() => handleChangeStatus('rejected')}
                   disabled={processing}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Rejected
+                  Reject
+                </Button>
+                <Button 
+                  onClick={() => handleChangeStatus('pending')}
+                  disabled={processing}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  Pending
                 </Button>
               </div>
             ) : (
