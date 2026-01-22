@@ -74,6 +74,12 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   
   // Transfer modal state
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  
+  // Live account request state
+  const [requestFormOpen, setRequestFormOpen] = useState(false);
+  const [existingRequest, setExistingRequest] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [loadingRequest, setLoadingRequest] = useState(true);
 
   const t = {
     en: {
