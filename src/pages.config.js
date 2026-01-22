@@ -15,8 +15,8 @@ import Profile from './pages/Profile';
 import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
-import index from './pages/index';
 import Wallet from './pages/Wallet';
+import index from './pages/index';
 import __Layout from './Layout.jsx';
 
 
@@ -38,8 +38,8 @@ export const PAGES = {
     "Rewards": Rewards,
     "TermsOfService": TermsOfService,
     "Trading": Trading,
-    "index": index,
     "Wallet": Wallet,
+    "index": index,
 }
 
 export const pagesConfig = {

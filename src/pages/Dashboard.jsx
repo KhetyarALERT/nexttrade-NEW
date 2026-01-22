@@ -24,8 +24,25 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { DASHBOARD_VOUCHERS, pickLang } from "@/lib/rewards-config";
 import { useAuth } from "@/lib/AuthContext";
+
+// Dashboard voucher data (inline to avoid missing dependency)
+const DASHBOARD_VOUCHERS = [
+  { 
+    id: 'welcome', 
+    title: { en: '10% Fee Discount', ar: 'خصم 10% على الرسوم' },
+    condition: { en: 'Complete KYC verification', ar: 'أكمل التحقق من الهوية' },
+    status: 'New'
+  },
+  { 
+    id: 'first_trade', 
+    title: { en: '$5 Trading Bonus', ar: 'مكافأة تداول $5' },
+    condition: { en: 'Execute your first trade', ar: 'نفذ أول صفقة' },
+    status: 'Locked'
+  }
+];
+
+const pickLang = (lang, obj) => (obj && typeof obj === 'object') ? (obj[lang] || obj.en || '') : (obj || '');
 
 const translations = {
   en: {
