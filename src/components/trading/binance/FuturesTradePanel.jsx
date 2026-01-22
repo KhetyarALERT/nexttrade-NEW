@@ -1792,8 +1792,9 @@ export default function FuturesTradePanel({
           ) : null}
 
           {botsError ? (
-            <div className="mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive">
-              ⚠️ {botsError}
+            <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{botsError}</span>
             </div>
           ) : null}
 

@@ -20,6 +20,7 @@ export default function OrderBookPanel({ symbol, language = "en", onPriceClick }
   const [lastPrice, setLastPrice] = useState(0);
   const [spread, setSpread] = useState(0);
   const [precision, setPrecision] = useState(2);
+  const [isLoading, setIsLoading] = useState(true);
 
   const labels = useMemo(() => ({
     price: language === "ar" ? "السعر" : "Price",
@@ -63,6 +64,7 @@ export default function OrderBookPanel({ symbol, language = "en", onPriceClick }
       setOrderBook({ bids, asks: asks.reverse() });
       setLastPrice(price);
       setSpread(((ask - bid) / price * 100).toFixed(4));
+      setIsLoading(false);
     };
 
     const unsub = binanceFuturesStore.subscribe(`ticker:${symbol}`, updateOrderBook);
@@ -93,7 +95,15 @@ export default function OrderBookPanel({ symbol, language = "en", onPriceClick }
         <span className="text-right">{labels.total}</span>
       </div>
       
-      {/* Asks (sells) - reversed so lowest ask is at bottom */}
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[11px] text-muted-foreground animate-pulse">
+            {language === "ar" ? "جاري التحميل..." : "Loading..."}
+          </div>
+        </div>
+      ) : (
+      /* Asks (sells) - reversed so lowest ask is at bottom */
       <div className="flex-1 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-auto scrollbar-thin">
           {orderBook.asks.map((level, i) => (
@@ -140,6 +150,7 @@ export default function OrderBookPanel({ symbol, language = "en", onPriceClick }
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
