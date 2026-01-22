@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Calendar, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -80,6 +80,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const t = translations[language];
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -94,7 +95,17 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const [backPreview, setBackPreview] = useState(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
 
-  const handleFileChange = (type, file) => {
+  // Safe step transition to prevent blank screen
+  const goToStep = useCallback((newStep) => {
+    setTransitioning(true);
+    // Small delay to ensure React state updates properly
+    setTimeout(() => {
+      setStep(newStep);
+      setTransitioning(false);
+    }, 50);
+  }, []);
+
+  const handleFileChange = useCallback((type, file) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       toast.error(language === "ar" ? "الملف كبير جدًا" : "File too large");
@@ -103,19 +114,20 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
 
     const reader = new FileReader();
     reader.onload = (e) => {
+      const result = e.target?.result;
       if (type === "front") {
-        setFrontPreview(e.target.result);
-        setForm({ ...form, frontFile: file });
+        setFrontPreview(result);
+        setForm((prev) => ({ ...prev, frontFile: file }));
       } else if (type === "back") {
-        setBackPreview(e.target.result);
-        setForm({ ...form, backFile: file });
+        setBackPreview(result);
+        setForm((prev) => ({ ...prev, backFile: file }));
       } else {
-        setSelfiePreview(e.target.result);
-        setForm({ ...form, selfieFile: file });
+        setSelfiePreview(result);
+        setForm((prev) => ({ ...prev, selfieFile: file }));
       }
     };
     reader.readAsDataURL(file);
-  };
+  }, [language]);
 
   const handleSubmit = async () => {
     if (!form.fullName || !form.documentType || !form.frontFile) {
@@ -216,8 +228,15 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
           ))}
         </div>
 
+        {/* Loading/Transition State */}
+        {transitioning && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        )}
+
         {/* Step 1: Personal Info */}
-        {step === 1 && (
+        {!transitioning && step === 1 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <User className="w-5 h-5 text-blue-600" />
@@ -233,20 +252,38 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                 />
               </div>
               <div>
-                <Label>{t.dob}</Label>
-                <Input
-                  type="date"
-                  value={form.dob}
-                  onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                />
+                <Label className="flex items-center gap-2">
+                  {t.dob}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({language === "ar" ? "اضغط لفتح التقويم أو اكتب" : "Tap to open calendar or type"})
+                  </span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={form.dob}
+                    onChange={(e) => setForm({ ...form, dob: e.target.value })}
+                    className="pr-10"
+                    placeholder="YYYY-MM-DD"
+                    max={new Date().toISOString().split('T')[0]}
+                    min="1920-01-01"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {language === "ar" ? "مثال: 1990-05-15" : "Format: YYYY-MM-DD (e.g., 1990-05-15)"}
+                </p>
               </div>
               <div>
                 <Label>{t.country}</Label>
-                <Select value={form.country} onValueChange={(v) => setForm({ ...form, country: v })}>
+                <Select 
+                  value={form.country} 
+                  onValueChange={(v) => setForm({ ...form, country: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder={language === "ar" ? "اختر الدولة" : "Select country"} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[200px]">
                     {countries.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
@@ -254,14 +291,18 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                 </Select>
               </div>
             </div>
-            <Button onClick={() => setStep(2)} className="w-full bg-blue-600 hover:bg-blue-700" disabled={!form.fullName}>
-              {language === "ar" ? "التالي" : "Next"}
+            <Button 
+              onClick={() => goToStep(2)} 
+              className="w-full bg-blue-600 hover:bg-blue-700" 
+              disabled={!form.fullName || transitioning}
+            >
+              {language === "ar" ? "التالي" : "Continue"}
             </Button>
           </div>
         )}
 
         {/* Step 2: Document Upload */}
-        {step === 2 && (
+        {!transitioning && step === 2 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -299,18 +340,18 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+              <Button variant="outline" onClick={() => goToStep(1)} className="flex-1" disabled={transitioning}>
                 {language === "ar" ? "السابق" : "Back"}
               </Button>
-              <Button onClick={() => setStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!form.frontFile}>
-                {language === "ar" ? "التالي" : "Next"}
+              <Button onClick={() => goToStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!form.frontFile || transitioning}>
+                {language === "ar" ? "التالي" : "Continue"}
               </Button>
             </div>
           </div>
         )}
 
         {/* Step 3: Selfie */}
-        {step === 3 && (
+        {!transitioning && step === 3 && (
           <div className="space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Camera className="w-5 h-5 text-blue-600" />
@@ -327,11 +368,13 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+              <Button variant="outline" onClick={() => goToStep(2)} className="flex-1" disabled={transitioning || loading}>
                 {language === "ar" ? "السابق" : "Back"}
               </Button>
-              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading}>
-                {loading ? t.submitting : t.submit}
+              <Button onClick={handleSubmit} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={loading || transitioning}>
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t.submitting}</>
+                ) : t.submit}
               </Button>
             </div>
           </div>
