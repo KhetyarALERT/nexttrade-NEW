@@ -219,13 +219,6 @@ function VerificationBadge({ status, language, onClickNotVerified, onClickPendin
   );
 }
 
-VerificationBadge.propTypes = {
-  status: PropTypes.string,
-  language: PropTypes.string,
-  onClickNotVerified: PropTypes.func,
-  onClickPending: PropTypes.func
-};
-
 export default function Profile({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
