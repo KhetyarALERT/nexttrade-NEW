@@ -300,20 +300,20 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         return sum;
       }, 0);
 
-      // OKX Balances
-      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
-      const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
+      // OKX Balances - totalEquity is the main trading account balance
       const okxTotalEquity = okxData?.hasAccount ? (okxData.balances?.totalEquity || 0) : 0;
+      const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
+      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || okxTotalEquity || 0) : 0;
 
-      // Combined totals
-      const totalUsdt = fundingUsdt + okxTradingUsdt + okxFundingUsdt + wealthUsdt;
+      // Combined totals - use totalEquity as the primary source for OKX balance
+      const totalUsdt = fundingUsdt + okxTotalEquity + wealthUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
       setAccountTotals({ totalUsd, totalUsdt });
       setAccountBalances({
         fundingUsdt: fundingUsdt + okxFundingUsdt,
         spotUsdt: null, // No spot trading yet
-        futuresUsdt: okxTradingUsdt > 0 ? okxTradingUsdt : null,
+        futuresUsdt: okxTotalEquity > 0 ? okxTotalEquity : null,
         wealthUsdt,
       });
     } catch (err) {
