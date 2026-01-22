@@ -221,7 +221,8 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
 
   useEffect(() => {
     loadAccount();
-  }, [loadAccount]);
+    loadRequestStatus();
+  }, [loadAccount, loadRequestStatus]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
