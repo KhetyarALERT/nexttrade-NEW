@@ -84,7 +84,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   const t = {
     en: {
       title: "Live Trading Account",
-      subtitle: "OKX Futures Account",
+      subtitle: "Real Money Trading",
       noAccount: "No live account assigned",
       noAccountDesc: "Contact support to get a live trading account assigned to you.",
       balance: "Balance",
@@ -116,7 +116,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
     },
     ar: {
       title: "حساب التداول المباشر",
-      subtitle: "حساب OKX للعقود الآجلة",
+      subtitle: "تداول بأموال حقيقية",
       noAccount: "لا يوجد حساب مباشر",
       noAccountDesc: "تواصل مع الدعم للحصول على حساب تداول مباشر.",
       balance: "الرصيد",
@@ -425,7 +425,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                   {[
                     { step: 1, label: language === 'ar' ? 'تحقق من هويتك' : 'Verify your identity (KYC)', done: isVerified },
                     { step: 2, label: language === 'ar' ? 'أكمل نموذج الطلب' : 'Complete the request form', done: false },
-                    { step: 3, label: language === 'ar' ? 'انتظر موافقة المراجعة' : 'Wait for admin approval', done: false },
+                    { step: 3, label: language === 'ar' ? 'انتظر الموافقة' : 'Wait for approval', done: false },
                     { step: 4, label: language === 'ar' ? 'ابدأ التداول!' : 'Start trading!', done: false }
                   ].map((item) => (
                     <div key={item.step} className="flex items-center gap-3 text-sm">

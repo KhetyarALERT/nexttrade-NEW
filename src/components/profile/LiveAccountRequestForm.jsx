@@ -286,16 +286,15 @@ export default function LiveAccountRequestForm({
           <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-6 text-center">
             <Shield className="h-16 w-16 mx-auto mb-4 text-amber-500" />
             <p className="text-sm text-muted-foreground mb-4">{t.verificationDesc}</p>
-            <Button 
-              onClick={() => {
-                onOpenChange(false);
-                if (onVerifyClick) onVerifyClick();
-              }}
-              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              {t.verifyNow}
-            </Button>
+            <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
+              <Button 
+                onClick={() => onOpenChange(false)}
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                {t.verifyNow}
+              </Button>
+            </Link>
           </div>
         </DialogContent>
       </Dialog>
