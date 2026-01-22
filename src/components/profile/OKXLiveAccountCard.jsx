@@ -220,6 +220,14 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   useEffect(() => {
     loadAccount();
     loadRequestStatus();
+    
+    // Subscribe to verification changes for real-time updates
+    const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
+      // Reload verification status when any verification changes
+      loadRequestStatus();
+    });
+    
+    return () => unsubscribe();
   }, [loadAccount, loadRequestStatus]);
 
   const handleRefresh = async () => {

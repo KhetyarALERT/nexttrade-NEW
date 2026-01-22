@@ -69,10 +69,10 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
     
     setProcessing(true);
     try {
-      const user = await base44.auth.me();
+      const adminUser = await base44.auth.me();
       
       const updateData = {
-        reviewed_by: user.email,
+        reviewed_by: adminUser.email,
         reviewed_at: new Date().toISOString()
       };
 
@@ -88,6 +88,18 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
       }
 
       await base44.entities.VerificationRequest.update(selectedVerification.id, updateData);
+      
+      // Update User entity verification_status
+      try {
+        const userStatus = updateData.status === 'approved' ? 'verified' : updateData.status;
+        await base44.asServiceRole.entities.User.update(selectedVerification.user_id, {
+          verification_status: userStatus,
+          verification_request_id: selectedVerification.id,
+          verification_completed_at: updateData.status === 'approved' ? new Date().toISOString() : null
+        });
+      } catch (e) {
+        console.error("Failed to update user verification status:", e);
+      }
       
       // Notify the user of the status change
       try {
@@ -174,13 +186,25 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
     
     setProcessing(true);
     try {
-      const user = await base44.auth.me();
+      const adminUser = await base44.auth.me();
       
       await base44.entities.VerificationRequest.update(selectedVerification.id, {
         status: newStatus,
-        reviewed_by: user.email,
+        reviewed_by: adminUser.email,
         reviewed_at: new Date().toISOString()
       });
+      
+      // Update User entity verification_status
+      try {
+        const userStatus = newStatus === 'approved' ? 'verified' : newStatus;
+        await base44.asServiceRole.entities.User.update(selectedVerification.user_id, {
+          verification_status: userStatus,
+          verification_request_id: selectedVerification.id,
+          verification_completed_at: newStatus === 'approved' ? new Date().toISOString() : null
+        });
+      } catch (e) {
+        console.error("Failed to update user verification status:", e);
+      }
       
       // Notify the user of the status change
       try {
