@@ -55,6 +55,10 @@ class OKXFuturesStore {
     
     // Singleton instance tracking
     this.initialized = false;
+    
+    // Rate limiting for API calls - global cooldown
+    this.lastApiCall = 0;
+    this.API_MIN_INTERVAL = 2000; // 2 seconds minimum between ANY API call
   }
 
   // ========== EVENT SYSTEM ==========
