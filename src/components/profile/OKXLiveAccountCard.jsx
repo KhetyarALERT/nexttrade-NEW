@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import OKXTransferModal from "./OKXTransferModal";
 import LiveAccountRequestForm from "./LiveAccountRequestForm";
+import TradingAccountStepper from "./TradingAccountStepper";
 
 const CHAIN_NAMES = {
   'USDT-TRC20': 'Tron (TRC20)',
@@ -113,16 +114,18 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       credited: "Credited",
       complete: "Complete",
       supportContact: "Need help? Contact support",
-      // Account request strings
+      // Account request strings (OKX removed)
       requestLiveAccount: "Request Trading Account",
       requestLiveAccountDesc: "Complete the form to get a trading account",
       verifyFirst: "Verify Your Identity First",
       verifyFirstDesc: "You must verify your identity before requesting a trading account",
       requestPending: "Your Request is Under Review",
-      requestPendingDesc: "We'll notify you when your request is processed"
+      requestPendingDesc: "We'll notify you when your request is processed",
+      startTrading: "Start Trading",
+      reapply: "Re-apply"
     },
     ar: {
-      title: "حساب تداول مباشر",
+      title: "حساب تداول",
       subtitle: "تداول بأموالك",
       noAccount: "لا يوجد حساب تداول",
       noAccountDesc: "اطلب حساب تداول لبدء التداول.",
@@ -152,13 +155,15 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       credited: "تم الإيداع",
       complete: "مكتمل",
       supportContact: "تحتاج مساعدة؟ تواصل مع الدعم",
-      // Account request strings
+      // Account request strings (OKX removed)
       requestLiveAccount: "طلب حساب تداول",
       requestLiveAccountDesc: "أكمل النموذج للحصول على حساب تداول",
       verifyFirst: "تحقق من هويتك أولاً",
       verifyFirstDesc: "يجب التحقق من هويتك قبل طلب حساب تداول",
       requestPending: "طلبك قيد المراجعة",
-      requestPendingDesc: "سنُعلمك عند معالجة طلبك"
+      requestPendingDesc: "سنُعلمك عند معالجة طلبك",
+      startTrading: "ابدأ التداول",
+      reapply: "إعادة التقديم"
     }
   }[language] || {};
 
@@ -222,13 +227,34 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
     loadRequestStatus();
     
     // Subscribe to verification changes for real-time updates
-    const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
+    const unsubVerification = base44.entities.VerificationRequest.subscribe((event) => {
       // Reload verification status when any verification changes
       loadRequestStatus();
     });
     
-    return () => unsubscribe();
+    // Subscribe to LiveAccountRequest changes for real-time stepper updates
+    const unsubLiveRequest = base44.entities.LiveAccountRequest.subscribe((event) => {
+      // Reload request status when any request changes (admin approval, etc.)
+      loadRequestStatus();
+    });
+    
+    return () => {
+      unsubVerification();
+      unsubLiveRequest();
+    };
   }, [loadAccount, loadRequestStatus]);
+
+  // Poll for status updates while under review (every 15 seconds)
+  useEffect(() => {
+    if (!existingRequest) return;
+    if (existingRequest.status === 'assigned' || existingRequest.status === 'rejected') return;
+    
+    const pollInterval = setInterval(() => {
+      loadRequestStatus();
+    }, 15000);
+    
+    return () => clearInterval(pollInterval);
+  }, [existingRequest?.status, loadRequestStatus]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -368,21 +394,57 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
               <p className="text-sm text-muted-foreground">Loading...</p>
             </div>
           ) : existingRequest && existingRequest.status !== 'rejected' ? (
-            // Show existing request status
-            <div className={`rounded-xl border ${statusConfig[existingRequest.status]?.bg || statusConfig.pending.bg} p-6 text-center`}>
-              {(() => {
-                const StatusIcon = statusConfig[existingRequest.status]?.icon || Clock;
-                return <StatusIcon className={`h-12 w-12 mx-auto mb-3 ${statusConfig[existingRequest.status]?.color || 'text-amber-500'}`} />;
-              })()}
-              <h3 className="font-semibold text-foreground">{t.requestPending}</h3>
-              <p className="text-sm text-muted-foreground mt-2">{t.requestPendingDesc}</p>
-              <Badge className="mt-3" variant="outline">
-                {existingRequest.status === 'pending' ? (language === 'ar' ? 'قيد الانتظار' : 'Pending Review') :
-                 existingRequest.status === 'under_review' ? (language === 'ar' ? 'قيد المراجعة' : 'Under Review') :
-                 existingRequest.status === 'approved' ? (language === 'ar' ? 'تمت الموافقة' : 'Approved - Setting Up') :
-                 existingRequest.status}
-              </Badge>
-              <p className="text-xs text-muted-foreground mt-4">
+            // Show existing request status with DB-driven stepper
+            <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">
+              <div className="text-center">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                  {existingRequest.status === 'assigned' ? (
+                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500" />
+                  ) : (
+                    <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 animate-pulse" />
+                  )}
+                </div>
+                <h3 className="font-semibold text-foreground text-base sm:text-lg">
+                  {existingRequest.status === 'assigned' 
+                    ? (language === 'ar' ? 'حساب التداول جاهز!' : 'Trading Account Ready!')
+                    : t.requestPending}
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 px-2">
+                  {existingRequest.status === 'assigned'
+                    ? (language === 'ar' ? 'يمكنك البدء في التداول الآن' : 'You can start trading now')
+                    : t.requestPendingDesc}
+                </p>
+              </div>
+              
+              {/* DB-driven stepper */}
+              <TradingAccountStepper 
+                language={language}
+                isVerified={isVerified}
+                existingRequest={existingRequest}
+              />
+              
+              {/* CTA based on status */}
+              {existingRequest.status === 'assigned' ? (
+                <Button
+                  asChild
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Link to={createPageUrl("Futures")}>
+                    <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    {t.startTrading}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="w-full bg-muted text-muted-foreground rounded-xl text-xs sm:text-sm h-9 sm:h-10 cursor-not-allowed"
+                >
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {language === 'ar' ? 'قيد المراجعة' : 'Under Review'}
+                </Button>
+              )}
+              
+              <p className="text-xs text-muted-foreground text-center">
                 {language === 'ar' ? 'تاريخ الطلب' : 'Requested'}: {new Date(existingRequest.created_date).toLocaleDateString()}
               </p>
             </div>
@@ -429,28 +491,64 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                 existingRequest={existingRequest}
               />
               
-              <Button
-                onClick={async () => {
-                  // Track trading account request click with user info
-                  try {
-                    const user = await base44.auth.me();
-                    base44.analytics.track({
-                      eventName: "trading_account_request_clicked",
-                      properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
-                    });
-                  } catch {
-                    base44.analytics.track({
-                      eventName: "trading_account_request_clicked",
-                      properties: { is_verified: isVerified, language }
-                    });
-                  }
-                  setRequestFormOpen(true);
-                }}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
-              >
-                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                {t.requestLiveAccount}
-              </Button>
+              {/* CTA Button based on step status */}
+              {!isVerified ? (
+                // Step 1 not done: Show verify button
+                <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
+                  <Button
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                  >
+                    <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    {language === 'ar' ? 'تحقق من هويتك' : 'Complete Verification'}
+                  </Button>
+                </Link>
+              ) : existingRequest?.status === 'rejected' ? (
+                // Rejected: Show re-apply button (creates NEW request)
+                <Button
+                  onClick={async () => {
+                    try {
+                      const user = await base44.auth.me();
+                      base44.analytics.track({
+                        eventName: "trading_account_reapply_clicked",
+                        properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
+                      });
+                    } catch {
+                      base44.analytics.track({
+                        eventName: "trading_account_reapply_clicked",
+                        properties: { is_verified: isVerified, language }
+                      });
+                    }
+                    setRequestFormOpen(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {t.reapply}
+                </Button>
+              ) : (
+                // Step 1 done, no request: Show request button
+                <Button
+                  onClick={async () => {
+                    try {
+                      const user = await base44.auth.me();
+                      base44.analytics.track({
+                        eventName: "trading_account_request_clicked",
+                        properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
+                      });
+                    } catch {
+                      base44.analytics.track({
+                        eventName: "trading_account_request_clicked",
+                        properties: { is_verified: isVerified, language }
+                      });
+                    }
+                    setRequestFormOpen(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {t.requestLiveAccount}
+                </Button>
+              )}
               
               {existingRequest?.status === 'rejected' && (
                 <div className="rounded-lg bg-rose-100 dark:bg-rose-900/30 p-3 text-center">
