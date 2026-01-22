@@ -153,7 +153,23 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   useEffect(() => {
     if (typeof document === "undefined") return;
     const isRtl = language === "ar";
+    
+    // Set lang and dir on <html> element to prevent Chrome auto-translate
+    document.documentElement.lang = language;
     document.documentElement.dir = isRtl ? "rtl" : "ltr";
+    
+    // Ensure notranslate class on body
+    document.body.classList.add("notranslate");
+    document.body.setAttribute("translate", "no");
+    
+    // Add notranslate meta if not present
+    if (!document.querySelector('meta[name="google"][content="notranslate"]')) {
+      const meta = document.createElement("meta");
+      meta.name = "google";
+      meta.content = "notranslate";
+      document.head.appendChild(meta);
+    }
+    
     try {
       localStorage.setItem(STORAGE_KEYS.language, language);
     } catch {
