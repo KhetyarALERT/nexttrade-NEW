@@ -512,14 +512,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <span>{t.perpetualHelp}</span>
           </div>
           <FuturesWalletView
-            tradingAccount={liveAccount}
-            demoAccount={demoAccount}
-            trades={trades}
             showBalances={showBalances}
             language={language}
             onTransfer={() => setActiveModal('transfer')}
-            onRefresh={onRefresh} />
-
+            onRefresh={onRefresh}
+          />
         </TabsContent>
       </Tabs>
 
