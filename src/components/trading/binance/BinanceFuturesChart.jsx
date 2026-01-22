@@ -590,16 +590,20 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
         unsubPrice = binanceFuturesStore.subscribe(`price:${normalizedSymbol}`, (p) => {
           if (cancelled || disposedRef.current) return;
           if (!p || !candleSeriesRef.current) return;
-          setLastPrice(Number(p));
+          
+          const price = Number(p);
+          if (!Number.isFinite(price) || price <= 0) return;
+          
+          setLastPrice(price);
           setLastTickAt(Date.now());
-          onPriceUpdateRef.current?.(Number(p));
+          onPriceUpdateRef.current?.(price);
 
           // Update last price line with native axis label
           try {
             const priceLineColor = chartColors.priceLineColor;
             if (!priceLineRef.current) {
               priceLineRef.current = candleSeriesRef.current.createPriceLine({
-                price: Number(p),
+                price: price,
                 color: priceLineColor,
                 lineWidth: 1,
                 lineStyle: 1,
@@ -610,7 +614,7 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
               });
             } else if (typeof priceLineRef.current.applyOptions === "function") {
               priceLineRef.current.applyOptions({
-                price: Number(p),
+                price: price,
                 axisLabelVisible: true,
                 axisLabelColor: priceLineColor,
                 axisLabelTextColor: "#ffffff",
@@ -618,6 +622,26 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
               });
             }
           } catch {}
+          
+          // Also update the current candle's close price in real-time
+          const existingCandles = binanceFuturesStore.getCandles(normalizedSymbol, timeframe);
+          if (existingCandles?.length > 0) {
+            const lastCandle = existingCandles[existingCandles.length - 1];
+            if (lastCandle) {
+              const updatedCandle = {
+                time: lastCandle.time,
+                open: Number(lastCandle.open),
+                high: Math.max(Number(lastCandle.high), price),
+                low: Math.min(Number(lastCandle.low), price),
+                close: price,
+              };
+              
+              try {
+                candleSeriesRef.current?.update?.(updatedCandle);
+                lineSeriesRef.current?.update?.({ time: lastCandle.time, value: price });
+              } catch {}
+            }
+          }
         });
 
         // Also subscribe to ticker for redundant price updates
