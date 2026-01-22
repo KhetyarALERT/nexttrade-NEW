@@ -75,59 +75,14 @@ const countries = [
   "Iran", "Afghanistan", "Bangladesh", "Malaysia", "Indonesia", "Other"
 ];
 
-// Date validation helper
-const isValidDateFormat = (dateStr) => {
-  if (!dateStr) return true; // Empty is okay (optional field)
-  // Must match YYYY-MM-DD format
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!regex.test(dateStr)) return false;
-  
-  // Also validate it's a real date
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return false;
-  
-  // Check year is reasonable (1920-current year)
-  const year = parseInt(dateStr.substring(0, 4), 10);
-  const currentYear = new Date().getFullYear();
-  if (year < 1920 || year > currentYear) return false;
-  
-  return true;
-};
-
-// Parse and normalize date input (handle various formats)
-const normalizeDate = (input) => {
-  if (!input) return "";
-  
-  // Remove any non-digit characters except dash
-  let cleaned = input.replace(/[^\d-]/g, "");
-  
-  // If it looks like DDMMYYYY or DD/MM/YYYY pattern, try to convert
-  if (/^\d{8}$/.test(cleaned)) {
-    // Could be DDMMYYYY or YYYYMMDD
-    const firstFour = parseInt(cleaned.substring(0, 4), 10);
-    if (firstFour > 1900 && firstFour < 2100) {
-      // YYYYMMDD format
-      return `${cleaned.substring(0, 4)}-${cleaned.substring(4, 6)}-${cleaned.substring(6, 8)}`;
-    } else {
-      // DDMMYYYY format
-      return `${cleaned.substring(4, 8)}-${cleaned.substring(2, 4)}-${cleaned.substring(0, 2)}`;
-    }
-  }
-  
-  return cleaned;
-};
-
 export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null }) {
   const t = translations[language] || translations.en;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [dateError, setDateError] = useState(false);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
-    dobDay: "",
-    dobMonth: "",
-    dobYear: "",
     country: "",
     documentType: "passport",
     frontFile: null,
@@ -144,52 +99,9 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     if (!open) {
       // Reset to step 1 when modal closes
       setStep(1);
-      setDateError(false);
+      setCountryDropdownOpen(false);
     }
   }, [open]);
-  
-  // Track verification analytics
-  useEffect(() => {
-    if (open && !existingRequest) {
-      // Track verification started
-      base44.analytics.track({
-        eventName: "kyc_verification_started",
-        properties: { step: 1 }
-      });
-    }
-  }, [open, existingRequest]);
-  
-  // Track step changes
-  useEffect(() => {
-    if (open && step > 1 && !existingRequest) {
-      base44.analytics.track({
-        eventName: "kyc_verification_step_reached",
-        properties: { step }
-      });
-    }
-  }, [step, open, existingRequest]);
-  
-  // Combine date parts into dob
-  useEffect(() => {
-    const { dobDay, dobMonth, dobYear } = form;
-    if (dobYear && dobMonth && dobDay) {
-      const year = dobYear.padStart(4, '0');
-      const month = dobMonth.padStart(2, '0');
-      const day = dobDay.padStart(2, '0');
-      const combined = `${year}-${month}-${day}`;
-      
-      // Validate
-      const isValid = isValidDateFormat(combined);
-      setDateError(!isValid);
-      
-      if (isValid) {
-        setForm(prev => ({ ...prev, dob: combined }));
-      }
-    } else if (!dobYear && !dobMonth && !dobDay) {
-      setDateError(false);
-      setForm(prev => ({ ...prev, dob: "" }));
-    }
-  }, [form.dobDay, form.dobMonth, form.dobYear]);
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
@@ -214,6 +126,12 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     };
     reader.readAsDataURL(file);
   }, [language]);
+  
+  // Simple country select handler
+  const handleCountrySelect = useCallback((country) => {
+    setForm((prev) => ({ ...prev, country }));
+    setCountryDropdownOpen(false);
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.fullName || !form.documentType || !form.frontFile) {
@@ -252,23 +170,10 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         submitted_at: new Date().toISOString(),
       });
 
-      // Track successful submission
-      base44.analytics.track({
-        eventName: "kyc_verification_submitted",
-        properties: { success: true }
-      });
-      
       toast.success(t.success);
       onOpenChange(false);
     } catch (err) {
       console.error("Verification submission error:", err);
-      
-      // Track failed submission
-      base44.analytics.track({
-        eventName: "kyc_verification_submitted",
-        properties: { success: false }
-      });
-      
       toast.error(t.error);
     } finally {
       setLoading(false);
@@ -346,68 +251,25 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <div>
                 <Label className="flex items-center gap-2 flex-wrap">
                   {t.dob}
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({language === "ar" ? "اضغط لفتح التقويم أو اكتب" : "Tap to open calendar or type"})
+                  </span>
                 </Label>
-                {/* Separate inputs for Day, Month, Year - better mobile support */}
-                <div className="grid grid-cols-3 gap-2 mt-1">
-                  <div>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={form.dobDay}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-                        setForm(prev => ({ ...prev, dobDay: val }));
-                      }}
-                      placeholder={language === "ar" ? "يوم" : "DD"}
-                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
-                      min="1"
-                      max="31"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={form.dobMonth}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-                        setForm(prev => ({ ...prev, dobMonth: val }));
-                      }}
-                      placeholder={language === "ar" ? "شهر" : "MM"}
-                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
-                      min="1"
-                      max="12"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={form.dobYear}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                        setForm(prev => ({ ...prev, dobYear: val }));
-                      }}
-                      placeholder={language === "ar" ? "سنة" : "YYYY"}
-                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
-                      min="1920"
-                      max={new Date().getFullYear()}
-                    />
-                  </div>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={form.dob}
+                    onChange={(e) => setForm({ ...form, dob: e.target.value })}
+                    className="pr-10"
+                    placeholder="YYYY-MM-DD"
+                    max={new Date().toISOString().split('T')[0]}
+                    min="1920-01-01"
+                  />
+                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
-                {dateError ? (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {language === "ar" ? "تاريخ غير صالح - أدخل تاريخ صحيح" : "Invalid date - please enter a valid date"}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {language === "ar" ? "مثال: 15 / 05 / 1990" : "Example: 15 / 05 / 1990"}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {language === "ar" ? "مثال: 1990-05-15" : "Format: YYYY-MM-DD (e.g., 1990-05-15)"}
+                </p>
               </div>
               <div>
                 <Label>{t.country}</Label>

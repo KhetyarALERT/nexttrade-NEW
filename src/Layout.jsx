@@ -337,12 +337,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
     loadAccountTotals();
-    
-    // Track user login
-    base44.analytics.track({
-      eventName: "user_login",
-      properties: { success: true }
-    });
   }, [isAuthenticated, isLoadingAuth]);
 
 
