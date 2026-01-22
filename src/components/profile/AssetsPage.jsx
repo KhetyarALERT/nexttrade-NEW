@@ -476,8 +476,6 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <span>{t.fundingHelp}</span>
           </div>
           
-          <LiveAccountCard language={language} onRefresh={onRefresh} />
-          
           <AssetsTable
             wallets={groupedWallets}
             searchTerm={searchTerm}
