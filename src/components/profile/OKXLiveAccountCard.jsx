@@ -333,9 +333,18 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   }
 
   if (!accountData?.hasAccount) {
+    // Show request form UI instead of just "contact support"
+    const statusConfig = {
+      pending: { icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30" },
+      under_review: { icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/30" },
+      approved: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30" },
+      rejected: { icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-500/10 border-rose-500/30" },
+      assigned: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30" }
+    };
+    
     return (
-      <Card className="border-border shadow-lg rounded-2xl">
-        <CardHeader className="border-b border-border bg-muted/30 p-5">
+      <Card className="border-border shadow-lg rounded-2xl overflow-hidden">
+        <CardHeader className="border-b border-border bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 p-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-md">
               <Wallet className="h-5 w-5 text-white" />
@@ -347,19 +356,128 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
           </div>
         </CardHeader>
         <CardContent className="p-5">
-          <div className="text-center py-6">
-            <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-medium text-foreground">{t.noAccount}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t.noAccountDesc}</p>
-            <a 
-              href="mailto:support@nexttrade.exchange" 
-              className="inline-flex items-center gap-1 mt-3 text-xs text-blue-600 hover:text-blue-700"
-            >
-              <ExternalLink className="h-3 w-3" />
-              {t.supportContact}
-            </a>
-          </div>
+          {loadingRequest ? (
+            <div className="py-8 flex flex-col items-center gap-3">
+              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          ) : existingRequest && existingRequest.status !== 'rejected' ? (
+            // Show existing request status
+            <div className={`rounded-xl border ${statusConfig[existingRequest.status]?.bg || statusConfig.pending.bg} p-6 text-center`}>
+              {(() => {
+                const StatusIcon = statusConfig[existingRequest.status]?.icon || Clock;
+                return <StatusIcon className={`h-12 w-12 mx-auto mb-3 ${statusConfig[existingRequest.status]?.color || 'text-amber-500'}`} />;
+              })()}
+              <h3 className="font-semibold text-foreground">{t.requestPending}</h3>
+              <p className="text-sm text-muted-foreground mt-2">{t.requestPendingDesc}</p>
+              <Badge className="mt-3" variant="outline">
+                {existingRequest.status === 'pending' ? (language === 'ar' ? 'قيد الانتظار' : 'Pending Review') :
+                 existingRequest.status === 'under_review' ? (language === 'ar' ? 'قيد المراجعة' : 'Under Review') :
+                 existingRequest.status === 'approved' ? (language === 'ar' ? 'تمت الموافقة' : 'Approved - Setting Up') :
+                 existingRequest.status}
+              </Badge>
+              <p className="text-xs text-muted-foreground mt-4">
+                {language === 'ar' ? 'تاريخ الطلب' : 'Requested'}: {new Date(existingRequest.created_date).toLocaleDateString()}
+              </p>
+            </div>
+          ) : (
+            // Show request form prompt
+            <div className="py-4 space-y-4">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                  <Rocket className="h-8 w-8 text-emerald-500" />
+                </div>
+                <h3 className="font-semibold text-foreground text-lg">{t.requestLiveAccount}</h3>
+                <p className="text-sm text-muted-foreground mt-2">{t.requestLiveAccountDesc}</p>
+              </div>
+              
+              {/* Verification status indicator */}
+              <div className={`rounded-xl p-4 flex items-start gap-3 ${isVerified ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+                {isVerified ? (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                        {language === 'ar' ? 'الهوية موثقة' : 'Identity Verified'}
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                        {language === 'ar' ? 'يمكنك طلب حساب حقيقي الآن' : 'You can now request a live account'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{t.verifyFirst}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-500">{t.verifyFirstDesc}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Steps guide */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {language === 'ar' ? 'الخطوات' : 'Steps to Get Started'}
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { step: 1, label: language === 'ar' ? 'تحقق من هويتك' : 'Verify your identity (KYC)', done: isVerified },
+                    { step: 2, label: language === 'ar' ? 'أكمل نموذج الطلب' : 'Complete the request form', done: false },
+                    { step: 3, label: language === 'ar' ? 'انتظر موافقة المراجعة' : 'Wait for admin approval', done: false },
+                    { step: 4, label: language === 'ar' ? 'ابدأ التداول!' : 'Start trading!', done: false }
+                  ].map((item) => (
+                    <div key={item.step} className="flex items-center gap-3 text-sm">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                        item.done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {item.done ? <CheckCircle2 className="h-4 w-4" /> : item.step}
+                      </div>
+                      <span className={item.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <Button
+                onClick={() => setRequestFormOpen(true)}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl"
+              >
+                <Rocket className="h-4 w-4 mr-2" />
+                {t.requestLiveAccount}
+              </Button>
+              
+              {existingRequest?.status === 'rejected' && (
+                <div className="rounded-lg bg-rose-100 dark:bg-rose-900/30 p-3 text-center">
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
+                    {language === 'ar' ? 'تم رفض طلبك السابق' : 'Your previous request was rejected'}
+                    {existingRequest.rejection_reason && `: ${existingRequest.rejection_reason}`}
+                  </p>
+                  <p className="text-xs text-rose-500 mt-1">
+                    {language === 'ar' ? 'يمكنك تقديم طلب جديد' : 'You can submit a new request'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
+        
+        {/* Live Account Request Form Modal */}
+        <LiveAccountRequestForm
+          open={requestFormOpen}
+          onOpenChange={setRequestFormOpen}
+          language={language}
+          existingRequest={existingRequest?.status !== 'rejected' ? existingRequest : null}
+          isVerified={isVerified}
+          onVerifyClick={() => {
+            // Navigate to verification - close this modal first
+            setRequestFormOpen(false);
+            // The parent component handles verification modal
+          }}
+        />
       </Card>
     );
   }
