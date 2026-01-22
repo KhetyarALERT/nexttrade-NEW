@@ -377,6 +377,132 @@ Deno.serve(async (req) => {
       });
     }
 
+    // GET DEPOSIT ADDRESS - Fetch deposit addresses for user's OKX subaccount
+    if (action === 'getDepositAddress') {
+      const { ccy = 'USDT' } = params;
+      
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      // Call OKX deposit address endpoint
+      const depositRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/asset/deposit-address',
+        query: { ccy },
+        isTradingEndpoint: false
+      });
+
+      if (!depositRes.ok) {
+        return Response.json({ ok: false, error: depositRes.error });
+      }
+
+      const addresses = (depositRes.data?.data || []).map(addr => ({
+        chain: addr.chain,
+        address: addr.addr,
+        tag: addr.tag || addr.memo || null,
+        minDeposit: addr.minDep,
+        selected: addr.selected === true,
+        contractAddr: addr.ctAddr || null
+      }));
+
+      return Response.json({ ok: true, data: addresses });
+    }
+
+    // GET ALL DEPOSIT ADDRESSES - Fetch deposit addresses for multiple currencies
+    if (action === 'getAllDepositAddresses') {
+      const currencies = params.currencies || ['USDT', 'BTC', 'ETH'];
+      
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      const results = {};
+      
+      // Fetch addresses for each currency in parallel
+      const promises = currencies.map(async (ccy) => {
+        try {
+          const depositRes = await okxRequest({
+            credential,
+            method: 'GET',
+            path: '/api/v5/asset/deposit-address',
+            query: { ccy },
+            isTradingEndpoint: false
+          });
+
+          if (depositRes.ok && depositRes.data?.data) {
+            results[ccy] = depositRes.data.data.map(addr => ({
+              chain: addr.chain,
+              address: addr.addr,
+              tag: addr.tag || addr.memo || null,
+              minDeposit: addr.minDep,
+              selected: addr.selected === true,
+              contractAddr: addr.ctAddr || null
+            }));
+          } else {
+            results[ccy] = { error: depositRes.error?.okxMsg || 'Failed to fetch' };
+          }
+        } catch (err) {
+          results[ccy] = { error: err.message };
+        }
+      });
+
+      await Promise.all(promises);
+
+      return Response.json({ ok: true, data: results });
+    }
+
+    // GET DEPOSIT HISTORY
+    if (action === 'getDepositHistory') {
+      const { ccy, limit = 20 } = params;
+      
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      const query = { limit: String(limit) };
+      if (ccy) query.ccy = ccy;
+
+      const historyRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/asset/deposit-history',
+        query,
+        isTradingEndpoint: false
+      });
+
+      if (!historyRes.ok) {
+        return Response.json({ ok: false, error: historyRes.error });
+      }
+
+      const deposits = (historyRes.data?.data || []).map(d => ({
+        txId: d.txId,
+        ccy: d.ccy,
+        chain: d.chain,
+        amount: parseFloat(d.amt || '0'),
+        from: d.from,
+        to: d.to,
+        state: d.state, // 0: waiting, 1: deposit credited, 2: complete
+        stateLabel: d.state === '0' ? 'Pending' : d.state === '1' ? 'Credited' : d.state === '2' ? 'Complete' : 'Unknown',
+        ts: d.ts
+      }));
+
+      return Response.json({ ok: true, data: deposits });
+    }
+
     // PLACE ORDER
     if (action === 'placeOrder') {
       const credResult = await getUserOkxCredential(base44, user.id);
