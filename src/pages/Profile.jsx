@@ -283,27 +283,45 @@ export default function Profile({ language = "en" }) {
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
 
+    let userId = null;
+    
+    // Get current user ID first
+    base44.auth.me().then(user => {
+      userId = user.id;
+    }).catch(() => {});
+
     const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
-      // Only react to changes for current user's verification
-      base44.auth.me().then(user => {
-        if (event.data?.user_id === user.id) {
-          // Update verification state
-          setExistingVerification(event.data);
-          
-          // Update badge based on status
-          if (event.data.status === 'approved') {
-            setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
-          } else if (event.data.status === 'rejected') {
-            setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
-          } else {
-            setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
-          }
+      // Check if this update is for the current user
+      if (userId && event.data?.user_id === userId) {
+        console.log("Real-time verification update received:", event.data.status);
+        
+        // Update verification state immediately
+        setExistingVerification(event.data);
+        
+        // Force UI update by updating formState
+        if (event.data.status === 'approved') {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
+        } else if (event.data.status === 'rejected') {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
+        } else {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
         }
-      }).catch(() => {});
+      }
     });
 
     return () => unsubscribe();
   }, [isAuthenticated, isLoadingAuth]);
+
+  // Poll for verification status changes as backup (every 10 seconds)
+  useEffect(() => {
+    if (!isAuthenticated || isLoadingAuth) return;
+    
+    const pollInterval = setInterval(() => {
+      loadVerificationRequest();
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated, isLoadingAuth, loadVerificationRequest]);
 
   // Auto-open verification modal if requested via URL
   useEffect(() => {
@@ -539,52 +557,62 @@ export default function Profile({ language = "en" }) {
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {formState.fullName || "User"}
                     </h1>
-                    {formState.verificationStatus === 'verified' || existingVerification?.status === 'approved' ? (
-                      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium animate-pulse">
-                        <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
-                      </Badge>
-                    ) : existingVerification?.status === 'rejected' ? (
-                      <Badge 
-                        className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
-                        onClick={() => {
-                          setSearchParams({ tab: 'security' });
-                          setVerificationModalOpen(true);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
-                      </Badge>
-                    ) : existingVerification?.status === 'pending' || existingVerification?.status === 'under_review' || existingVerification?.status === 'needs_help' ? (
-                      <Badge 
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-                        onClick={() => {
-                          setSearchParams({ tab: 'security' });
-                        }}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
-                      </Badge>
-                    ) : (
-                      <Badge 
-                        className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
-                        onClick={() => {
-                          setSearchParams({ tab: 'security' });
-                          setVerificationModalOpen(true);
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
+                    {/* Verification Badge - Priority: existingVerification status takes precedence */}
+                    {(() => {
+                      const status = existingVerification?.status;
+                      
+                      if (status === 'approved') {
+                        return (
+                          <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
+                            <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
+                          </Badge>
+                        );
+                      }
+                      
+                      if (status === 'rejected') {
+                        return (
+                          <Badge 
+                            className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
+                            onClick={() => {
+                              setSearchParams({ tab: 'security' });
+                              setVerificationModalOpen(true);
+                            }}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
+                          </Badge>
+                        );
+                      }
+                      
+                      if (status === 'pending' || status === 'under_review' || status === 'needs_help') {
+                        return (
+                          <Badge 
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+                            onClick={() => setSearchParams({ tab: 'security' })}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
+                          </Badge>
+                        );
+                      }
+                      
+                      // No verification exists - show "Not Verified"
+                      return (
+                        <Badge 
+                          className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
+                          onClick={() => {
                             setSearchParams({ tab: 'security' });
                             setVerificationModalOpen(true);
-                          }
-                        }}
-                      >
-                        <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
-                      </Badge>
-                    )}
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
+                        </Badge>
+                      );
+                    })()}
                   </div>
                   
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
