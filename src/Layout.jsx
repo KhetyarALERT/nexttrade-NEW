@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle } from "lucide-react";
-import { tSection } from "@/components/i18n/translations";
 import { Button } from "@/components/ui/button";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
