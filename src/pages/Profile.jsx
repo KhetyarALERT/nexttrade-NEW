@@ -153,6 +153,8 @@ const translations = {
   }
 };
 
+const REFERRAL_DOMAIN = "https://nexttrade.exchange";
+
 const normalizeUserProfile = (user = {}) => ({
   uuid: user.id || "---",
   fullName: user.fullName || user.name || "",
@@ -160,8 +162,10 @@ const normalizeUserProfile = (user = {}) => ({
   bio: user.bio || "",
   avatarUrl: user.avatarUrl || "",
   twoFactorEnabled: user.twoFactorEnabled || false,
-  referralCode: user.referralCode || "NEXT-7829",
-  referralLink: `https://nexttrade.app/ref/${user.referralCode || "NEXT-7829"}`,
+  referralCode: user.referralCode || user.referral_code || "",
+  referralLink: user.referralCode || user.referral_code 
+    ? `${REFERRAL_DOMAIN}/r/${user.referralCode || user.referral_code}`
+    : "",
   createdDate: user.createdDate || new Date().toISOString()
 });
 
@@ -262,7 +266,20 @@ export default function Profile({ language = "en" }) {
     setError(null);
     try {
       const data = await fetchCurrentUser();
-      setFormState(normalizeUserProfile(data));
+      let profile = normalizeUserProfile(data);
+      
+      // If no referral code, fetch/generate one
+      if (!profile.referralCode) {
+        try {
+          const refRes = await base44.functions.invoke("referral", { action: "getMyReferralInfo" });
+          if (refRes.data?.success && refRes.data.data?.code) {
+            profile.referralCode = refRes.data.data.code;
+            profile.referralLink = refRes.data.data.link;
+          }
+        } catch {}
+      }
+      
+      setFormState(profile);
     } catch (err) {
       console.error("Failed to load user", err);
       setError(t.loadError);
@@ -1149,153 +1166,51 @@ export default function Profile({ language = "en" }) {
             />
           </TabsContent>
 
-          {/* Referrals Tab */}
+          {/* Referrals Tab - Redirect to dedicated Invite page */}
           <TabsContent value="referrals" className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { 
-                  label: language === "en" ? "Today's Referrals" : "إحالات اليوم", 
-                  value: "0",
-                  gradient: "from-blue-500 to-blue-600",
-                  bgGradient: "from-blue-50 to-blue-50"
-                },
-                { 
-                  label: language === "en" ? "30D Referrals" : "إحالات 30 يوم", 
-                  value: "12",
-                  gradient: "from-emerald-500 to-emerald-600",
-                  bgGradient: "from-emerald-50 to-emerald-50"
-                },
-                { 
-                  label: language === "en" ? "Yesterday Commission" : "عمولة الأمس", 
-                  value: "$0.00",
-                  gradient: "from-indigo-500 to-indigo-600",
-                  bgGradient: "from-indigo-50 to-indigo-50"
-                },
-                { 
-                  label: language === "en" ? "30D Commission" : "عمولة 30 يوم", 
-                  value: "$145.20",
-                  gradient: "from-orange-500 to-orange-600",
-                  bgGradient: "from-orange-50 to-orange-50"
-                }
-              ].map((stat, i) => (
-                <Card key={i} className={`border-0 bg-gradient-to-br ${stat.bgGradient} shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer rounded-2xl`}>
-                  <CardContent className="p-6">
-                    <p className="text-xs font-medium text-slate-600 mb-3">{stat.label}</p>
-                    <p className={`text-3xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}>
-                      {stat.value}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
             <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="border-b border-border bg-muted/30 p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-700 shadow-lg">
-                      <Gift className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-bold text-foreground">
-                        {language === "en" ? "Referral Program" : "برنامج الإحالة"}
-                      </CardTitle>
-                      <CardDescription className="text-sm text-muted-foreground">
-                        {language === "en" ? "Invite friends and earn commissions" : "ادعُ أصدقاءك واربح عمولات"}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Badge className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-0 shadow-lg px-3 py-1">
-                    {language === "en" ? "Active" : "نشط"}
-                  </Badge>
+              <CardContent className="p-8 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 flex items-center justify-center mx-auto mb-4">
+                  <Gift className="h-8 w-8 text-white" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Gift className="h-4 w-4 text-indigo-600" />
-                      {t.referralCode}
-                    </Label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Input 
-                        value={formState.referralCode} 
-                        readOnly 
-                        className="min-w-0 flex-1 font-mono font-bold text-lg bg-muted/30 border-border rounded-xl" 
-                      />
+                <h3 className="text-xl font-bold text-foreground mb-2">
+                  {language === "en" ? "Invite & Earn" : "ادعُ واربح"}
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {language === "en" 
+                    ? "Share your referral link and earn $10 for each friend who joins and trades!" 
+                    : "شارك رابط الإحالة واربح $10 لكل صديق ينضم ويتداول!"}
+                </p>
+                
+                {formState?.referralCode && (
+                  <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border">
+                    <p className="text-xs text-muted-foreground mb-2">{t.referralCode}</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <code className="text-lg font-bold font-mono text-foreground">{formState.referralCode}</code>
                       <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => handleCopy(formState.referralCode)} 
-                        className="rounded-xl border-border hover:bg-muted transition-all duration-300"
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleCopy(formState.referralCode)}
+                        className="h-8 w-8 p-0"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <ExternalLink className="h-4 w-4 text-indigo-600" />
-                      {t.referralLink}
-                    </Label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Input 
-                        value={formState.referralLink} 
-                        readOnly 
-                        className="min-w-0 flex-1 text-xs bg-muted/30 border-border rounded-xl" 
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => handleCopy(formState.referralLink)} 
-                        className="rounded-xl border-border hover:bg-muted transition-all duration-300"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button
-                    onClick={handleShareReferral}
-                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20"
-                  >
+                )}
+                
+                <Button
+                  asChild
+                  className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl px-8"
+                >
+                  <Link to={createPageUrl("Invite")}>
                     <Users className="mr-2 h-4 w-4" />
-                    {t.shareInvite}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleCopy(formState.referralLink)}
-                    className="rounded-xl border-border hover:bg-muted"
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    {language === "ar" ? "نسخ الرابط" : "Copy link"}
-                  </Button>
-                </div>
-
-                <div className="rounded-2xl bg-muted/30 p-6 border border-border">
-                  <h4 className="font-bold text-foreground mb-3 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-indigo-600" />
-                    {language === "en" ? "How it works" : "كيف يعمل"}
-                  </h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                      <span>{language === "en" ? "Share your unique referral link" : "شارك رابط الإحالة الفريد الخاص بك"}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                      <span>{language === "en" ? "Earn commissions when they trade" : "اربح عمولات عندما يتداولون"}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                      <span>{language === "en" ? "Commissions are credited to your wallet" : "تُضاف العمولات إلى محفظتك"}</span>
-                    </li>
-                  </ul>
-                </div>
+                    {language === "en" ? "Go to Invite & Earn" : "اذهب إلى ادعُ واربح"}
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
+
           </TabsContent>
 
           {/* Trades Tab */}
