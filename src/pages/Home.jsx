@@ -685,10 +685,19 @@ export default function Home({ language = "en" }) {
             <Button
               size="lg"
               className="bg-white text-slate-900 hover:bg-gray-100 rounded-full px-12 py-8 text-xl font-bold shadow-2xl hover:scale-105 transition-all"
-              asChild>
-              <Link to={createPageUrl("Profile") + "?tab=accounts"}>
-                {language === "en" ? "Open Your Account Now" : "افتح حسابك الآن"}
-              </Link>
+              asChild={isAuthenticated && !!nextAction?.route}
+              onClick={!isAuthenticated ? navigateToLogin : undefined}
+              disabled={loadingReadiness}
+            >
+              {isAuthenticated && nextAction?.route ? (
+                <Link to={nextAction.route}>
+                  {nextAction.label?.[language] || (language === "en" ? "Open Your Account Now" : "افتح حسابك الآن")}
+                </Link>
+              ) : (
+                <span>
+                  {language === "en" ? "Open Your Account Now" : "افتح حسابك الآن"}
+                </span>
+              )}
             </Button>
           </div>
         </div>

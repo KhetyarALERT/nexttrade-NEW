@@ -16,9 +16,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Shield, XCircle, Clock } from "lucide-react";
+import { Shield as ShieldIcon, XCircle, Clock as ClockIcon, ArrowRight } from "lucide-react";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -285,7 +286,7 @@ export default function Trading({ language = "en" }) {
   // Readiness gate - show blocking UI if user not ready
   if (isAuthenticated && !isLoadingAuth && !loadingReadiness && !isReady && nextAction?.blocking) {
     const BlockIcon = nextAction.reason?.includes("reject") ? XCircle : 
-                      nextAction.reason?.includes("review") ? Clock : Shield;
+                      nextAction.reason?.includes("review") ? ClockIcon : ShieldIcon;
     
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -302,24 +303,24 @@ export default function Trading({ language = "en" }) {
               <Lock className="h-8 w-8 text-amber-500" />
             </div>
             <h2 className="text-xl font-bold text-foreground">
-              {language === "ar" ? "الوصول محدود" : "Access Restricted"}
+              {isAr ? "الوصول محدود" : "Access Restricted"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {language === "ar" 
+              {isAr 
                 ? "يجب إكمال الخطوات المطلوبة للوصول إلى التداول"
                 : "Please complete the required steps to access trading"}
             </p>
             
             <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl">
               <Link to={nextAction.route}>
-                {nextAction.label?.[language] || (language === "ar" ? "المتابعة" : "Continue")}
+                {nextAction.label?.[isAr ? "ar" : "en"] || (isAr ? "المتابعة" : "Continue")}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
             
             <Button asChild variant="outline" className="w-full">
               <Link to={createPageUrl("Dashboard")}>
-                {language === "ar" ? "العودة للوحة التحكم" : "Back to Dashboard"}
+                {isAr ? "العودة للوحة التحكم" : "Back to Dashboard"}
               </Link>
             </Button>
           </div>
