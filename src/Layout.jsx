@@ -252,10 +252,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       type: "dropdown",
       name: { en: "Assets", ar: "المحفظة" },
       items: [
-        { name: { en: "Buy with Card", ar: "شراء بالبطاقة" }, url: createPageUrl("BuyWithCard") },
-        { name: { en: "On-chain Deposit", ar: "إيداع على السلسلة" }, url: createPageUrl("OnChainDeposit") },
-        { name: { en: "My Assets", ar: "الأصول" }, url: `${createPageUrl("Profile")}?tab=assets&assetTab=main` },
-        { name: { en: "P2P (Coming soon)", ar: "P2P (قريباً)" }, url: null },
+        { name: { en: "My Assets", ar: "الأصول" }, url: createPageUrl("Wallet") },
+        { name: { en: "Deposit", ar: "إيداع" }, url: `${createPageUrl("Wallet")}?page=deposit` },
+        { name: { en: "History", ar: "السجل" }, url: `${createPageUrl("Wallet")}?page=history` },
       ],
     },
     { type: "link", name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
@@ -542,15 +541,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <Button asChild variant="outline" className="w-full">
-                          <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=withdraw"}>
-                            {language === "ar" ? "سحب" : "Withdraw"}
-                          </Link>
-                        </Button>
-                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                          <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main&modal=deposit"}>
-                            {language === "ar" ? "إيداع" : "Deposit"}
-                          </Link>
-                        </Button>
+                                          <Link to={createPageUrl("Wallet")}>
+                                            {language === "ar" ? "سحب" : "Withdraw"}
+                                          </Link>
+                                        </Button>
+                                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
+                                          <Link to={`${createPageUrl("Wallet")}?page=deposit`}>
+                                            {language === "ar" ? "إيداع" : "Deposit"}
+                                          </Link>
+                                        </Button>
                       </div>
                     </div>
 
@@ -570,53 +569,16 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحسابات" : "Accounts"}</div>
                     <ConnectedWalletAccountsItem language={language} />
                     <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}>
-                        <div className="flex w-full items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <Wallet className="h-4 w-4" />
-                            <span>{language === "ar" ? "حساب التمويل" : "Fund Account"}</span>
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountBalances.fundingUsdt)} USDT</span>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=spot"}>
-                        <div className="flex w-full items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            <span>{language === "ar" ? "حساب سبوت" : "Spot Account"}</span>
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {accountBalances.spotUsdt === null ? "—" : `${formatUsdt(accountBalances.spotUsdt)} USDT`}
-                          </span>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=assets&assetTab=futures"}>
-                        <div className="flex w-full items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            <span>{language === "ar" ? "حساب العقود" : "Futures Account"}</span>
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {accountBalances.futuresUsdt === null ? "—" : `${formatUsdt(accountBalances.futuresUsdt)} USDT`}
-                          </span>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Investing")}>
-                        <div className="flex w-full items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <Wallet className="h-4 w-4" />
-                            <span>{language === "ar" ? "حساب الثروة" : "Wealth Account"}</span>
-                          </div>
-                          <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountBalances.wealthUsdt)} USDT</span>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
+                                  <Link to={createPageUrl("Wallet")}>
+                                    <div className="flex w-full items-center justify-between gap-3">
+                                      <div className="flex items-center gap-2">
+                                        <Wallet className="h-4 w-4" />
+                                        <span>{language === "ar" ? "المحفظة" : "Wallet"}</span>
+                                      </div>
+                                      <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.totalUsdt)} USDT</span>
+                                    </div>
+                                  </Link>
+                                </DropdownMenuItem>
 
                     <DropdownMenuSeparator />
 
@@ -922,16 +884,16 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
           </Link>
 
           <Link
-            to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}
-            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
-              location.pathname.includes("Profile") && location.search.includes("assets")
-                ? 'text-primary bg-primary/15'
-                : 'text-muted-foreground'
-            }`}
-          >
-            <WalletIcon className="w-4 h-4" />
-            <span className="text-[9px] font-medium">{language === 'ar' ? 'أصول' : 'Assets'}</span>
-          </Link>
+                to={createPageUrl("Wallet")}
+                className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
+                  location.pathname.includes("Wallet")
+                    ? 'text-primary bg-primary/15'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                <WalletIcon className="w-4 h-4" />
+                <span className="text-[9px] font-medium">{language === 'ar' ? 'أصول' : 'Assets'}</span>
+              </Link>
 
           <Link
             to={createPageUrl("MemeCoins")}
