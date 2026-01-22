@@ -380,8 +380,16 @@ export default function OKXAdminHub({ language = 'en' }) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="requests" className="relative">
+              Requests
+              {accountRequests.filter(r => r.status === 'pending' || r.status === 'under_review').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {accountRequests.filter(r => r.status === 'pending' || r.status === 'under_review').length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="pool">Pool</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
