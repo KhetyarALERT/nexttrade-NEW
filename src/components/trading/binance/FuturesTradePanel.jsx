@@ -735,7 +735,7 @@ export default function FuturesTradePanel({
           >
             {labels.isolated}
           </button>
-          <div className="ml-auto text-[11px] text-muted-foreground">{demoMode ? labels.demoTrade : labels.demo}</div>
+          {/* Removed demo label */}
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
