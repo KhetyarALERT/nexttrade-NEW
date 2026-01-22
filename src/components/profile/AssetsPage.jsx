@@ -130,7 +130,7 @@ const localizations = {
   }
 };
 
-export default function AssetsPage({ wallets = [], language = "en", onRefresh, liveAccount, trades = [], demoAccount }) {
+export default function AssetsPage({ wallets = [], language = "en", onRefresh }) {
   const location = useLocation();
   const navigate = useNavigate();
   const t = localizations[language] || localizations.en;
@@ -510,14 +510,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <span>{t.perpetualHelp}</span>
           </div>
           <FuturesWalletView
-            tradingAccount={liveAccount}
-            demoAccount={demoAccount}
-            trades={trades}
             showBalances={showBalances}
             language={language}
             onTransfer={() => setActiveModal('transfer')}
-            onRefresh={onRefresh} />
-
+            onRefresh={onRefresh}
+          />
         </TabsContent>
       </Tabs>
 
@@ -966,10 +963,7 @@ function AssetsTable({ wallets, searchTerm, setSearchTerm, hideSmallBalances, se
 AssetsPage.propTypes = {
   wallets: PropTypes.array,
   language: PropTypes.string,
-  onRefresh: PropTypes.func,
-  liveAccount: PropTypes.object,
-  trades: PropTypes.array,
-  demoAccount: PropTypes.object
+  onRefresh: PropTypes.func
 };
 
 AssetsTable.propTypes = {
