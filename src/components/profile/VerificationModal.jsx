@@ -75,14 +75,59 @@ const countries = [
   "Iran", "Afghanistan", "Bangladesh", "Malaysia", "Indonesia", "Other"
 ];
 
+// Date validation helper
+const isValidDateFormat = (dateStr) => {
+  if (!dateStr) return true; // Empty is okay (optional field)
+  // Must match YYYY-MM-DD format
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!regex.test(dateStr)) return false;
+  
+  // Also validate it's a real date
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  
+  // Check year is reasonable (1920-current year)
+  const year = parseInt(dateStr.substring(0, 4), 10);
+  const currentYear = new Date().getFullYear();
+  if (year < 1920 || year > currentYear) return false;
+  
+  return true;
+};
+
+// Parse and normalize date input (handle various formats)
+const normalizeDate = (input) => {
+  if (!input) return "";
+  
+  // Remove any non-digit characters except dash
+  let cleaned = input.replace(/[^\d-]/g, "");
+  
+  // If it looks like DDMMYYYY or DD/MM/YYYY pattern, try to convert
+  if (/^\d{8}$/.test(cleaned)) {
+    // Could be DDMMYYYY or YYYYMMDD
+    const firstFour = parseInt(cleaned.substring(0, 4), 10);
+    if (firstFour > 1900 && firstFour < 2100) {
+      // YYYYMMDD format
+      return `${cleaned.substring(0, 4)}-${cleaned.substring(4, 6)}-${cleaned.substring(6, 8)}`;
+    } else {
+      // DDMMYYYY format
+      return `${cleaned.substring(4, 8)}-${cleaned.substring(2, 4)}-${cleaned.substring(0, 2)}`;
+    }
+  }
+  
+  return cleaned;
+};
+
 export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null }) {
   const t = translations[language] || translations.en;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [dateError, setDateError] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
+    dobDay: "",
+    dobMonth: "",
+    dobYear: "",
     country: "",
     documentType: "passport",
     frontFile: null,
@@ -99,9 +144,52 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     if (!open) {
       // Reset to step 1 when modal closes
       setStep(1);
-      setCountryDropdownOpen(false);
+      setDateError(false);
     }
   }, [open]);
+  
+  // Track verification analytics
+  useEffect(() => {
+    if (open && !existingRequest) {
+      // Track verification started
+      base44.analytics.track({
+        eventName: "kyc_verification_started",
+        properties: { step: 1 }
+      });
+    }
+  }, [open, existingRequest]);
+  
+  // Track step changes
+  useEffect(() => {
+    if (open && step > 1 && !existingRequest) {
+      base44.analytics.track({
+        eventName: "kyc_verification_step_reached",
+        properties: { step }
+      });
+    }
+  }, [step, open, existingRequest]);
+  
+  // Combine date parts into dob
+  useEffect(() => {
+    const { dobDay, dobMonth, dobYear } = form;
+    if (dobYear && dobMonth && dobDay) {
+      const year = dobYear.padStart(4, '0');
+      const month = dobMonth.padStart(2, '0');
+      const day = dobDay.padStart(2, '0');
+      const combined = `${year}-${month}-${day}`;
+      
+      // Validate
+      const isValid = isValidDateFormat(combined);
+      setDateError(!isValid);
+      
+      if (isValid) {
+        setForm(prev => ({ ...prev, dob: combined }));
+      }
+    } else if (!dobYear && !dobMonth && !dobDay) {
+      setDateError(false);
+      setForm(prev => ({ ...prev, dob: "" }));
+    }
+  }, [form.dobDay, form.dobMonth, form.dobYear]);
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
@@ -126,12 +214,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     };
     reader.readAsDataURL(file);
   }, [language]);
-  
-  // Simple country select handler
-  const handleCountrySelect = useCallback((country) => {
-    setForm((prev) => ({ ...prev, country }));
-    setCountryDropdownOpen(false);
-  }, []);
 
   const handleSubmit = async () => {
     if (!form.fullName || !form.documentType || !form.frontFile) {
