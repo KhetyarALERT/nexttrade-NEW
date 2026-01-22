@@ -264,7 +264,7 @@ export default function Profile({ language = "en" }) {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchCurrentUser();
+      const data = await base44.auth.me();
       let profile = normalizeUserProfile(data);
       
       // If no referral code, fetch/generate one
