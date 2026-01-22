@@ -288,8 +288,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
       const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
 
-      // Wallets: Fund Account balance
-      const fundingUsdt = wallets.reduce((sum, w) => {
+      // Wallets: Fund Account balance (internal platform wallets)
+      const internalFundingUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
         return sum;
       }, 0);
@@ -300,20 +300,23 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         return sum;
       }, 0);
 
-      // OKX Balances - totalEquity is the main trading account balance
+      // OKX Balances - REAL synced data from OKX subaccount
       const okxTotalEquity = okxData?.hasAccount ? (okxData.balances?.totalEquity || 0) : 0;
       const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
-      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || okxTotalEquity || 0) : 0;
+      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
 
-      // Combined totals - use totalEquity as the primary source for OKX balance
-      const totalUsdt = fundingUsdt + okxTotalEquity + wealthUsdt;
+      // Combined totals
+      // Total = internal funding + OKX funding + OKX trading + wealth
+      const totalUsdt = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
       setAccountTotals({ totalUsd, totalUsdt });
       setAccountBalances({
-        fundingUsdt: fundingUsdt + okxFundingUsdt,
+        // Fund Account = internal platform funding + OKX funding account
+        fundingUsdt: internalFundingUsdt + okxFundingUsdt,
         spotUsdt: null, // No spot trading yet
-        futuresUsdt: okxTotalEquity > 0 ? okxTotalEquity : null,
+        // Futures = OKX trading account (where margin trading happens)
+        futuresUsdt: okxData?.hasAccount ? okxTradingUsdt : null,
         wealthUsdt,
       });
     } catch (err) {
