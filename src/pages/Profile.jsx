@@ -168,9 +168,12 @@ const normalizeUserProfile = (user = {}) => ({
   createdDate: user.createdDate || new Date().toISOString()
 });
 
-// Verification Badge Component - reads status directly
+// Verification Badge Component - reads status directly from VerificationRequest entity
 function VerificationBadge({ status, language, onClickNotVerified, onClickPending }) {
   const t = translations[language] || translations.en;
+  
+  // Status comes directly from VerificationRequest.status field
+  // Values: 'pending', 'under_review', 'approved', 'rejected', 'needs_help'
   
   if (status === 'approved') {
     return (
@@ -206,7 +209,7 @@ function VerificationBadge({ status, language, onClickNotVerified, onClickPendin
     );
   }
   
-  // No verification or unknown status - show "Not Verified"
+  // No verification request exists (status is null/undefined) - show "Not Verified"
   return (
     <Badge 
       className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
