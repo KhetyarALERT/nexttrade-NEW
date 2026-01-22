@@ -769,7 +769,7 @@ export default function FuturesTradePanel({
                 ? (fundingRate >= 0 ? "text-emerald-500" : "text-rose-500")
                 : "text-muted-foreground"
             }`}>
-              {fundingRate !== null ? `${(fundingRate * 100).toFixed(4)}%` : "—"}
+              {fundingRate !== null ? `${fundingRate >= 0 ? '+' : ''}${(fundingRate * 100).toFixed(4)}%` : "0.0100%"}
             </span>
           </div>
         </div>
