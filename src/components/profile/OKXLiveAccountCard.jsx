@@ -5,19 +5,70 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
+import { 
   RefreshCw, Wallet, TrendingUp, TrendingDown, 
-  AlertCircle, CheckCircle2, ExternalLink, Activity 
+  AlertCircle, CheckCircle2, Activity, Copy,
+  ArrowDownToLine, QrCode, ChevronDown, ChevronUp,
+  Info, ExternalLink
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
+const CHAIN_NAMES = {
+  'USDT-TRC20': 'Tron (TRC20)',
+  'USDT-ERC20': 'Ethereum (ERC20)',
+  'USDT-Polygon': 'Polygon',
+  'USDT-Arbitrum One': 'Arbitrum',
+  'USDT-Optimism': 'Optimism',
+  'USDT-OKTC': 'OKT Chain',
+  'USDT-Avalanche C-Chain': 'Avalanche C',
+  'USDT-BNB Smart Chain(BEP20)': 'BSC (BEP20)',
+  'USDT-CELO': 'Celo',
+  'USDT-TON': 'TON',
+  'USDT-Solana': 'Solana',
+  'BTC-Bitcoin': 'Bitcoin',
+  'BTC-Lightning Network': 'Lightning',
+  'ETH-ERC20': 'Ethereum',
+  'ETH-Arbitrum One': 'Arbitrum',
+  'ETH-Optimism': 'Optimism',
+  'ETH-zkSync Era': 'zkSync',
+  'ETH-Linea': 'Linea',
+  'ETH-Base': 'Base',
+};
+
+const CHAIN_FEES = {
+  'USDT-TRC20': '~1 USDT',
+  'USDT-ERC20': '~15 USDT',
+  'USDT-Polygon': '~0.1 USDT',
+  'USDT-Arbitrum One': '~0.5 USDT',
+  'USDT-BNB Smart Chain(BEP20)': '~0.5 USDT',
+  'USDT-Solana': '~1 USDT',
+  'BTC-Bitcoin': '~0.0001 BTC',
+  'ETH-ERC20': '~0.005 ETH',
+};
+
 export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [accountData, setAccountData] = useState(null);
   const [positions, setPositions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Deposit section state
+  const [depositExpanded, setDepositExpanded] = useState(false);
+  const [depositAddresses, setDepositAddresses] = useState({});
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState('USDT');
+  const [selectedChain, setSelectedChain] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [depositHistory, setDepositHistory] = useState([]);
 
   const t = {
     en: {
@@ -36,7 +87,20 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       active: "Active",
       lastSync: "Last sync",
       leverage: "Leverage",
-      unrealizedPnl: "Unrealized P&L"
+      unrealizedPnl: "Unrealized P&L",
+      depositFunds: "Deposit Funds",
+      selectCurrency: "Select Currency",
+      selectNetwork: "Select Network",
+      depositAddress: "Deposit Address",
+      copyAddress: "Copy Address",
+      minDeposit: "Min. Deposit",
+      networkWarning: "Only send {ccy} via {chain}. Deposits from wrong networks will be lost permanently.",
+      recentDeposits: "Recent Deposits",
+      noDeposits: "No recent deposits",
+      pending: "Pending",
+      credited: "Credited",
+      complete: "Complete",
+      supportContact: "Need help? Contact support"
     },
     ar: {
       title: "حساب التداول المباشر",
@@ -54,7 +118,20 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       active: "نشط",
       lastSync: "آخر مزامنة",
       leverage: "الرافعة",
-      unrealizedPnl: "الربح غير المحقق"
+      unrealizedPnl: "الربح غير المحقق",
+      depositFunds: "إيداع الأموال",
+      selectCurrency: "اختر العملة",
+      selectNetwork: "اختر الشبكة",
+      depositAddress: "عنوان الإيداع",
+      copyAddress: "نسخ العنوان",
+      minDeposit: "الحد الأدنى",
+      networkWarning: "أرسل {ccy} عبر {chain} فقط. الإيداعات من شبكات خاطئة ستفقد نهائياً.",
+      recentDeposits: "الإيداعات الأخيرة",
+      noDeposits: "لا توجد إيداعات حديثة",
+      pending: "معلق",
+      credited: "مسجل",
+      complete: "مكتمل",
+      supportContact: "تحتاج مساعدة؟ تواصل مع الدعم"
     }
   }[language] || {};
 
@@ -92,12 +169,91 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
     if (onRefresh) onRefresh();
   };
 
+  const loadDepositAddresses = async (ccy) => {
+    setLoadingAddresses(true);
+    try {
+      const res = await base44.functions.invoke('okxUserAccount', { 
+        action: 'getDepositAddress',
+        ccy 
+      });
+      
+      if (res.data?.ok && res.data.data) {
+        setDepositAddresses(prev => ({
+          ...prev,
+          [ccy]: res.data.data
+        }));
+        
+        // Auto-select first chain if not selected
+        if (res.data.data.length > 0 && !selectedChain) {
+          // Prefer TRC20 for USDT
+          const trc20 = res.data.data.find(a => a.chain.includes('TRC20'));
+          setSelectedChain(trc20?.chain || res.data.data[0].chain);
+        }
+      }
+    } catch (err) {
+      console.error('[OKXLiveAccountCard] Load addresses error:', err);
+      toast.error(language === 'ar' ? 'فشل تحميل العناوين' : 'Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const loadDepositHistory = async () => {
+    try {
+      const res = await base44.functions.invoke('okxUserAccount', { 
+        action: 'getDepositHistory',
+        limit: 5
+      });
+      
+      if (res.data?.ok) {
+        setDepositHistory(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('[OKXLiveAccountCard] Load history error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (depositExpanded && accountData?.hasAccount) {
+      if (!depositAddresses[selectedCurrency]) {
+        loadDepositAddresses(selectedCurrency);
+      }
+      loadDepositHistory();
+    }
+  }, [depositExpanded, selectedCurrency, accountData?.hasAccount]);
+
+  const handleCurrencyChange = (ccy) => {
+    setSelectedCurrency(ccy);
+    setSelectedChain('');
+    if (!depositAddresses[ccy]) {
+      loadDepositAddresses(ccy);
+    } else {
+      // Select default chain for this currency
+      const addresses = depositAddresses[ccy];
+      if (addresses?.length > 0) {
+        const trc20 = addresses.find(a => a.chain.includes('TRC20'));
+        setSelectedChain(trc20?.chain || addresses[0].chain);
+      }
+    }
+  };
+
+  const handleCopy = async (text) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(language === 'ar' ? 'تم النسخ!' : 'Copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const formatUsdt = (val) => {
     if (val === null || val === undefined) return '0.00';
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const totalUpl = positions.reduce((sum, p) => sum + (p.upl || 0), 0);
+
+  const currentAddresses = depositAddresses[selectedCurrency] || [];
+  const selectedAddress = currentAddresses.find(a => a.chain === selectedChain);
+  const chainDisplayName = CHAIN_NAMES[selectedChain] || selectedChain?.split('-').pop() || selectedChain;
 
   if (loading) {
     return (
@@ -132,6 +288,13 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
             <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
             <p className="text-sm font-medium text-foreground">{t.noAccount}</p>
             <p className="text-xs text-muted-foreground mt-1">{t.noAccountDesc}</p>
+            <a 
+              href="mailto:support@nexttrade.exchange" 
+              className="inline-flex items-center gap-1 mt-3 text-xs text-blue-600 hover:text-blue-700"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {t.supportContact}
+            </a>
           </div>
         </CardContent>
       </Card>
@@ -200,6 +363,169 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
             <span className="text-muted-foreground">{t.leverage}</span>
             <span className="font-medium">{accountData.defaultLeverage || 10}x</span>
           </div>
+        </div>
+
+        {/* Deposit Section - Collapsible */}
+        <div className="rounded-xl border border-blue-500/30 overflow-hidden">
+          <button
+            onClick={() => setDepositExpanded(!depositExpanded)}
+            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ArrowDownToLine className="h-5 w-5 text-blue-600" />
+              <span className="font-semibold text-foreground">{t.depositFunds}</span>
+            </div>
+            {depositExpanded ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+          
+          {depositExpanded && (
+            <div className="p-4 space-y-4 bg-card/50">
+              {/* Currency Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{t.selectCurrency}</label>
+                <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USDT">USDT (Tether)</SelectItem>
+                    <SelectItem value="USDC">USDC</SelectItem>
+                    <SelectItem value="BTC">BTC (Bitcoin)</SelectItem>
+                    <SelectItem value="ETH">ETH (Ethereum)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Network Selection */}
+              {currentAddresses.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">{t.selectNetwork}</label>
+                  <Select value={selectedChain} onValueChange={setSelectedChain}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select network" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currentAddresses.map((addr) => (
+                        <SelectItem key={addr.chain} value={addr.chain}>
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span>{CHAIN_NAMES[addr.chain] || addr.chain.split('-').pop()}</span>
+                            {CHAIN_FEES[addr.chain] && (
+                              <span className="text-xs text-muted-foreground">Fee: {CHAIN_FEES[addr.chain]}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {loadingAddresses && (
+                <div className="flex items-center justify-center py-6">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                </div>
+              )}
+
+              {/* Deposit Address Display */}
+              {selectedAddress && !loadingAddresses && (
+                <div className="space-y-3">
+                  {/* QR Code Placeholder */}
+                  <div className="flex justify-center p-4 bg-white rounded-lg">
+                    <div className="w-32 h-32 flex items-center justify-center bg-slate-100 rounded-lg">
+                      <QrCode className="w-full h-full p-3 text-slate-400" />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="rounded-lg bg-muted/30 border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground">{t.depositAddress}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCopy(selectedAddress.address)}
+                        className="h-7 px-2"
+                      >
+                        {copied ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                        <span className="ml-1 text-xs">{t.copyAddress}</span>
+                      </Button>
+                    </div>
+                    <code className="text-sm font-mono text-foreground break-all block">
+                      {selectedAddress.address}
+                    </code>
+                    
+                    {selectedAddress.tag && (
+                      <div className="mt-3 pt-3 border-t border-border/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Memo/Tag</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleCopy(selectedAddress.tag)}
+                            className="h-6 px-2"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <code className="text-sm font-mono text-foreground">{selectedAddress.tag}</code>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Min Deposit */}
+                  {selectedAddress.minDeposit && (
+                    <div className="flex items-center justify-between text-sm px-1">
+                      <span className="text-muted-foreground">{t.minDeposit}</span>
+                      <span className="font-mono font-medium">{selectedAddress.minDeposit} {selectedCurrency}</span>
+                    </div>
+                  )}
+
+                  {/* Warning */}
+                  <div className="flex items-start gap-2 p-3 bg-amber-100/40 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {t.networkWarning
+                        .replace('{ccy}', selectedCurrency)
+                        .replace('{chain}', chainDisplayName)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Deposits */}
+              {depositHistory.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <h4 className="text-sm font-semibold text-foreground">{t.recentDeposits}</h4>
+                  <div className="space-y-2">
+                    {depositHistory.map((dep, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm">
+                        <div>
+                          <span className="font-medium">{dep.amount} {dep.ccy}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{dep.chain}</span>
+                        </div>
+                        <Badge variant="outline" className={`text-xs ${
+                          dep.state === '2' ? 'text-emerald-600 border-emerald-300' :
+                          dep.state === '1' ? 'text-blue-600 border-blue-300' :
+                          'text-amber-600 border-amber-300'
+                        }`}>
+                          {dep.stateLabel}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Positions */}
