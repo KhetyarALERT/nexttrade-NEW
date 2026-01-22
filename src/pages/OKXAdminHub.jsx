@@ -19,7 +19,7 @@ import {
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
   ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
   History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck,
-  HelpCircle, MessageSquare, Image
+  HelpCircle, MessageSquare, Image, Trash2
 } from 'lucide-react';
 
 const statusColors = {
@@ -152,6 +152,55 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
       document_type: verification.document_type || 'passport'
     });
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteVerification = async (verificationId) => {
+    if (!confirm('Are you sure you want to delete this verification? This action cannot be undone.')) return;
+    
+    setProcessing(true);
+    try {
+      await base44.entities.VerificationRequest.delete(verificationId);
+      toast.success('Verification deleted successfully');
+      onRefresh();
+    } catch (err) {
+      toast.error('Failed to delete: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleChangeStatus = async (newStatus) => {
+    if (!selectedVerification) return;
+    
+    setProcessing(true);
+    try {
+      const user = await base44.auth.me();
+      
+      await base44.entities.VerificationRequest.update(selectedVerification.id, {
+        status: newStatus,
+        reviewed_by: user.email,
+        reviewed_at: new Date().toISOString()
+      });
+      
+      // Notify the user of the status change
+      try {
+        await base44.functions.invoke("notifyAdminVerification", {
+          action: "notifyUser",
+          verificationId: selectedVerification.id
+        });
+      } catch (e) {
+        console.error("Failed to notify user:", e);
+      }
+      
+      toast.success(`Status changed to ${newStatus} - User notified`);
+      setReviewDialogOpen(false);
+      setSelectedVerification(null);
+      onRefresh();
+    } catch (err) {
+      toast.error('Failed to change status: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const DOC_TYPE_LABELS = {
@@ -358,12 +407,13 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                 <TableHead>Status</TableHead>
                 <TableHead>Reviewed By</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {processedVerifications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No processed verifications yet
                   </TableCell>
                 </TableRow>
@@ -385,6 +435,32 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{v.reviewed_by || '-'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(v.reviewed_at || v.created_date)}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => {
+                            setSelectedVerification(v);
+                            setReviewAction('changeStatus');
+                            setReviewDialogOpen(true);
+                          }}
+                          title="Change Status"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-600"
+                          onClick={() => handleDeleteVerification(v.id)}
+                          title="Delete"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -400,6 +476,7 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
             <DialogTitle>
               {reviewAction === 'approve' ? 'Approve Verification' : 
                reviewAction === 'reject' ? 'Reject Verification' : 
+               reviewAction === 'changeStatus' ? 'Change Verification Status' :
                'Respond to Help Request'}
             </DialogTitle>
             <DialogDescription>
@@ -446,16 +523,43 @@ function VerificationTab({ verifications, onRefresh, formatDate }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
-            <Button 
-              onClick={handleReview}
-              disabled={processing || (reviewAction === 'reject' && !rejectionReason) || (reviewAction === 'respond' && !adminResponse)}
-              className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 
-                        reviewAction === 'reject' ? 'bg-red-600 hover:bg-red-700' : 
-                        'bg-blue-600 hover:bg-blue-700'}
-            >
-              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {reviewAction === 'approve' ? 'Approve' : reviewAction === 'reject' ? 'Reject' : 'Send Response'}
-            </Button>
+            {reviewAction === 'changeStatus' ? (
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => handleChangeStatus('approved')}
+                  disabled={processing}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Approve
+                </Button>
+                <Button 
+                  onClick={() => handleChangeStatus('rejected')}
+                  disabled={processing}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Reject
+                </Button>
+                <Button 
+                  onClick={() => handleChangeStatus('pending')}
+                  disabled={processing}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  Pending
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={handleReview}
+                disabled={processing || (reviewAction === 'reject' && !rejectionReason) || (reviewAction === 'respond' && !adminResponse)}
+                className={reviewAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : 
+                          reviewAction === 'reject' ? 'bg-red-600 hover:bg-red-700' : 
+                          'bg-blue-600 hover:bg-blue-700'}
+              >
+                {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {reviewAction === 'approve' ? 'Approve' : reviewAction === 'reject' ? 'Reject' : 'Send Response'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

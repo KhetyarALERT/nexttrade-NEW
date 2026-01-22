@@ -162,12 +162,62 @@ const normalizeUserProfile = (user = {}) => ({
   email: user.email || "",
   bio: user.bio || "",
   avatarUrl: user.avatarUrl || "",
-  verificationStatus: user.verificationStatus || "not_verified",
   twoFactorEnabled: user.twoFactorEnabled || false,
   referralCode: user.referralCode || "NEXT-7829",
   referralLink: `https://nexttrade.app/ref/${user.referralCode || "NEXT-7829"}`,
   createdDate: user.createdDate || new Date().toISOString()
 });
+
+// Verification Badge Component - reads status directly
+function VerificationBadge({ status, language, onClickNotVerified, onClickPending }) {
+  const t = translations[language] || translations.en;
+  
+  if (status === 'approved') {
+    return (
+      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
+        <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
+      </Badge>
+    );
+  }
+  
+  if (status === 'rejected') {
+    return (
+      <Badge 
+        className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
+        onClick={onClickNotVerified}
+        role="button"
+        tabIndex={0}
+      >
+        <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
+      </Badge>
+    );
+  }
+  
+  if (status === 'pending' || status === 'under_review' || status === 'needs_help') {
+    return (
+      <Badge 
+        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        onClick={onClickPending}
+        role="button"
+        tabIndex={0}
+      >
+        <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
+      </Badge>
+    );
+  }
+  
+  // No verification or unknown status - show "Not Verified"
+  return (
+    <Badge 
+      className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
+      onClick={onClickNotVerified}
+      role="button"
+      tabIndex={0}
+    >
+      <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
+    </Badge>
+  );
+}
 
 export default function Profile({ language = "en" }) {
   const t = translations[language] || translations.en;
@@ -570,62 +620,16 @@ export default function Profile({ language = "en" }) {
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {formState.fullName || "User"}
                     </h1>
-                    {/* Verification Badge - Priority: existingVerification status takes precedence */}
-                    {(() => {
-                      const status = existingVerification?.status;
-                      
-                      if (status === 'approved') {
-                        return (
-                          <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium">
-                            <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
-                          </Badge>
-                        );
-                      }
-                      
-                      if (status === 'rejected') {
-                        return (
-                          <Badge 
-                            className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
-                            onClick={() => {
-                              setSearchParams({ tab: 'security' });
-                              setVerificationModalOpen(true);
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
-                          </Badge>
-                        );
-                      }
-                      
-                      if (status === 'pending' || status === 'under_review' || status === 'needs_help') {
-                        return (
-                          <Badge 
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
-                            onClick={() => setSearchParams({ tab: 'security' })}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
-                          </Badge>
-                        );
-                      }
-                      
-                      // No verification exists - show "Not Verified"
-                      return (
-                        <Badge 
-                          className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
-                          onClick={() => {
-                            setSearchParams({ tab: 'security' });
-                            setVerificationModalOpen(true);
-                          }}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
-                        </Badge>
-                      );
-                    })()}
+                    {/* Verification Badge - reads directly from existingVerification.status */}
+                    <VerificationBadge 
+                      status={existingVerification?.status} 
+                      language={language}
+                      onClickNotVerified={() => {
+                        setSearchParams({ tab: 'security' });
+                        setVerificationModalOpen(true);
+                      }}
+                      onClickPending={() => setSearchParams({ tab: 'security' })}
+                    />
                   </div>
                   
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
