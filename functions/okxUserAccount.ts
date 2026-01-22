@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
           positionCount: positions.length,
           accountMode: account.account_mode,
           marginMode: account.margin_mode,
-          defaultLeverage: account.default_leverage,
+          defaultLeverage: account.default_leverage || 5, // Default to 5x for regional limits
           lastSync: now
         }
       });
