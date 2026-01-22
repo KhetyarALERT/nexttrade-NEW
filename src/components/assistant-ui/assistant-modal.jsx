@@ -22,7 +22,8 @@ export function AssistantModal({ language = "en" }) {
 
   return (
     <AssistantModalPrimitive.Root>
-      <AssistantModalPrimitive.Anchor className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:right-6 sm:bottom-6 max-sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50">
+      {/* Floating trigger - HIDDEN on mobile (bottom nav has Support button instead) */}
+      <AssistantModalPrimitive.Anchor className="fixed bottom-6 right-6 z-50 hidden sm:block">
         <AssistantModalPrimitive.Trigger asChild>
           <button
             type="button"
