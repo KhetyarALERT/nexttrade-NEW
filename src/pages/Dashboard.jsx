@@ -350,8 +350,8 @@ export default function Dashboard({ language = "en" }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 text-foreground pb-24" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 text-foreground pb-20 md:pb-8" dir={language === "ar" ? "rtl" : "ltr"}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Header - Mobile Optimized */}
         <Card className="border-border/60 bg-card/70 shadow-sm">
           <CardContent className="p-5 sm:p-6">

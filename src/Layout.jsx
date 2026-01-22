@@ -895,67 +895,67 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       
       {/* Mobile Bottom Navigation - Hidden on trading pages */}
       {!isMemeCoinsPage && !isTradingPage && (
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-16 px-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] glass-effect border-t border-border safe-area-bottom">
+        <div className="flex items-center justify-around h-14 px-1">
           <Link
             to={createPageUrl("Dashboard")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
+            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
               location.pathname === createPageUrl("Dashboard")
-                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-primary bg-primary/15'
+                : 'text-muted-foreground'
             }`}
           >
-            <Home className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'الرئيسية' : 'Home'}</span>
+            <Home className="w-4 h-4" />
+            <span className="text-[9px] font-medium">{language === 'ar' ? 'الرئيسية' : 'Home'}</span>
           </Link>
-          
+
           <Link
             to={createPageUrl("Futures")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
+            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
               location.pathname === createPageUrl("Futures")
-                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-primary bg-primary/15'
+                : 'text-muted-foreground'
             }`}
           >
-            <TrendingUp className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'عقود' : 'Trade'}</span>
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-[9px] font-medium">{language === 'ar' ? 'عقود' : 'Trade'}</span>
           </Link>
-          
+
           <Link
             to={createPageUrl("Profile") + "?tab=assets&assetTab=main"}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
+            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
               location.pathname.includes("Profile") && location.search.includes("assets")
-                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-primary bg-primary/15'
+                : 'text-muted-foreground'
             }`}
           >
-            <WalletIcon className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'المحفظة' : 'Assets'}</span>
+            <WalletIcon className="w-4 h-4" />
+            <span className="text-[9px] font-medium">{language === 'ar' ? 'أصول' : 'Assets'}</span>
           </Link>
-          
+
           <Link
             to={createPageUrl("MemeCoins")}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
+            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
               location.pathname === createPageUrl("MemeCoins")
-                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-primary bg-primary/15'
+                : 'text-muted-foreground'
             }`}
           >
-            <Rocket className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'ميم' : 'Meme'}</span>
+            <Rocket className="w-4 h-4" />
+            <span className="text-[9px] font-medium">{language === 'ar' ? 'ميم' : 'Meme'}</span>
           </Link>
-          
+
           <Link
             to={isAuthenticated ? createPageUrl("Profile") : '#'}
             onClick={isAuthenticated ? undefined : (e) => { e.preventDefault(); navigateToLogin(); }}
-            className={`flex flex-col items-center justify-center flex-1 gap-1 py-2 rounded-lg transition-all transform ${
+            className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
               location.pathname.includes("Profile") && !location.search.includes("assets")
-                ? 'text-primary bg-primary/20 shadow-md shadow-primary/25 border-t-2 border-primary scale-105'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'text-primary bg-primary/15'
+                : 'text-muted-foreground'
             }`}
           >
-            <User className="w-5 h-5" />
-            <span className="text-[10px] font-medium">{language === 'ar' ? 'الحساب' : 'Account'}</span>
+            <User className="w-4 h-4" />
+            <span className="text-[9px] font-medium">{language === 'ar' ? 'حساب' : 'Account'}</span>
           </Link>
         </div>
       </nav>
