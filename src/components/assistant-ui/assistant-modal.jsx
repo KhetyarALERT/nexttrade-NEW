@@ -3,7 +3,7 @@ import { AssistantModalPrimitive } from "@/lib/assistant-ui/react";
 import { useLocation } from "react-router-dom";
 
 import { Thread } from "@/components/assistant-ui/thread";
-import { tAssistant } from "@/lib/i18n/assistant";
+import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
