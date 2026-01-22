@@ -249,21 +249,34 @@ export default function Profile({ language = "en" }) {
   const loadVerificationRequest = useCallback(async () => {
     try {
       const user = await base44.auth.me();
+      // Get the most recent verification request for this user
       const requests = await base44.entities.VerificationRequest.filter({ user_id: user.id }, "-created_date", 1);
+      
+      console.log("Loaded verification requests:", requests);
+      
       if (requests && requests.length > 0) {
-        setExistingVerification(requests[0]);
+        const latestRequest = requests[0];
+        console.log("Latest verification status:", latestRequest.status);
+        
+        // Always update the verification state
+        setExistingVerification(latestRequest);
 
-        // Update formState with verification status
-        if (requests[0].status === 'approved') {
+        // Update formState based on actual status from database
+        if (latestRequest.status === 'approved') {
+          console.log("Setting status to VERIFIED");
           setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
-        } else if (requests[0].status === 'rejected') {
+        } else if (latestRequest.status === 'rejected') {
           setFormState(prev => prev ? { ...prev, verificationStatus: 'rejected' } : prev);
-        } else if (requests[0].status === 'pending' || requests[0].status === 'under_review' || requests[0].status === 'needs_help') {
+        } else {
           setFormState(prev => prev ? { ...prev, verificationStatus: 'pending' } : prev);
         }
+      } else {
+        // No verification request exists
+        setExistingVerification(null);
+        setFormState(prev => prev ? { ...prev, verificationStatus: 'not_verified' } : prev);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to load verification:", err);
     }
   }, []);
 
