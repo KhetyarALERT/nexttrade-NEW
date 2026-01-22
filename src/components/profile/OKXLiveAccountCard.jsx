@@ -15,12 +15,13 @@ import {
   RefreshCw, Wallet, TrendingUp, TrendingDown, 
   AlertCircle, CheckCircle2, Activity, Copy,
   ArrowDownToLine, QrCode, ChevronDown, ChevronUp,
-  Info, ExternalLink
+  Info, ExternalLink, ArrowRightLeft
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import OKXTransferModal from "./OKXTransferModal";
 
 const CHAIN_NAMES = {
   'USDT-TRC20': 'Tron (TRC20)',
@@ -69,6 +70,9 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   const [selectedChain, setSelectedChain] = useState('');
   const [copied, setCopied] = useState(false);
   const [depositHistory, setDepositHistory] = useState([]);
+  
+  // Transfer modal state
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
 
   const t = {
     en: {
@@ -88,6 +92,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       lastSync: "Last sync",
       leverage: "Leverage",
       unrealizedPnl: "Unrealized P&L",
+      transfer: "Transfer",
       depositFunds: "Deposit Funds",
       selectCurrency: "Select Currency",
       selectNetwork: "Select Network",
@@ -119,6 +124,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       lastSync: "آخر مزامنة",
       leverage: "الرافعة",
       unrealizedPnl: "الربح غير المحقق",
+      transfer: "تحويل",
       depositFunds: "إيداع الأموال",
       selectCurrency: "اختر العملة",
       selectNetwork: "اختر الشبكة",
