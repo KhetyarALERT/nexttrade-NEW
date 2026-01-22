@@ -337,6 +337,11 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
     loadAccountTotals();
+    // Track login event when user becomes authenticated
+    base44.analytics.track({
+      eventName: "user_login",
+      properties: { method: "session" }
+    });
   }, [isAuthenticated, isLoadingAuth]);
 
 
@@ -647,6 +652,11 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <DropdownMenuItem
                       onSelect={(e) => {
                         e.preventDefault();
+                        // Track logout event
+                        base44.analytics.track({
+                          eventName: "user_logout",
+                          properties: { method: "manual" }
+                        });
                         logout(true);
                       }}
                       className="text-rose-600 focus:text-rose-700"
