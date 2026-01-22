@@ -179,33 +179,44 @@ class OKXFuturesStore {
     const normalized = String(symbol || "").toUpperCase();
     const cacheKey = `premium_${normalized}`;
     
-    // STRICT: Only fetch ONCE per session - WebSocket provides updates
+    // 1. Return cached data if we already fetched this session
     if (this.initialFetchDone.has(cacheKey)) {
       const existing = this.premiumIndex[normalized];
-      if (existing) return existing;
+      if (existing) {
+        console.log(`[OKX Store] Using cached premium for ${cacheKey}`);
+        return existing;
+      }
     }
     
-    // Check cooldown
+    // 2. Check cooldown
     const lastFetch = this.lastFetchTime.get(cacheKey);
     if (lastFetch && Date.now() - lastFetch < this.FETCH_COOLDOWN) {
       const existing = this.premiumIndex[normalized];
-      if (existing) return existing;
+      console.log(`[OKX Store] Cooldown active for ${cacheKey}`);
+      return existing || null;
     }
     
-    // Global rate limit - wait if we called API too recently
-    const timeSinceLastCall = Date.now() - this.lastApiCall;
-    if (timeSinceLastCall < this.API_MIN_INTERVAL) {
-      await new Promise(r => setTimeout(r, this.API_MIN_INTERVAL - timeSinceLastCall));
+    // 3. Return existing in-flight promise
+    const pending = this.pendingFetches.get(cacheKey);
+    if (pending) {
+      console.log(`[OKX Store] Deduping premium request for ${cacheKey}`);
+      return pending;
     }
     
-    // Check if already fetching
-    if (this.pendingFetches.has(cacheKey)) {
-      return this.pendingFetches.get(cacheKey);
-    }
-    
+    // 4. Create single fetch promise with rate limiting
     const fetchPromise = (async () => {
       try {
+        // Global rate limit
+        const timeSinceLastCall = Date.now() - this.lastApiCall;
+        if (timeSinceLastCall < this.API_MIN_INTERVAL) {
+          const waitTime = this.API_MIN_INTERVAL - timeSinceLastCall;
+          console.log(`[OKX Store] Rate limiting premium: waiting ${waitTime}ms`);
+          await new Promise(r => setTimeout(r, waitTime));
+        }
+        
         this.lastApiCall = Date.now();
+        console.log(`[OKX Store] Fetching premium for ${normalized}`);
+        
         const res = await base44.functions.invoke("okxMarketData", {
           action: "getPremiumIndex",
           instId: normalized
@@ -215,8 +226,9 @@ class OKXFuturesStore {
           const data = res.data.data;
           this.premiumIndex[normalized] = data;
           this.lastFetchTime.set(cacheKey, Date.now());
-          this.initialFetchDone.add(cacheKey); // Mark as done
+          this.initialFetchDone.add(cacheKey);
           this.emit(`premium:${normalized}`, data);
+          console.log(`[OKX Store] Fetched premium for ${cacheKey}`);
           return data;
         }
         return this.premiumIndex[normalized] || null;
@@ -224,7 +236,7 @@ class OKXFuturesStore {
         console.error("[OKX Store] fetchPremiumIndex error:", err);
         return this.premiumIndex[normalized] || null;
       } finally {
-        this.pendingFetches.delete(cacheKey);
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 1000);
       }
     })();
     
