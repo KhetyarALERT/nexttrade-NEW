@@ -37,11 +37,20 @@ Deno.serve(async (req) => {
     if (newStatus === 'approved') {
       // Update user's verification status
       try {
-        // Note: We use a different approach since we can't directly update users by user_id
-        // The notifyAdminVerification function handles this
         console.log(`User ${data.user_id} verification approved`);
       } catch (e) {
         console.error("Failed to update user status:", e);
+      }
+      
+      // Process referral attribution for KYC approval
+      try {
+        await base44.asServiceRole.functions.invoke("referral", {
+          action: "processKycApproval",
+          userId: data.user_id
+        });
+        console.log(`Processed referral KYC approval for user ${data.user_id}`);
+      } catch (e) {
+        console.error("Failed to process referral KYC:", e);
       }
       
       // Send notification to user
