@@ -379,35 +379,35 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
             </div>
           ) : (
             // Show request form prompt
-            <div className="py-4 space-y-4">
+            <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                  <Rocket className="h-8 w-8 text-emerald-500" />
+                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                  <Rocket className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500" />
                 </div>
-                <h3 className="font-semibold text-foreground text-lg">{t.requestLiveAccount}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{t.requestLiveAccountDesc}</p>
+                <h3 className="font-semibold text-foreground text-base sm:text-lg">{t.requestLiveAccount}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 px-2">{t.requestLiveAccountDesc}</p>
               </div>
               
               {/* Verification status indicator */}
-              <div className={`rounded-xl p-4 flex items-start gap-3 ${isVerified ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+              <div className={`rounded-xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3 ${isVerified ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
                 {isVerified ? (
                   <>
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-400">
                         {language === 'ar' ? 'الهوية موثقة' : 'Identity Verified'}
                       </p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                      <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-500">
                         {language === 'ar' ? 'يمكنك طلب حساب حقيقي الآن' : 'You can now request a live account'}
                       </p>
                     </div>
                   </>
                 ) : (
                   <>
-                    <Shield className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{t.verifyFirst}</p>
-                      <p className="text-xs text-amber-600 dark:text-amber-500">{t.verifyFirstDesc}</p>
+                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-400">{t.verifyFirst}</p>
+                      <p className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-500">{t.verifyFirstDesc}</p>
                     </div>
                   </>
                 )}
@@ -415,23 +415,23 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
               
               {/* Steps guide */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   {language === 'ar' ? 'الخطوات' : 'Steps to Get Started'}
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   {[
                     { step: 1, label: language === 'ar' ? 'تحقق من هويتك' : 'Verify your identity (KYC)', done: isVerified },
                     { step: 2, label: language === 'ar' ? 'أكمل نموذج الطلب' : 'Complete the request form', done: false },
                     { step: 3, label: language === 'ar' ? 'انتظر الموافقة' : 'Wait for approval', done: false },
                     { step: 4, label: language === 'ar' ? 'ابدأ التداول!' : 'Start trading!', done: false }
                   ].map((item) => (
-                    <div key={item.step} className="flex items-center gap-3 text-sm">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                    <div key={item.step} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium flex-shrink-0 ${
                         item.done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
                       }`}>
-                        {item.done ? <CheckCircle2 className="h-4 w-4" /> : item.step}
+                        {item.done ? <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" /> : item.step}
                       </div>
-                      <span className={item.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}>
+                      <span className={`truncate ${item.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                         {item.label}
                       </span>
                     </div>
@@ -456,9 +456,9 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                   }
                   setRequestFormOpen(true);
                 }}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl"
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
               >
-                <Rocket className="h-4 w-4 mr-2" />
+                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {t.requestLiveAccount}
               </Button>
               
@@ -741,29 +741,29 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
         {/* Positions */}
         {positions.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold flex items-center gap-2">
-              <Activity className="h-4 w-4 text-emerald-500" />
+            <h4 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
               {t.positions} ({positions.length})
             </h4>
-            <div className="space-y-2 max-h-40 overflow-auto">
+            <div className="space-y-2 max-h-32 sm:max-h-40 overflow-auto">
               {positions.slice(0, 3).map((pos, idx) => (
-                <div key={idx} className="rounded-lg bg-muted/30 border border-border/50 p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{pos.instId}</span>
-                      <Badge className={`text-xs ${pos.posSide === 'long' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>
-                        {pos.posSide === 'long' ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                <div key={idx} className="rounded-lg bg-muted/30 border border-border/50 p-2 sm:p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                      <span className="font-medium text-xs sm:text-sm truncate">{pos.instId}</span>
+                      <Badge className={`text-[10px] sm:text-xs flex-shrink-0 ${pos.posSide === 'long' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>
+                        {pos.posSide === 'long' ? <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" /> : <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />}
                         {pos.posSide?.toUpperCase()}
                       </Badge>
                     </div>
-                    <span className={`text-sm font-mono font-medium ${pos.upl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <span className={`text-xs sm:text-sm font-mono font-medium flex-shrink-0 ${pos.upl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                       {pos.upl >= 0 ? '+' : ''}{formatUsdt(pos.upl)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>Size: {pos.size}</span>
-                    <span>Entry: ${formatUsdt(pos.avgPx)}</span>
-                    <span>{pos.lever}x</span>
+                  <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground mt-1 gap-1">
+                    <span className="truncate">Size: {pos.size}</span>
+                    <span className="truncate">Entry: ${formatUsdt(pos.avgPx)}</span>
+                    <span className="flex-shrink-0">{pos.lever}x</span>
                   </div>
                 </div>
               ))}
@@ -773,9 +773,9 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          <Button asChild className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl">
+          <Button asChild className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10">
             <Link to={createPageUrl("Futures")}>
-              <TrendingUp className="h-4 w-4 mr-2" />
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               {t.tradeNow}
             </Link>
           </Button>
@@ -783,7 +783,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
 
         {/* Last Sync */}
         {accountData.lastSync && (
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-[10px] sm:text-xs text-muted-foreground text-center truncate px-2">
             {t.lastSync}: {new Date(accountData.lastSync).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
           </p>
         )}
