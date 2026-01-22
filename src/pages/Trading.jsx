@@ -163,9 +163,10 @@ export default function Trading({ language = "en" }) {
     };
   }, [livePositions.map(p => p.instId).join(",")]);
 
-  // Cleanup WebSocket on unmount
+  // Cleanup WebSocket ONLY when leaving trading page entirely
   useEffect(() => {
     return () => {
+      // Close WS connections when user navigates away from trading
       try { binanceFuturesStore.closeChartWs(); } catch {}
     };
   }, []);
