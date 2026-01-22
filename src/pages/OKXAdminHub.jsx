@@ -18,7 +18,7 @@ import {
   Plus, RefreshCw, Users, Wallet, ArrowUpDown, AlertCircle, CheckCircle2, 
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
   ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
-  History, ExternalLink, TrendingUp, TrendingDown
+  History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck
 } from 'lucide-react';
 
 const statusColors = {
