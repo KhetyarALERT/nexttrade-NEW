@@ -191,20 +191,21 @@ Best regards,
 The NextTrade Team
         `.trim();
 
-        // Update user's verification status
+        // Update user's verification status using entity update (not auth.updateUser)
         if (verification.user_id) {
           try {
-            await base44.asServiceRole.auth.updateUser(verification.user_id, {
+            await base44.asServiceRole.entities.User.update(verification.user_id, {
               verification_status: "verified",
               verification_request_id: verification.id,
               verification_completed_at: new Date().toISOString()
             });
+            console.log("Updated user verification status to verified for user:", verification.user_id);
           } catch (e) {
             console.error("Failed to update user verification status:", e);
           }
         }
 
-        // Create in-app notification
+        // Create in-app notification with link to profile
         try {
           await base44.asServiceRole.entities.Notification.create({
             user_id: verification.user_id,
@@ -212,7 +213,8 @@ The NextTrade Team
             title: "KYC Verified ✅",
             message: "Your identity verification has been approved! You now have full access to all features.",
             priority: "high",
-            read: false
+            read: false,
+            data: { link: "/Profile?tab=security" }
           });
         } catch (e) {
           console.error("Failed to create notification:", e);
@@ -240,19 +242,20 @@ Best regards,
 The NextTrade Team
         `.trim();
 
-        // Update user's verification status
+        // Update user's verification status using entity update
         if (verification.user_id) {
           try {
-            await base44.asServiceRole.auth.updateUser(verification.user_id, {
+            await base44.asServiceRole.entities.User.update(verification.user_id, {
               verification_status: "rejected",
               verification_request_id: verification.id
             });
+            console.log("Updated user verification status to rejected for user:", verification.user_id);
           } catch (e) {
             console.error("Failed to update user verification status:", e);
           }
         }
 
-        // Create in-app notification
+        // Create in-app notification with link
         try {
           await base44.asServiceRole.entities.Notification.create({
             user_id: verification.user_id,
@@ -260,7 +263,8 @@ The NextTrade Team
             title: "Verification Update",
             message: verification.rejection_reason || "Your verification could not be completed. Please try again with clearer documents.",
             priority: "high",
-            read: false
+            read: false,
+            data: { link: "/Profile?tab=security&openVerification=true" }
           });
         } catch (e) {
           console.error("Failed to create notification:", e);
@@ -282,7 +286,7 @@ Best regards,
 The NextTrade Team
         `.trim();
 
-        // Create in-app notification
+        // Create in-app notification with link
         try {
           await base44.asServiceRole.entities.Notification.create({
             user_id: verification.user_id,
@@ -290,7 +294,8 @@ The NextTrade Team
             title: "KYC Help Response",
             message: verification.admin_response,
             priority: "normal",
-            read: false
+            read: false,
+            data: { link: "/Profile?tab=security" }
           });
         } catch (e) {
           console.error("Failed to create notification:", e);
