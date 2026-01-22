@@ -4,9 +4,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Calendar, Loader2, ChevronDown } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Loader2, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+
+// Validate date format YYYY-MM-DD
+const isValidDateFormat = (dateStr) => {
+  if (!dateStr) return true; // Empty is ok (optional field)
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!regex.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (year < 1920 || year > new Date().getFullYear()) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  // Check if valid date
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
+
+// Format input to enforce YYYY-MM-DD pattern
+const formatDateInput = (value) => {
+  // Remove all non-digits
+  const digits = value.replace(/\D/g, "");
+  // Format as YYYY-MM-DD
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+};
 
 const translations = {
   en: {
@@ -100,8 +124,24 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       // Reset to step 1 when modal closes
       setStep(1);
       setCountryDropdownOpen(false);
+    } else {
+      // Track verification started when modal opens
+      base44.analytics.track({
+        eventName: "verification_started",
+        properties: { language }
+      });
     }
-  }, [open]);
+  }, [open, language]);
+
+  // Track step changes
+  useEffect(() => {
+    if (open && step > 1) {
+      base44.analytics.track({
+        eventName: "verification_step_reached",
+        properties: { step, language }
+      });
+    }
+  }, [step, open, language]);
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
@@ -168,6 +208,16 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         country: form.country || null,
         status: "pending",
         submitted_at: new Date().toISOString(),
+      });
+
+      // Track verification completed
+      base44.analytics.track({
+        eventName: "verification_completed",
+        properties: { 
+          document_type: form.documentType,
+          has_selfie: Boolean(selfieUrl),
+          country: form.country || "not_provided"
+        }
       });
 
       toast.success(t.success);
@@ -251,25 +301,26 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <div>
                 <Label className="flex items-center gap-2 flex-wrap">
                   {t.dob}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    ({language === "ar" ? "اضغط لفتح التقويم أو اكتب" : "Tap to open calendar or type"})
-                  </span>
                 </Label>
-                <div className="relative">
-                  <Input
-                    type="date"
-                    value={form.dob}
-                    onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                    className="pr-10"
-                    placeholder="YYYY-MM-DD"
-                    max={new Date().toISOString().split('T')[0]}
-                    min="1920-01-01"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {language === "ar" ? "مثال: 1990-05-15" : "Format: YYYY-MM-DD (e.g., 1990-05-15)"}
-                </p>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.dob}
+                  onChange={(e) => setForm({ ...form, dob: formatDateInput(e.target.value) })}
+                  className={`${form.dob && !isValidDateFormat(form.dob) ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : ""}`}
+                  placeholder="YYYY-MM-DD"
+                  maxLength={10}
+                />
+                {form.dob && !isValidDateFormat(form.dob) ? (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {language === "ar" ? "تنسيق غير صالح! استخدم: YYYY-MM-DD (مثال: 1990-05-15)" : "Invalid format! Use: YYYY-MM-DD (e.g., 1990-05-15)"}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === "ar" ? "التنسيق: YYYY-MM-DD (مثال: 1990-05-15)" : "Format: YYYY-MM-DD (e.g., 1990-05-15)"}
+                  </p>
+                )}
               </div>
               <div>
                 <Label>{t.country}</Label>
@@ -292,7 +343,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             <Button 
               onClick={() => setStep(2)} 
               className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={!form.fullName}
+              disabled={!form.fullName || (form.dob && !isValidDateFormat(form.dob))}
             >
               {language === "ar" ? "يكمل" : "Continue"}
             </Button>
