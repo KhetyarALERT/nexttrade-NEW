@@ -545,12 +545,12 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                     ))}
                   </div>
                 </div>
-                )}
-                </div>
-                </div>
-                )}
+              )}
+            </div>
+          </div>
+        )}
 
-                {/* Positions */}
+        {/* Positions */}
         {positions.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-semibold flex items-center gap-2">
