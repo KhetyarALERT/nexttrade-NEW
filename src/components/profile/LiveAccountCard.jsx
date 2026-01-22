@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,15 +6,35 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Wallet, Copy, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import OKXLiveAccountCard from "./OKXLiveAccountCard";
 
 export default function LiveAccountCard({ language = "en", onRefresh }) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasOkxAccount, setHasOkxAccount] = useState(false);
   const [account, setAccount] = useState(null);
   const [depositAddresses, setDepositAddresses] = useState(null);
   const [copied, setCopied] = useState({});
+  const [creatingAccount, setCreatingAccount] = useState(false);
+
+  // Check if user already has an OKX account assigned
+  useEffect(() => {
+    const checkAccount = async () => {
+      try {
+        const res = await base44.functions.invoke('okxUserAccount', { action: 'checkAccount' });
+        if (res.data?.ok && res.data.data?.hasAccount) {
+          setHasOkxAccount(true);
+        }
+      } catch (err) {
+        console.error('[LiveAccountCard] Check account error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAccount();
+  }, []);
 
   const handleCreateAccount = async () => {
-    setLoading(true);
+    setCreatingAccount(true);
     try {
       const result = await base44.functions.invoke('okxProvisioning', { action: 'ensureUserAccount' });
       
@@ -24,6 +44,7 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
       
       setAccount(result.data.data);
       setDepositAddresses(result.data.data.depositAddresses);
+      setHasOkxAccount(true);
       
       toast.success(
         result.data.data.isNew 
@@ -36,7 +57,7 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
       console.error('[LiveAccount] Create error:', err);
       toast.error(err.message);
     } finally {
-      setLoading(false);
+      setCreatingAccount(false);
     }
   };
 
@@ -47,6 +68,26 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
     setTimeout(() => setCopied(prev => ({ ...prev, [key]: false })), 2000);
   };
 
+  // If loading, show skeleton
+  if (loading) {
+    return (
+      <Card className="border-border shadow-lg rounded-2xl animate-pulse">
+        <CardHeader className="border-b border-border bg-muted/30 p-5">
+          <div className="h-6 bg-muted rounded w-48"></div>
+        </CardHeader>
+        <CardContent className="p-5">
+          <div className="h-20 bg-muted rounded"></div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If user has OKX account, show the OKX card with deposit functionality
+  if (hasOkxAccount) {
+    return <OKXLiveAccountCard language={language} onRefresh={onRefresh} />;
+  }
+
+  // Otherwise show the create account card
   return (
     <Card className="border-border shadow-lg rounded-2xl">
       <CardHeader className="border-b border-border bg-muted/30 p-5">
@@ -82,10 +123,10 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
             </p>
             <Button
               onClick={handleCreateAccount}
-              disabled={loading}
+              disabled={creatingAccount}
               className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl"
             >
-              {loading ? (
+              {creatingAccount ? (
                 <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> {language === 'ar' ? 'جاري الإنشاء...' : 'Creating...'}</>
               ) : (
                 <>{language === 'ar' ? 'إنشاء حساب مباشر' : 'Create Live Account'}</>
@@ -167,9 +208,9 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
               </div>
             )}
             
-            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
               <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-blue-700">
+              <p className="text-xs text-blue-700 dark:text-blue-400">
                 {language === 'ar'
                   ? 'تأكد من إرسال الأموال فقط عبر الشبكة الصحيحة. الإيداعات من شبكة خاطئة سوف تفقد بشكل دائم.'
                   : 'Only send funds via the correct network. Deposits from wrong networks will be lost permanently.'}
@@ -178,11 +219,11 @@ export default function LiveAccountCard({ language = "en", onRefresh }) {
             
             <Button
               onClick={handleCreateAccount}
-              disabled={loading}
+              disabled={creatingAccount}
               variant="outline"
               className="w-full rounded-xl"
             >
-              {loading ? (
+              {creatingAccount ? (
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4 mr-2" />
