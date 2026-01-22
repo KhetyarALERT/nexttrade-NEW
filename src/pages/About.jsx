@@ -211,15 +211,15 @@ export default function About({ language = "en" }) {
       </section>
 
       {/* Values */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8 sm:mb-16">
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
               {language === "en" ? "Our Core Values" : "قيمنا الأساسية"}
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {t.values.map((value, idx) => {
               const Icon = value.icon;
               return (
@@ -231,12 +231,12 @@ export default function About({ language = "en" }) {
                   transition={{ delay: idx * 0.1 }}
                 >
                   <Card className="h-full hover:shadow-2xl transition-all duration-300 border-0">
-                    <CardContent className="p-3 sm:p-6 text-center">
-                      <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mx-auto mb-2 sm:mb-4">
-                        <Icon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
+                    <CardContent className="p-6 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mx-auto mb-4">
+                        <Icon className="w-8 h-8 text-white" />
                       </div>
-                      <h3 className="text-sm sm:text-xl font-bold mb-1 sm:mb-2 text-foreground leading-tight">{value.title}</h3>
-                      <p className="text-xs sm:text-base text-muted-foreground leading-snug">{value.desc}</p>
+                      <h3 className="text-xl font-bold mb-2 text-gray-900">{value.title}</h3>
+                      <p className="text-gray-600">{value.desc}</p>
                     </CardContent>
                   </Card>
                 </motion.div>
