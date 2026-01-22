@@ -69,6 +69,7 @@ const translations = {
     verificationRequired: "Identity Verification Required",
     verificationDesc: "You must complete identity verification (KYC) before requesting a trading account.",
     verifyNow: "Verify Now",
+    completeVerification: "Complete Verification",
     
     // Form sections
     personalSection: "Personal Information",
@@ -127,6 +128,7 @@ const translations = {
     verificationRequired: "التحقق من الهوية مطلوب",
     verificationDesc: "يجب إكمال التحقق من الهوية قبل طلب حساب تداول.",
     verifyNow: "تحقق الآن",
+    completeVerification: "أكمل التحقق",
     
     personalSection: "المعلومات الشخصية",
     financialSection: "المعلومات المالية",
