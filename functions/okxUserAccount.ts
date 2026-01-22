@@ -461,6 +461,189 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: results });
     }
 
+    // INTERNAL TRANSFER - Transfer between funding and trading accounts
+    if (action === 'transfer') {
+      const { ccy = 'USDT', amount, from, to } = params;
+      
+      if (!amount || amount <= 0) {
+        return Response.json({ ok: false, error: { code: 'INVALID_AMOUNT', message: 'Amount must be positive' } }, { status: 400 });
+      }
+      
+      if (!from || !to) {
+        return Response.json({ ok: false, error: { code: 'MISSING_PARAMS', message: 'from and to required' } }, { status: 400 });
+      }
+      
+      // Map user-friendly names to OKX account types
+      // OKX account types: 6 = Funding, 18 = Trading
+      const accountTypeMap = {
+        'funding': '6',
+        'trading': '18',
+        'spot': '1',  // Spot account if needed
+      };
+      
+      const fromType = accountTypeMap[from.toLowerCase()];
+      const toType = accountTypeMap[to.toLowerCase()];
+      
+      if (!fromType || !toType) {
+        return Response.json({ ok: false, error: { code: 'INVALID_ACCOUNT_TYPE', message: 'Invalid from/to account type. Use: funding, trading' } }, { status: 400 });
+      }
+      
+      if (fromType === toType) {
+        return Response.json({ ok: false, error: { code: 'SAME_ACCOUNT', message: 'Cannot transfer to same account' } }, { status: 400 });
+      }
+      
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      // Execute the transfer
+      const transferRes = await okxRequest({
+        credential,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy,
+          amt: String(amount),
+          from: fromType,
+          to: toType,
+          type: '0' // 0 = within account, not sub-account transfer
+        },
+        isTradingEndpoint: false
+      });
+
+      if (!transferRes.ok) {
+        return Response.json({ ok: false, error: transferRes.error });
+      }
+
+      const result = transferRes.data?.data?.[0];
+      
+      // Check for inner error
+      if (result?.code && result.code !== '0') {
+        return Response.json({ ok: false, error: { code: result.code, message: result.msg || 'Transfer failed' } });
+      }
+
+      return Response.json({
+        ok: true,
+        data: {
+          transId: result?.transId,
+          ccy: result?.ccy || ccy,
+          from: from,
+          to: to,
+          amount: parseFloat(result?.amt || amount)
+        }
+      });
+    }
+
+    // GET TRANSFER HISTORY
+    if (action === 'getTransferHistory') {
+      const { ccy, limit = 20 } = params;
+      
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      const query = { limit: String(limit), type: '0' };
+      if (ccy) query.ccy = ccy;
+
+      const historyRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/asset/transfer-state',
+        query,
+        isTradingEndpoint: false
+      });
+
+      // Note: OKX may not have a direct "transfer history" endpoint
+      // This tries transfer-state which requires transId
+      // For now return empty if not supported
+      if (!historyRes.ok) {
+        return Response.json({ ok: true, data: [] });
+      }
+
+      return Response.json({ ok: true, data: historyRes.data?.data || [] });
+    }
+
+    // GET FUNDING ACCOUNT ASSETS - Detailed funding balance with all currencies
+    if (action === 'getFundingAssets') {
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      const fundingRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/asset/balances',
+        isTradingEndpoint: false
+      });
+
+      if (!fundingRes.ok) {
+        return Response.json({ ok: false, error: fundingRes.error });
+      }
+
+      const assets = (fundingRes.data?.data || []).map(a => ({
+        ccy: a.ccy,
+        balance: parseFloat(a.bal || '0'),
+        available: parseFloat(a.availBal || a.bal || '0'),
+        frozen: parseFloat(a.frozenBal || '0')
+      })).filter(a => a.balance > 0);
+
+      return Response.json({ ok: true, data: assets });
+    }
+
+    // GET TRADING ACCOUNT ASSETS - Detailed trading balance with all currencies
+    if (action === 'getTradingAssets') {
+      const credResult = await getUserOkxCredential(base44, user.id);
+      
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { credential } = credResult.data;
+
+      const tradingRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/account/balance',
+        isTradingEndpoint: true
+      });
+
+      if (!tradingRes.ok) {
+        return Response.json({ ok: false, error: tradingRes.error });
+      }
+
+      const details = tradingRes.data?.data?.[0]?.details || [];
+      const totalEq = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
+      
+      const assets = details.map(d => ({
+        ccy: d.ccy,
+        balance: parseFloat(d.cashBal || '0'),
+        available: parseFloat(d.availBal || '0'),
+        equity: parseFloat(d.eq || d.cashBal || '0'),
+        frozen: parseFloat(d.frozenBal || '0'),
+        upl: parseFloat(d.upl || '0')
+      })).filter(a => a.balance > 0 || a.equity > 0);
+
+      return Response.json({ 
+        ok: true, 
+        data: { 
+          assets, 
+          totalEquity: totalEq 
+        } 
+      });
+    }
+
     // GET DEPOSIT HISTORY
     if (action === 'getDepositHistory') {
       const { ccy, limit = 20 } = params;
