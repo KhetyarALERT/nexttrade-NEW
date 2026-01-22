@@ -64,10 +64,10 @@ const EXPERIENCE_OPTIONS = {
 
 const translations = {
   en: {
-    title: "Request Live Trading Account",
-    subtitle: "Complete this form to request a real money trading account",
+    title: "Request Trading Account",
+    subtitle: "Complete this form to request a trading account",
     verificationRequired: "Identity Verification Required",
-    verificationDesc: "You must complete identity verification (KYC) before requesting a live trading account.",
+    verificationDesc: "You must complete identity verification (KYC) before requesting a trading account.",
     verifyNow: "Verify Now",
     
     // Form sections
@@ -84,7 +84,7 @@ const translations = {
     tradingExperience: "Trading Experience Level",
     tradingExperienceHelp: "Be honest - this helps us provide better support",
     previousPlatforms: "Previous Trading Platforms (Optional)",
-    previousPlatformsPlaceholder: "e.g., Binance, Bybit, OKX, etc.",
+    previousPlatformsPlaceholder: "e.g., Binance, Bybit, etc.",
     additionalNotes: "Additional Notes (Optional)",
     additionalNotesPlaceholder: "Any additional information you'd like to share...",
     
@@ -106,11 +106,11 @@ const translations = {
     requestUnderReview: "Under Review",
     requestUnderReviewDesc: "An admin is currently reviewing your application.",
     requestApproved: "Request Approved",
-    requestApprovedDesc: "Your live trading account is being set up. You'll be notified when it's ready.",
+    requestApprovedDesc: "Your trading account is being set up. You'll be notified when it's ready.",
     requestRejected: "Request Rejected",
     requestRejectedReason: "Reason",
     requestAssigned: "Account Assigned",
-    requestAssignedDesc: "Your live trading account is ready! You can start trading now.",
+    requestAssignedDesc: "Your trading account is ready! You can start trading now.",
     
     // Success
     submitSuccess: "Request submitted successfully!",
@@ -122,10 +122,10 @@ const translations = {
     submitError: "Failed to submit request. Please try again."
   },
   ar: {
-    title: "طلب حساب تداول حقيقي",
-    subtitle: "أكمل هذا النموذج لطلب حساب تداول بأموال حقيقية",
+    title: "طلب حساب تداول",
+    subtitle: "أكمل هذا النموذج للحصول على حساب تداول",
     verificationRequired: "التحقق من الهوية مطلوب",
-    verificationDesc: "يجب إكمال التحقق من الهوية (KYC) قبل طلب حساب تداول حقيقي.",
+    verificationDesc: "يجب إكمال التحقق من الهوية قبل طلب حساب تداول.",
     verifyNow: "تحقق الآن",
     
     personalSection: "المعلومات الشخصية",
@@ -133,21 +133,21 @@ const translations = {
     experienceSection: "خبرة التداول",
     agreementsSection: "الموافقات والإقرارات",
     
-    monthlyIncome: "الدخل الشهري (دولار)",
+    monthlyIncome: "الدخل الشهري (بالدولار)",
     monthlyIncomeHelp: "يساعدنا هذا على فهم قدرتك المالية",
     expectedDeposit: "الإيداع الأولي المتوقع",
     expectedDepositHelp: "كم تخطط للإيداع في البداية؟",
     tradingExperience: "مستوى خبرة التداول",
-    tradingExperienceHelp: "كن صادقاً - هذا يساعدنا على تقديم دعم أفضل",
+    tradingExperienceHelp: "كن صادقاً - هذا يساعدنا على تقديم دعم أفضل لك",
     previousPlatforms: "منصات التداول السابقة (اختياري)",
-    previousPlatformsPlaceholder: "مثال: Binance, Bybit, OKX, إلخ.",
+    previousPlatformsPlaceholder: "مثال: Binance، Bybit، إلخ.",
     additionalNotes: "ملاحظات إضافية (اختياري)",
     additionalNotesPlaceholder: "أي معلومات إضافية تود مشاركتها...",
     
     riskAcknowledgment: "أفهم أن تداول العملات الرقمية والمشتقات ينطوي على مخاطر خسارة كبيرة",
     riskAcknowledgmentDesc: "قد تخسر بعض أو كل رأس مالك المستثمر. تداول فقط بالأموال التي يمكنك تحمل خسارتها.",
     termsAcceptance: "أوافق على شروط الخدمة وسياسة الخصوصية",
-    termsAcceptanceDesc: "بتحديد هذا المربع، فإنك توافق على شروط وأحكام التداول الخاصة بنا.",
+    termsAcceptanceDesc: "بتحديد هذا المربع، فإنك توافق على شروط وأحكام التداول.",
     viewTerms: "عرض الشروط",
     
     submitRequest: "إرسال الطلب",
@@ -155,15 +155,15 @@ const translations = {
     cancel: "إلغاء",
     
     requestPending: "الطلب قيد الانتظار",
-    requestPendingDesc: "يتم مراجعة طلبك من قبل فريقنا. سنخطرك بمجرد معالجته.",
+    requestPendingDesc: "يتم مراجعة طلبك من قِبل فريقنا. سنُعلمك عند معالجته.",
     requestUnderReview: "قيد المراجعة",
-    requestUnderReviewDesc: "مسؤول يراجع طلبك حالياً.",
+    requestUnderReviewDesc: "يتم مراجعة طلبك حالياً.",
     requestApproved: "تمت الموافقة على الطلب",
-    requestApprovedDesc: "يتم إعداد حساب التداول الحقيقي الخاص بك. سيتم إخطارك عندما يكون جاهزاً.",
+    requestApprovedDesc: "يتم إعداد حساب التداول الخاص بك. سيتم إعلامك عندما يكون جاهزاً.",
     requestRejected: "تم رفض الطلب",
     requestRejectedReason: "السبب",
-    requestAssigned: "تم تعيين الحساب",
-    requestAssignedDesc: "حساب التداول الحقيقي الخاص بك جاهز! يمكنك البدء في التداول الآن.",
+    requestAssigned: "تم تفعيل الحساب",
+    requestAssignedDesc: "حساب التداول الخاص بك جاهز! يمكنك البدء في التداول الآن.",
     
     submitSuccess: "تم إرسال الطلب بنجاح!",
     submitSuccessDesc: "سنراجع طلبك ونرد عليك قريباً.",
@@ -288,7 +288,14 @@ export default function LiveAccountRequestForm({
             <p className="text-sm text-muted-foreground mb-4">{t.verificationDesc}</p>
             <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
               <Button 
-                onClick={() => onOpenChange(false)}
+                onClick={() => {
+                  // Track verify now click from trading account request
+                  base44.analytics.track({
+                    eventName: "kyc_verify_clicked",
+                    properties: { source: "trading_account_request" }
+                  });
+                  onOpenChange(false);
+                }}
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
               >
                 <Shield className="h-4 w-4 mr-2" />
@@ -330,6 +337,15 @@ export default function LiveAccountRequestForm({
         risk_acknowledgment: true,
         terms_accepted: true,
         terms_accepted_at: new Date().toISOString()
+      });
+
+      // Track trading account request submitted
+      base44.analytics.track({
+        eventName: "trading_account_request_submitted",
+        properties: { 
+          trading_experience: formData.trading_experience,
+          expected_deposit: formData.expected_deposit
+        }
       });
 
       toast.success(t.submitSuccess, { description: t.submitSuccessDesc });

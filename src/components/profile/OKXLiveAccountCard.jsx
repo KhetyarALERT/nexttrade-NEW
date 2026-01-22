@@ -83,10 +83,10 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
 
   const t = {
     en: {
-      title: "Live Trading Account",
-      subtitle: "Real Money Trading",
-      noAccount: "No live account assigned",
-      noAccountDesc: "Contact support to get a live trading account assigned to you.",
+      title: "Trading Account",
+      subtitle: "Trade with your funds",
+      noAccount: "No trading account assigned",
+      noAccountDesc: "Request a trading account to start trading.",
       balance: "Balance",
       equity: "Total Equity",
       tradingBalance: "Trading",
@@ -112,58 +112,55 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       pending: "Pending",
       credited: "Credited",
       complete: "Complete",
-      supportContact: "Need help? Contact support"
+      supportContact: "Need help? Contact support",
+      // Account request strings
+      requestLiveAccount: "Request Trading Account",
+      requestLiveAccountDesc: "Complete the form to get a trading account",
+      verifyFirst: "Verify Your Identity First",
+      verifyFirstDesc: "You must verify your identity before requesting a trading account",
+      requestPending: "Your Request is Under Review",
+      requestPendingDesc: "We'll notify you when your request is processed"
     },
     ar: {
-      title: "حساب التداول المباشر",
-      subtitle: "تداول بأموال حقيقية",
-      noAccount: "لا يوجد حساب مباشر",
-      noAccountDesc: "تواصل مع الدعم للحصول على حساب تداول مباشر.",
+      title: "حساب تداول مباشر",
+      subtitle: "تداول بأموالك",
+      noAccount: "لا يوجد حساب تداول",
+      noAccountDesc: "اطلب حساب تداول لبدء التداول.",
       balance: "الرصيد",
-      equity: "إجمالي الحقوق",
+      equity: "إجمالي الرصيد",
       tradingBalance: "التداول",
       fundingBalance: "التمويل",
       positions: "المراكز المفتوحة",
       noPositions: "لا توجد مراكز مفتوحة",
-      tradeNow: "تداول الآن",
+      tradeNow: "ابدأ التداول",
       refresh: "تحديث",
       active: "نشط",
-      lastSync: "آخر مزامنة",
-      leverage: "الرافعة",
-      unrealizedPnl: "الربح غير المحقق",
+      lastSync: "آخر تحديث",
+      leverage: "الرافعة المالية",
+      unrealizedPnl: "الأرباح غير المحققة",
       transfer: "تحويل",
-      depositFunds: "إيداع الأموال",
+      depositFunds: "إيداع أموال",
       selectCurrency: "اختر العملة",
       selectNetwork: "اختر الشبكة",
       depositAddress: "عنوان الإيداع",
       copyAddress: "نسخ العنوان",
-      minDeposit: "الحد الأدنى",
-      networkWarning: "أرسل {ccy} عبر {chain} فقط. الإيداعات من شبكات خاطئة ستفقد نهائياً.",
+      minDeposit: "الحد الأدنى للإيداع",
+      networkWarning: "أرسل {ccy} عبر شبكة {chain} فقط. الإيداعات من شبكات خاطئة ستُفقد نهائياً.",
       recentDeposits: "الإيداعات الأخيرة",
       noDeposits: "لا توجد إيداعات حديثة",
-      pending: "معلق",
-      credited: "مسجل",
+      pending: "قيد الانتظار",
+      credited: "تم الإيداع",
       complete: "مكتمل",
       supportContact: "تحتاج مساعدة؟ تواصل مع الدعم",
-      // New strings for account request
-      requestLiveAccount: "طلب حساب حقيقي",
-      requestLiveAccountDesc: "أكمل النموذج للحصول على حساب تداول بأموال حقيقية",
+      // Account request strings
+      requestLiveAccount: "طلب حساب تداول",
+      requestLiveAccountDesc: "أكمل النموذج للحصول على حساب تداول",
       verifyFirst: "تحقق من هويتك أولاً",
-      verifyFirstDesc: "يجب التحقق من هويتك قبل طلب حساب حقيقي",
+      verifyFirstDesc: "يجب التحقق من هويتك قبل طلب حساب تداول",
       requestPending: "طلبك قيد المراجعة",
-      requestPendingDesc: "سنخطرك عندما يتم معالجة طلبك"
+      requestPendingDesc: "سنُعلمك عند معالجة طلبك"
     }
   }[language] || {};
-  
-  // Add English strings for account request
-  if (language === 'en') {
-    t.requestLiveAccount = "Request Live Account";
-    t.requestLiveAccountDesc = "Complete the form to get a real money trading account";
-    t.verifyFirst = "Verify Your Identity First";
-    t.verifyFirstDesc = "You must verify your identity before requesting a live account";
-    t.requestPending = "Your Request is Under Review";
-    t.requestPendingDesc = "We'll notify you when your request is processed";
-  }
 
   const loadAccount = useCallback(async () => {
     try {
@@ -443,7 +440,14 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
               </div>
               
               <Button
-                onClick={() => setRequestFormOpen(true)}
+                onClick={() => {
+                  // Track trading account request click
+                  base44.analytics.track({
+                    eventName: "trading_account_request_clicked",
+                    properties: { is_verified: isVerified, language }
+                  });
+                  setRequestFormOpen(true);
+                }}
                 className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl"
               >
                 <Rocket className="h-4 w-4 mr-2" />
