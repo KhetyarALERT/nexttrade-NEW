@@ -70,8 +70,10 @@ const translations = {
 
 const countries = [
   "United Arab Emirates", "Saudi Arabia", "Kuwait", "Qatar", "Bahrain", "Oman",
-  "Egypt", "Jordan", "Lebanon", "United States", "United Kingdom", "Germany", 
-  "France", "Canada", "Australia", "India", "Pakistan", "Other"
+  "Egypt", "Jordan", "Lebanon", "Syria", "Iraq", "Palestine", "Yemen", "Libya",
+  "Tunisia", "Algeria", "Morocco", "Sudan", "United States", "United Kingdom", 
+  "Germany", "France", "Canada", "Australia", "India", "Pakistan", "Turkey", 
+  "Iran", "Afghanistan", "Bangladesh", "Malaysia", "Indonesia", "Other"
 ];
 
 export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null }) {
