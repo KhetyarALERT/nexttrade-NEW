@@ -333,25 +333,68 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <div>
                 <Label className="flex items-center gap-2 flex-wrap">
                   {t.dob}
-                  <span className="text-xs text-muted-foreground font-normal">
-                    ({language === "ar" ? "اضغط لفتح التقويم أو اكتب" : "Tap to open calendar or type"})
-                  </span>
                 </Label>
-                <div className="relative">
-                  <Input
-                    type="date"
-                    value={form.dob}
-                    onChange={(e) => setForm({ ...form, dob: e.target.value })}
-                    className="pr-10"
-                    placeholder="YYYY-MM-DD"
-                    max={new Date().toISOString().split('T')[0]}
-                    min="1920-01-01"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                {/* Separate inputs for Day, Month, Year - better mobile support */}
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <div>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.dobDay}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                        setForm(prev => ({ ...prev, dobDay: val }));
+                      }}
+                      placeholder={language === "ar" ? "يوم" : "DD"}
+                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
+                      min="1"
+                      max="31"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.dobMonth}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 2);
+                        setForm(prev => ({ ...prev, dobMonth: val }));
+                      }}
+                      placeholder={language === "ar" ? "شهر" : "MM"}
+                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
+                      min="1"
+                      max="12"
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={form.dobYear}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setForm(prev => ({ ...prev, dobYear: val }));
+                      }}
+                      placeholder={language === "ar" ? "سنة" : "YYYY"}
+                      className={`text-center ${dateError ? 'border-red-500 bg-red-50 dark:bg-red-950/20' : ''}`}
+                      min="1920"
+                      max={new Date().getFullYear()}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {language === "ar" ? "مثال: 1990-05-15" : "Format: YYYY-MM-DD (e.g., 1990-05-15)"}
-                </p>
+                {dateError ? (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {language === "ar" ? "تاريخ غير صالح - أدخل تاريخ صحيح" : "Invalid date - please enter a valid date"}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {language === "ar" ? "مثال: 15 / 05 / 1990" : "Example: 15 / 05 / 1990"}
+                  </p>
+                )}
               </div>
               <div>
                 <Label>{t.country}</Label>
