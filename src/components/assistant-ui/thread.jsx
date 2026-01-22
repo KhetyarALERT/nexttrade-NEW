@@ -3,7 +3,7 @@ import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X 
 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { tAssistant } from "@/lib/i18n/assistant";
+import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
 
 const AGENT_NAME = "supportAssistant";
