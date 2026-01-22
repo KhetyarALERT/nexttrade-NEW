@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import LiveAccountCard from "@/components/profile/LiveAccountCard";
+import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
 import {
   Select,
   SelectContent,
@@ -476,7 +476,7 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh, l
             <span>{t.fundingHelp}</span>
           </div>
           
-          <LiveAccountCard language={language} onRefresh={onRefresh} />
+          <OKXLiveAccountCard language={language} onRefresh={onRefresh} />
           
           <AssetsTable
             wallets={groupedWallets}
