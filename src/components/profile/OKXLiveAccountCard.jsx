@@ -186,6 +186,38 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       setLoading(false);
     }
   }, []);
+  
+  // Load existing request and verification status
+  const loadRequestStatus = useCallback(async () => {
+    setLoadingRequest(true);
+    try {
+      const user = await base44.auth.me();
+      
+      // Check existing live account requests
+      const requests = await base44.entities.LiveAccountRequest.filter(
+        { user_id: user.id },
+        '-created_date',
+        1
+      );
+      
+      if (requests && requests.length > 0) {
+        setExistingRequest(requests[0]);
+      }
+      
+      // Check verification status
+      const verifications = await base44.entities.VerificationRequest.filter(
+        { user_id: user.id, status: 'approved' },
+        '-created_date',
+        1
+      );
+      
+      setIsVerified(verifications && verifications.length > 0);
+    } catch (err) {
+      console.error('[OKXLiveAccountCard] Load request status error:', err);
+    } finally {
+      setLoadingRequest(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadAccount();
