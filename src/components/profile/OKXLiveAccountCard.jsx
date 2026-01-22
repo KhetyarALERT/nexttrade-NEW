@@ -547,7 +547,8 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
                 </div>
               )}
             </div>
-          </div>
+          )}
+        </div>
         )}
 
         {/* Positions */}
