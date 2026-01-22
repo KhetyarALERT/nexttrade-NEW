@@ -1,300 +1,315 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
-import { Search, RefreshCw, ArrowLeftRight, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Search, RefreshCw, ArrowLeftRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CryptoIcon from "@/components/ui/CryptoIcon";
-import { base44 } from "@/api/base44Client";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 export default function FuturesWalletView({
+  tradingAccount,
+  trades = [],
   showBalances = true,
   onTransfer,
   onRefresh,
-  language = 'en'
+  demoAccount,
+  language: _language = 'en'
 }) {
-  const t = language === 'ar' ? {
-    title: 'حساب العقود الآجلة',
-    subtitle: 'OKX Perpetual Futures',
-    totalEquity: 'إجمالي الحقوق',
-    tradingBalance: 'رصيد التداول',
-    fundingBalance: 'رصيد التمويل',
-    unrealizedPnl: 'الربح غير المحقق',
-    availableMargin: 'الهامش المتاح',
-    leverage: 'الرافعة',
+  const t = _language === 'ar' ? {
+    totalAssets: 'إجمالي الأصول',
     transfer: 'تحويل',
     search: 'بحث',
     hideSmall: 'إخفاء الأصول < 1 USD',
-    noAccount: 'لا يوجد حساب تداول مباشر',
-    noAccountDesc: 'يرجى التواصل مع الدعم للحصول على حساب.',
-    positions: 'المراكز المفتوحة',
-    noPositions: 'لا توجد مراكز مفتوحة',
-    tradeNow: 'تداول الآن',
-    refresh: 'تحديث',
-    active: 'نشط',
-    lastSync: 'آخر مزامنة'
+    todayPnl: 'ربح/خسارة اليوم',
+    availableMargin: 'الهامش المتاح',
+    maintenanceMargin: 'هامش الصيانة',
+    effectiveMargin: 'الهامش الفعّال',
+    operation: 'إجراء',
+    noAssets: 'لا توجد أصول'
   } : {
-    title: 'Perpetual Account',
-    subtitle: 'OKX Perpetual Futures',
-    totalEquity: 'Total Equity',
-    tradingBalance: 'Trading Balance',
-    fundingBalance: 'Funding Balance',
-    unrealizedPnl: 'Unrealized P&L',
-    availableMargin: 'Available Margin',
-    leverage: 'Leverage',
+    totalAssets: 'Total Assets',
     transfer: 'Transfer',
     search: 'Search',
     hideSmall: 'Hide assets < 1 USD',
-    noAccount: 'No live trading account',
-    noAccountDesc: 'Contact support to get a live account assigned.',
-    positions: 'Open Positions',
-    noPositions: 'No open positions',
-    tradeNow: 'Trade Now',
-    refresh: 'Refresh',
-    active: 'Active',
-    lastSync: 'Last sync'
+    todayPnl: "Today's PnL",
+    availableMargin: 'Available Margin',
+    maintenanceMargin: 'Maintenance Margin',
+    effectiveMargin: 'Effective Margin',
+    operation: 'Operation',
+    noAssets: 'No assets found'
   };
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [accountData, setAccountData] = useState(null);
-  const [positions, setPositions] = useState([]);
+  // Prefer live account when available (Assets page expectation).
+  const account = tradingAccount || demoAccount;
   const [searchTerm, setSearchTerm] = useState("");
   const [hideSmallAssets, setHideSmallAssets] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const loadAccountData = useCallback(async () => {
-    try {
-      const res = await base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' });
-      
-      if (res.data?.ok && res.data.data?.hasAccount) {
-        setAccountData(res.data.data);
-        
-        // Load positions
-        const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' });
-        if (posRes.data?.ok) {
-          setPositions(posRes.data.data || []);
-        }
-      } else {
-        setAccountData(null);
-      }
-    } catch (err) {
-      console.error('[FuturesWalletView] Load error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Calculate futures account metrics from trading account and trades
+  const openTrades = trades.filter((t) => t.status === 'OPEN');
 
-  useEffect(() => {
-    loadAccountData();
-  }, [loadAccountData]);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadAccountData();
-    setRefreshing(false);
-    if (onRefresh) onRefresh();
-  };
+  const accountAssets = account?.balance ?? account?.demo_balance ?? account?.equity ?? 0;
+  const accountBalance = account?.equity ?? account?.demo_balance ?? account?.balance ?? 0;
+  const unrealizedPnl = account?.unrealized_pnl || 0;
+  const marginUsed = account?.margin_used || 0;
+  const availableMargin = accountBalance - marginUsed;
+  const transferable = Math.max(0, availableMargin - marginUsed * 0.1); // Keep 10% buffer
 
   const formatValue = (val) => {
     if (!showBalances) return "****";
     if (val === null || val === undefined) return "0.00";
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 });
   };
 
-  // Calculate totals from positions
-  const totalUpl = positions.reduce((sum, p) => sum + (p.upl || 0), 0);
+  const handleRefresh = async () => {
+    setLoading(true);
+    if (onRefresh) await onRefresh();
+    setLoading(false);
+  };
 
-  // Filter positions by search
-  const filteredPositions = positions.filter((pos) => {
-    if (searchTerm && !pos.instId?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+  // Group positions by crypto
+  const positionsByCrypto = {};
+  openTrades.forEach((trade) => {
+    const crypto = trade.symbol?.split('-')[0] || 'USDT';
+    if (!positionsByCrypto[crypto]) {
+      positionsByCrypto[crypto] = {
+        crypto,
+        accountAssets: 0,
+        accountBalance: 0,
+        unrealizedPnl: 0,
+        transferable: 0,
+        availableMargin: 0,
+        positionMargin: 0,
+        positions: []
+      };
+    }
+    positionsByCrypto[crypto].positions.push(trade);
+    positionsByCrypto[crypto].positionMargin += trade.margin || 0;
+    positionsByCrypto[crypto].unrealizedPnl += trade.pnl || 0;
+  });
+
+  // Always show USDT as main asset
+  if (!positionsByCrypto['USDT']) {
+    positionsByCrypto['USDT'] = {
+      crypto: 'USDT',
+      accountAssets,
+      accountBalance,
+      unrealizedPnl,
+      transferable,
+      availableMargin,
+      positionMargin: marginUsed,
+      positions: []
+    };
+  } else {
+    positionsByCrypto['USDT'].accountAssets = accountAssets;
+    positionsByCrypto['USDT'].accountBalance = accountBalance;
+    positionsByCrypto['USDT'].transferable = transferable;
+    positionsByCrypto['USDT'].availableMargin = availableMargin;
+  }
+
+  const filteredAssets = Object.values(positionsByCrypto).filter((asset) => {
+    if (searchTerm && !asset.crypto.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (hideSmallAssets && asset.accountAssets < 1) return false;
     return true;
   });
 
-  if (loading) {
-    return (
+  return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <Skeleton className="h-8 w-48 mb-4" />
-          <Skeleton className="h-20 w-full mb-4" />
-          <Skeleton className="h-12 w-full" />
+        {/* Header Summary */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+          <div>
+            <span className="text-slate-600 text-xs block mb-1">{t.totalAssets}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900">
+                {showBalances ? formatValue(accountAssets) : "****"}
+              </span>
+              <span className="text-slate-500 text-sm">USDT</span>
+            </div>
+            <div className="text-slate-500 text-xs mt-1">≈ ${showBalances ? formatValue(accountAssets) : "****"}</div>
+          </div>
+          <Button
+            onClick={onTransfer}
+            variant="outline"
+            size="sm"
+            className="border-slate-200 bg-white text-slate-900 hover:bg-slate-50 px-3 text-xs font-medium rounded-xl inline-flex items-center justify-center gap-2 whitespace-nowrap h-8"
+          >
+            <ArrowLeftRight className="w-4 h-4 mr-1.5" /> {t.transfer}
+          </Button>
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="usdm" className="mb-4">
+          <TabsList className="bg-transparent border-b border-slate-200 w-full justify-start rounded-none p-0 h-auto">
+            <TabsTrigger
+              value="usdm"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent text-slate-500 data-[state=active]:text-slate-900 px-4 py-2">
+
+              USD-M Perp
+            </TabsTrigger>
+            <TabsTrigger
+              value="coinm"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent text-slate-500 data-[state=active]:text-slate-900 px-4 py-2">
+
+              Coin-M Perp
+            </TabsTrigger>
+            <TabsTrigger
+              value="standard"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent text-slate-500 data-[state=active]:text-slate-900 px-4 py-2">
+
+              Standard Futures
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Balance Summary */}
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="text-xl font-bold text-slate-900">{showBalances ? formatValue(accountBalance) : "****"}</span>
+          <span className="text-slate-500 text-sm">USDT</span>
+          <span className="text-slate-500 text-xs">≈ ${showBalances ? formatValue(accountBalance) : "****"}</span>
+        </div>
+        
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-slate-600 text-xs">{t.todayPnl}:</span>
+          <span className={`text-xs font-medium ${unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {unrealizedPnl >= 0 ? '+' : ''}{showBalances ? `$${formatValue(unrealizedPnl)}` : "****"}
+            {unrealizedPnl !== 0 && accountAssets > 0 &&
+            <span className="ml-1">
+                ({(unrealizedPnl / accountAssets * 100).toFixed(2)}%)
+              </span>
+            }
+          </span>
+        </div>
+
+        {/* Multi-Assets Info */}
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div>
+            <span className="text-slate-500 text-[10px] block">{t.availableMargin}</span>
+            <span className="text-slate-900 text-sm font-medium">{showBalances ? formatValue(availableMargin) : "****"} USD</span>
+          </div>
+          <div>
+            <span className="text-slate-500 text-[10px] block">{t.maintenanceMargin}</span>
+            <span className="text-slate-900 text-sm font-medium">{showBalances ? formatValue(marginUsed * 0.5) : "****"} USD</span>
+          </div>
+          <div>
+            <span className="text-slate-500 text-[10px] block">{t.effectiveMargin}</span>
+            <span className="text-slate-900 text-sm font-medium">{showBalances ? formatValue(accountBalance) : "****"} USD</span>
+          </div>
         </div>
       </div>
-    );
-  }
 
-  if (!accountData?.hasAccount) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-6 text-center">
-        <Activity className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-        <p className="text-sm font-medium text-foreground">{t.noAccount}</p>
-        <p className="text-xs text-muted-foreground mt-1">{t.noAccountDesc}</p>
-      </div>
-    );
-  }
+      {/* Assets Table */}
+      <div className="rounded-2xl overflow-hidden bg-white border border-slate-200">
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="relative flex-1">
+              <Search className={`absolute ${_language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
+              <Input
+                placeholder={t.search}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`${_language === 'ar' ? 'pr-9' : 'pl-9'} bg-white border-slate-200 text-slate-900 placeholder:text-slate-400`} />
 
-  const balances = accountData.balances || {};
-
-  return (
-    <div className="space-y-4">
-      {/* Account Summary Card */}
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/20 p-5 shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-md">
-              <Activity className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">{t.title}</h3>
-              <p className="text-xs text-muted-foreground">{accountData.accountLabel || accountData.externalAccountId}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">
-              {t.active}
-            </Badge>
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer whitespace-nowrap">
+              <Checkbox checked={hideSmallAssets} onCheckedChange={setHideSmallAssets} className="border-slate-300" />
+              {t.hideSmall}
+            </label>
             <Button
-              size="sm"
               variant="ghost"
+              size="icon"
               onClick={handleRefresh}
-              disabled={refreshing}
-              className="h-8 w-8 p-0"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              disabled={loading}
+              className="text-slate-500 hover:text-slate-900">
+
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
 
-        {/* Balance Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-4">
-            <p className="text-xs text-muted-foreground mb-1">{t.totalEquity}</p>
-            <p className="text-2xl font-bold text-foreground">
-              ${formatValue(balances.totalEquity || balances.totalUsdt)}
-            </p>
-          </div>
-          <div className="rounded-xl bg-muted/30 border border-border p-4">
-            <p className="text-xs text-muted-foreground mb-1">{t.unrealizedPnl}</p>
-            <p className={`text-2xl font-bold ${totalUpl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {totalUpl >= 0 ? '+' : ''}{formatValue(totalUpl)}
-            </p>
-          </div>
-        </div>
+        <div className="overflow-x-hidden">
+          <table className="w-full table-fixed">
+            <thead>
+              <tr className="text-left text-[10px] text-slate-500 border-b border-slate-100 uppercase">
+                <th className="px-4 py-3 font-medium">Crypto</th>
+                <th className="hidden md:table-cell px-4 py-3 font-medium text-right">Account Assets</th>
+                <th className="hidden md:table-cell px-4 py-3 font-medium text-right">Account Balance</th>
+                <th className="px-4 py-3 font-medium text-right">Unrealized PnL</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Transferable</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Available Margin</th>
+                <th className="hidden lg:table-cell px-4 py-3 font-medium text-right">Position Margin</th>
+                <th className="px-4 py-3 font-medium text-center">{t.operation}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAssets.length === 0 ?
+              <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
+                    {t.noAssets}
+                  </td>
+                </tr> :
 
-        {/* Detailed Balances */}
-        <div className="rounded-xl bg-muted/20 border border-border/50 p-4 space-y-2 mb-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t.tradingBalance}</span>
-            <span className="font-mono font-medium">${formatValue(balances.tradingUsdt)} USDT</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t.fundingBalance}</span>
-            <span className="font-mono font-medium">${formatValue(balances.fundingUsdt)} USDT</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{t.availableMargin}</span>
-            <span className="font-mono font-medium">${formatValue(balances.availableBalance)} USDT</span>
-          </div>
-          <div className="flex justify-between text-sm pt-2 border-t border-border/50">
-            <span className="text-muted-foreground">{t.leverage}</span>
-            <span className="font-medium">{accountData.defaultLeverage || 5}x</span>
-          </div>
-        </div>
+              filteredAssets.map((asset) =>
+              <tr key={asset.crypto} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <CryptoIcon currency={asset.crypto} size="sm" />
+                        <span className="text-slate-900 font-medium text-sm">{asset.crypto}</span>
+                      </div>
+                      <div className="mt-1 text-[10px] text-slate-500 md:hidden">
+                        <span className="text-slate-400">Assets:</span> {showBalances ? formatValue(asset.accountAssets) : "****"}
+                        <span className="mx-2 text-slate-700">•</span>
+                        <span className="text-slate-400">Bal:</span> {showBalances ? formatValue(asset.accountBalance) : "****"}
+                      </div>
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3 text-right text-slate-900 text-sm">
+                      {showBalances ? formatValue(asset.accountAssets) : "****"}
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3 text-right text-slate-900 text-sm">
+                      {showBalances ? formatValue(asset.accountBalance) : "****"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`text-sm font-medium ${asset.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {asset.unrealizedPnl >= 0 ? '+' : ''}{showBalances ? formatValue(asset.unrealizedPnl) : "****"}
+                      </span>
+                    </td>
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-slate-900 text-sm">
+                      {showBalances ? formatValue(asset.transferable) : "****"}
+                    </td>
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-slate-900 text-sm">
+                      {showBalances ? formatValue(asset.availableMargin) : "****"}
+                    </td>
+                    <td className="hidden lg:table-cell px-4 py-3 text-right text-white text-sm">
+                      {showBalances ? formatValue(asset.positionMargin) : "****"}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onTransfer}
+                    className="text-indigo-300 hover:text-indigo-200 text-xs h-7 rounded-xl">
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            onClick={onTransfer}
-            className="flex items-center justify-center gap-2 rounded-xl border-border hover:bg-muted"
-          >
-            <ArrowLeftRight className="h-4 w-4" />
-            {t.transfer}
-          </Button>
-          <Button asChild className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl">
-            <Link to={createPageUrl("Futures")}>
-              <TrendingUp className="h-4 w-4 mr-2" />
-              {t.tradeNow}
-            </Link>
-          </Button>
+                        Transfer
+                      </Button>
+                    </td>
+                  </tr>
+              )
+              }
+            </tbody>
+          </table>
         </div>
-
-        {/* Last Sync */}
-        {accountData.lastSync && (
-          <p className="text-xs text-muted-foreground text-center mt-3">
-            {t.lastSync}: {new Date(accountData.lastSync).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
-          </p>
-        )}
       </div>
+    </div>);
 
-      {/* Open Positions */}
-      {positions.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="p-4 border-b border-border/50 bg-muted/20">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <Activity className="h-4 w-4 text-emerald-500" />
-                {t.positions} ({positions.length})
-              </h4>
-              <div className="relative w-40">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder={t.search}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-8 text-xs bg-background border-border"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div className="divide-y divide-border/50">
-            {filteredPositions.map((pos, idx) => (
-              <div key={idx} className="p-4 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CryptoIcon currency={pos.instId?.split('-')[0] || 'BTC'} size="sm" />
-                    <div>
-                      <span className="font-medium text-sm text-foreground">{pos.instId}</span>
-                      <Badge className={`ml-2 text-xs ${pos.posSide === 'long' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>
-                        {pos.posSide === 'long' ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                        {pos.posSide?.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-mono font-medium ${pos.upl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {pos.upl >= 0 ? '+' : ''}{formatValue(pos.upl)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                  <span>Size: {pos.size}</span>
-                  <span>Entry: ${formatValue(pos.avgPx)}</span>
-                  <span>Mark: ${formatValue(pos.markPx)}</span>
-                  <span>{pos.lever}x</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {positions.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-border bg-muted/10 p-8 text-center">
-          <Activity className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-          <p className="text-sm text-muted-foreground">{t.noPositions}</p>
-        </div>
-      )}
-    </div>
-  );
 }
 
 FuturesWalletView.propTypes = {
+  tradingAccount: PropTypes.object,
+  trades: PropTypes.array,
   showBalances: PropTypes.bool,
   onTransfer: PropTypes.func,
   onRefresh: PropTypes.func,
-  language: PropTypes.string
+  demoAccount: PropTypes.object
 };
+FuturesWalletView.propTypes.language = PropTypes.string;

@@ -927,7 +927,10 @@ export default function Profile({ language = "en" }) {
                 <AssetsPage 
                   wallets={wallets} 
                   language={language} 
-                  onRefresh={loadTradingAccounts}
+                  onRefresh={loadTradingAccounts} 
+                  liveAccount={liveAccount} 
+                  demoAccount={demoAccount} 
+                  trades={trades} 
                 />
                 <div className="space-y-6">
                   <RecentTransactions language={language} />
