@@ -144,9 +144,26 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       pending: "معلق",
       credited: "مسجل",
       complete: "مكتمل",
-      supportContact: "تحتاج مساعدة؟ تواصل مع الدعم"
+      supportContact: "تحتاج مساعدة؟ تواصل مع الدعم",
+      // New strings for account request
+      requestLiveAccount: "طلب حساب حقيقي",
+      requestLiveAccountDesc: "أكمل النموذج للحصول على حساب تداول بأموال حقيقية",
+      verifyFirst: "تحقق من هويتك أولاً",
+      verifyFirstDesc: "يجب التحقق من هويتك قبل طلب حساب حقيقي",
+      requestPending: "طلبك قيد المراجعة",
+      requestPendingDesc: "سنخطرك عندما يتم معالجة طلبك"
     }
   }[language] || {};
+  
+  // Add English strings for account request
+  if (language === 'en') {
+    t.requestLiveAccount = "Request Live Account";
+    t.requestLiveAccountDesc = "Complete the form to get a real money trading account";
+    t.verifyFirst = "Verify Your Identity First";
+    t.verifyFirstDesc = "You must verify your identity before requesting a live account";
+    t.requestPending = "Your Request is Under Review";
+    t.requestPendingDesc = "We'll notify you when your request is processed";
+  }
 
   const loadAccount = useCallback(async () => {
     try {
