@@ -367,7 +367,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
           </div>
           <div className="flex justify-between text-sm pt-2 border-t border-border/50">
             <span className="text-muted-foreground">{t.leverage}</span>
-            <span className="font-medium">{accountData.defaultLeverage || 5}x</span>
+            <span className="font-medium">{accountData.defaultLeverage ?? 5}x</span>
           </div>
         </div>
 
