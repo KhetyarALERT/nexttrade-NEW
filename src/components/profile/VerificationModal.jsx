@@ -37,9 +37,14 @@ const translations = {
   en: {
     title: "Identity Verification",
     subtitle: "Complete KYC to unlock full platform access",
-    step1: "Personal Information",
-    step2: "Document Upload",
+    step1: "Upload ID Document",
+    step2: "Personal Information",
     step3: "Selfie Verification",
+    needHelp: "Need Help?",
+    askForHelp: "Ask for Help",
+    helpPlaceholder: "Describe your issue (e.g., having trouble uploading document, date format confusion, etc.)",
+    helpSent: "Help request sent! Our team will contact you soon.",
+    helpPending: "Help request pending",
     fullName: "Full Name (as on ID)",
     dob: "Date of Birth",
     country: "Country",
@@ -65,9 +70,14 @@ const translations = {
   ar: {
     title: "التحقق من الهوية",
     subtitle: "أكمل KYC لفتح الوصول الكامل للمنصة",
-    step1: "المعلومات الشخصية",
-    step2: "رفع المستندات",
+    step1: "رفع وثيقة الهوية",
+    step2: "المعلومات الشخصية",
     step3: "التحقق بالصورة الذاتية",
+    needHelp: "تحتاج مساعدة؟",
+    askForHelp: "طلب مساعدة",
+    helpPlaceholder: "صف مشكلتك (مثال: صعوبة في رفع المستند، مشكلة في تنسيق التاريخ، إلخ.)",
+    helpSent: "تم إرسال طلب المساعدة! سيتواصل معك فريقنا قريباً.",
+    helpPending: "طلب المساعدة قيد الانتظار",
     fullName: "الاسم الكامل (كما في الهوية)",
     dob: "تاريخ الميلاد",
     country: "الدولة",
@@ -513,58 +523,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                 disabled={!form.fullName || (form.dob && !isValidDateFormat(form.dob))}
               >
                 {language === "ar" ? "متابعة" : "Continue"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Selfie */}
-        {step === 3 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              {t.step2}
-            </h3>
-            
-            <div>
-              <Label>{t.docType}</Label>
-              {/* Native select for better mobile compatibility */}
-              <div className="relative">
-                <select
-                  value={form.documentType}
-                  onChange={(e) => setForm({ ...form, documentType: e.target.value })}
-                  className="flex h-11 w-full items-center justify-between whitespace-nowrap rounded-xl border-2 border-input bg-background/50 px-4 py-2 text-sm shadow-sm ring-offset-background transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
-                >
-                  <option value="passport">{t.passport}</option>
-                  <option value="national_id">{t.nationalId}</option>
-                  <option value="drivers_license">{t.driversLicense}</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
-
-            <FileUploadBox
-              label={t.uploadFront + " *"}
-              preview={frontPreview}
-              onFileChange={(f) => handleFileChange("front", f)}
-              language={language}
-              t={t}
-            />
-
-            <FileUploadBox
-              label={t.uploadBack}
-              preview={backPreview}
-              onFileChange={(f) => handleFileChange("back", f)}
-              language={language}
-              t={t}
-            />
-
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
-                {language === "ar" ? "السابق" : "Back"}
-              </Button>
-              <Button onClick={() => setStep(3)} className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={!form.frontFile}>
-                {language === "ar" ? "يكمل" : "Continue"}
               </Button>
             </div>
           </div>
