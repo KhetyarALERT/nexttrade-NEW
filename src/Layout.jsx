@@ -337,10 +337,17 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
     loadAccountTotals();
-    // Track login event when user becomes authenticated
-    base44.analytics.track({
-      eventName: "user_login",
-      properties: { method: "session" }
+    // Track login event when user becomes authenticated with user info
+    base44.auth.me().then(currentUser => {
+      base44.analytics.track({
+        eventName: "user_login",
+        properties: { method: "session", user_id: currentUser?.id, user_email: currentUser?.email }
+      });
+    }).catch(() => {
+      base44.analytics.track({
+        eventName: "user_login",
+        properties: { method: "session" }
+      });
     });
   }, [isAuthenticated, isLoadingAuth]);
 
@@ -650,13 +657,21 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onSelect={(e) => {
+                      onSelect={async (e) => {
                         e.preventDefault();
-                        // Track logout event
-                        base44.analytics.track({
-                          eventName: "user_logout",
-                          properties: { method: "manual" }
-                        });
+                        // Track logout event with user info
+                        try {
+                          const currentUser = await base44.auth.me();
+                          base44.analytics.track({
+                            eventName: "user_logout",
+                            properties: { method: "manual", user_id: currentUser?.id, user_email: currentUser?.email }
+                          });
+                        } catch {
+                          base44.analytics.track({
+                            eventName: "user_logout",
+                            properties: { method: "manual" }
+                          });
+                        }
                         logout(true);
                       }}
                       className="text-rose-600 focus:text-rose-700"

@@ -288,12 +288,20 @@ export default function LiveAccountRequestForm({
             <p className="text-sm text-muted-foreground mb-4">{t.verificationDesc}</p>
             <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
               <Button 
-                onClick={() => {
-                  // Track verify now click from trading account request
-                  base44.analytics.track({
-                    eventName: "kyc_verify_clicked",
-                    properties: { source: "trading_account_request" }
-                  });
+                onClick={async () => {
+                  // Track verify now click from trading account request with user info
+                  try {
+                    const user = await base44.auth.me();
+                    base44.analytics.track({
+                      eventName: "kyc_verify_clicked",
+                      properties: { source: "trading_account_request", user_id: user?.id, user_email: user?.email }
+                    });
+                  } catch {
+                    base44.analytics.track({
+                      eventName: "kyc_verify_clicked",
+                      properties: { source: "trading_account_request" }
+                    });
+                  }
                   onOpenChange(false);
                 }}
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
@@ -339,12 +347,14 @@ export default function LiveAccountRequestForm({
         terms_accepted_at: new Date().toISOString()
       });
 
-      // Track trading account request submitted
+      // Track trading account request submitted with user info
       base44.analytics.track({
         eventName: "trading_account_request_submitted",
         properties: { 
           trading_experience: formData.trading_experience,
-          expected_deposit: formData.expected_deposit
+          expected_deposit: formData.expected_deposit,
+          user_id: user.id,
+          user_email: user.email
         }
       });
 

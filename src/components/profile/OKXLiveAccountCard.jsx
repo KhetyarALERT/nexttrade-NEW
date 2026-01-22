@@ -440,12 +440,20 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
               </div>
               
               <Button
-                onClick={() => {
-                  // Track trading account request click
-                  base44.analytics.track({
-                    eventName: "trading_account_request_clicked",
-                    properties: { is_verified: isVerified, language }
-                  });
+                onClick={async () => {
+                  // Track trading account request click with user info
+                  try {
+                    const user = await base44.auth.me();
+                    base44.analytics.track({
+                      eventName: "trading_account_request_clicked",
+                      properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
+                    });
+                  } catch {
+                    base44.analytics.track({
+                      eventName: "trading_account_request_clicked",
+                      properties: { is_verified: isVerified, language }
+                    });
+                  }
                   setRequestFormOpen(true);
                 }}
                 className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl"
