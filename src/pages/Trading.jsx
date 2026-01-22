@@ -14,6 +14,11 @@ import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
+import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
+import { Link } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Shield, XCircle, Clock } from "lucide-react";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -28,6 +33,7 @@ function formatCompactNumber(value) {
 
 export default function Trading({ language = "en" }) {
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness();
   const isAr = language === "ar";
   
   // Responsive breakpoint detection
@@ -276,6 +282,52 @@ export default function Trading({ language = "en" }) {
     />
   );
 
+  // Readiness gate - show blocking UI if user not ready
+  if (isAuthenticated && !isLoadingAuth && !loadingReadiness && !isReady && nextAction?.blocking) {
+    const BlockIcon = nextAction.reason?.includes("reject") ? XCircle : 
+                      nextAction.reason?.includes("review") ? Clock : Shield;
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="max-w-md w-full">
+          <Alert className="border-amber-500/30 bg-amber-500/5 mb-6">
+            <BlockIcon className="h-5 w-5 text-amber-500" />
+            <AlertDescription className="text-sm">
+              {nextAction.reason}
+            </AlertDescription>
+          </Alert>
+          
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4">
+              <Lock className="h-8 w-8 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground">
+              {language === "ar" ? "الوصول محدود" : "Access Restricted"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {language === "ar" 
+                ? "يجب إكمال الخطوات المطلوبة للوصول إلى التداول"
+                : "Please complete the required steps to access trading"}
+            </p>
+            
+            <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl">
+              <Link to={nextAction.route}>
+                {nextAction.label?.[language] || (language === "ar" ? "المتابعة" : "Continue")}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Link>
+            </Button>
+            
+            <Button asChild variant="outline" className="w-full">
+              <Link to={createPageUrl("Dashboard")}>
+                {language === "ar" ? "العودة للوحة التحكم" : "Back to Dashboard"}
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   // Mobile Layout - Full screen
   if (isMobile) {
     return (

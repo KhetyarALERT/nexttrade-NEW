@@ -25,6 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
 
 // Dashboard voucher data (inline to avoid missing dependency)
 const DASHBOARD_VOUCHERS = [
@@ -237,6 +238,7 @@ const formatNum = (v, digits = 2) => {
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { user } = useAuth();
+  const { nextAction, loading: loadingReadiness } = useUserReadiness();
   const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -388,11 +390,22 @@ export default function Dashboard({ language = "en" }) {
                 >
                   <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
                 </Button>
-                <Button asChild className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
-                  <Link to={createPageUrl("Futures")} className="flex items-center justify-center gap-2 px-4">
-                    <Zap className="h-5 w-5" />
-                    <span className="font-semibold">{t.trade}</span>
-                  </Link>
+                <Button 
+                  asChild={!!nextAction?.route} 
+                  disabled={loadingReadiness}
+                  className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {nextAction?.route ? (
+                    <Link to={nextAction.route} className="flex items-center justify-center gap-2 px-4">
+                      <Zap className="h-5 w-5" />
+                      <span className="font-semibold">{nextAction.label?.[language] || t.trade}</span>
+                    </Link>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2 px-4">
+                      <Zap className="h-5 w-5" />
+                      <span className="font-semibold">{t.trade}</span>
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>

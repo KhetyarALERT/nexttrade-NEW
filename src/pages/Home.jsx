@@ -24,9 +24,14 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
+import { useUserReadiness } from "@/lib/hooks/useUserReadiness";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Home({ language = "en" }) {
   const shouldReduceMotion = useReducedMotion();
+  const { isAuthenticated, navigateToLogin } = useAuth();
+  const { nextAction, loading: loadingReadiness } = useUserReadiness();
+  
   const content = {
     en: {
       hero: {
@@ -227,11 +232,17 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   className="bg-white text-slate-900 hover:bg-white/90 rounded-lg px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg font-semibold transition-all hover:scale-[1.02]"
-                  asChild
+                  asChild={isAuthenticated && !!nextAction?.route}
+                  onClick={!isAuthenticated ? navigateToLogin : undefined}
+                  disabled={loadingReadiness}
                 >
-                  <Link to={createPageUrl("Futures")}>
-                    {t.hero.cta1}
-                  </Link>
+                  {isAuthenticated && nextAction?.route ? (
+                    <Link to={nextAction.route}>
+                      {nextAction.label?.[language] || t.hero.cta1}
+                    </Link>
+                  ) : (
+                    <span>{t.hero.cta1}</span>
+                  )}
                 </Button>
                 <Button
                   size="lg"
@@ -489,12 +500,21 @@ export default function Home({ language = "en" }) {
                 <Button
                   size="lg"
                   className="mt-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full px-10 py-7 text-xl font-bold shadow-2xl shadow-blue-500/30 hover:scale-105 transition-all w-full sm:w-auto"
-                  asChild>
-
-                  <Link to={createPageUrl("Profile") + "?tab=accounts"}>
-                    {language === "en" ? "Get Started Now" : "ابدأ الآن"}
-                    <ArrowRight className="ml-2 w-6 h-6" />
-                  </Link>
+                  asChild={isAuthenticated && !!nextAction?.route}
+                  onClick={!isAuthenticated ? navigateToLogin : undefined}
+                  disabled={loadingReadiness}
+                >
+                  {isAuthenticated && nextAction?.route ? (
+                    <Link to={nextAction.route}>
+                      {nextAction.label?.[language] || (language === "en" ? "Get Started Now" : "ابدأ الآن")}
+                      <ArrowRight className="ml-2 w-6 h-6" />
+                    </Link>
+                  ) : (
+                    <span>
+                      {language === "en" ? "Get Started Now" : "ابدأ الآن"}
+                      <ArrowRight className="ml-2 w-6 h-6" />
+                    </span>
+                  )}
                 </Button>
               </div>
 
