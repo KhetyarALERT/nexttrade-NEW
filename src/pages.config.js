@@ -11,11 +11,11 @@ import MemeCoinsNew from './pages/MemeCoinsNew';
 import OKXAdminHub from './pages/OKXAdminHub';
 import OnChainDeposit from './pages/OnChainDeposit';
 import PrivacyPolicy from './pages/PrivacyPolicy';
-import Profile from './pages/Profile';
 import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import index from './pages/index';
+import Profile from './pages/Profile';
 import __Layout from './Layout.jsx';
 
 
@@ -33,11 +33,11 @@ export const PAGES = {
     "OKXAdminHub": OKXAdminHub,
     "OnChainDeposit": OnChainDeposit,
     "PrivacyPolicy": PrivacyPolicy,
-    "Profile": Profile,
     "Rewards": Rewards,
     "TermsOfService": TermsOfService,
     "Trading": Trading,
     "index": index,
+    "Profile": Profile,
 }
 
 export const pagesConfig = {
