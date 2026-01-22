@@ -76,9 +76,10 @@ const countries = [
 ];
 
 export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null }) {
-  const t = translations[language];
+  const t = translations[language] || translations.en;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     dob: "",
@@ -92,6 +93,15 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   const [frontPreview, setFrontPreview] = useState(null);
   const [backPreview, setBackPreview] = useState(null);
   const [selfiePreview, setSelfiePreview] = useState(null);
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      // Reset to step 1 when modal closes
+      setStep(1);
+      setCountryDropdownOpen(false);
+    }
+  }, [open]);
 
   const handleFileChange = useCallback((type, file) => {
     if (!file) return;
@@ -116,6 +126,12 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
     };
     reader.readAsDataURL(file);
   }, [language]);
+  
+  // Simple country select handler
+  const handleCountrySelect = useCallback((country) => {
+    setForm((prev) => ({ ...prev, country }));
+    setCountryDropdownOpen(false);
+  }, []);
 
   const handleSubmit = async () => {
     if (!form.fullName || !form.documentType || !form.frontFile) {
