@@ -436,10 +436,11 @@ export default function Profile({ language = "en" }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateCurrentUser({
-        fullName: formState.fullName,
+      // Use base44.auth.updateMe() to persist custom user fields
+      await base44.auth.updateMe({
+        full_name: formState.fullName,
         bio: formState.bio,
-        avatarUrl: formState.avatarUrl
+        avatar_url: formState.avatarUrl
       });
       toast({ 
         title: t.updateSuccess, 
