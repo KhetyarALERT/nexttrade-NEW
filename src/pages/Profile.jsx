@@ -252,6 +252,11 @@ export default function Profile({ language = "en" }) {
       const requests = await base44.entities.VerificationRequest.filter({ user_id: user.id }, "-created_date", 1);
       if (requests && requests.length > 0) {
         setExistingVerification(requests[0]);
+
+        // Update formState with verification status if user is verified
+        if (requests[0].status === 'approved') {
+          setFormState(prev => prev ? { ...prev, verificationStatus: 'verified' } : prev);
+        }
       }
     } catch {
       // ignore
@@ -976,17 +981,27 @@ export default function Profile({ language = "en" }) {
                           : "أكمل التحقق لفتح السحوبات والحدود الأعلى"}
                       </p>
                       {existingVerification && (
-                        <Badge className={`mt-2 ${
-                          existingVerification.status === 'approved' ? 'bg-emerald-500' :
-                          existingVerification.status === 'rejected' ? 'bg-rose-500' :
-                          'bg-amber-500'
-                        } text-white`}>
-                          {existingVerification.status === 'approved' ? (language === "en" ? "Verified" : "موثق") :
-                           existingVerification.status === 'rejected' ? (language === "en" ? "Rejected" : "مرفوض") :
-                           existingVerification.status === 'under_review' ? (language === "en" ? "Under Review" : "قيد المراجعة") :
-                           (language === "en" ? "Pending" : "قيد الانتظار")}
-                        </Badge>
-                      )}
+                          <Badge className={`mt-2 ${
+                            existingVerification.status === 'approved' ? 'bg-emerald-500' :
+                            existingVerification.status === 'rejected' ? 'bg-rose-500' :
+                            existingVerification.status === 'needs_help' ? 'bg-amber-500' :
+                            'bg-amber-500'
+                          } text-white`}>
+                            {existingVerification.status === 'approved' ? (language === "en" ? "Verified" : "موثق") :
+                             existingVerification.status === 'rejected' ? (language === "en" ? "Rejected" : "مرفوض") :
+                             existingVerification.status === 'under_review' ? (language === "en" ? "Under Review" : "قيد المراجعة") :
+                             existingVerification.status === 'needs_help' ? (language === "en" ? "Help Requested" : "طلب مساعدة") :
+                             (language === "en" ? "Pending" : "قيد الانتظار")}
+                          </Badge>
+                        )}
+                        {existingVerification?.admin_response && existingVerification.status !== 'approved' && (
+                          <div className="mt-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-xs">
+                            <p className="font-medium text-blue-700 dark:text-blue-400">
+                              {language === "en" ? "Admin Response:" : "رد الإدارة:"}
+                            </p>
+                            <p className="text-blue-600 dark:text-blue-300">{existingVerification.admin_response}</p>
+                          </div>
+                        )}
                     </div>
                   </div>
                   <Button
