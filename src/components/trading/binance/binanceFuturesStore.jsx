@@ -99,44 +99,51 @@ class OKXFuturesStore {
     return this.candles[key] || [];
   }
 
-  // ========== REST API (Initial Seed Only) ==========
+  // ========== REST API (Initial Seed Only - STRICT RATE LIMITING) ==========
   async fetchCandles(symbol, interval = "15m", limit = 300) {
     const normalized = String(symbol || "").toUpperCase();
     const bar = intervalToOkxBar[interval] || "15m";
     const cacheKey = `candles_${normalized}_${bar}`;
+    const dataKey = `${normalized}_${interval}`;
     
-    // STRICT: Only fetch ONCE per session per symbol/interval combo
-    // After initial fetch, rely 100% on WebSocket updates
+    // 1. Return cached data if we already fetched this session
     if (this.initialFetchDone.has(cacheKey)) {
-      const existing = this.candles[`${normalized}_${interval}`];
+      const existing = this.candles[dataKey];
       if (existing?.length > 0) {
+        console.log(`[OKX Store] Using cached candles for ${cacheKey}`);
         return existing;
       }
     }
     
-    // Check cooldown to prevent API spam
+    // 2. Check cooldown - prevent any API call within cooldown period
     const lastFetch = this.lastFetchTime.get(cacheKey);
     if (lastFetch && Date.now() - lastFetch < this.FETCH_COOLDOWN) {
-      const existing = this.candles[`${normalized}_${interval}`];
-      if (existing?.length > 0) {
-        return existing;
-      }
+      const existing = this.candles[dataKey];
+      console.log(`[OKX Store] Cooldown active for ${cacheKey}, returning cached (${existing?.length || 0} candles)`);
+      return existing || [];
     }
     
-    // Global rate limit - wait if we called API too recently
-    const timeSinceLastCall = Date.now() - this.lastApiCall;
-    if (timeSinceLastCall < this.API_MIN_INTERVAL) {
-      await new Promise(r => setTimeout(r, this.API_MIN_INTERVAL - timeSinceLastCall));
+    // 3. Return existing in-flight promise if same request is pending
+    const pending = this.pendingFetches.get(cacheKey);
+    if (pending) {
+      console.log(`[OKX Store] Deduping request for ${cacheKey}`);
+      return pending;
     }
     
-    // Check if already fetching
-    if (this.pendingFetches.has(cacheKey)) {
-      return this.pendingFetches.get(cacheKey);
-    }
-    
+    // 4. Create single fetch promise with global rate limiting
     const fetchPromise = (async () => {
       try {
+        // Global rate limit - wait if any API call happened recently
+        const timeSinceLastCall = Date.now() - this.lastApiCall;
+        if (timeSinceLastCall < this.API_MIN_INTERVAL) {
+          const waitTime = this.API_MIN_INTERVAL - timeSinceLastCall;
+          console.log(`[OKX Store] Rate limiting: waiting ${waitTime}ms`);
+          await new Promise(r => setTimeout(r, waitTime));
+        }
+        
         this.lastApiCall = Date.now();
+        console.log(`[OKX Store] Fetching candles for ${normalized} ${bar}`);
+        
         const res = await base44.functions.invoke("okxMarketData", {
           action: "getCandles",
           instId: normalized,
@@ -146,20 +153,21 @@ class OKXFuturesStore {
         
         if (res?.data?.ok && Array.isArray(res.data.data)) {
           const candles = res.data.data;
-          const key = `${normalized}_${interval}`;
-          this.candles[key] = candles;
+          this.candles[dataKey] = candles;
           this.lastFetchTime.set(cacheKey, Date.now());
-          this.initialFetchDone.add(cacheKey); // Mark as done - no more REST calls
+          this.initialFetchDone.add(cacheKey);
+          console.log(`[OKX Store] Fetched ${candles.length} candles for ${cacheKey}`);
           return candles;
         }
         
         console.warn("[OKX Store] Failed to fetch candles:", res?.data?.error);
-        return this.candles[`${normalized}_${interval}`] || [];
+        return this.candles[dataKey] || [];
       } catch (err) {
         console.error("[OKX Store] fetchCandles error:", err);
-        return this.candles[`${normalized}_${interval}`] || [];
+        return this.candles[dataKey] || [];
       } finally {
-        this.pendingFetches.delete(cacheKey);
+        // Clear pending after a short delay to prevent immediate re-fetch
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 1000);
       }
     })();
     
