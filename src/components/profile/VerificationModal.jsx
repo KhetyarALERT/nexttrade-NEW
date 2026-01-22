@@ -1,11 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Calendar, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Calendar, Loader2, ChevronDown } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
