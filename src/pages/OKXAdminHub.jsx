@@ -73,6 +73,7 @@ export default function OKXAdminHub({ language = 'en' }) {
   const [withdrawals, setWithdrawals] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [accountRequests, setAccountRequests] = useState([]);
   
   // Dialog states
   const [addPoolDialogOpen, setAddPoolDialogOpen] = useState(false);
