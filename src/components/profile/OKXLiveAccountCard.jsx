@@ -15,13 +15,14 @@ import {
   RefreshCw, Wallet, TrendingUp, TrendingDown, 
   AlertCircle, CheckCircle2, Activity, Copy,
   ArrowDownToLine, QrCode, ChevronDown, ChevronUp,
-  Info, ExternalLink, ArrowRightLeft
+  Info, ExternalLink, ArrowRightLeft, Shield, Clock, Rocket
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import OKXTransferModal from "./OKXTransferModal";
+import LiveAccountRequestForm from "./LiveAccountRequestForm";
 
 const CHAIN_NAMES = {
   'USDT-TRC20': 'Tron (TRC20)',
