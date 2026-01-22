@@ -7,6 +7,8 @@ import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
 import FuturesActivityTabs from "@/components/trading/binance/FuturesActivityTabs";
 import AccountBalanceBar from "@/components/trading/futures/AccountBalanceBar";
 import MobileTradeView from "@/components/trading/futures/MobileTradeView";
+import OrderBookPanel from "@/components/trading/futures/OrderBookPanel";
+import TradeTapePanel from "@/components/trading/futures/TradeTapePanel";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { useOKXAccount } from "@/components/trading/hooks/useOKXAccount";
 import { base44 } from "@/api/base44Client";
@@ -416,7 +418,17 @@ export default function Trading({ language = "en" }) {
 
       {/* Desktop Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Chart + Activity */}
+        {/* Left Sidebar: Order Book + Trade Tape */}
+        <div className="hidden xl:flex w-[200px] flex-col border-r border-border/50 overflow-hidden shrink-0">
+          <div className="flex-1 overflow-hidden p-2">
+            <OrderBookPanel symbol={selectedSymbol} language={language} />
+          </div>
+          <div className="h-[240px] overflow-hidden p-2 border-t border-border/50">
+            <TradeTapePanel symbol={selectedSymbol} language={language} />
+          </div>
+        </div>
+
+        {/* Center: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Symbol Selector + Stats - Glass Panel */}
           <div className="border-b border-border/50 px-4 py-2 glass-panel">

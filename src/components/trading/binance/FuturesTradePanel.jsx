@@ -842,8 +842,8 @@ export default function FuturesTradePanel({
           </div>
 
           <div className="mt-3">
-            <label className="block text-[11px] text-muted-foreground">{labels.leverage}</label>
-            <div className="mt-1 flex items-center gap-2">
+            <label className="block text-[11px] text-muted-foreground mb-2">{labels.leverage}</label>
+            <div className="flex items-center gap-3">
               <input
                 type="range"
                 min={1}
@@ -865,9 +865,45 @@ export default function FuturesTradePanel({
                   });
                   setLastEdited("leverage");
                 }}
-                className="w-full accent-primary"
+                className="flex-1 accent-primary h-2 rounded-full cursor-pointer"
               />
-              <div className="w-16 text-right font-mono text-sm text-foreground">{Math.min(5, Math.max(1, Number(leverage) || 5))}×</div>
+              {/* Manual leverage input */}
+              <div className="flex items-center gap-1 rounded-lg bg-input border border-border px-2 py-1.5">
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={1}
+                  value={Math.min(5, Math.max(1, Number(leverage) || 5))}
+                  onChange={(e) => {
+                    const val = Math.min(5, Math.max(1, Number(e.target.value) || 1));
+                    setLeverage(val);
+                    setLastEdited("leverage");
+                  }}
+                  className="w-8 bg-transparent outline-none text-sm text-foreground text-center font-mono"
+                />
+                <span className="text-xs text-muted-foreground">×</span>
+              </div>
+            </div>
+            {/* Quick leverage buttons */}
+            <div className="mt-2 flex gap-1">
+              {[1, 2, 3, 5].map((lev) => (
+                <button
+                  key={lev}
+                  type="button"
+                  onClick={() => {
+                    setLeverage(lev);
+                    setLastEdited("leverage");
+                  }}
+                  className={`flex-1 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                    leverage === lev
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                  }`}
+                >
+                  {lev}×
+                </button>
+              ))}
             </div>
           </div>
         </div>
