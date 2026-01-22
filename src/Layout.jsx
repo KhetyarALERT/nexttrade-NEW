@@ -261,16 +261,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   ];
 
   const footerQuickLinks = [
-    { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
-    { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
-    { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
-    { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
-    { name: { en: "About Us", ar: "من نحن" }, url: createPageUrl("About") },
-    { name: { en: "Open Account", ar: "فتح حساب" }, url: createPageUrl("Contact") },
-    { name: { en: "Privacy Policy", ar: "سياسة الخصوصية" }, url: "/privacy-policy" },
-    { name: { en: "Terms of Service", ar: "شروط الخدمة" }, url: "/terms-of-service" },
-  ];
+        { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
+        { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
+        { name: { en: "Wallet", ar: "المحفظة" }, url: createPageUrl("Wallet") },
+        { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
+        { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
+        { name: { en: "About Us", ar: "من نحن" }, url: createPageUrl("About") },
+        { name: { en: "Open Account", ar: "فتح حساب" }, url: createPageUrl("Contact") },
+      ];
 
   const accountEmail = user?.email;
   const accountMenuLabel = accountLabel;
