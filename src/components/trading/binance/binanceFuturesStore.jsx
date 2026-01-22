@@ -121,6 +121,12 @@ class OKXFuturesStore {
       }
     }
     
+    // Global rate limit - wait if we called API too recently
+    const timeSinceLastCall = Date.now() - this.lastApiCall;
+    if (timeSinceLastCall < this.API_MIN_INTERVAL) {
+      await new Promise(r => setTimeout(r, this.API_MIN_INTERVAL - timeSinceLastCall));
+    }
+    
     // Check if already fetching
     if (this.pendingFetches.has(cacheKey)) {
       return this.pendingFetches.get(cacheKey);
@@ -128,6 +134,7 @@ class OKXFuturesStore {
     
     const fetchPromise = (async () => {
       try {
+        this.lastApiCall = Date.now();
         const res = await base44.functions.invoke("okxMarketData", {
           action: "getCandles",
           instId: normalized,
