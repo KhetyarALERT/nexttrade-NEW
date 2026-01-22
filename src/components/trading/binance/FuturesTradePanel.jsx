@@ -195,9 +195,9 @@ export default function FuturesTradePanel({
   }, [language]);
 
   useEffect(() => {
-    // Keep leverage in sync with account defaults when available.
-    const def = Number((activeTab === "bots" ? demoAccount : liveAccount)?.default_leverage ?? (demoAccount?.default_leverage ?? liveAccount?.default_leverage) ?? 10);
-    if (Number.isFinite(def) && def > 0 && def <= 125) setLeverage(def);
+    // Keep leverage in sync with account defaults when available. Default to 5x for regional limits.
+    const def = Number((activeTab === "bots" ? demoAccount : liveAccount)?.default_leverage ?? (demoAccount?.default_leverage ?? liveAccount?.default_leverage) ?? 5);
+    if (Number.isFinite(def) && def > 0 && def <= 5) setLeverage(def);
   }, [activeTab, demoAccount, liveAccount]);
 
   const getAccountSnapshot = (demoMode) => {
@@ -489,7 +489,7 @@ export default function FuturesTradePanel({
 
       const normalizedSide = sideKey === "SHORT" ? "SHORT" : "LONG";
       const lev = Number(leverage);
-      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(5, Math.max(1, lev)) : Math.min(5, Number((demoMode ? demoAccount : liveAccount)?.default_leverage ?? demoAccount?.default_leverage ?? liveAccount?.default_leverage ?? 5));
+      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(5, Math.max(1, lev)) : 5;
 
       const tpRaw = normalizedSide === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
       const slRaw = normalizedSide === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
