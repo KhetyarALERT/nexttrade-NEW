@@ -464,23 +464,24 @@ export default function Profile({ language = "en" }) {
       return;
     }
 
-    // Keep payload reasonable if Base44 stores this field.
-    const maxBytes = 1_500_000;
+    // Max 5MB for avatar upload
+    const maxBytes = 5_000_000;
     if (file.size > maxBytes) {
       toast({ variant: 'destructive', title: 'Error', description: t.photoTooLarge });
       return;
     }
 
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    setFormState((prev) => ({ ...prev, avatarUrl: String(dataUrl || '') }));
-    toast({ title: t.photoUpdated, duration: 1500, className: "bg-emerald-50 border-emerald-200 text-emerald-900" });
-  }, [toast, t.invalidPhotoType, t.photoTooLarge, t.photoUpdated]);
+    try {
+      // Upload to Base44 storage for permanent URL
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      setFormState((prev) => ({ ...prev, avatarUrl: file_url }));
+      toast({ title: t.photoUpdated, duration: 1500, className: "bg-emerald-50 border-emerald-200 text-emerald-900" });
+    } catch (err) {
+      console.error("Failed to upload avatar:", err);
+      toast({ variant: 'destructive', title: 'Error', description: language === "ar" ? "فشل رفع الصورة" : "Failed to upload image" });
+    }
+  }, [toast, t.invalidPhotoType, t.photoTooLarge, t.photoUpdated, language]);
 
   const handleAvatarInputChange = useCallback((e) => {
     const file = e.currentTarget.files?.[0];
