@@ -510,9 +510,12 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
     let unsubPrice;
     let unsubTicker;
     let cancelled = false;
+    let fetchAttempted = false; // Prevent multiple fetch attempts
 
     const run = async () => {
       if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current || !lineSeriesRef.current) return;
+      if (fetchAttempted) return; // Already attempted fetch in this effect cycle
+      fetchAttempted = true;
       setLoading(true);
 
       try {
