@@ -157,16 +157,16 @@ const REFERRAL_DOMAIN = "https://nexttrade.exchange";
 
 const normalizeUserProfile = (user = {}) => ({
   uuid: user.id || "---",
-  fullName: user.fullName || user.name || "",
+  fullName: user.full_name || user.fullName || user.name || "",
   email: user.email || "",
   bio: user.bio || "",
-  avatarUrl: user.avatarUrl || "",
+  avatarUrl: user.avatar_url || user.avatarUrl || "",
   twoFactorEnabled: user.twoFactorEnabled || false,
   referralCode: user.referralCode || user.referral_code || "",
   referralLink: user.referralCode || user.referral_code 
     ? `${REFERRAL_DOMAIN}/r/${user.referralCode || user.referral_code}`
     : "",
-  createdDate: user.createdDate || new Date().toISOString()
+  createdDate: user.created_date || user.createdDate || new Date().toISOString()
 });
 
 // Verification Badge Component - reads status directly from VerificationRequest entity
