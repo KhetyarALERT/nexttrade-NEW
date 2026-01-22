@@ -47,18 +47,20 @@ class OKXFuturesStore {
     this.pingIntervals = { public: null, business: null };
     this.reconnectAttempts = { public: 0, business: 0 };
     
-    // Cache control - MAXIMUM throttling to prevent 429 errors
-    this.pendingFetches = new Map();
+    // Cache control - MAXIMUM throttling to prevent API spam
+    this.pendingFetches = new Map(); // In-flight deduplication (key -> Promise)
     this.lastFetchTime = new Map();
-    this.FETCH_COOLDOWN = 300000; // 5 MINUTES minimum between REST calls - prevent 429
-    this.initialFetchDone = new Set(); // Track if initial fetch completed for symbol/interval
+    this.FETCH_COOLDOWN = 600000; // 10 MINUTES minimum between REST calls
+    this.initialFetchDone = new Set(); // Track if initial fetch completed
     
     // Singleton instance tracking
     this.initialized = false;
     
-    // Rate limiting for API calls - global cooldown
+    // Global rate limiting - STRICT
     this.lastApiCall = 0;
-    this.API_MIN_INTERVAL = 2000; // 2 seconds minimum between ANY API call
+    this.API_MIN_INTERVAL = 5000; // 5 seconds minimum between ANY API call
+    this.apiCallQueue = []; // Queue for sequential calls
+    this.isProcessingQueue = false;
   }
 
   // ========== EVENT SYSTEM ==========
