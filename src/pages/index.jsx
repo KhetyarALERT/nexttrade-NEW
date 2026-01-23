@@ -64,6 +64,7 @@ function PagesContent() {
                 <Route path="/Trading" element={<Trading />} />
                 <Route path="/Profile" element={<Profile />} />
                 <Route path="/Wallet" element={<Wallet />} />
+                <Route path="/r/:code" element={<ReferralRedirect />} />
                 
             </Routes>
         </Layout>
