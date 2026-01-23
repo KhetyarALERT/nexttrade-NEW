@@ -12,8 +12,6 @@ import Profile from "./Profile";
 
 import Wallet from "./Wallet";
 
-
-
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
