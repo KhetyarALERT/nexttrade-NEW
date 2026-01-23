@@ -27,6 +27,7 @@ import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal as useSolanaWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useAccount } from "wagmi";
 import { useWalletConnect } from "@/lib/web3/WalletConnectProvider";
+import { getStoredReferralCode } from "@/components/hooks/useReferralCapture";
 
 const formatShortAddress = (address, start = 6, end = 4) => {
   if (!address) return "";
@@ -662,7 +663,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                 <Button
                   className="glow-button text-white border-0 rounded-xl px-6"
                   type="button"
-                  onClick={() => navigateToLogin()}
+                  onClick={() => {
+                    // Preserve ref code in URL when redirecting to login
+                    const refCode = getStoredReferralCode();
+                    const currentUrl = new URL(window.location.href);
+                    if (refCode && !currentUrl.searchParams.has('ref')) {
+                      currentUrl.searchParams.set('ref', refCode);
+                    }
+                    navigateToLogin(currentUrl.toString());
+                  }}
                 >
                   {accountLabel}
                 </Button>
@@ -770,7 +779,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      navigateToLogin();
+                      // Preserve ref code in URL when redirecting to login
+                      const refCode = getStoredReferralCode();
+                      const currentUrl = new URL(window.location.href);
+                      if (refCode && !currentUrl.searchParams.has('ref')) {
+                        currentUrl.searchParams.set('ref', refCode);
+                      }
+                      navigateToLogin(currentUrl.toString());
                     }}
                   >
                     {accountLabel}
@@ -929,7 +944,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
                 <Link
                   to={isAuthenticated ? createPageUrl("Profile") : '#'}
-                  onClick={isAuthenticated ? undefined : (e) => { e.preventDefault(); navigateToLogin(); }}
+                  onClick={isAuthenticated ? undefined : (e) => { 
+                    e.preventDefault(); 
+                    const refCode = getStoredReferralCode();
+                    const currentUrl = new URL(window.location.href);
+                    if (refCode && !currentUrl.searchParams.has('ref')) {
+                      currentUrl.searchParams.set('ref', refCode);
+                    }
+                    navigateToLogin(currentUrl.toString()); 
+                  }}
                   className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
                     location.pathname.includes("Profile")
                       ? 'text-primary bg-primary/15'

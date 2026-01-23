@@ -13,7 +13,6 @@ import OKXAdminHub from './pages/OKXAdminHub';
 import OnChainDeposit from './pages/OnChainDeposit';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Profile from './pages/Profile';
-import ReferralRedirect from './pages/ReferralRedirect';
 import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
@@ -38,7 +37,6 @@ export const PAGES = {
     "OnChainDeposit": OnChainDeposit,
     "PrivacyPolicy": PrivacyPolicy,
     "Profile": Profile,
-    "ReferralRedirect": ReferralRedirect,
     "Rewards": Rewards,
     "TermsOfService": TermsOfService,
     "Trading": Trading,
