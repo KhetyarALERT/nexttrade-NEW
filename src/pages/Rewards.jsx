@@ -599,65 +599,108 @@ export default function Rewards({ language = "en" }) {
           <TabsContent value="milestones" className="space-y-4">
             <Card className="border-0 shadow-xl">
               <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-purple-500" />
-                  {txt.milestonesTitle}
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-purple-500" />
+                    {txt.milestonesTitle}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => loadMissions()}
+                    disabled={missionsLoading}
+                    className="h-8 w-8 p-0"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${missionsLoading ? "animate-spin" : ""}`} />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 <p className="text-sm text-muted-foreground mb-6">{txt.milestonesDesc}</p>
                 
-                <div className="space-y-3">
-                  {MILESTONES.map((milestone) => {
-                    const isClaimed = milestones.claimed?.includes(milestone.id);
-                    
-                    return (
-                      <div
-                        key={milestone.id}
-                        className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                          isClaimed 
-                            ? "bg-emerald-500/5 border-emerald-500/30" 
-                            : "bg-card border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            isClaimed ? "bg-emerald-500/20" : "bg-primary/10"
-                          }`}>
+                {missionsLoading && missions.length === 0 ? (
+                  <div className="space-y-3">
+                    {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {missions.map((mission) => {
+                      const isClaimed = mission.status === 'claimed';
+                      const isReadyToClaim = mission.status === 'ready_to_claim';
+                      const isLocked = mission.status === 'locked';
+                      
+                      return (
+                        <div
+                          key={mission.key}
+                          className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                            isClaimed 
+                              ? "bg-emerald-500/5 border-emerald-500/30" 
+                              : isReadyToClaim
+                                ? "bg-primary/5 border-primary/30 ring-1 ring-primary/20"
+                                : "bg-card border-border"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                              isClaimed ? "bg-emerald-500/20" : isReadyToClaim ? "bg-primary/20" : "bg-muted"
+                            }`}>
+                              {isClaimed ? (
+                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                              ) : isReadyToClaim ? (
+                                <Target className="w-5 h-5 text-primary" />
+                              ) : (
+                                <Lock className="w-5 h-5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div>
+                              <p className={`font-medium ${isLocked ? "text-muted-foreground" : "text-foreground"}`}>
+                                {mission.title?.[language] || mission.title?.en}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {mission.description?.[language] || mission.description?.en}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={
+                              isClaimed ? "border-emerald-500 text-emerald-500" : 
+                              isReadyToClaim ? "border-primary text-primary" : ""
+                            }>
+                              +{mission.points}
+                            </Badge>
+                            
                             {isClaimed ? (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                              <span className="text-xs text-emerald-500 font-medium px-2">{txt.claimed}</span>
+                            ) : isReadyToClaim ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleClaimMilestone(mission.key, mission.points)}
+                                disabled={claimingMilestone === mission.key}
+                                className="bg-primary hover:bg-primary/90 min-w-[70px]"
+                              >
+                                {claimingMilestone === mission.key ? "..." : txt.claim}
+                              </Button>
+                            ) : mission.action ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                asChild
+                                className="gap-1"
+                              >
+                                <Link to={createPageUrl(mission.action.route.split('?')[0].replace('/', '')) + (mission.action.route.includes('?') ? '?' + mission.action.route.split('?')[1] : '')}>
+                                  {mission.action.label?.[language] || mission.action.label?.en}
+                                  <ExternalLink className="w-3 h-3" />
+                                </Link>
+                              </Button>
                             ) : (
-                              <Target className="w-5 h-5 text-primary" />
+                              <span className="text-xs text-muted-foreground px-2">{txt.locked}</span>
                             )}
                           </div>
-                          <div>
-                            <p className="font-medium text-foreground">{milestone.title[language]}</p>
-                            <p className="text-xs text-muted-foreground">{milestone.desc[language]}</p>
-                          </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className={isClaimed ? "border-emerald-500 text-emerald-500" : ""}>
-                            +{milestone.points}
-                          </Badge>
-                          {isClaimed ? (
-                            <span className="text-xs text-emerald-500 font-medium">{txt.claimed}</span>
-                          ) : milestone.auto ? (
-                            <Button
-                              size="sm"
-                              onClick={() => handleClaimMilestone(milestone.id, milestone.points)}
-                              disabled={claimingMilestone === milestone.id}
-                              className="bg-primary hover:bg-primary/90"
-                            >
-                              {claimingMilestone === milestone.id ? "..." : txt.claim}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">{txt.locked}</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
