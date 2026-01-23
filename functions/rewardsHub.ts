@@ -12,15 +12,75 @@ const REFERRAL_PAYOUTS = {
 
 // Points rewards
 const CHECKIN_POINTS = [10, 15, 20, 25, 35, 50, 100]; // Day 1-7
-const MILESTONE_REWARDS = {
-  signup: { points: 100, auto: true },
-  first_deposit: { points: 200 },
-  first_trade: { points: 150 },
-  kyc_complete: { points: 300 },
-  referral_1: { points: 500 },
-  trade_volume_1k: { points: 250 },
-  stake_first: { points: 200 }
+
+// ==================== MISSION DEFINITIONS (Single Source of Truth) ====================
+const MISSIONS = {
+  signup: {
+    points: 100,
+    title: { en: "Welcome Bonus", ar: "مكافأة الترحيب" },
+    desc: { en: "Create your account", ar: "أنشئ حسابك" },
+    action: null, // Auto-granted on signup
+    checkCompletion: () => true // Always completed if user exists
+  },
+  kyc_complete: {
+    points: 300,
+    title: { en: "KYC Verified", ar: "تحقق KYC" },
+    desc: { en: "Complete identity verification", ar: "أكمل التحقق من الهوية" },
+    action: { label: { en: "Verify Now", ar: "تحقق الآن" }, route: "/Profile?tab=security" },
+    checkCompletion: (user) => user.verification_status === 'verified'
+  },
+  first_deposit: {
+    points: 200,
+    title: { en: "First Deposit", ar: "أول إيداع" },
+    desc: { en: "Make your first deposit", ar: "قم بأول إيداع" },
+    action: { label: { en: "Deposit", ar: "إيداع" }, route: "/Wallet?page=deposit" },
+    checkCompletion: async (user, base44) => {
+      const deposits = await base44.asServiceRole.entities.WalletTransaction.filter({
+        user_id: user.id,
+        type: 'deposit',
+        status: 'completed'
+      });
+      return deposits?.length > 0;
+    }
+  },
+  first_trade: {
+    points: 150,
+    title: { en: "First Trade", ar: "أول صفقة" },
+    desc: { en: "Execute your first trade", ar: "نفذ أول صفقة" },
+    action: { label: { en: "Trade Now", ar: "تداول الآن" }, route: "/Futures" },
+    checkCompletion: async (user, base44) => {
+      const trades = await base44.asServiceRole.entities.Trade.filter({ user_id: user.id });
+      return trades?.length > 0;
+    }
+  },
+  referral_1: {
+    points: 500,
+    title: { en: "First Referral", ar: "أول إحالة" },
+    desc: { en: "Invite your first friend", ar: "ادعُ أول صديق" },
+    action: { label: { en: "Invite Friends", ar: "دعوة أصدقاء" }, route: "/Rewards?tab=referrals" },
+    checkCompletion: async (user, base44) => {
+      const refs = await base44.asServiceRole.entities.ReferralAttribution.filter({
+        referrer_user_id: user.id
+      });
+      return refs?.length > 0;
+    }
+  },
+  stake_first: {
+    points: 200,
+    title: { en: "First Stake", ar: "أول ستيك" },
+    desc: { en: "Stake any amount", ar: "قم بأول ستيك" },
+    action: { label: { en: "Stake", ar: "ستيك" }, route: "/Investing" },
+    checkCompletion: async (user, base44) => {
+      const stakes = await base44.asServiceRole.entities.StakingPosition.filter({ user_id: user.id });
+      return stakes?.length > 0;
+    }
+  }
 };
+
+// Legacy compatibility
+const MILESTONE_REWARDS = Object.fromEntries(
+  Object.entries(MISSIONS).map(([k, v]) => [k, { points: v.points, auto: k === 'signup' }])
+);
 
 // ==================== HELPERS ====================
 function todayKey() {
