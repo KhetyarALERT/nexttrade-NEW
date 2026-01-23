@@ -683,7 +683,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               </Button>
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
 
-              {isMemeCoinsPage ? <SolanaNavWalletButton /> : <Web3ModalButton language={language} />}
+              {isMemeCoinsPage && <SolanaNavWalletButton />}
 
               <Button
                 type="button"
