@@ -127,10 +127,9 @@ Deno.serve(async (req) => {
     // === Get full rewards hub summary ===
     if (action === 'getSummary') {
       // Fetch all data in parallel using service role
-      const [rewards, attributions, allUserRewards] = await Promise.all([
+      const [rewards, attributions] = await Promise.all([
         base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id }),
-        base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: user.id }),
-        base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id })
+        base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: user.id })
       ]);
 
       // Get or create referral code
@@ -210,11 +209,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Claimed milestones
-      const claimedMilestones = (rewards || [])
-        .filter(r => r.type === 'milestone')
-        .map(r => r.subtype);
-
       // Recent rewards
       const recentRewards = (rewards || [])
         .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
@@ -252,13 +246,59 @@ Deno.serve(async (req) => {
             streak,
             nextPoints: CHECKIN_POINTS[Math.min(streak, 6)]
           },
-          milestones: {
-            claimed: claimedMilestones,
-            available: Object.keys(MILESTONE_REWARDS)
-          },
           recentRewards
         }
       });
+    }
+
+    // === Get Mission Status (Server-truth) ===
+    if (action === 'getMissionStatus') {
+      const rewards = await base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id });
+      
+      // Build claimed set from RewardLedger
+      const claimedKeys = new Set(
+        (rewards || [])
+          .filter(r => r.type === 'milestone')
+          .map(r => r.trigger_event_key)
+      );
+
+      const missions = [];
+      for (const [missionKey, config] of Object.entries(MISSIONS)) {
+        const triggerKey = `milestone:${user.id}:${missionKey}`;
+        const isClaimed = claimedKeys.has(triggerKey);
+        
+        // Check completion from backend truth
+        let isCompleted = false;
+        try {
+          if (typeof config.checkCompletion === 'function') {
+            const result = config.checkCompletion(user, base44);
+            isCompleted = result instanceof Promise ? await result : result;
+          }
+        } catch (e) {
+          console.error(`Error checking ${missionKey}:`, e);
+        }
+
+        // Determine status
+        let status;
+        if (isClaimed) {
+          status = 'claimed';
+        } else if (isCompleted) {
+          status = 'ready_to_claim';
+        } else {
+          status = 'locked';
+        }
+
+        missions.push({
+          key: missionKey,
+          title: config.title,
+          description: config.desc,
+          points: config.points,
+          status,
+          action: status === 'locked' && config.action ? config.action : null
+        });
+      }
+
+      return Response.json({ success: true, data: { missions } });
     }
 
     // === Daily Check-in ===
