@@ -238,13 +238,16 @@ export default function Rewards({ language = "en" }) {
           toast.success(`+${points} ${language === "ar" ? "نقطة" : "points"}!`);
         }
         loadData();
+        loadMissions();
+      } else if (res.data?.error === 'NOT_COMPLETED') {
+        toast.error(language === "ar" ? "أكمل المهمة أولاً" : "Complete the task first");
       }
     } catch (err) {
       toast.error(err.message || "Claim failed");
     } finally {
       setClaimingMilestone(null);
     }
-  }, [loadData, language]);
+  }, [loadData, loadMissions, language]);
 
   // Not authenticated
   if (!isLoadingAuth && !isAuthenticated) {
