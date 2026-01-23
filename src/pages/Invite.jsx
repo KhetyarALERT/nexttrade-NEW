@@ -1,29 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import PropTypes from "prop-types";
-import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { useAuth } from "@/lib/AuthContext";
-import AuthRequiredState from "@/components/AuthRequiredState";
-import ShareModal from "@/components/invite/ShareModal";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Copy,
-  Check,
-  Share2,
-  Users,
-  Gift,
-  DollarSign,
-  MousePointer,
-  ShieldCheck,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
-  TrendingUp,
-  ArrowRight
-} from "lucide-react";
-import { toast } from "sonner";
 
 const t = {
   en: {
