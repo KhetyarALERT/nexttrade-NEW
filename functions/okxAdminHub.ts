@@ -504,6 +504,10 @@ Deno.serve(async (req) => {
           currency: p.currency || 'USDT',
           apyPercent: p.apy_percent,
           termDays: p.term_days,
+          baseRewardsPerDollar: p.base_rewards_per_dollar || 0,
+          rewardsGranted: p.rewards_granted || 0,
+          firstStakeBonusApplied: p.first_stake_bonus_applied || false,
+          destinationPool: p.destination_pool,
           status: p.status,
           lockTransferId: p.lock_transfer_id,
           stakeTransferId: p.stake_transfer_id,
@@ -530,6 +534,7 @@ Deno.serve(async (req) => {
 
       const totalStakedActive = active.reduce((sum, p) => sum + (p.principal_amount || 0), 0);
       const totalStakedPending = pending.reduce((sum, p) => sum + (p.principal_amount || 0), 0);
+      const totalRewardsGranted = (positions || []).reduce((sum, p) => sum + (p.rewards_granted || 0), 0);
 
       return Response.json({
         ok: true,
@@ -541,14 +546,15 @@ Deno.serve(async (req) => {
           rejected: rejected.length,
           totalStakedActive,
           totalStakedPending,
-          totalStaked: totalStakedActive + totalStakedPending
+          totalStaked: totalStakedActive + totalStakedPending,
+          totalRewardsGranted
         }
       });
     }
 
     // APPROVE STAKE
     if (action === 'approveStake') {
-      const { stakingId } = params;
+      const { stakingId, destinationPool = 'Main Staking Pool', adminNote } = params;
       if (!stakingId) return Response.json({ ok: false, error: { code: 'MISSING_STAKING_ID' } }, { status: 400 });
 
       const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: stakingId });
@@ -558,6 +564,48 @@ Deno.serve(async (req) => {
       if (position.status !== 'PENDING_APPROVAL') {
         return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: `Cannot approve position with status: ${position.status}` } }, { status: 400 });
       }
+
+      // Load staking config for first-stake promo
+      let stakingConfig = null;
+      try {
+        const configs = await base44.asServiceRole.entities.StakingConfig.filter({ config_key: 'default' });
+        if (configs?.length) stakingConfig = configs[0];
+      } catch (e) {
+        console.log('[STAKING_ADMIN] Failed to load staking config:', e.message);
+      }
+
+      // Calculate bonus rewards
+      const baseRewardsPerDollar = position.base_rewards_per_dollar || 10;
+      let baseRewards = Math.round(position.principal_amount * baseRewardsPerDollar);
+      let firstStakeBonus = 0;
+      let firstStakeBonusApplied = false;
+
+      // Check first-stake eligibility
+      if (stakingConfig?.first_stake_enabled) {
+        const existingActive = await base44.asServiceRole.entities.StakingPosition.filter({
+          user_id: position.user_id,
+          status: 'ACTIVE'
+        });
+        const existingCompleted = await base44.asServiceRole.entities.StakingPosition.filter({
+          user_id: position.user_id,
+          status: 'COMPLETED'
+        });
+        
+        const hasCompletedStake = (existingActive?.length || 0) > 0 || (existingCompleted?.length || 0) > 0;
+        
+        if (!hasCompletedStake &&
+            position.term_days >= (stakingConfig.first_stake_min_term_days || 60) &&
+            position.principal_amount >= (stakingConfig.first_stake_min_amount || 100)) {
+          
+          const eligibleAmount = Math.min(position.principal_amount, stakingConfig.first_stake_cap_principal || 300);
+          const bonusMultiplier = (stakingConfig.first_stake_bonus_multiplier || 1.5) - 1;
+          firstStakeBonus = Math.round(eligibleAmount * baseRewardsPerDollar * bonusMultiplier);
+          firstStakeBonusApplied = true;
+          console.log('[STAKING_ADMIN] First-stake bonus applied:', firstStakeBonus);
+        }
+      }
+
+      const totalRewardsGranted = baseRewards + firstStakeBonus;
 
       // Get user's OKX credentials via pool account
       const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
@@ -664,25 +712,31 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update position to ACTIVE
+      // Update position to ACTIVE with rewards
       await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
         status: 'ACTIVE',
         stake_transfer_id: stakeTransferId,
+        destination_pool: destinationPool,
+        rewards_granted: totalRewardsGranted,
+        first_stake_bonus_applied: firstStakeBonusApplied,
+        first_stake_bonus_amount: firstStakeBonus,
         started_at: nowIso,
         ends_at: endsAt,
         approved_by: user.email,
         approved_at: nowIso,
+        notes: adminNote || null,
         updated_at: nowIso
       });
 
       // Notify user
       try {
+        const rewardsMsg = totalRewardsGranted > 0 ? ` +${totalRewardsGranted} Bonus Rewards earned!` : '';
         await base44.asServiceRole.entities.Notification.create({
           user_id: position.user_id,
           type: 'staking_reward',
           title: 'Stake Activated! 🎉',
-          message: `Your ${position.principal_amount} USDT stake has been activated. Earning ${position.apy_percent}% APY for ${position.term_days} days.`,
-          data: { stakingPositionId: stakingId, action: 'stake_activated' },
+          message: `Your ${position.principal_amount} USDT stake has been activated. Earning ${position.apy_percent}% APY for ${position.term_days} days.${rewardsMsg}`,
+          data: { stakingPositionId: stakingId, action: 'stake_activated', rewardsGranted: totalRewardsGranted },
           read: false,
           priority: 'high'
         });
@@ -690,7 +744,7 @@ Deno.serve(async (req) => {
         console.log('[STAKING_ADMIN] Failed to notify user:', e.message);
       }
 
-      auditLog('STAKE_APPROVE', user.id, { stakingId, userId: position.user_id, amount: position.principal_amount });
+      auditLog('STAKE_APPROVE', user.id, { stakingId, userId: position.user_id, amount: position.principal_amount, rewardsGranted: totalRewardsGranted, firstStakeBonus });
 
       return Response.json({
         ok: true,
@@ -699,7 +753,64 @@ Deno.serve(async (req) => {
           status: 'ACTIVE',
           startedAt: nowIso,
           endsAt,
-          stakeTransferId
+          stakeTransferId,
+          rewardsGranted: totalRewardsGranted,
+          firstStakeBonusApplied,
+          firstStakeBonus
+        }
+      });
+    }
+
+    // RETRY STAKE TRANSFER (idempotent)
+    if (action === 'retryStakeTransfer') {
+      const { stakingId } = params;
+      if (!stakingId) return Response.json({ ok: false, error: { code: 'MISSING_STAKING_ID' } }, { status: 400 });
+
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: stakingId });
+      if (!positions?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
+
+      const position = positions[0];
+      
+      // Only allow retry for pending positions with a failed or missing transfer
+      if (position.status !== 'PENDING_APPROVAL') {
+        return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: 'Can only retry pending approvals' } }, { status: 400 });
+      }
+
+      // Just re-trigger approve logic
+      auditLog('STAKE_RETRY_TRANSFER', user.id, { stakingId });
+      return Response.json({ ok: true, data: { message: 'Use approveStake action to complete' } });
+    }
+
+    // ADJUST STAKE REWARDS (admin override)
+    if (action === 'adjustStakeRewards') {
+      const { stakingId, adjustment, reason } = params;
+      if (!stakingId || adjustment === undefined) {
+        return Response.json({ ok: false, error: { code: 'MISSING_FIELDS' } }, { status: 400 });
+      }
+
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: stakingId });
+      if (!positions?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
+
+      const position = positions[0];
+      const currentRewards = position.rewards_granted || 0;
+      const newRewards = Math.max(0, currentRewards + Number(adjustment));
+      const nowIso = new Date().toISOString();
+
+      await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
+        rewards_granted: newRewards,
+        notes: `${position.notes || ''}\n[${nowIso}] Rewards adjusted by ${adjustment} (${reason || 'Admin'}). New total: ${newRewards}`.trim(),
+        updated_at: nowIso
+      });
+
+      auditLog('STAKE_ADJUST_REWARDS', user.id, { stakingId, adjustment, reason, oldRewards: currentRewards, newRewards });
+
+      return Response.json({
+        ok: true,
+        data: {
+          stakingId,
+          previousRewards: currentRewards,
+          adjustment: Number(adjustment),
+          newRewards
         }
       });
     }
