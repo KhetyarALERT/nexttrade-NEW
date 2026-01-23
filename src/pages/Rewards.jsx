@@ -284,7 +284,6 @@ export default function Rewards({ language = "en" }) {
   const balances = data?.balances || { usdt: 0, points: 0 };
   const referral = data?.referral || { code: "", link: "", stats: {}, list: [] };
   const checkin = data?.checkin || { checkedInToday: false, streak: 0, nextPoints: 10 };
-  const milestones = data?.milestones || { claimed: [], available: [] };
   const recentRewards = data?.recentRewards || [];
 
   const currentLevel = Math.floor(balances.points / 500) + 1;
