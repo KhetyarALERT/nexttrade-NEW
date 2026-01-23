@@ -199,10 +199,11 @@ export default function Rewards({ language = "en" }) {
   useEffect(() => {
     if (isAuthenticated && !isLoadingAuth) {
       loadData();
+      loadMissions();
     } else if (!isLoadingAuth) {
       setLoading(false);
     }
-  }, [isAuthenticated, isLoadingAuth, loadData]);
+  }, [isAuthenticated, isLoadingAuth, loadData, loadMissions]);
 
   const handleCopy = useCallback(() => {
     if (!data?.referral?.link) return;
