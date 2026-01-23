@@ -526,42 +526,53 @@ Deno.serve(async (req) => {
       const { account, credential } = credResult.data;
       const now = new Date().toISOString();
 
-      // Idempotency check - prevent duplicate transfers
+      // Idempotency check - prevent duplicate transfers (read-only, safe)
       if (idempotencyKey) {
-        const existing = await base44.asServiceRole.entities.ExchangeTransfer.filter({
-          user_id: user.id,
-          provider: 'OKX',
-          external_transfer_id: idempotencyKey
-        });
-        if (existing?.length) {
-          console.log('[OKX_TRANSFER] Idempotent hit:', idempotencyKey);
-          return Response.json({ ok: true, data: { 
-            transId: existing[0].external_transfer_id,
-            ccy: existing[0].currency,
-            from: existing[0].from_account_type,
-            to: existing[0].to_account_type,
-            amount: existing[0].amount,
-            status: existing[0].status,
-            existing: true
-          }});
+        try {
+          const existing = await base44.asServiceRole.entities.ExchangeTransfer.filter({
+            user_id: user.id,
+            provider: 'OKX',
+            external_transfer_id: idempotencyKey
+          });
+          if (existing?.length) {
+            console.log('[OKX_TRANSFER] Idempotent hit:', idempotencyKey);
+            return Response.json({ ok: true, data: { 
+              transId: existing[0].external_transfer_id,
+              ccy: existing[0].currency,
+              from: existing[0].from_account_type,
+              to: existing[0].to_account_type,
+              amount: existing[0].amount,
+              status: existing[0].status,
+              existing: true
+            }});
+          }
+        } catch (idempErr) {
+          console.log('[OKX_TRANSFER] Idempotency check failed (non-blocking):', idempErr.message);
         }
       }
 
-      // Create PENDING transfer record before calling OKX
-      const transferRecord = await base44.asServiceRole.entities.ExchangeTransfer.create({
-        user_id: user.id,
-        provider: 'OKX',
-        from_account: account.external_account_id || 'self',
-        from_account_type: from.toLowerCase(),
-        to_account: account.external_account_id || 'self',
-        to_account_type: to.toLowerCase(),
-        currency: ccy,
-        amount: parseFloat(amount),
-        status: 'PENDING',
-        created_at: now
-      });
+      // Create PENDING transfer record before calling OKX (non-blocking)
+      let transferRecordId = null;
+      try {
+        const transferRecord = await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: user.id,
+          provider: 'OKX',
+          from_account: account.external_account_id || 'self',
+          from_account_type: from.toLowerCase(),
+          to_account: account.external_account_id || 'self',
+          to_account_type: to.toLowerCase(),
+          currency: ccy,
+          amount: parseFloat(amount),
+          status: 'PENDING',
+          created_at: now
+        });
+        transferRecordId = transferRecord?.id;
+        console.log('[OKX_TRANSFER] Created pending record:', transferRecordId);
+      } catch (logErr) {
+        console.log('[OKX_TRANSFER] Failed to create pending record (non-blocking):', logErr.message);
+      }
 
-      // Execute the transfer
+      // Execute the transfer (CRITICAL PATH - must not fail due to logging)
       const transferRes = await okxRequest({
         credential,
         method: 'POST',
@@ -582,21 +593,34 @@ Deno.serve(async (req) => {
       // Check for OKX-level or inner error
       if (!transferRes.ok || (result?.code && result.code !== '0')) {
         const errMsg = transferRes.error?.okxMsg || result?.msg || 'Transfer failed';
-        // Update record to FAILED
-        await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecord.id, {
-          status: 'FAILED',
-          error_message: errMsg,
-          completed_at: completedAt
-        });
+        // Update record to FAILED (non-blocking)
+        if (transferRecordId) {
+          try {
+            await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecordId, {
+              status: 'FAILED',
+              error_message: errMsg,
+              completed_at: completedAt
+            });
+          } catch (updateErr) {
+            console.log('[OKX_TRANSFER] Failed to update record to FAILED:', updateErr.message);
+          }
+        }
         return Response.json({ ok: false, error: { code: result?.code || 'TRANSFER_FAILED', message: errMsg } });
       }
 
-      // Update record to COMPLETED
-      await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecord.id, {
-        status: 'COMPLETED',
-        external_transfer_id: result?.transId || idempotencyKey || null,
-        completed_at: completedAt
-      });
+      // Update record to COMPLETED (non-blocking)
+      if (transferRecordId) {
+        try {
+          await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecordId, {
+            status: 'COMPLETED',
+            external_transfer_id: result?.transId || idempotencyKey || null,
+            completed_at: completedAt
+          });
+          console.log('[OKX_TRANSFER] Updated record to COMPLETED:', transferRecordId);
+        } catch (updateErr) {
+          console.log('[OKX_TRANSFER] Failed to update record to COMPLETED:', updateErr.message);
+        }
+      }
 
       return Response.json({
         ok: true,
