@@ -200,8 +200,8 @@ Deno.serve(async (req) => {
 
     // === Get referral stats ===
     if (action === 'getStats') {
-      const attributions = await base44.entities.ReferralAttribution.filter({ referrer_user_id: user.id });
-      const rewards = await base44.entities.RewardLedger.filter({ user_id: user.id });
+      const attributions = await base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: user.id });
+      const rewards = await base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id });
 
       return Response.json({
         success: true,
