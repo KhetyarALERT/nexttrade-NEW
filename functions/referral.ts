@@ -354,23 +354,39 @@ Deno.serve(async (req) => {
         return Response.json({ success: false, error: 'userId required' }, { status: 400 });
       }
 
-      // Find attributions for this user
+      // Find attributions for this user (L1, L2, L3)
       const attributions = await base44.asServiceRole.entities.ReferralAttribution.filter({
         referred_user_id: userId
       });
 
       const rewards = [];
+      const triggerKey = `deposit_first:${userId}`;
 
       for (const attr of (attributions || [])) {
-        // Only pay if KYC approved and not already rewarded
+        // Only pay if KYC approved and not already rewarded for deposit
         if (attr.status === 'kyc_approved' && !attr.rewarded_at) {
-          const rewardAmount = attr.level === 1 ? L1_REWARD_AMOUNT : L2_REWARD_AMOUNT;
-          const rewardType = attr.level === 1 ? 'referral_l1' : 'referral_l2';
+          let rewardAmount = 0;
+          let rewardType = 'referral_l1';
+          
+          if (attr.level === 1) {
+            rewardAmount = L1_REWARD_AMOUNT;
+            rewardType = 'referral_l1';
+          } else if (attr.level === 2) {
+            rewardAmount = L2_REWARD_AMOUNT;
+            rewardType = 'referral_l2';
+          } else if (attr.level === 3) {
+            rewardAmount = L3_REWARD_AMOUNT;
+            rewardType = 'referral_l3';
+          }
+
+          if (rewardAmount <= 0) continue;
+
+          const rewardTriggerKey = `${triggerKey}:L${attr.level}:${attr.referrer_user_id}`;
 
           // Check idempotency - no duplicate rewards
           const existingReward = await base44.asServiceRole.entities.RewardLedger.filter({
             user_id: attr.referrer_user_id,
-            attribution_id: attr.id
+            trigger_event_key: rewardTriggerKey
           });
 
           if (!existingReward?.length) {
@@ -378,18 +394,21 @@ Deno.serve(async (req) => {
             const reward = await base44.asServiceRole.entities.RewardLedger.create({
               user_id: attr.referrer_user_id,
               type: rewardType,
+              subtype: 'referred_deposited',
               amount: rewardAmount,
+              points: 0,
               currency: 'USDT',
               status: 'credited',
+              trigger_event_key: rewardTriggerKey,
+              source_user_id: userId,
+              depth: attr.level,
               attribution_id: attr.id,
               meta: {
                 referred_user_id: userId,
                 code: attr.referrer_code,
                 level: attr.level
               },
-              description: attr.level === 1 
-                ? `L1 Referral reward for ${attr.referred_email || userId}`
-                : `L2 Referral reward for ${attr.referred_email || userId}`
+              description: `L${attr.level} Referral reward for ${attr.referred_email || userId}`
             });
 
             // Update attribution
@@ -397,7 +416,7 @@ Deno.serve(async (req) => {
               status: 'rewarded',
               deposited_at: new Date().toISOString(),
               rewarded_at: new Date().toISOString(),
-              reward_amount: rewardAmount
+              reward_amount: (attr.reward_amount || 0) + rewardAmount
             });
 
             rewards.push(reward);
