@@ -160,13 +160,17 @@ export default function Rewards({ language = "en" }) {
   const txt = t[language] || t.en;
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
 
+  // Read tab from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get("tab") || "overview";
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [missions, setMissions] = useState([]);
   const [missionsLoading, setMissionsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [claimingMilestone, setClaimingMilestone] = useState(null);
 
