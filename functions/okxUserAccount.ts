@@ -463,7 +463,7 @@ Deno.serve(async (req) => {
 
     // INTERNAL TRANSFER - Transfer between funding and trading accounts
     if (action === 'transfer') {
-      const { ccy = 'USDT', amount, from, to } = params;
+      const { ccy = 'USDT', amount, from, to, idempotencyKey } = params;
       
       if (!amount || amount <= 0) {
         return Response.json({ ok: false, error: { code: 'INVALID_AMOUNT', message: 'Amount must be positive' } }, { status: 400 });
@@ -498,7 +498,43 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: credResult.error });
       }
 
-      const { credential } = credResult.data;
+      const { account, credential } = credResult.data;
+      const now = new Date().toISOString();
+
+      // Idempotency check - prevent duplicate transfers
+      if (idempotencyKey) {
+        const existing = await base44.asServiceRole.entities.ExchangeTransfer.filter({
+          user_id: user.id,
+          provider: 'OKX',
+          external_transfer_id: idempotencyKey
+        });
+        if (existing?.length) {
+          console.log('[OKX_TRANSFER] Idempotent hit:', idempotencyKey);
+          return Response.json({ ok: true, data: { 
+            transId: existing[0].external_transfer_id,
+            ccy: existing[0].currency,
+            from: existing[0].from_account_type,
+            to: existing[0].to_account_type,
+            amount: existing[0].amount,
+            status: existing[0].status,
+            existing: true
+          }});
+        }
+      }
+
+      // Create PENDING transfer record before calling OKX
+      const transferRecord = await base44.asServiceRole.entities.ExchangeTransfer.create({
+        user_id: user.id,
+        provider: 'OKX',
+        from_account: account.external_account_id || 'self',
+        from_account_type: from.toLowerCase(),
+        to_account: account.external_account_id || 'self',
+        to_account_type: to.toLowerCase(),
+        currency: ccy,
+        amount: parseFloat(amount),
+        status: 'PENDING',
+        created_at: now
+      });
 
       // Execute the transfer
       const transferRes = await okxRequest({
@@ -515,16 +551,27 @@ Deno.serve(async (req) => {
         isTradingEndpoint: false
       });
 
-      if (!transferRes.ok) {
-        return Response.json({ ok: false, error: transferRes.error });
+      const result = transferRes.data?.data?.[0];
+      const completedAt = new Date().toISOString();
+
+      // Check for OKX-level or inner error
+      if (!transferRes.ok || (result?.code && result.code !== '0')) {
+        const errMsg = transferRes.error?.okxMsg || result?.msg || 'Transfer failed';
+        // Update record to FAILED
+        await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecord.id, {
+          status: 'FAILED',
+          error_message: errMsg,
+          completed_at: completedAt
+        });
+        return Response.json({ ok: false, error: { code: result?.code || 'TRANSFER_FAILED', message: errMsg } });
       }
 
-      const result = transferRes.data?.data?.[0];
-      
-      // Check for inner error
-      if (result?.code && result.code !== '0') {
-        return Response.json({ ok: false, error: { code: result.code, message: result.msg || 'Transfer failed' } });
-      }
+      // Update record to COMPLETED
+      await base44.asServiceRole.entities.ExchangeTransfer.update(transferRecord.id, {
+        status: 'COMPLETED',
+        external_transfer_id: result?.transId || idempotencyKey || null,
+        completed_at: completedAt
+      });
 
       return Response.json({
         ok: true,
@@ -533,7 +580,8 @@ Deno.serve(async (req) => {
           ccy: result?.ccy || ccy,
           from: from,
           to: to,
-          amount: parseFloat(result?.amt || amount)
+          amount: parseFloat(result?.amt || amount),
+          status: 'COMPLETED'
         }
       });
     }
