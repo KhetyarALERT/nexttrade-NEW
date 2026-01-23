@@ -16,8 +16,10 @@ import { motion } from "framer-motion";
 import {
   Gift, Star, Trophy, Flame, Zap, Users, Copy, Check, Share2,
   CalendarCheck2, CheckCircle2, DollarSign, TrendingUp, Clock,
-  ChevronDown, ChevronUp, ArrowRight, Wallet, History, Target
+  ChevronDown, ChevronUp, ArrowRight, Wallet, History, Target,
+  ExternalLink, RefreshCw, Lock
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 // ==================== TRANSLATIONS ====================
 const t = {
