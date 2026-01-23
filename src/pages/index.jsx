@@ -12,6 +12,8 @@ import Profile from "./Profile";
 
 import Wallet from "./Wallet";
 
+import ReferralRedirect from "./ReferralRedirect";
+
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
