@@ -1394,7 +1394,7 @@ export default function OKXAdminHub({ language = 'en' }) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-8 w-full max-w-5xl">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="verification" className="relative">
               KYC
@@ -1409,6 +1409,14 @@ export default function OKXAdminHub({ language = 'en' }) {
               {accountRequests.filter(r => r.status === 'pending' || r.status === 'under_review').length > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                   {accountRequests.filter(r => r.status === 'pending' || r.status === 'under_review').length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="staking" className="relative">
+              Staking
+              {stakingRequests.filter(s => s.status === 'PENDING_APPROVAL').length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {stakingRequests.filter(s => s.status === 'PENDING_APPROVAL').length}
                 </span>
               )}
             </TabsTrigger>
