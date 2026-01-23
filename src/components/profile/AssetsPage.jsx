@@ -791,8 +791,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh })
         </DialogContent>
       </Dialog>
 
-      {/* Transfer Modal */}
-      <Dialog
+      {/* Transfer Modal - Uses OKXTransferModal */}
+      <OKXTransferModal
         open={activeModal === 'transfer'}
         onOpenChange={(open) => {
           if (!open) {
@@ -800,20 +800,11 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh })
             setSearchParams({ modal: null });
           }
         }}
-      >
-        <DialogContent className="sm:max-w-md border border-slate-200 text-slate-900 bg-white" aria-describedby="transfer-desc">
-          <DialogHeader>
-            <DialogTitle className="text-slate-900">{t.internalTransferTitle}</DialogTitle>
-          </DialogHeader>
-          <p id="transfer-desc" className="text-slate-600 text-sm">{t.internalTransferDesc}</p>
-          
-          <div className="space-y-4 py-2">
-            <div className="p-4 bg-slate-50 rounded-lg text-center text-slate-500 border border-slate-200">
-              {t.comingSoon}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        language={language}
+        onSuccess={() => {
+          if (onRefresh) onRefresh();
+        }}
+      />
     </div>);
 
 }
