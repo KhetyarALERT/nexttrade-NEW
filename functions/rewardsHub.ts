@@ -358,14 +358,15 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, data: reward, pointsEarned: pointsToAward, streak: streak + 1 });
     }
 
-    // === Claim Milestone ===
+    // === Claim Milestone (Server-verified) ===
     if (action === 'claimMilestone') {
       const { milestoneId } = params;
-      if (!milestoneId || !MILESTONE_REWARDS[milestoneId]) {
+      if (!milestoneId || !MISSIONS[milestoneId]) {
         return Response.json({ success: false, error: 'Invalid milestone' }, { status: 400 });
       }
 
       const triggerKey = `milestone:${user.id}:${milestoneId}`;
+      const mission = MISSIONS[milestoneId];
 
       // Idempotency check
       const existing = await base44.asServiceRole.entities.RewardLedger.filter({
@@ -376,31 +377,107 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, data: existing[0], existing: true });
       }
 
-      // Eligibility check (simplified - real implementation would check actual data)
-      const milestone = MILESTONE_REWARDS[milestoneId];
-      
-      // For now, only allow claiming if milestone.auto is true (signup)
-      // Other milestones should be triggered by backend events
-      if (!milestone.auto) {
-        // Check eligibility based on milestone type
-        const isEligible = await checkMilestoneEligibility(base44, user, milestoneId);
-        if (!isEligible) {
-          return Response.json({ success: false, error: 'Milestone not yet achieved' }, { status: 400 });
+      // SERVER-SIDE completion verification (never trust client)
+      let isCompleted = false;
+      try {
+        if (typeof mission.checkCompletion === 'function') {
+          const result = mission.checkCompletion(user, base44);
+          isCompleted = result instanceof Promise ? await result : result;
         }
+      } catch (e) {
+        console.error(`Error checking ${milestoneId}:`, e);
       }
 
+      if (!isCompleted) {
+        return Response.json({ 
+          success: false, 
+          error: 'NOT_COMPLETED',
+          message: 'Mission requirements not met' 
+        }, { status: 400 });
+      }
+
+      // Create reward (idempotent due to trigger_event_key)
       const reward = await base44.asServiceRole.entities.RewardLedger.create({
         user_id: user.id,
         type: 'milestone',
         subtype: milestoneId,
         amount: 0,
-        points: milestone.points,
+        points: mission.points,
         status: 'credited',
         trigger_event_key: triggerKey,
-        description: `Milestone: ${milestoneId}`
+        description: `Milestone: ${mission.title.en}`
       });
 
-      return Response.json({ success: true, data: reward, pointsEarned: milestone.points });
+      return Response.json({ success: true, data: reward, pointsEarned: mission.points });
+    }
+
+    // === Admin: Grant Manual Adjustment ===
+    if (action === 'adminGrantPoints') {
+      if (user.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+
+      const { targetUserId, points, note } = params;
+      if (!targetUserId || !points) {
+        return Response.json({ success: false, error: 'Missing targetUserId or points' }, { status: 400 });
+      }
+
+      const triggerKey = `admin_adjustment:${user.id}:${Date.now()}`;
+
+      const reward = await base44.asServiceRole.entities.RewardLedger.create({
+        user_id: targetUserId,
+        type: 'promo',
+        subtype: 'admin_adjustment',
+        amount: 0,
+        points: Math.abs(points),
+        status: points > 0 ? 'credited' : 'cancelled',
+        trigger_event_key: triggerKey,
+        source_user_id: user.id,
+        description: note || `Admin adjustment by ${user.email}`,
+        meta: { admin_id: user.id, admin_email: user.email, note }
+      });
+
+      return Response.json({ success: true, data: reward });
+    }
+
+    // === Admin: Force Complete Mission (Override) ===
+    if (action === 'adminForceMission') {
+      if (user.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+
+      const { targetUserId, milestoneId, note } = params;
+      if (!targetUserId || !milestoneId || !MISSIONS[milestoneId]) {
+        return Response.json({ success: false, error: 'Invalid params' }, { status: 400 });
+      }
+
+      const triggerKey = `milestone:${targetUserId}:${milestoneId}`;
+      const mission = MISSIONS[milestoneId];
+
+      // Check if already claimed
+      const existing = await base44.asServiceRole.entities.RewardLedger.filter({
+        user_id: targetUserId,
+        trigger_event_key: triggerKey
+      });
+      if (existing?.length) {
+        return Response.json({ success: true, data: existing[0], existing: true, message: 'Already claimed' });
+      }
+
+      // Force create reward
+      const reward = await base44.asServiceRole.entities.RewardLedger.create({
+        user_id: targetUserId,
+        type: 'milestone',
+        subtype: milestoneId,
+        amount: 0,
+        points: mission.points,
+        status: 'credited',
+        trigger_event_key: triggerKey,
+        source_user_id: user.id,
+        description: `Milestone: ${mission.title.en} (Admin override)`,
+        meta: { admin_id: user.id, admin_email: user.email, note, forced: true }
+      });
+
+      return Response.json({ success: true, data: reward, pointsEarned: mission.points });
     }
 
     // === Get Reward History (paginated) ===
