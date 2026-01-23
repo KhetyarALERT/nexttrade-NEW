@@ -1167,21 +1167,37 @@ export default function Profile({ language = "en" }) {
             />
           </TabsContent>
 
-          {/* Referrals Tab - Redirect to dedicated Invite page */}
+          {/* Referrals Tab - Link to Rewards Hub */}
           <TabsContent value="referrals" className="space-y-6">
             <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
               <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center mx-auto mb-4">
                   <Gift className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2">
-                  {language === "en" ? "Invite & Earn" : "ادعُ واربح"}
+                  {language === "en" ? "Rewards Hub" : "مركز المكافآت"}
                 </h3>
-                <p className="text-muted-foreground mb-6">
+                <p className="text-muted-foreground mb-4">
                   {language === "en" 
-                    ? "Share your referral link and earn $10 for each friend who joins and trades!" 
-                    : "شارك رابط الإحالة واربح $10 لكل صديق ينضم ويتداول!"}
+                    ? "Earn through referrals, daily check-ins, and milestones!" 
+                    : "اربح من الإحالات والتسجيل اليومي والإنجازات!"}
                 </p>
+                
+                {/* Earnings Preview */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30">
+                    <p className="text-xs text-muted-foreground">Level 1</p>
+                    <p className="text-lg font-bold text-blue-600">$10</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30">
+                    <p className="text-xs text-muted-foreground">Level 2</p>
+                    <p className="text-lg font-bold text-purple-600">$2</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30">
+                    <p className="text-xs text-muted-foreground">Level 3</p>
+                    <p className="text-lg font-bold text-orange-600">$0.50</p>
+                  </div>
+                </div>
                 
                 {formState?.referralCode && (
                   <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border">
@@ -1202,11 +1218,11 @@ export default function Profile({ language = "en" }) {
                 
                 <Button
                   asChild
-                  className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl px-8"
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl px-8"
                 >
-                  <Link to={createPageUrl("Invite")}>
-                    <Users className="mr-2 h-4 w-4" />
-                    {language === "en" ? "Go to Invite & Earn" : "اذهب إلى ادعُ واربح"}
+                  <Link to={createPageUrl("Rewards")}>
+                    <Gift className="mr-2 h-4 w-4" />
+                    {language === "en" ? "Go to Rewards Hub" : "اذهب إلى مركز المكافآت"}
                   </Link>
                 </Button>
               </CardContent>
