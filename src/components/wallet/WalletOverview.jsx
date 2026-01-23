@@ -268,18 +268,23 @@ export default function WalletOverview({
 
       {/* Assets List */}
       <Card className="border-border/60">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold">
-            {language === "ar" ? "الأصول" : "Assets"}
-          </CardTitle>
-          {wallets.length > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-              {t.viewAll} <ChevronRight className="h-3 w-3 ml-1" />
-            </Button>
-          )}
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between mb-3">
+            <CardTitle className="text-base font-semibold">
+              {language === "ar" ? "الأصول" : "Assets"}
+            </CardTitle>
+          </div>
+          {/* View Toggle */}
+          <Tabs value={assetView} onValueChange={setAssetView} className="w-full">
+            <TabsList className="grid grid-cols-3 w-full max-w-sm">
+              <TabsTrigger value="total" className="text-xs">{t.total}</TabsTrigger>
+              <TabsTrigger value="funding" className="text-xs">{t.funding}</TabsTrigger>
+              <TabsTrigger value="trading" className="text-xs">{t.trading}</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
-          {wallets.length === 0 ? (
+          {assetList.length === 0 ? (
             <div className="text-center py-8">
               <Wallet className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">{t.noAssets}</p>
@@ -295,32 +300,32 @@ export default function WalletOverview({
             </div>
           ) : (
             <div className="space-y-3">
-              {wallets.slice(0, 5).map((wallet, idx) => {
-                const usdValue = wallet.currency === "BTC" 
-                  ? (wallet.balance || 0) * 95000 
-                  : wallet.currency === "ETH" 
-                  ? (wallet.balance || 0) * 3400 
-                  : wallet.balance || 0;
-                
-                return (
-                  <div
-                    key={wallet.id || idx}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <CryptoIcon currency={wallet.currency} size="md" />
-                      <div>
-                        <p className="font-medium text-foreground">{wallet.currency}</p>
-                        <p className="text-xs text-muted-foreground">{wallet.network || "—"}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-foreground">{formatBalance(wallet.balance)}</p>
-                      <p className="text-xs text-muted-foreground">{formatUSD(usdValue)}</p>
+              {assetList.map((asset, idx) => (
+                <div
+                  key={asset.currency}
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <CryptoIcon currency={asset.currency} size="md" />
+                    <div>
+                      <p className="font-medium text-foreground">{asset.currency}</p>
+                      {assetView === "total" && (asset.funding > 0 || asset.trading > 0) && (
+                        <p className="text-xs text-muted-foreground">
+                          {asset.funding > 0 && `F: ${formatBalance(asset.funding)}`}
+                          {asset.funding > 0 && asset.trading > 0 && " • "}
+                          {asset.trading > 0 && `T: ${formatBalance(asset.trading)}`}
+                        </p>
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                  <div className="text-right">
+                    <p className="font-medium text-foreground font-mono">{formatBalance(asset.balance)}</p>
+                    {asset.currency !== "USDT" && asset.currency !== "USDC" && (
+                      <p className="text-xs text-muted-foreground">{formatUSD(asset.usdValue)}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
