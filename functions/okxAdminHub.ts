@@ -471,6 +471,378 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { transferId: tr.id, status: 'COMPLETED', direction, amount } });
     }
     
+    // ==================== STAKING ADMIN ACTIONS ====================
+
+    // LIST STAKING REQUESTS - Pending approval
+    if (action === 'listStakingRequests') {
+      const statusFilter = params.status || 'PENDING_APPROVAL';
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter(
+        statusFilter === 'all' ? {} : { status: statusFilter },
+        '-created_date',
+        params.limit || 100
+      );
+
+      // Enrich with user info
+      const userIds = [...new Set((positions || []).map(p => p.user_id))];
+      const usersMap = {};
+      for (const uid of userIds) {
+        try {
+          const u = await base44.asServiceRole.entities.User.filter({ id: uid });
+          if (u?.length) usersMap[uid] = u[0];
+        } catch { /* ignore */ }
+      }
+
+      return Response.json({
+        ok: true,
+        data: (positions || []).map(p => ({
+          id: p.id,
+          userId: p.user_id,
+          userEmail: p.user_email || usersMap[p.user_id]?.email,
+          userFullName: usersMap[p.user_id]?.full_name,
+          planKey: p.plan_key,
+          principal: p.principal_amount,
+          currency: p.currency || 'USDT',
+          apyPercent: p.apy_percent,
+          termDays: p.term_days,
+          status: p.status,
+          lockTransferId: p.lock_transfer_id,
+          stakeTransferId: p.stake_transfer_id,
+          startedAt: p.started_at,
+          endsAt: p.ends_at,
+          approvedBy: p.approved_by,
+          approvedAt: p.approved_at,
+          rejectReason: p.reject_reason,
+          notes: p.notes,
+          createdAt: p.created_at || p.created_date,
+          updatedAt: p.updated_at
+        }))
+      });
+    }
+
+    // STAKING DASHBOARD STATS
+    if (action === 'getStakingStats') {
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter({}, '-created_date', 1000);
+      
+      const pending = (positions || []).filter(p => p.status === 'PENDING_APPROVAL');
+      const active = (positions || []).filter(p => p.status === 'ACTIVE');
+      const completed = (positions || []).filter(p => p.status === 'COMPLETED');
+      const rejected = (positions || []).filter(p => p.status === 'REJECTED' || p.status === 'CANCELLED');
+
+      const totalStakedActive = active.reduce((sum, p) => sum + (p.principal_amount || 0), 0);
+      const totalStakedPending = pending.reduce((sum, p) => sum + (p.principal_amount || 0), 0);
+
+      return Response.json({
+        ok: true,
+        data: {
+          total: positions?.length || 0,
+          pending: pending.length,
+          active: active.length,
+          completed: completed.length,
+          rejected: rejected.length,
+          totalStakedActive,
+          totalStakedPending,
+          totalStaked: totalStakedActive + totalStakedPending
+        }
+      });
+    }
+
+    // APPROVE STAKE
+    if (action === 'approveStake') {
+      const { stakingId } = params;
+      if (!stakingId) return Response.json({ ok: false, error: { code: 'MISSING_STAKING_ID' } }, { status: 400 });
+
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: stakingId });
+      if (!positions?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
+
+      const position = positions[0];
+      if (position.status !== 'PENDING_APPROVAL') {
+        return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: `Cannot approve position with status: ${position.status}` } }, { status: 400 });
+      }
+
+      // Get user's OKX credentials via pool account
+      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+        user_id: position.user_id,
+        provider: 'OKX',
+        status: 'ACTIVE'
+      });
+
+      if (!accounts?.length) {
+        return Response.json({ ok: false, error: { code: 'NO_USER_ACCOUNT', message: 'User has no active OKX account' } }, { status: 400 });
+      }
+
+      const account = accounts[0];
+      const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+      if (!pool?.length) {
+        return Response.json({ ok: false, error: { code: 'NO_POOL_ACCOUNT', message: 'Pool account not found' } }, { status: 500 });
+      }
+
+      const p = pool[0];
+      const credential = {
+        apiKey: p.api_key,
+        secretKey: await decryptSecret(p.secret_enc),
+        passphrase: await decryptSecret(p.passphrase_enc)
+      };
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const endsAt = new Date(now.getTime() + position.term_days * 24 * 60 * 60 * 1000).toISOString();
+
+      // Transfer from user's Funding to Main (master) staking pool
+      // For Phase 1, we use master account transfer: type=2 (sub -> master)
+      let stakeTransferId = null;
+      try {
+        const stakeTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: position.user_id,
+          provider: 'OKX',
+          from_account: p.subaccount_name,
+          from_account_type: 'funding',
+          to_account: 'main',
+          to_account_type: 'funding',
+          currency: 'USDT',
+          amount: position.principal_amount,
+          status: 'PENDING',
+          created_at: nowIso
+        });
+        stakeTransferId = stakeTransfer?.id;
+        console.log('[STAKING_ADMIN] Created stake transfer record:', stakeTransferId);
+      } catch (e) {
+        console.log('[STAKING_ADMIN] Failed to create stake transfer record:', e.message);
+      }
+
+      // Execute transfer using MASTER credentials (sub -> master)
+      const masterCreds = getMasterCredentials();
+      if (!masterCreds.ok) {
+        return Response.json({ ok: false, error: masterCreds.error }, { status: 500 });
+      }
+
+      const transferRes = await okxRequest({
+        credential: masterCreds.data,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy: 'USDT',
+          amt: String(position.principal_amount),
+          from: '6',      // Funding
+          to: '6',        // Funding
+          type: '2',      // Sub-account to master
+          subAcct: p.subaccount_name
+        },
+        isTradingEndpoint: false
+      });
+
+      const completedAt = new Date().toISOString();
+      const transferResult = transferRes.data?.data?.[0];
+
+      if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+        const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Stake transfer failed';
+        
+        if (stakeTransferId) {
+          try {
+            await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
+              status: 'FAILED',
+              error_message: errMsg,
+              completed_at: completedAt
+            });
+          } catch (e) {
+            console.log('[STAKING_ADMIN] Failed to update stake transfer to FAILED:', e.message);
+          }
+        }
+        
+        return Response.json({ ok: false, error: { code: 'STAKE_TRANSFER_FAILED', message: errMsg } }, { status: 500 });
+      }
+
+      // Update transfer to COMPLETED
+      if (stakeTransferId) {
+        try {
+          await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
+            status: 'COMPLETED',
+            external_transfer_id: transferResult?.transId || null,
+            completed_at: completedAt
+          });
+        } catch (e) {
+          console.log('[STAKING_ADMIN] Failed to update stake transfer to COMPLETED:', e.message);
+        }
+      }
+
+      // Update position to ACTIVE
+      await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
+        status: 'ACTIVE',
+        stake_transfer_id: stakeTransferId,
+        started_at: nowIso,
+        ends_at: endsAt,
+        approved_by: user.email,
+        approved_at: nowIso,
+        updated_at: nowIso
+      });
+
+      // Notify user
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: position.user_id,
+          type: 'staking_reward',
+          title: 'Stake Activated! 🎉',
+          message: `Your ${position.principal_amount} USDT stake has been activated. Earning ${position.apy_percent}% APY for ${position.term_days} days.`,
+          data: { stakingPositionId: stakingId, action: 'stake_activated' },
+          read: false,
+          priority: 'high'
+        });
+      } catch (e) {
+        console.log('[STAKING_ADMIN] Failed to notify user:', e.message);
+      }
+
+      auditLog('STAKE_APPROVE', user.id, { stakingId, userId: position.user_id, amount: position.principal_amount });
+
+      return Response.json({
+        ok: true,
+        data: {
+          stakingId,
+          status: 'ACTIVE',
+          startedAt: nowIso,
+          endsAt,
+          stakeTransferId
+        }
+      });
+    }
+
+    // REJECT STAKE - Unlock funds back to user's trading account
+    if (action === 'rejectStake') {
+      const { stakingId, reason } = params;
+      if (!stakingId) return Response.json({ ok: false, error: { code: 'MISSING_STAKING_ID' } }, { status: 400 });
+
+      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: stakingId });
+      if (!positions?.length) return Response.json({ ok: false, error: { code: 'NOT_FOUND' } }, { status: 404 });
+
+      const position = positions[0];
+      if (position.status !== 'PENDING_APPROVAL') {
+        return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: `Cannot reject position with status: ${position.status}` } }, { status: 400 });
+      }
+
+      // Get user's OKX credentials
+      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+        user_id: position.user_id,
+        provider: 'OKX',
+        status: 'ACTIVE'
+      });
+
+      if (!accounts?.length) {
+        // Just mark as rejected if no account found
+        await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
+          status: 'REJECTED',
+          reject_reason: reason || 'Rejected by admin',
+          notes: 'No OKX account found for refund',
+          updated_at: new Date().toISOString()
+        });
+        return Response.json({ ok: true, data: { stakingId, status: 'REJECTED', fundsReturned: false } });
+      }
+
+      const account = accounts[0];
+      const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+      if (!pool?.length) {
+        await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
+          status: 'REJECTED',
+          reject_reason: reason || 'Rejected by admin',
+          notes: 'Pool account not found for refund',
+          updated_at: new Date().toISOString()
+        });
+        return Response.json({ ok: true, data: { stakingId, status: 'REJECTED', fundsReturned: false } });
+      }
+
+      const p = pool[0];
+      const credential = {
+        apiKey: p.api_key,
+        secretKey: await decryptSecret(p.secret_enc),
+        passphrase: await decryptSecret(p.passphrase_enc)
+      };
+
+      const nowIso = new Date().toISOString();
+
+      // Transfer back: Funding(6) -> Trading(18)
+      let unlockTransferId = null;
+      try {
+        const unlockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: position.user_id,
+          provider: 'OKX',
+          from_account: p.subaccount_name,
+          from_account_type: 'funding',
+          to_account: p.subaccount_name,
+          to_account_type: 'trading',
+          currency: 'USDT',
+          amount: position.principal_amount,
+          status: 'PENDING',
+          created_at: nowIso
+        });
+        unlockTransferId = unlockTransfer?.id;
+      } catch (e) {
+        console.log('[STAKING_ADMIN] Failed to create unlock transfer record:', e.message);
+      }
+
+      const transferRes = await okxRequest({
+        credential,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy: 'USDT',
+          amt: String(position.principal_amount),
+          from: '6',  // Funding
+          to: '18',   // Trading
+          type: '0'
+        },
+        isTradingEndpoint: false
+      });
+
+      const completedAt = new Date().toISOString();
+      const fundsReturned = transferRes.ok;
+
+      if (unlockTransferId) {
+        try {
+          await base44.asServiceRole.entities.ExchangeTransfer.update(unlockTransferId, {
+            status: fundsReturned ? 'COMPLETED' : 'FAILED',
+            external_transfer_id: transferRes.data?.data?.[0]?.transId || null,
+            error_message: fundsReturned ? null : (transferRes.error?.okxMsg || 'Failed'),
+            completed_at: completedAt
+          });
+        } catch (e) {
+          console.log('[STAKING_ADMIN] Failed to update unlock transfer:', e.message);
+        }
+      }
+
+      // Update position to REJECTED
+      await base44.asServiceRole.entities.StakingPosition.update(stakingId, {
+        status: 'REJECTED',
+        unlock_transfer_id: unlockTransferId,
+        reject_reason: reason || 'Rejected by admin',
+        notes: fundsReturned ? 'Funds returned to trading account' : 'Funds return failed',
+        updated_at: completedAt
+      });
+
+      // Notify user
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: position.user_id,
+          type: 'system',
+          title: 'Stake Request Rejected',
+          message: reason || 'Your staking request was not approved. Funds have been returned to your trading account.',
+          data: { stakingPositionId: stakingId, action: 'stake_rejected' },
+          read: false,
+          priority: 'normal'
+        });
+      } catch (e) {
+        console.log('[STAKING_ADMIN] Failed to notify user:', e.message);
+      }
+
+      auditLog('STAKE_REJECT', user.id, { stakingId, userId: position.user_id, reason, fundsReturned });
+
+      return Response.json({
+        ok: true,
+        data: {
+          stakingId,
+          status: 'REJECTED',
+          fundsReturned,
+          unlockTransferId
+        }
+      });
+    }
+
     return Response.json({ ok: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });
     
   } catch (error) {
