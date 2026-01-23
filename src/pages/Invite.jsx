@@ -10,6 +10,4 @@ export default function Invite() {
   return null;
 }
 
-Invite.propTypes = {
-  language: PropTypes.string
-};
+Invite.propTypes = {};
