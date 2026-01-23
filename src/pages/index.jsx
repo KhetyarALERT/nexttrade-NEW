@@ -12,7 +12,7 @@ import Profile from "./Profile";
 
 import Wallet from "./Wallet";
 
-import ReferralRedirect from "./ReferralRedirect";
+
 
 import { Route, Routes, useLocation } from 'react-router-dom';
 
@@ -64,7 +64,7 @@ function PagesContent() {
                 <Route path="/Trading" element={<Trading />} />
                 <Route path="/Profile" element={<Profile />} />
                 <Route path="/Wallet" element={<Wallet />} />
-                <Route path="/r/:code" element={<ReferralRedirect />} />
+
                 
             </Routes>
         </Layout>
