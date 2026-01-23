@@ -153,15 +153,6 @@ const t = {
 
 const CHECKIN_POINTS = [10, 15, 20, 25, 35, 50, 100];
 
-const MILESTONES = [
-  { id: "signup", points: 100, title: { en: "Welcome Bonus", ar: "مكافأة الترحيب" }, desc: { en: "Sign up and verify email", ar: "سجل وتحقق من البريد" }, auto: true },
-  { id: "first_deposit", points: 200, title: { en: "First Deposit", ar: "أول إيداع" }, desc: { en: "Make your first deposit", ar: "قم بأول إيداع" } },
-  { id: "first_trade", points: 150, title: { en: "First Trade", ar: "أول صفقة" }, desc: { en: "Execute your first trade", ar: "نفذ أول صفقة" } },
-  { id: "kyc_complete", points: 300, title: { en: "KYC Verified", ar: "تحقق KYC" }, desc: { en: "Complete identity verification", ar: "أكمل التحقق من الهوية" } },
-  { id: "referral_1", points: 500, title: { en: "First Referral", ar: "أول إحالة" }, desc: { en: "Invite your first friend", ar: "ادعُ أول صديق" } },
-  { id: "stake_first", points: 200, title: { en: "First Stake", ar: "أول ستيك" }, desc: { en: "Stake any amount", ar: "قم بأول ستيك" } }
-];
-
 export default function Rewards({ language = "en" }) {
   const isAr = language === "ar";
   const txt = t[language] || t.en;
