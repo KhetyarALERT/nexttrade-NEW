@@ -5,6 +5,7 @@ import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Wallet,
   ArrowDownToLine,
@@ -33,7 +34,10 @@ const translations = {
     noAssets: "No assets yet",
     noAssetsDesc: "Deposit funds to get started",
     viewAll: "View All",
-    quickActions: "Quick Actions"
+    quickActions: "Quick Actions",
+    total: "Total",
+    funding: "Funding",
+    trading: "Trading"
   },
   ar: {
     totalBalance: "الرصيد الكلي",
@@ -48,7 +52,10 @@ const translations = {
     noAssets: "لا توجد أصول",
     noAssetsDesc: "قم بالإيداع للبدء",
     viewAll: "عرض الكل",
-    quickActions: "إجراءات سريعة"
+    quickActions: "إجراءات سريعة",
+    total: "الإجمالي",
+    funding: "التمويل",
+    trading: "التداول"
   }
 };
 
