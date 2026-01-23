@@ -3,6 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const REFERRAL_DOMAIN = 'https://nexttrade.exchange';
 const L1_REWARD_AMOUNT = 10; // $10 for L1 referral
 const L2_REWARD_AMOUNT = 2;  // $2 for L2 referral
+const L3_REWARD_AMOUNT = 0.5; // $0.50 for L3 referral
 
 // Valid referral code pattern: 4-32 chars, alphanumeric + hyphen
 const REFERRAL_CODE_REGEX = /^[A-Z0-9-]{4,32}$/i;
