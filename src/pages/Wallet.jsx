@@ -33,6 +33,7 @@ import {
 import WalletOverview from "@/components/wallet/WalletOverview";
 import WalletDeposit from "@/components/wallet/WalletDeposit";
 import WalletHistory from "@/components/wallet/WalletHistory";
+import OKXTransferModal from "@/components/profile/OKXTransferModal";
 
 const translations = {
   en: {
@@ -136,6 +137,9 @@ export default function WalletPage({ language = "en" }) {
   const [wallets, setWallets] = useState([]);
   const [okxBalances, setOkxBalances] = useState(null);
   const [totalBalance, setTotalBalance] = useState(0);
+  
+  // Transfer Modal
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
 
   // Update URL when sub-page changes
   const setSubPage = useCallback((page) => {
@@ -506,6 +510,7 @@ export default function WalletPage({ language = "en" }) {
                 hasOkxAccount={hasOkxAccount}
                 isFullyUnlocked={isFullyUnlocked}
                 onDeposit={() => setSubPage("deposit")}
+                onTransfer={() => setTransferModalOpen(true)}
                 onRefresh={handleRefresh}
               />
             )}
@@ -525,6 +530,14 @@ export default function WalletPage({ language = "en" }) {
           </main>
         </div>
       </div>
+      
+      {/* Transfer Modal */}
+      <OKXTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        language={language}
+        onSuccess={handleRefresh}
+      />
     </div>
   );
 }
