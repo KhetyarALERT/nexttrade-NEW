@@ -1599,6 +1599,15 @@ export default function OKXAdminHub({ language = 'en' }) {
             />
           </TabsContent>
 
+          {/* Staking Tab */}
+          <TabsContent value="staking">
+            <StakingAdminTab
+              stakingRequests={stakingRequests}
+              stakingStats={stakingStats}
+              onRefresh={loadDashboard}
+            />
+          </TabsContent>
+
           {/* Pool Tab */}
           <TabsContent value="pool">
             <Card>
