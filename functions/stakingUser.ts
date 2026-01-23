@@ -179,11 +179,15 @@ Deno.serve(async (req) => {
         data: (plans || []).map(p => ({
           key: p.key,
           title: p.title,
+          shortDescription: p.short_description,
           termDays: p.term_days,
           apyPercent: p.apy_percent,
           minDeposit: p.min_deposit,
+          baseRewardsPerDollar: p.base_rewards_per_dollar || 10,
+          perks: p.perks || [],
           features: p.features || [],
-          gradient: p.gradient,
+          isEnabled: p.is_enabled !== false,
+          isRecommended: p.is_recommended || false,
           isPopular: p.is_popular
         }))
       });
@@ -238,12 +242,16 @@ Deno.serve(async (req) => {
           currency: p.currency || 'USDT',
           apyPercent: p.apy_percent,
           termDays: p.term_days,
+          baseRewardsPerDollar: p.base_rewards_per_dollar || 0,
+          rewardsGranted: p.rewards_granted || 0,
+          firstStakeBonusApplied: p.first_stake_bonus_applied || false,
           status: p.status,
           startedAt: p.started_at,
           endsAt: p.ends_at,
           estimatedEarned: calculateEstimatedEarned(p),
           createdAt: p.created_at || p.created_date,
-          rejectReason: p.reject_reason
+          rejectReason: p.reject_reason,
+          destinationPool: p.destination_pool
         }))
       });
     }
@@ -375,6 +383,7 @@ Deno.serve(async (req) => {
         currency: 'USDT',
         apy_percent: plan.apy_percent,
         term_days: plan.term_days,
+        base_rewards_per_dollar: plan.base_rewards_per_dollar || 10,
         status: 'PENDING_APPROVAL',
         lock_transfer_id: lockTransferId,
         created_at: now,
