@@ -182,6 +182,20 @@ export default function Rewards({ language = "en" }) {
     }
   }, []);
 
+  const loadMissions = useCallback(async () => {
+    setMissionsLoading(true);
+    try {
+      const res = await base44.functions.invoke("rewardsHub", { action: "getMissionStatus" });
+      if (res.data?.success) {
+        setMissions(res.data.data.missions || []);
+      }
+    } catch (err) {
+      console.error("Failed to load missions:", err);
+    } finally {
+      setMissionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated && !isLoadingAuth) {
       loadData();
