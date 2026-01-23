@@ -1843,36 +1843,44 @@ export default function OKXAdminHub({ language = 'en' }) {
             <Card>
               <CardHeader>
                 <CardTitle>Transfer History</CardTitle>
-                <CardDescription>Internal transfers between main and sub-accounts</CardDescription>
+                <CardDescription>Internal transfers (funding ↔ trading) across all users</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>User</TableHead>
                       <TableHead>From</TableHead>
                       <TableHead>To</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Trans ID</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {transfers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No transfers yet
                         </TableCell>
                       </TableRow>
                     ) : (
                       transfers.map((t) => (
                         <TableRow key={t.id}>
-                          <TableCell>{t.fromAccount} ({t.fromAccountType})</TableCell>
-                          <TableCell>{t.toAccount} ({t.toAccountType})</TableCell>
-                          <TableCell>{formatUsdt(t.amount)} {t.currency}</TableCell>
+                          <TableCell className="text-sm">
+                            {users.find(u => u.id === t.userId)?.email || t.userId?.substring(0, 8) || 'ADMIN'}
+                          </TableCell>
+                          <TableCell className="capitalize">{t.fromAccountType || t.fromAccount}</TableCell>
+                          <TableCell className="capitalize">{t.toAccountType || t.toAccount}</TableCell>
+                          <TableCell className="font-mono">{formatUsdt(t.amount)} {t.currency}</TableCell>
                           <TableCell>
                             <Badge className={statusColors[t.status] || ''}>
                               {t.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground max-w-[100px] truncate">
+                            {t.externalTransferId || '-'}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(t.createdAt)}
