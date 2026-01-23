@@ -19,8 +19,9 @@ import {
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
   ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
   History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck,
-  HelpCircle, MessageSquare, Image, Trash2
+  HelpCircle, MessageSquare, Image, Trash2, Lock
 } from 'lucide-react';
+import StakingAdminTab from '@/components/admin/StakingAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',
