@@ -1,223 +1,312 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Gift, CalendarCheck2, CheckCircle2, Flame, Sparkles, Trophy, Star, Zap, Users, TrendingUp, Clock, ArrowRight } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { createPageUrl } from "@/utils";
+import { useAuth } from "@/lib/AuthContext";
+import AuthRequiredState from "@/components/AuthRequiredState";
+import ShareModal from "@/components/invite/ShareModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { motion } from "framer-motion";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { motion } from "framer-motion";
+import {
+  Gift, Star, Trophy, Flame, Zap, Users, Copy, Check, Share2,
+  CalendarCheck2, CheckCircle2, DollarSign, TrendingUp, Clock,
+  ChevronDown, ChevronUp, ArrowRight, Wallet, History, Target
+} from "lucide-react";
 
-const STORAGE_KEYS = {
-  lastCheckin: "rewards_last_checkin",
-  streak: "rewards_streak",
-  tasks: "rewards_tasks",
-  voucherClaims: "rewards_voucher_claims_v2",
+// ==================== TRANSLATIONS ====================
+const t = {
+  en: {
+    title: "Rewards Hub",
+    subtitle: "Earn rewards through referrals, daily check-ins, and milestones",
+    overview: "Overview",
+    referrals: "Referrals",
+    checkin: "Check-in",
+    milestones: "Milestones",
+    history: "History",
+    totalEarnings: "Total Earnings",
+    totalPoints: "Total Points",
+    level: "Level",
+    nextReward: "Next Reward",
+    yourLink: "Your Referral Link",
+    copy: "Copy",
+    copied: "Copied!",
+    share: "Share",
+    referralStats: "Referral Stats",
+    level1: "Level 1",
+    level2: "Level 2",
+    level3: "Level 3",
+    directReferrals: "Direct Referrals",
+    indirectReferrals: "Indirect Referrals",
+    earned: "Earned",
+    referralList: "Your Referrals",
+    noReferrals: "No referrals yet",
+    noReferralsDesc: "Share your link to start earning",
+    dailyCheckin: "Daily Check-in",
+    checkinDesc: "Come back daily to earn bonus points",
+    checkinNow: "Check In Now",
+    checkedIn: "Checked In!",
+    day: "Day",
+    bonus: "BONUS",
+    streak: "Current Streak",
+    days: "days",
+    milestonesTitle: "Milestones",
+    milestonesDesc: "Complete actions to earn points",
+    claimed: "Claimed",
+    claim: "Claim",
+    locked: "Locked",
+    rewardHistory: "Reward History",
+    noHistory: "No rewards yet",
+    type: "Type",
+    amount: "Amount",
+    date: "Date",
+    status: "Status",
+    howItWorks: "How it Works",
+    step1: "Share your unique referral link",
+    step2: "Friends register and verify KYC",
+    step3: "Earn rewards when they deposit",
+    earningsBreakdown: "Earnings Breakdown",
+    l1Reward: "$10 per Level 1 referral",
+    l2Reward: "$2 per Level 2 referral",
+    l3Reward: "$0.50 per Level 3 referral",
+    accessTitle: "Sign in to access Rewards",
+    accessDesc: "Track your earnings, referrals, and complete daily tasks",
+    accessPrimary: "Sign In",
+    quickActions: "Quick Actions",
+    viewWallet: "View Wallet",
+    inviteFriends: "Invite Friends",
+    registered: "Registered",
+    verified: "Verified",
+    deposited: "Deposited",
+    rewarded: "Rewarded"
+  },
+  ar: {
+    title: "مركز المكافآت",
+    subtitle: "اربح مكافآت من الإحالات والتسجيل اليومي والإنجازات",
+    overview: "نظرة عامة",
+    referrals: "الإحالات",
+    checkin: "تسجيل الدخول",
+    milestones: "الإنجازات",
+    history: "السجل",
+    totalEarnings: "إجمالي الأرباح",
+    totalPoints: "إجمالي النقاط",
+    level: "المستوى",
+    nextReward: "المكافأة التالية",
+    yourLink: "رابط الإحالة",
+    copy: "نسخ",
+    copied: "تم النسخ!",
+    share: "شارك",
+    referralStats: "إحصائيات الإحالة",
+    level1: "المستوى 1",
+    level2: "المستوى 2",
+    level3: "المستوى 3",
+    directReferrals: "إحالات مباشرة",
+    indirectReferrals: "إحالات غير مباشرة",
+    earned: "المكتسب",
+    referralList: "إحالاتك",
+    noReferrals: "لا إحالات بعد",
+    noReferralsDesc: "شارك رابطك لتبدأ الربح",
+    dailyCheckin: "تسجيل الدخول اليومي",
+    checkinDesc: "عد يوميًا لكسب نقاط إضافية",
+    checkinNow: "سجل الآن",
+    checkedIn: "تم التسجيل!",
+    day: "يوم",
+    bonus: "مكافأة",
+    streak: "السلسلة الحالية",
+    days: "أيام",
+    milestonesTitle: "الإنجازات",
+    milestonesDesc: "أكمل الإجراءات لكسب النقاط",
+    claimed: "تم الاستلام",
+    claim: "استلم",
+    locked: "مقفل",
+    rewardHistory: "سجل المكافآت",
+    noHistory: "لا مكافآت بعد",
+    type: "النوع",
+    amount: "المبلغ",
+    date: "التاريخ",
+    status: "الحالة",
+    howItWorks: "كيف يعمل",
+    step1: "شارك رابط الإحالة الخاص بك",
+    step2: "الأصدقاء يسجلون ويتحققون",
+    step3: "اربح عند إيداعهم",
+    earningsBreakdown: "تفاصيل الأرباح",
+    l1Reward: "$10 لكل إحالة مستوى 1",
+    l2Reward: "$2 لكل إحالة مستوى 2",
+    l3Reward: "$0.50 لكل إحالة مستوى 3",
+    accessTitle: "سجّل للوصول للمكافآت",
+    accessDesc: "تتبع أرباحك وإحالاتك وأكمل المهام اليومية",
+    accessPrimary: "تسجيل الدخول",
+    quickActions: "إجراءات سريعة",
+    viewWallet: "عرض المحفظة",
+    inviteFriends: "دعوة أصدقاء",
+    registered: "مسجّل",
+    verified: "موثّق",
+    deposited: "أودع",
+    rewarded: "مكافأ"
+  }
 };
 
-function isSameDay(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
+const CHECKIN_POINTS = [10, 15, 20, 25, 35, 50, 100];
 
-const rewardMilestones = [
+const MILESTONES = [
   { id: "signup", points: 100, title: { en: "Welcome Bonus", ar: "مكافأة الترحيب" }, desc: { en: "Sign up and verify email", ar: "سجل وتحقق من البريد" }, auto: true },
   { id: "first_deposit", points: 200, title: { en: "First Deposit", ar: "أول إيداع" }, desc: { en: "Make your first deposit", ar: "قم بأول إيداع" } },
   { id: "first_trade", points: 150, title: { en: "First Trade", ar: "أول صفقة" }, desc: { en: "Execute your first trade", ar: "نفذ أول صفقة" } },
   { id: "kyc_complete", points: 300, title: { en: "KYC Verified", ar: "تحقق KYC" }, desc: { en: "Complete identity verification", ar: "أكمل التحقق من الهوية" } },
   { id: "referral_1", points: 500, title: { en: "First Referral", ar: "أول إحالة" }, desc: { en: "Invite your first friend", ar: "ادعُ أول صديق" } },
-  { id: "trade_volume_1k", points: 250, title: { en: "$1K Volume", ar: "حجم $1K" }, desc: { en: "Trade $1,000 in volume", ar: "تداول بحجم $1,000" } },
-  { id: "stake_first", points: 200, title: { en: "First Stake", ar: "أول ستيك" }, desc: { en: "Stake any amount", ar: "قم بأول ستيك" } },
+  { id: "stake_first", points: 200, title: { en: "First Stake", ar: "أول ستيك" }, desc: { en: "Stake any amount", ar: "قم بأول ستيك" } }
 ];
-
-const dailyRewards = [
-  { day: 1, points: 10 },
-  { day: 2, points: 15 },
-  { day: 3, points: 20 },
-  { day: 4, points: 25 },
-  { day: 5, points: 35 },
-  { day: 6, points: 50 },
-  { day: 7, points: 100, bonus: true },
-];
-
-const t = {
-  en: {
-    title: "Rewards Hub",
-    subtitle: "Complete tasks, earn points, and unlock exclusive rewards",
-    totalPoints: "Total Points",
-    currentStreak: "Current Streak",
-    days: "days",
-    level: "Level",
-    nextReward: "Next Reward",
-    dailyCheckin: "Daily Check-in",
-    checkinNow: "Check In Now",
-    checkedIn: "Checked In!",
-    checkinDesc: "Come back daily to earn bonus points",
-    milestones: "Milestones",
-    milestonesDesc: "Complete actions to earn points",
-    claimed: "Claimed",
-    claim: "Claim",
-    locked: "Locked",
-    leaderboard: "Leaderboard",
-    yourRank: "Your Rank",
-    topEarners: "Top Earners",
-    rewardsStore: "Rewards Store",
-    comingSoon: "Coming Soon",
-    redeemPoints: "Redeem your points for exclusive rewards",
-    day: "Day",
-    bonus: "BONUS",
-    tasks: "Daily Tasks",
-    taskDeposit: "Make a deposit",
-    taskTrade: "Execute a trade",
-    taskRefer: "Invite a friend",
-  },
-  ar: {
-    title: "مركز المكافآت",
-    subtitle: "أكمل المهام، اربح نقاط، واحصل على مكافآت حصرية",
-    totalPoints: "إجمالي النقاط",
-    currentStreak: "السلسلة الحالية",
-    days: "أيام",
-    level: "المستوى",
-    nextReward: "المكافأة التالية",
-    dailyCheckin: "تسجيل الدخول اليومي",
-    checkinNow: "سجل الآن",
-    checkedIn: "تم التسجيل!",
-    checkinDesc: "عد يوميًا لكسب نقاط إضافية",
-    milestones: "الإنجازات",
-    milestonesDesc: "أكمل الإجراءات لكسب النقاط",
-    claimed: "تم الاستلام",
-    claim: "استلم",
-    locked: "مقفل",
-    leaderboard: "قائمة المتصدرين",
-    yourRank: "ترتيبك",
-    topEarners: "أكثر الرابحين",
-    rewardsStore: "متجر المكافآت",
-    comingSoon: "قريبًا",
-    redeemPoints: "استبدل نقاطك بمكافآت حصرية",
-    day: "يوم",
-    bonus: "مكافأة",
-    tasks: "المهام اليومية",
-    taskDeposit: "قم بإيداع",
-    taskTrade: "نفذ صفقة",
-    taskRefer: "ادعُ صديقًا",
-  },
-};
 
 export default function Rewards({ language = "en" }) {
-  const labels = t[language];
-  
-  const [streak, setStreak] = useState(0);
-  const [lastCheckin, setLastCheckin] = useState(null);
-  const [totalPoints, setTotalPoints] = useState(100); // Start with signup bonus
-  const [claimedMilestones, setClaimedMilestones] = useState(["signup"]);
-  const [loading, setLoading] = useState(false);
+  const isAr = language === "ar";
+  const txt = t[language] || t.en;
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
 
-  const checkedInToday = lastCheckin ? isSameDay(lastCheckin, new Date()) : false;
-  const currentLevel = Math.floor(totalPoints / 500) + 1;
-  const levelProgress = (totalPoints % 500) / 500 * 100;
-  const pointsToNextLevel = 500 - (totalPoints % 500);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [claimingMilestone, setClaimingMilestone] = useState(null);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await base44.functions.invoke("rewardsHub", { action: "getSummary" });
+      if (res.data?.success) {
+        setData(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load rewards data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    try {
-      const storedStreak = parseInt(localStorage.getItem(STORAGE_KEYS.streak) || "0", 10);
-      const storedLast = localStorage.getItem(STORAGE_KEYS.lastCheckin);
-      const storedClaims = localStorage.getItem(STORAGE_KEYS.voucherClaims);
-      const storedPoints = localStorage.getItem("rewards_total_points");
+    if (isAuthenticated && !isLoadingAuth) {
+      loadData();
+    } else if (!isLoadingAuth) {
+      setLoading(false);
+    }
+  }, [isAuthenticated, isLoadingAuth, loadData]);
 
-      if (Number.isFinite(storedStreak)) setStreak(storedStreak);
-      if (storedLast) setLastCheckin(new Date(storedLast));
-      if (storedClaims) {
-        try {
-          const parsed = JSON.parse(storedClaims);
-          if (Array.isArray(parsed)) setClaimedMilestones(parsed);
-        } catch {}
+  const handleCopy = useCallback(() => {
+    if (!data?.referral?.link) return;
+    navigator.clipboard.writeText(data.referral.link);
+    setCopied(true);
+    toast.success(txt.copied);
+    setTimeout(() => setCopied(false), 2000);
+  }, [data?.referral?.link, txt.copied]);
+
+  const handleCheckin = useCallback(async () => {
+    if (data?.checkin?.checkedInToday) return;
+    setCheckinLoading(true);
+    try {
+      const res = await base44.functions.invoke("rewardsHub", { action: "checkin" });
+      if (res.data?.success) {
+        toast.success(`+${res.data.pointsEarned} ${language === "ar" ? "نقطة" : "points"}!`);
+        loadData();
       }
-      if (storedPoints) setTotalPoints(parseInt(storedPoints, 10) || 100);
-    } catch {}
-  }, []);
+    } catch (err) {
+      toast.error(err.message || "Check-in failed");
+    } finally {
+      setCheckinLoading(false);
+    }
+  }, [data?.checkin?.checkedInToday, loadData, language]);
 
-  const persist = useCallback((nextStreak, nextLast, nextClaims, nextPoints) => {
+  const handleClaimMilestone = useCallback(async (milestoneId, points) => {
+    setClaimingMilestone(milestoneId);
     try {
-      localStorage.setItem(STORAGE_KEYS.streak, String(nextStreak));
-      localStorage.setItem(STORAGE_KEYS.lastCheckin, nextLast ? nextLast.toISOString() : "");
-      localStorage.setItem(STORAGE_KEYS.voucherClaims, JSON.stringify(nextClaims));
-      localStorage.setItem("rewards_total_points", String(nextPoints));
-    } catch {}
-  }, []);
+      const res = await base44.functions.invoke("rewardsHub", { action: "claimMilestone", milestoneId });
+      if (res.data?.success) {
+        if (!res.data.existing) {
+          toast.success(`+${points} ${language === "ar" ? "نقطة" : "points"}!`);
+        }
+        loadData();
+      }
+    } catch (err) {
+      toast.error(err.message || "Claim failed");
+    } finally {
+      setClaimingMilestone(null);
+    }
+  }, [loadData, language]);
 
-  const handleCheckIn = useCallback(() => {
-    if (checkedInToday) return;
-    
-    const now = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+  // Not authenticated
+  if (!isLoadingAuth && !isAuthenticated) {
+    return (
+      <AuthRequiredState
+        title={txt.accessTitle}
+        description={txt.accessDesc}
+        primaryActionLabel={txt.accessPrimary}
+        secondaryActionLabel={language === "ar" ? "العودة للرئيسية" : "Back to Home"}
+        secondaryActionHref={createPageUrl("Home")}
+        onPrimaryAction={navigateToLogin}
+      />
+    );
+  }
 
-    const nextStreak = lastCheckin && isSameDay(lastCheckin, yesterday) ? streak + 1 : 1;
-    const dayIndex = Math.min(nextStreak - 1, 6);
-    const pointsEarned = dailyRewards[dayIndex].points;
-    const nextPoints = totalPoints + pointsEarned;
+  // Loading
+  if (loading || isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-background p-4 pt-20" dir={isAr ? "rtl" : "ltr"}>
+        <div className="max-w-4xl mx-auto space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-6 w-48" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          </div>
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
-    setStreak(nextStreak);
-    setLastCheckin(now);
-    setTotalPoints(nextPoints);
-    persist(nextStreak, now, claimedMilestones, nextPoints);
-    
-    toast.success(language === "ar" ? `+${pointsEarned} نقطة!` : `+${pointsEarned} points!`);
-  }, [checkedInToday, lastCheckin, streak, totalPoints, claimedMilestones, persist, language]);
+  const balances = data?.balances || { usdt: 0, points: 0 };
+  const referral = data?.referral || { code: "", link: "", stats: {}, list: [] };
+  const checkin = data?.checkin || { checkedInToday: false, streak: 0, nextPoints: 10 };
+  const milestones = data?.milestones || { claimed: [], available: [] };
+  const recentRewards = data?.recentRewards || [];
 
-  const claimMilestone = useCallback((id, points) => {
-    if (claimedMilestones.includes(id)) return;
-    
-    const nextClaims = [...claimedMilestones, id];
-    const nextPoints = totalPoints + points;
-    
-    setClaimedMilestones(nextClaims);
-    setTotalPoints(nextPoints);
-    persist(streak, lastCheckin, nextClaims, nextPoints);
-    
-    toast.success(language === "ar" ? `+${points} نقطة!` : `+${points} points!`);
-  }, [claimedMilestones, totalPoints, streak, lastCheckin, persist, language]);
+  const currentLevel = Math.floor(balances.points / 500) + 1;
+  const levelProgress = (balances.points % 500) / 500 * 100;
+  const pointsToNextLevel = 500 - (balances.points % 500);
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20" dir={language === "ar" ? "rtl" : "ltr"}>
-      {/* Hero */}
+    <div className="min-h-screen bg-background text-foreground pb-24" dir={isAr ? "rtl" : "ltr"}>
+      {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 pt-8 pb-16">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-10"
-          >
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 relative z-10">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-4">
               <Gift className="w-5 h-5 text-yellow-400" />
-              <span className="text-white font-medium">{labels.title}</span>
+              <span className="text-white font-medium">{txt.title}</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-              {labels.subtitle}
-            </h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">{txt.subtitle}</h1>
           </motion.div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
-              { label: labels.totalPoints, value: totalPoints.toLocaleString(), icon: Star, color: "text-yellow-400" },
-              { label: labels.currentStreak, value: `${streak} ${labels.days}`, icon: Flame, color: "text-orange-400" },
-              { label: labels.level, value: currentLevel, icon: Trophy, color: "text-purple-400" },
-              { label: labels.nextReward, value: `${pointsToNextLevel} pts`, icon: Zap, color: "text-cyan-400" },
+              { label: txt.totalEarnings, value: `$${balances.usdt.toFixed(2)}`, icon: DollarSign, color: "text-emerald-400" },
+              { label: txt.totalPoints, value: balances.points.toLocaleString(), icon: Star, color: "text-yellow-400" },
+              { label: txt.level, value: currentLevel, icon: Trophy, color: "text-purple-400" },
+              { label: txt.streak, value: `${checkin.streak} ${txt.days}`, icon: Flame, color: "text-orange-400" }
             ].map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-              >
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                 <Card className="bg-white/10 border-white/10 backdrop-blur-xl">
-                  <CardContent className="p-4">
-                    <stat.icon className={`w-6 h-6 ${stat.color} mb-2`} />
+                  <CardContent className="p-3 sm:p-4">
+                    <stat.icon className={`w-5 h-5 ${stat.color} mb-1`} />
                     <p className="text-white/60 text-xs">{stat.label}</p>
-                    <p className="text-xl font-bold text-white">{stat.value}</p>
+                    <p className="text-lg sm:text-xl font-bold text-white">{stat.value}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -225,177 +314,417 @@ export default function Rewards({ language = "en" }) {
           </div>
 
           {/* Level Progress */}
-          <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-            <div className="flex items-center justify-between text-sm text-white/60 mb-2">
+          <div className="mt-4 bg-white/10 backdrop-blur-sm rounded-xl p-3">
+            <div className="flex items-center justify-between text-xs text-white/60 mb-1">
               <span>Level {currentLevel}</span>
               <span>Level {currentLevel + 1}</span>
             </div>
-            <Progress value={levelProgress} className="h-3 bg-white/20" />
-            <p className="text-center text-xs text-white/40 mt-2">
-              {pointsToNextLevel} points to next level
-            </p>
+            <Progress value={levelProgress} className="h-2 bg-white/20" />
+            <p className="text-center text-xs text-white/40 mt-1">{pointsToNextLevel} points to next level</p>
           </div>
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-8">
-        {/* Daily Check-in */}
-        <Card className="border-border shadow-xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-b border-border">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarCheck2 className="w-5 h-5 text-orange-500" />
-              {labels.dailyCheckin}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground mb-6">{labels.checkinDesc}</p>
-            
-            <div className="grid grid-cols-7 gap-2 sm:gap-3 mb-6">
-              {dailyRewards.map((reward, i) => {
-                const isCompleted = i < streak && checkedInToday ? true : i < streak - 1;
-                const isCurrent = i === Math.min(streak, 6) && !checkedInToday;
-                const isLocked = i > streak;
-                
-                return (
-                  <div
-                    key={i}
-                    className={`relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl border-2 transition-all ${
-                      isCompleted ? "bg-emerald-500/10 border-emerald-500" :
-                      isCurrent ? "bg-orange-500/10 border-orange-500 animate-pulse" :
-                      "bg-muted/30 border-border"
-                    }`}
-                  >
-                    {reward.bonus && (
-                      <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-[8px] px-1.5 py-0.5">
-                        {labels.bonus}
-                      </Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground">{labels.day} {reward.day}</span>
-                    <span className={`text-sm sm:text-base font-bold ${isCompleted ? "text-emerald-500" : isCurrent ? "text-orange-500" : "text-foreground"}`}>
-                      +{reward.points}
-                    </span>
-                    {isCompleted && <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />}
+      {/* Tabs Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full grid grid-cols-5 bg-card/80 backdrop-blur-sm rounded-xl p-1 mb-6">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm rounded-lg">{txt.overview}</TabsTrigger>
+            <TabsTrigger value="referrals" className="text-xs sm:text-sm rounded-lg">{txt.referrals}</TabsTrigger>
+            <TabsTrigger value="checkin" className="text-xs sm:text-sm rounded-lg">{txt.checkin}</TabsTrigger>
+            <TabsTrigger value="milestones" className="text-xs sm:text-sm rounded-lg">{txt.milestones}</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs sm:text-sm rounded-lg">{txt.history}</TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4">
+            {/* Referral Link Card */}
+            <Card className="border-0 shadow-lg overflow-hidden">
+              <CardContent className="p-4 sm:p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-2">{txt.yourLink}</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex-1 min-w-0 bg-muted/60 rounded-xl px-4 py-2.5">
+                    <p className="font-mono text-sm text-foreground truncate" dir="ltr">{referral.link}</p>
                   </div>
-                );
-              })}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopy} className={`flex-1 h-10 rounded-xl text-sm ${copied ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}>
+                    {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                    {copied ? txt.copied : txt.copy}
+                  </Button>
+                  <Button onClick={() => setShareModalOpen(true)} variant="outline" className="flex-1 h-10 rounded-xl text-sm">
+                    <Share2 className="w-4 h-4 mr-1" /> {txt.share}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Level Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: txt.level1, count: referral.stats?.level1?.count || 0, earned: referral.stats?.level1?.earned || 0, color: "from-blue-500/10 to-blue-500/5", textColor: "text-blue-600" },
+                { label: txt.level2, count: referral.stats?.level2?.count || 0, earned: referral.stats?.level2?.earned || 0, color: "from-purple-500/10 to-purple-500/5", textColor: "text-purple-600" },
+                { label: txt.level3, count: referral.stats?.level3?.count || 0, earned: referral.stats?.level3?.earned || 0, color: "from-orange-500/10 to-orange-500/5", textColor: "text-orange-600" }
+              ].map((level, i) => (
+                <Card key={i} className={`border-0 shadow-md bg-gradient-to-br ${level.color}`}>
+                  <CardContent className="p-3 text-center">
+                    <p className="text-xs text-muted-foreground">{level.label}</p>
+                    <p className={`text-2xl font-bold ${level.textColor}`}>{level.count}</p>
+                    <p className="text-xs text-muted-foreground">${level.earned.toFixed(2)} {txt.earned}</p>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            <Button
-              onClick={handleCheckIn}
-              disabled={checkedInToday}
-              className={`w-full ${checkedInToday 
-                ? "bg-emerald-500 hover:bg-emerald-500" 
-                : "bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
-              } text-white`}
-            >
-              {checkedInToday ? (
-                <><CheckCircle2 className="w-4 h-4 mr-2" /> {labels.checkedIn}</>
-              ) : (
-                labels.checkinNow
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+            {/* Quick Actions */}
+            <Card className="border-0 shadow-md">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-muted-foreground mb-3">{txt.quickActions}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button asChild variant="outline" className="h-12 rounded-xl">
+                    <a href={createPageUrl("Wallet")}><Wallet className="w-4 h-4 mr-2" /> {txt.viewWallet}</a>
+                  </Button>
+                  <Button onClick={() => setActiveTab("referrals")} className="h-12 rounded-xl">
+                    <Users className="w-4 h-4 mr-2" /> {txt.inviteFriends}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Milestones */}
-        <Card className="border-border shadow-xl">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-purple-500" />
-              {labels.milestones}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <p className="text-sm text-muted-foreground mb-6">{labels.milestonesDesc}</p>
-            
-            <div className="space-y-3">
-              {rewardMilestones.map((milestone) => {
-                const isClaimed = claimedMilestones.includes(milestone.id);
-                
-                return (
-                  <div
-                    key={milestone.id}
-                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                      isClaimed 
-                        ? "bg-emerald-500/5 border-emerald-500/30" 
-                        : "bg-card border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        isClaimed ? "bg-emerald-500/20" : "bg-primary/10"
-                      }`}>
-                        {isClaimed ? (
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                        ) : (
-                          <Star className="w-5 h-5 text-primary" />
+            {/* How it Works */}
+            <Card className="border-0 shadow-md">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium text-muted-foreground mb-3">{txt.howItWorks}</p>
+                <div className="space-y-2">
+                  {[
+                    { step: "1", text: txt.step1, color: "bg-blue-500" },
+                    { step: "2", text: txt.step2, color: "bg-purple-500" },
+                    { step: "3", text: txt.step3, color: "bg-emerald-500" }
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full ${item.color} flex items-center justify-center text-white text-xs font-bold`}>{item.step}</div>
+                      <p className="text-sm text-foreground flex-1">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 bg-muted/50 rounded-xl">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">{txt.earningsBreakdown}</p>
+                  <div className="space-y-1 text-xs text-foreground">
+                    <p>• {txt.l1Reward}</p>
+                    <p>• {txt.l2Reward}</p>
+                    <p>• {txt.l3Reward}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Referrals Tab */}
+          <TabsContent value="referrals" className="space-y-4">
+            {/* Referral Link Card */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/5 to-primary/10">
+              <CardContent className="p-4 sm:p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-2">{txt.yourLink}</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex-1 min-w-0 bg-background/80 rounded-xl px-4 py-3">
+                    <p className="font-mono text-sm text-foreground truncate" dir="ltr">{referral.link}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopy} className={`flex-1 h-11 rounded-xl ${copied ? "bg-emerald-500 hover:bg-emerald-600" : ""}`}>
+                    {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
+                    {copied ? txt.copied : txt.copy}
+                  </Button>
+                  <Button onClick={() => setShareModalOpen(true)} variant="outline" className="flex-1 h-11 rounded-xl border-2">
+                    <Share2 className="w-4 h-4 mr-2" /> {txt.share}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Level Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: txt.level1, count: referral.stats?.level1?.count || 0, earned: referral.stats?.level1?.earned || 0, reward: "$10", color: "from-blue-500/10 to-blue-500/5", textColor: "text-blue-600" },
+                { label: txt.level2, count: referral.stats?.level2?.count || 0, earned: referral.stats?.level2?.earned || 0, reward: "$2", color: "from-purple-500/10 to-purple-500/5", textColor: "text-purple-600" },
+                { label: txt.level3, count: referral.stats?.level3?.count || 0, earned: referral.stats?.level3?.earned || 0, reward: "$0.50", color: "from-orange-500/10 to-orange-500/5", textColor: "text-orange-600" }
+              ].map((level, i) => (
+                <Card key={i} className={`border-0 shadow-md bg-gradient-to-br ${level.color}`}>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">{level.label}</p>
+                    <p className={`text-3xl font-bold ${level.textColor}`}>{level.count}</p>
+                    <p className="text-xs text-muted-foreground mt-1">${level.earned.toFixed(2)} {txt.earned}</p>
+                    <Badge variant="outline" className="mt-2 text-[10px]">{level.reward}/referral</Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Referral List */}
+            <Card className="border-0 shadow-md">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" /> {txt.referralList}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                {referral.list?.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2">
+                      <Users className="w-5 h-5 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">{txt.noReferrals}</p>
+                    <p className="text-xs text-muted-foreground/70">{txt.noReferralsDesc}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {referral.list.map((ref, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white ${
+                            ref.level === 1 ? "bg-blue-500" : ref.level === 2 ? "bg-purple-500" : "bg-orange-500"
+                          }`}>L{ref.level}</div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{ref.email}</p>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="outline" className={`text-[10px] ${
+                                ref.status === "rewarded" ? "border-emerald-500 text-emerald-600" :
+                                ref.status === "deposited" ? "border-blue-500 text-blue-600" :
+                                ref.status === "kyc_approved" ? "border-purple-500 text-purple-600" :
+                                "border-muted-foreground/30 text-muted-foreground"
+                              }`}>
+                                {ref.status === "rewarded" ? txt.rewarded :
+                                 ref.status === "deposited" ? txt.deposited :
+                                 ref.status === "kyc_approved" ? txt.verified :
+                                 txt.registered}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        {ref.rewardAmount > 0 && (
+                          <span className="font-bold text-emerald-600">+${ref.rewardAmount}</span>
                         )}
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">{milestone.title[language]}</p>
-                        <p className="text-xs text-muted-foreground">{milestone.desc[language]}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={isClaimed ? "border-emerald-500 text-emerald-500" : ""}>
-                        +{milestone.points}
-                      </Badge>
-                      {isClaimed ? (
-                        <span className="text-xs text-emerald-500 font-medium">{labels.claimed}</span>
-                      ) : milestone.auto ? (
-                        <Button
-                          size="sm"
-                          onClick={() => claimMilestone(milestone.id, milestone.points)}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          {labels.claim}
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">{labels.locked}</span>
-                      )}
-                    </div>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Rewards Store Preview */}
-        <Card className="border-border shadow-xl overflow-hidden">
-          <CardContent className="p-0">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 sm:p-8 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl sm:text-2xl font-bold mb-2">{labels.rewardsStore}</h3>
-                  <p className="text-white/80 text-sm">{labels.redeemPoints}</p>
+          {/* Check-in Tab */}
+          <TabsContent value="checkin" className="space-y-4">
+            <Card className="border-0 shadow-xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-b border-border pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarCheck2 className="w-5 h-5 text-orange-500" />
+                  {txt.dailyCheckin}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <p className="text-sm text-muted-foreground mb-4">{txt.checkinDesc}</p>
+                
+                {/* Streak Display */}
+                <div className="flex items-center justify-center gap-2 mb-6 p-4 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 rounded-xl">
+                  <Flame className="w-6 h-6 text-orange-500" />
+                  <span className="text-2xl font-bold text-foreground">{checkin.streak}</span>
+                  <span className="text-muted-foreground">{txt.days} {txt.streak.toLowerCase()}</span>
                 </div>
-                <Badge className="bg-white/20 text-white border-0 px-4 py-2">
-                  {labels.comingSoon}
-                </Badge>
-              </div>
-              
-              <div className="mt-6 grid grid-cols-3 gap-4">
-                {[
-                  { name: language === "ar" ? "خصم رسوم" : "Fee Discount", points: 500 },
-                  { name: language === "ar" ? "مكافأة تداول" : "Trading Bonus", points: 1000 },
-                  { name: language === "ar" ? "NFT حصري" : "Exclusive NFT", points: 2500 },
-                ].map((item, i) => (
-                  <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
-                    <Gift className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-white/60">{item.points} pts</p>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-2 sm:gap-3 mb-6">
+                  {CHECKIN_POINTS.map((points, i) => {
+                    const isCompleted = i < checkin.streak && checkin.checkedInToday ? true : i < checkin.streak - 1;
+                    const isCurrent = i === Math.min(checkin.streak, 6) && !checkin.checkedInToday;
+                    const isToday = i === checkin.streak && checkin.checkedInToday;
+                    
+                    return (
+                      <div
+                        key={i}
+                        className={`relative flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl border-2 transition-all ${
+                          isCompleted || isToday ? "bg-emerald-500/10 border-emerald-500" :
+                          isCurrent ? "bg-orange-500/10 border-orange-500 animate-pulse" :
+                          "bg-muted/30 border-border"
+                        }`}
+                      >
+                        {i === 6 && (
+                          <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-[8px] px-1.5 py-0.5">
+                            {txt.bonus}
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">{txt.day} {i + 1}</span>
+                        <span className={`text-sm sm:text-base font-bold ${
+                          isCompleted || isToday ? "text-emerald-500" : isCurrent ? "text-orange-500" : "text-foreground"
+                        }`}>+{points}</span>
+                        {(isCompleted || isToday) && <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-1" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  onClick={handleCheckin}
+                  disabled={checkin.checkedInToday || checkinLoading}
+                  className={`w-full h-12 ${checkin.checkedInToday 
+                    ? "bg-emerald-500 hover:bg-emerald-500" 
+                    : "bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+                  } text-white rounded-xl`}
+                >
+                  {checkinLoading ? (
+                    <span className="animate-pulse">...</span>
+                  ) : checkin.checkedInToday ? (
+                    <><CheckCircle2 className="w-4 h-4 mr-2" /> {txt.checkedIn}</>
+                  ) : (
+                    <>{txt.checkinNow} (+{checkin.nextPoints} pts)</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Milestones Tab */}
+          <TabsContent value="milestones" className="space-y-4">
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-purple-500" />
+                  {txt.milestonesTitle}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <p className="text-sm text-muted-foreground mb-6">{txt.milestonesDesc}</p>
+                
+                <div className="space-y-3">
+                  {MILESTONES.map((milestone) => {
+                    const isClaimed = milestones.claimed?.includes(milestone.id);
+                    
+                    return (
+                      <div
+                        key={milestone.id}
+                        className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                          isClaimed 
+                            ? "bg-emerald-500/5 border-emerald-500/30" 
+                            : "bg-card border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            isClaimed ? "bg-emerald-500/20" : "bg-primary/10"
+                          }`}>
+                            {isClaimed ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            ) : (
+                              <Target className="w-5 h-5 text-primary" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{milestone.title[language]}</p>
+                            <p className="text-xs text-muted-foreground">{milestone.desc[language]}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className={isClaimed ? "border-emerald-500 text-emerald-500" : ""}>
+                            +{milestone.points}
+                          </Badge>
+                          {isClaimed ? (
+                            <span className="text-xs text-emerald-500 font-medium">{txt.claimed}</span>
+                          ) : milestone.auto ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleClaimMilestone(milestone.id, milestone.points)}
+                              disabled={claimingMilestone === milestone.id}
+                              className="bg-primary hover:bg-primary/90"
+                            >
+                              {claimingMilestone === milestone.id ? "..." : txt.claim}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{txt.locked}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-4">
+            <Card className="border-0 shadow-xl">
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-blue-500" />
+                  {txt.rewardHistory}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                {recentRewards.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                      <Gift className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">{txt.noHistory}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {recentRewards.map((reward, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            reward.type.startsWith("referral") ? "bg-emerald-500/10" :
+                            reward.type === "checkin" ? "bg-orange-500/10" :
+                            reward.type === "milestone" ? "bg-purple-500/10" :
+                            "bg-blue-500/10"
+                          }`}>
+                            {reward.type.startsWith("referral") ? <Users className="w-5 h-5 text-emerald-600" /> :
+                             reward.type === "checkin" ? <CalendarCheck2 className="w-5 h-5 text-orange-600" /> :
+                             reward.type === "milestone" ? <Trophy className="w-5 h-5 text-purple-600" /> :
+                             <Gift className="w-5 h-5 text-blue-600" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {reward.type === "referral_l1" ? "Level 1 Referral" :
+                               reward.type === "referral_l2" ? "Level 2 Referral" :
+                               reward.type === "referral_l3" ? "Level 3 Referral" :
+                               reward.type === "checkin" ? "Daily Check-in" :
+                               reward.type === "milestone" ? `Milestone: ${reward.subtype}` :
+                               reward.description || reward.type}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(reward.created_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {reward.amount > 0 && (
+                            <span className="font-bold text-emerald-600 block">+${reward.amount}</span>
+                          )}
+                          {reward.points > 0 && (
+                            <span className="text-xs text-yellow-600">+{reward.points} pts</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        link={referral.link}
+        language={language}
+      />
     </div>
   );
 }
 
 Rewards.propTypes = {
-  language: PropTypes.oneOf(["en", "ar"]),
+  language: PropTypes.oneOf(["en", "ar"])
 };
