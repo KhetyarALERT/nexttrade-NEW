@@ -623,13 +623,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Rewards")}>
                         <Gift className="h-4 w-4" />
-                        {language === "ar" ? "الصفحة الرئيسية للمكافآت" : "Rewards Hub"}
+                        {language === "ar" ? "مركز المكافآت" : "Rewards Hub"}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=referrals"}>
+                      <Link to={createPageUrl("Rewards") + "?tab=referrals"}>
                         <Users className="h-4 w-4" />
-                        {language === "ar" ? "دعوة واربح" : "Invite to Earn"}
+                        {language === "ar" ? "دعوة واربح" : "Invite & Earn"}
                       </Link>
                     </DropdownMenuItem>
 
