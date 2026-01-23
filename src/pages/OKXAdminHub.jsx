@@ -1080,6 +1080,8 @@ export default function OKXAdminHub({ language = 'en' }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [accountRequests, setAccountRequests] = useState([]);
   const [verifications, setVerifications] = useState([]);
+  const [stakingRequests, setStakingRequests] = useState([]);
+  const [stakingStats, setStakingStats] = useState({});
   
   // Dialog states
   const [addPoolDialogOpen, setAddPoolDialogOpen] = useState(false);
