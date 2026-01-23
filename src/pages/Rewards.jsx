@@ -160,6 +160,8 @@ export default function Rewards({ language = "en" }) {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [missions, setMissions] = useState([]);
+  const [missionsLoading, setMissionsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
