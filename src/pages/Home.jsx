@@ -26,11 +26,15 @@ import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { useAuth } from "@/lib/AuthContext";
+import { useReferralCapture } from "@/components/hooks/useReferralCapture";
 
 export default function Home({ language = "en" }) {
   const shouldReduceMotion = useReducedMotion();
-  const { isAuthenticated, navigateToLogin } = useAuth();
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const { nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated });
+  
+  // Capture referral code from URL and finalize after auth
+  useReferralCapture({ isAuthenticated, isLoadingAuth });
   
   const content = {
     en: {
