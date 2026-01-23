@@ -428,8 +428,11 @@ Deno.serve(async (req) => {
     if (action === 'listTransfers') {
       const trs = await base44.asServiceRole.entities.ExchangeTransfer.filter({ provider: 'OKX' }, '-created_date', params.limit || 50);
       return Response.json({ ok: true, data: (trs || []).map(t => ({
-        id: t.id, userId: t.user_id, fromAccount: t.from_account, toAccount: t.to_account,
-        currency: t.currency, amount: t.amount, status: t.status, createdAt: t.created_at || t.created_date,
+        id: t.id, userId: t.user_id, fromAccount: t.from_account, fromAccountType: t.from_account_type,
+        toAccount: t.to_account, toAccountType: t.to_account_type,
+        currency: t.currency, amount: t.amount, status: t.status, 
+        externalTransferId: t.external_transfer_id, errorMessage: t.error_message,
+        createdAt: t.created_at || t.created_date, completedAt: t.completed_at,
       })) });
     }
 
