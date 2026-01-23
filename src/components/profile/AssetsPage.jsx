@@ -39,6 +39,7 @@ import { base44 } from "@/api/base44Client";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import SpotWalletView from "@/components/profile/SpotWalletView";
 import FuturesWalletView from "@/components/profile/FuturesWalletView";
+import OKXTransferModal from "@/components/profile/OKXTransferModal";
 
 const NETWORK_CONFIG = {
   TRC20: { name: "Tron (TRC20)", fee: "1 USDT", time: "~1 min" },
