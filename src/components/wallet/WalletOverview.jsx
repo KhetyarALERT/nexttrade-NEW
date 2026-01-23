@@ -72,11 +72,12 @@ export default function WalletOverview({
   onRefresh
 }) {
   const t = translations[language] || translations.en;
+  const [assetView, setAssetView] = useState("total"); // total | funding | trading
 
   const formatBalance = (val) => {
     if (!showBalances) return "****";
     if (val === null || val === undefined) return "0.00";
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   };
 
   const formatUSD = (val) => {
@@ -93,6 +94,45 @@ export default function WalletOverview({
   // OKX balances
   const tradingBalance = okxBalances?.tradingUsdt || 0;
   const fundingOkx = okxBalances?.fundingUsdt || 0;
+  
+  // perCcy from OKX (contains funding + trading per currency)
+  const perCcy = okxBalances?.perCcy || {};
+  
+  // Build unified asset list from perCcy
+  const buildAssetList = () => {
+    const assets = [];
+    
+    // Add all currencies from perCcy
+    for (const [ccy, data] of Object.entries(perCcy)) {
+      let displayBalance = 0;
+      if (assetView === "total") displayBalance = data.total || 0;
+      else if (assetView === "funding") displayBalance = data.funding || 0;
+      else if (assetView === "trading") displayBalance = data.trading || 0;
+      
+      // Only show if there's a balance in the selected view
+      if (displayBalance > 0 || (assetView === "total" && (data.funding > 0 || data.trading > 0))) {
+        assets.push({
+          currency: ccy,
+          balance: displayBalance,
+          funding: data.funding || 0,
+          trading: data.trading || 0,
+          total: data.total || 0,
+          // Estimate USD value (rough for non-stablecoins)
+          usdValue: ccy === "USDT" || ccy === "USDC" ? displayBalance :
+                    ccy === "BTC" ? displayBalance * 95000 :
+                    ccy === "ETH" ? displayBalance * 3400 :
+                    ccy === "SOL" ? displayBalance * 180 :
+                    displayBalance
+        });
+      }
+    }
+    
+    // Sort by USD value descending
+    assets.sort((a, b) => b.usdValue - a.usdValue);
+    return assets;
+  };
+  
+  const assetList = buildAssetList();
 
   return (
     <div className="space-y-6">
