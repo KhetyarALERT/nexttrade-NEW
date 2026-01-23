@@ -1,126 +1,153 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { RefreshCw, Lock, TrendingUp, Shield, Clock, Sparkles, CheckCircle2, Zap, Gift, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
-import CryptoIcon from "@/components/ui/CryptoIcon";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  Lock, Clock, ChevronRight, Info, CheckCircle2, 
+  AlertCircle, Loader2, RefreshCw, Gift, X, Sparkles
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 
 const t = {
   en: {
-    title: "Earn & Invest",
-    subtitle: "Put your crypto to work with industry-leading APY rates",
+    title: "Staking",
+    subtitle: "Lock USDT for a fixed period. Earn APY + Bonus Rewards.",
+    infoStrip: "Approval required → Funds lock immediately → Position activates after approval",
     totalStaked: "Total Staked",
-    totalEarned: "Est. Earned",
+    estEarned: "Est. Earned",
     activePositions: "Active Positions",
     avgApy: "Avg. APY",
-    choosePlan: "Choose Your Plan",
-    planSubtitle: "Lock your USDT and earn daily rewards",
-    minDeposit: "Min. deposit",
-    lockPeriod: "Lock period",
-    selectPlan: "Select Plan",
-    popular: "Most Popular",
-    comingSoon: "Coming Soon",
-    howItWorks: "How It Works",
-    step1Title: "Deposit",
-    step1Desc: "Transfer USDT to your trading account",
-    step2Title: "Stake",
-    step2Desc: "Select your preferred staking duration",
-    step3Title: "Earn",
-    step3Desc: "Watch your balance grow daily",
-    whyStake: "Why Stake with NextTrade?",
-    benefit1: "Institutional-grade security",
-    benefit2: "Daily reward distribution",
-    benefit3: "No hidden fees",
-    benefit4: "24/7 customer support",
-    myPositions: "My Staking Positions",
-    refresh: "Refresh",
-    noPositions: "No staking positions yet",
-    stakeNow: "Stake Now",
-    amount: "Amount (USDT)",
-    confirm: "Confirm Stake",
-    cancel: "Cancel",
-    processing: "Processing...",
-    minAmount: "Minimum",
-    pendingApproval: "Pending Approval",
-    active: "Active",
-    rejected: "Rejected",
-    completed: "Completed",
-    cancelled: "Cancelled",
+    choosePlan: "Choose a Plan",
+    recommended: "Recommended",
+    disabled: "Unavailable",
+    minDeposit: "Min",
+    lockPeriod: "Lock",
     days: "days",
+    perks: "Perks while active",
+    viewAllPerks: "View all perks",
+    bonusRewards: "Bonus Rewards",
+    bonusTooltip: "Bonus Rewards unlock perks automatically. No action required.",
+    step2Title: "Enter Amount",
+    availableBalance: "Available",
+    amountLabel: "Stake Amount (USDT)",
+    youWillGet: "Summary",
+    lockPeriodLabel: "Lock Period",
+    unlockDate: "Est. Unlock Date",
+    apyLabel: "APY",
+    rewardsLabel: "Bonus Rewards",
+    firstStakeBonus: "First stake bonus available",
+    firstStakeBonusInfo: "+50% bonus on first stake (min $100, 60+ days)",
+    statusAfterSubmit: "Status after submit",
+    pendingApproval: "Pending Approval",
+    stakeNow: "Stake Now",
+    back: "Back",
+    processing: "Processing...",
+    myPositions: "My Positions",
+    all: "All",
+    pending: "Pending",
+    active: "Active",
+    completed: "Completed",
+    rejected: "Rejected",
+    noPositions: "No positions yet",
+    cancelRequest: "Cancel",
+    waitingApproval: "Waiting for approval",
     endsIn: "Ends in",
-    estEarned: "Est. Earned",
-    loginRequired: "Login to start earning",
-    noTradingAccount: "Activate your trading account to start staking",
-    stakeSuccess: "Stake request submitted! Awaiting approval.",
+    howItWorks: "How it works",
+    step1: "Choose plan + amount",
+    step2: "Funds lock (Trading → Funding)",
+    step3: "After approval, stake becomes Active",
+    disclaimer: "Rewards are estimates until distribution is implemented.",
+    loginRequired: "Login to start staking",
+    noTradingAccount: "Activate your trading account first",
+    stakeSuccess: "Stake request submitted",
     stakeFailed: "Staking failed",
     insufficientBalance: "Insufficient balance",
+    refresh: "Refresh",
+    created: "Created",
+    amount: "Amount",
+    term: "Term",
+    status: "Status",
+    rewards: "Rewards",
   },
   ar: {
-    title: "الكسب والاستثمار",
-    subtitle: "ضع عملاتك الرقمية في العمل مع أفضل معدلات APY في الصناعة",
-    totalStaked: "إجمالي المودع",
-    totalEarned: "المكتسب التقديري",
+    title: "الستيكنج",
+    subtitle: "اقفل USDT لفترة محددة. اربح APY + مكافآت إضافية.",
+    infoStrip: "مطلوب موافقة ← الأموال تُقفل فوراً ← المركز يُفعّل بعد الموافقة",
+    totalStaked: "إجمالي المستثمر",
+    estEarned: "المكتسب التقديري",
     activePositions: "المراكز النشطة",
     avgApy: "متوسط APY",
-    choosePlan: "اختر خطتك",
-    planSubtitle: "اقفل USDT الخاص بك واربح مكافآت يومية",
-    minDeposit: "الحد الأدنى للإيداع",
-    lockPeriod: "فترة القفل",
-    selectPlan: "اختر الخطة",
-    popular: "الأكثر شعبية",
-    comingSoon: "قريباً",
-    howItWorks: "كيف يعمل",
-    step1Title: "إيداع",
-    step1Desc: "حول USDT إلى حساب التداول",
-    step2Title: "استثمر",
-    step2Desc: "حدد مدة الستيكنج المفضلة",
-    step3Title: "اربح",
-    step3Desc: "شاهد رصيدك ينمو يوميًا",
-    whyStake: "لماذا الستيكنج مع NextTrade؟",
-    benefit1: "أمان بمستوى مؤسسي",
-    benefit2: "توزيع المكافآت يوميًا",
-    benefit3: "بدون رسوم خفية",
-    benefit4: "دعم عملاء على مدار الساعة",
-    myPositions: "مراكز الستيكنج الخاصة بي",
-    refresh: "تحديث",
-    noPositions: "لا توجد مراكز استثمار بعد",
-    stakeNow: "استثمر الآن",
-    amount: "المبلغ (USDT)",
-    confirm: "تأكيد الاستثمار",
-    cancel: "إلغاء",
-    processing: "جارٍ المعالجة...",
-    minAmount: "الحد الأدنى",
-    pendingApproval: "بانتظار الموافقة",
-    active: "نشط",
-    rejected: "مرفوض",
-    completed: "مكتمل",
-    cancelled: "ملغي",
+    choosePlan: "اختر خطة",
+    recommended: "موصى به",
+    disabled: "غير متاح",
+    minDeposit: "الحد الأدنى",
+    lockPeriod: "القفل",
     days: "يوم",
+    perks: "المزايا أثناء النشاط",
+    viewAllPerks: "عرض كل المزايا",
+    bonusRewards: "المكافآت الإضافية",
+    bonusTooltip: "المكافآت الإضافية تفتح المزايا تلقائياً. لا حاجة لأي إجراء.",
+    step2Title: "أدخل المبلغ",
+    availableBalance: "المتاح",
+    amountLabel: "مبلغ الستيكنج (USDT)",
+    youWillGet: "الملخص",
+    lockPeriodLabel: "فترة القفل",
+    unlockDate: "تاريخ الفتح المتوقع",
+    apyLabel: "APY",
+    rewardsLabel: "المكافآت الإضافية",
+    firstStakeBonus: "مكافأة الستيك الأول متاحة",
+    firstStakeBonusInfo: "+50% مكافأة على أول استثمار (حد أدنى $100، 60+ يوم)",
+    statusAfterSubmit: "الحالة بعد الإرسال",
+    pendingApproval: "بانتظار الموافقة",
+    stakeNow: "استثمر الآن",
+    back: "رجوع",
+    processing: "جارٍ المعالجة...",
+    myPositions: "مراكزي",
+    all: "الكل",
+    pending: "قيد الانتظار",
+    active: "نشط",
+    completed: "مكتمل",
+    rejected: "مرفوض",
+    noPositions: "لا توجد مراكز بعد",
+    cancelRequest: "إلغاء",
+    waitingApproval: "بانتظار الموافقة",
     endsIn: "ينتهي في",
-    estEarned: "المكتسب التقديري",
-    loginRequired: "سجل الدخول لبدء الكسب",
-    noTradingAccount: "فعّل حساب التداول لبدء الاستثمار",
-    stakeSuccess: "تم تقديم طلب الاستثمار! بانتظار الموافقة.",
-    stakeFailed: "فشل الاستثمار",
+    howItWorks: "كيف يعمل",
+    step1: "اختر الخطة + المبلغ",
+    step2: "الأموال تُقفل (التداول ← التمويل)",
+    step3: "بعد الموافقة، يصبح المركز نشطاً",
+    disclaimer: "المكافآت تقديرية حتى يتم تطبيق التوزيع.",
+    loginRequired: "سجل الدخول لبدء الستيكنج",
+    noTradingAccount: "فعّل حساب التداول أولاً",
+    stakeSuccess: "تم تقديم طلب الستيكنج",
+    stakeFailed: "فشل الستيكنج",
     insufficientBalance: "رصيد غير كافي",
+    refresh: "تحديث",
+    created: "تاريخ الإنشاء",
+    amount: "المبلغ",
+    term: "المدة",
+    status: "الحالة",
+    rewards: "المكافآت",
   },
 };
 
-const statusColors = {
-  PENDING_LOCK: "bg-yellow-500/10 text-yellow-500",
-  PENDING_APPROVAL: "bg-orange-500/10 text-orange-500",
-  ACTIVE: "bg-green-500/10 text-green-500",
-  REJECTED: "bg-red-500/10 text-red-500",
-  CANCELLED: "bg-gray-500/10 text-gray-500",
-  COMPLETED: "bg-blue-500/10 text-blue-500",
+const STATUS_COLORS = {
+  PENDING_LOCK: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  PENDING_APPROVAL: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  ACTIVE: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+  REJECTED: "bg-red-500/10 text-red-600 border-red-500/30",
+  CANCELLED: "bg-muted text-muted-foreground border-border",
+  COMPLETED: "bg-blue-500/10 text-blue-600 border-blue-500/30",
+  UNLOCKING: "bg-purple-500/10 text-purple-600 border-purple-500/30",
 };
 
 function formatUsdt(val) {
@@ -135,34 +162,389 @@ function formatDaysRemaining(endsAt) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export default function Investing({ language = "en" }) {
-  const labels = t[language];
-  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+    const listener = (e) => setMatches(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [query]);
+  return matches;
+}
+
+// Plan Card Component
+function PlanCard({ plan, isSelected, onSelect, labels, isEligibleFirstStake }) {
+  const perksToShow = (plan.perks || []).slice(0, 2);
+  const hasMorePerks = (plan.perks || []).length > 2;
+
+  return (
+    <Card
+      className={`relative cursor-pointer transition-all duration-200 hover:shadow-lg ${
+        isSelected
+          ? "ring-2 ring-primary border-primary shadow-lg"
+          : plan.isEnabled
+          ? "hover:border-primary/50"
+          : "opacity-50 cursor-not-allowed"
+      }`}
+      onClick={() => plan.isEnabled && onSelect(plan)}
+    >
+      {plan.isRecommended && (
+        <div className="absolute -top-2.5 left-4 px-2 py-0.5 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+          {labels.recommended}
+        </div>
+      )}
+      {!plan.isEnabled && (
+        <div className="absolute -top-2.5 left-4 px-2 py-0.5 bg-muted text-muted-foreground text-xs font-medium rounded-full">
+          {labels.disabled}
+        </div>
+      )}
+
+      <CardContent className="p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-foreground">{plan.title}</h3>
+            <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary">{plan.apyPercent}%</div>
+            <p className="text-xs text-muted-foreground">APY</p>
+          </div>
+        </div>
+
+        {/* Min deposit */}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{labels.minDeposit}</span>
+          <span className="font-medium">${plan.minDeposit}</span>
+        </div>
+
+        {/* Bonus Rewards */}
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1">
+            <Gift className="w-3.5 h-3.5 text-primary" />
+            <span className="text-muted-foreground">{labels.bonusRewards}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[200px] text-xs">
+                  {labels.bonusTooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <span className="font-medium">+{plan.baseRewardsPerDollar}/$ staked</span>
+        </div>
+
+        {/* First stake badge */}
+        {isEligibleFirstStake && plan.termDays >= 60 && (
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span className="text-xs text-amber-700 dark:text-amber-400">{labels.firstStakeBonus}</span>
+          </div>
+        )}
+
+        {/* Perks */}
+        {perksToShow.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-1.5">{labels.perks}</p>
+            <div className="space-y-1">
+              {perksToShow.map((perk, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-xs text-foreground">
+                  <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                  <span>{perk}</span>
+                </div>
+              ))}
+              {hasMorePerks && (
+                <p className="text-xs text-primary cursor-pointer hover:underline">
+                  {labels.viewAllPerks} →
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Amount Entry Panel Component
+function AmountEntryPanel({ 
+  plan, 
+  amount, 
+  setAmount, 
+  availableBalance, 
+  onStake, 
+  onBack, 
+  processing, 
+  labels, 
+  isEligibleFirstStake,
+  stakingConfig,
+  language
+}) {
+  if (!plan) return null;
+
+  const amountNum = parseFloat(amount) || 0;
+  const isValidAmount = amountNum >= plan.minDeposit && amountNum <= availableBalance;
+
+  // Calculate bonus rewards
+  let baseRewards = amountNum * (plan.baseRewardsPerDollar || 0);
+  let firstStakeBonus = 0;
   
+  if (isEligibleFirstStake && plan.termDays >= (stakingConfig?.first_stake_min_term_days || 60)) {
+    const eligibleAmount = Math.min(amountNum, stakingConfig?.first_stake_cap_principal || 300);
+    const bonusMultiplier = (stakingConfig?.first_stake_bonus_multiplier || 1.5) - 1;
+    firstStakeBonus = eligibleAmount * (plan.baseRewardsPerDollar || 0) * bonusMultiplier;
+  }
+  
+  const totalRewards = Math.round(baseRewards + firstStakeBonus);
+
+  // Estimated unlock date (approval + term)
+  const estUnlockDate = new Date();
+  estUnlockDate.setDate(estUnlockDate.getDate() + plan.termDays + 1); // +1 for approval delay
+
+  const presets = [50, 100, 250, 500];
+
+  return (
+    <div className="space-y-4">
+      {/* Plan Summary */}
+      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+        <div>
+          <p className="font-medium text-foreground">{plan.title}</p>
+          <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days} • {plan.apyPercent}% APY</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onBack} className="text-xs">
+          Change
+        </Button>
+      </div>
+
+      {/* Available Balance */}
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">{labels.availableBalance}</span>
+        <span className="font-mono font-medium">{formatUsdt(availableBalance)} USDT</span>
+      </div>
+
+      {/* Amount Input */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium">{labels.amountLabel}</label>
+        <div className="relative">
+          <Input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={String(plan.minDeposit)}
+            min={plan.minDeposit}
+            max={availableBalance}
+            className="pr-16 text-lg font-mono"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">USDT</span>
+        </div>
+        
+        {/* Preset chips */}
+        <div className="flex gap-2 flex-wrap">
+          {presets.map((preset) => (
+            <Button
+              key={preset}
+              variant={parseFloat(amount) === preset ? "default" : "outline"}
+              size="sm"
+              onClick={() => setAmount(String(preset))}
+              className="text-xs"
+              disabled={preset > availableBalance}
+            >
+              ${preset}
+            </Button>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAmount(String(Math.floor(availableBalance)))}
+            className="text-xs"
+            disabled={availableBalance < plan.minDeposit}
+          >
+            Max
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Box */}
+      {amountNum > 0 && (
+        <div className="p-3 border border-border rounded-lg space-y-2 bg-card">
+          <p className="text-sm font-medium text-foreground">{labels.youWillGet}</p>
+          
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{labels.lockPeriodLabel}</span>
+              <span className="font-medium">{plan.termDays} {labels.days}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{labels.unlockDate}</span>
+              <span className="font-medium">{formatDate(estUnlockDate)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{labels.apyLabel}</span>
+              <span className="font-medium text-primary">{plan.apyPercent}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">{labels.rewardsLabel}</span>
+              <div className="text-right">
+                <span className="font-medium text-primary">+{totalRewards}</span>
+                {firstStakeBonus > 0 && (
+                  <span className="ml-1 text-xs text-amber-600">(incl. +{Math.round(firstStakeBonus)} bonus)</span>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between pt-2 border-t border-border">
+              <span className="text-muted-foreground">{labels.statusAfterSubmit}</span>
+              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                {labels.pendingApproval}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* First stake promo */}
+      {isEligibleFirstStake && plan.termDays >= 60 && amountNum >= 100 && (
+        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">{labels.firstStakeBonusInfo}</p>
+          </div>
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="flex gap-2 pt-2">
+        <Button variant="outline" onClick={onBack} className="flex-1" disabled={processing}>
+          {labels.back}
+        </Button>
+        <Button 
+          onClick={onStake} 
+          disabled={processing || !isValidAmount}
+          className="flex-1"
+        >
+          {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          {processing ? labels.processing : labels.stakeNow}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Position Row Component
+function PositionRow({ position, labels, onCancel }) {
+  const daysRemaining = formatDaysRemaining(position.endsAt);
+  const progressPercent = position.status === "ACTIVE" && position.termDays > 0
+    ? Math.min(100, Math.max(0, ((position.termDays - (daysRemaining || 0)) / position.termDays) * 100))
+    : 0;
+
+  return (
+    <div className="p-3 border border-border rounded-lg bg-card space-y-2">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono font-semibold">{formatUsdt(position.principal)} USDT</span>
+            <Badge className={`text-xs ${STATUS_COLORS[position.status] || ""}`}>
+              {position.status}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {position.planKey} • {position.apyPercent}% APY • {position.termDays}d
+          </p>
+        </div>
+        
+        {position.status === "PENDING_APPROVAL" && onCancel && (
+          <Button variant="ghost" size="sm" onClick={() => onCancel(position.id)} className="text-xs text-muted-foreground h-7">
+            {labels.cancelRequest}
+          </Button>
+        )}
+      </div>
+
+      {position.status === "ACTIVE" && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{labels.endsIn}: {daysRemaining} {labels.days}</span>
+            <span className="text-primary font-medium">+${formatUsdt(position.estimatedEarned)} est.</span>
+          </div>
+          <Progress value={progressPercent} className="h-1.5" />
+        </div>
+      )}
+
+      {position.status === "PENDING_APPROVAL" && (
+        <div className="flex items-center gap-1.5 text-xs text-amber-600">
+          <Clock className="w-3 h-3" />
+          <span>{labels.waitingApproval}</span>
+        </div>
+      )}
+
+      {position.status === "REJECTED" && position.rejectReason && (
+        <p className="text-xs text-red-600">{position.rejectReason}</p>
+      )}
+
+      {position.rewardsGranted > 0 && (
+        <div className="flex items-center gap-1.5 text-xs text-primary">
+          <Gift className="w-3 h-3" />
+          <span>+{position.rewardsGranted} {labels.rewards}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Investing({ language = "en" }) {
+  const labels = t[language] || t.en;
+  const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  const positionsRef = useRef(null);
+
   const [plans, setPlans] = useState([]);
+  const [stakingConfig, setStakingConfig] = useState(null);
   const [summary, setSummary] = useState({ totalStaked: 0, estimatedEarned: 0, activePositions: 0, avgApy: 0 });
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasOkxAccount, setHasOkxAccount] = useState(false);
-  
-  // Stake dialog
-  const [stakeDialogOpen, setStakeDialogOpen] = useState(false);
+  const [tradingBalance, setTradingBalance] = useState(0);
+  const [isEligibleFirstStake, setIsEligibleFirstStake] = useState(false);
+
+  // Wizard state
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [stakeAmount, setStakeAmount] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [tradingBalance, setTradingBalance] = useState(0);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Positions filter
+  const [positionsFilter, setPositionsFilter] = useState("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load plans (public)
-      const plansRes = await base44.functions.invoke("stakingUser", { action: "getPlans" });
+      // Load plans and config (public)
+      const [plansRes, configRes] = await Promise.all([
+        base44.functions.invoke("stakingUser", { action: "getPlans" }),
+        base44.entities.StakingConfig.filter({ config_key: "default" }),
+      ]);
+
       if (plansRes.data?.ok) {
-        setPlans(plansRes.data.data || []);
+        setPlans((plansRes.data.data || []).map(p => ({
+          ...p,
+          isEnabled: p.isEnabled !== false,
+          isRecommended: p.isRecommended || false,
+        })));
+      }
+      
+      if (configRes?.length) {
+        setStakingConfig(configRes[0]);
       }
 
       if (isAuthenticated) {
-        // Load user data
         const [summaryRes, positionsRes, okxRes] = await Promise.all([
           base44.functions.invoke("stakingUser", { action: "getSummary" }),
           base44.functions.invoke("stakingUser", { action: "getPositions" }),
@@ -172,16 +554,26 @@ export default function Investing({ language = "en" }) {
         if (summaryRes.data?.ok) {
           setSummary(summaryRes.data.data || { totalStaked: 0, estimatedEarned: 0, activePositions: 0, avgApy: 0 });
         }
+        
         if (positionsRes.data?.ok) {
-          setPositions(positionsRes.data.data || []);
+          const pos = (positionsRes.data.data || []).map(p => ({
+            ...p,
+            rewardsGranted: p.rewardsGranted || 0,
+          }));
+          setPositions(pos);
+          
+          // Check first stake eligibility: no ACTIVE or COMPLETED positions
+          const hasCompletedStake = pos.some(p => p.status === "ACTIVE" || p.status === "COMPLETED");
+          setIsEligibleFirstStake(!hasCompletedStake);
         }
+        
         if (okxRes.data?.ok && okxRes.data.data?.hasAccount) {
           setHasOkxAccount(true);
           setTradingBalance(okxRes.data.data.balances?.tradingUsdt || 0);
         }
       }
     } catch (err) {
-      console.error("Failed to load investing data:", err);
+      console.error("Failed to load staking data:", err);
     } finally {
       setLoading(false);
     }
@@ -205,15 +597,17 @@ export default function Investing({ language = "en" }) {
     }
     setSelectedPlan(plan);
     setStakeAmount("");
-    setStakeDialogOpen(true);
+    if (isMobile) {
+      setSheetOpen(true);
+    }
   };
 
   const handleStake = async () => {
     if (!selectedPlan || !stakeAmount) return;
-    
+
     const amount = parseFloat(stakeAmount);
     if (amount < selectedPlan.minDeposit) {
-      toast.error(`${labels.minAmount}: ${selectedPlan.minDeposit} USDT`);
+      toast.error(`${labels.minDeposit}: $${selectedPlan.minDeposit}`);
       return;
     }
     if (amount > tradingBalance) {
@@ -231,10 +625,16 @@ export default function Investing({ language = "en" }) {
 
       if (res.data?.ok) {
         toast.success(labels.stakeSuccess);
-        setStakeDialogOpen(false);
+        setSheetOpen(false);
         setSelectedPlan(null);
         setStakeAmount("");
-        loadData();
+        await loadData();
+        
+        // Scroll to positions
+        setTimeout(() => {
+          positionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          setPositionsFilter("pending");
+        }, 300);
       } else {
         toast.error(res.data?.error?.message || labels.stakeFailed);
       }
@@ -245,342 +645,199 @@ export default function Investing({ language = "en" }) {
     }
   };
 
-  const getStatusLabel = (status) => {
-    const map = {
-      PENDING_LOCK: labels.pendingApproval,
-      PENDING_APPROVAL: labels.pendingApproval,
-      ACTIVE: labels.active,
-      REJECTED: labels.rejected,
-      COMPLETED: labels.completed,
-      CANCELLED: labels.cancelled,
-    };
-    return map[status] || status;
+  const handleCancelPosition = async (positionId) => {
+    try {
+      const res = await base44.functions.invoke("stakingUser", {
+        action: "cancelStakeRequest",
+        positionId
+      });
+      if (res.data?.ok) {
+        toast.success("Request cancelled");
+        loadData();
+      } else {
+        toast.error(res.data?.error?.message || "Failed to cancel");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
+  const filteredPositions = positions.filter(p => {
+    if (positionsFilter === "all") return true;
+    if (positionsFilter === "pending") return p.status === "PENDING_APPROVAL" || p.status === "PENDING_LOCK";
+    if (positionsFilter === "active") return p.status === "ACTIVE";
+    if (positionsFilter === "completed") return p.status === "COMPLETED";
+    if (positionsFilter === "rejected") return p.status === "REJECTED" || p.status === "CANCELLED";
+    return true;
+  });
+
+  const AmountPanel = (
+    <AmountEntryPanel
+      plan={selectedPlan}
+      amount={stakeAmount}
+      setAmount={setStakeAmount}
+      availableBalance={tradingBalance}
+      onStake={handleStake}
+      onBack={() => { setSelectedPlan(null); setSheetOpen(false); }}
+      processing={processing}
+      labels={labels}
+      isEligibleFirstStake={isEligibleFirstStake}
+      stakingConfig={stakingConfig}
+      language={language}
+    />
+  );
+
   return (
-    <div className="min-h-screen bg-background text-foreground" dir={language === "ar" ? "rtl" : "ltr"}>
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 pt-8 pb-16">
-        <div className="absolute inset-0 bg-grid-white/[0.02] [mask-image:linear-gradient(0deg,transparent,white)]" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <Badge className="mb-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-4 py-1.5">
-              <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
-              {language === "en" ? "Up to 18.5% APY" : "حتى 18.5% APY"}
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-              {labels.title}
-            </h1>
-            <p className="text-lg text-white/60 max-w-2xl mx-auto">
-              {labels.subtitle}
-            </p>
-          </motion.div>
+    <div className="min-h-screen bg-background" dir={language === "ar" ? "rtl" : "ltr"}>
+      {/* Header */}
+      <div className="bg-card border-b border-border">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold text-foreground">{labels.title}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{labels.subtitle}</p>
+          
+          {/* Info strip */}
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+            <Info className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{labels.infoStrip}</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+        {/* Summary Cards */}
+        {isAuthenticated && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: labels.totalStaked, value: `$${formatUsdt(summary.totalStaked)}`, icon: Lock, gradient: "from-blue-500 to-cyan-500" },
-              { label: labels.totalEarned, value: `$${formatUsdt(summary.estimatedEarned)}`, icon: TrendingUp, gradient: "from-emerald-500 to-teal-500" },
-              { label: labels.activePositions, value: summary.activePositions, icon: Sparkles, gradient: "from-purple-500 to-pink-500" },
-              { label: labels.avgApy, value: `${summary.avgApy.toFixed(1)}%`, icon: Zap, gradient: "from-orange-500 to-red-500" },
+              { label: labels.totalStaked, value: `$${formatUsdt(summary.totalStaked)}`, icon: Lock },
+              { label: labels.estEarned, value: `$${formatUsdt(summary.estimatedEarned)}`, icon: Gift },
+              { label: labels.activePositions, value: summary.activePositions, icon: CheckCircle2 },
+              { label: labels.avgApy, value: `${summary.avgApy.toFixed(1)}%`, icon: Clock },
             ].map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center mb-3`}>
-                      <stat.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <p className="text-white/50 text-xs sm:text-sm">{stat.label}</p>
-                    <p className="text-xl sm:text-2xl font-bold text-white mt-1">{stat.value}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Staking Plans */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 -mt-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">{labels.choosePlan}</h2>
-            <p className="text-muted-foreground">{labels.planSubtitle}</p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {plans.map((plan, i) => (
-              <motion.div
-                key={plan.key}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-              >
-                <Card className={`relative overflow-hidden border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
-                  plan.isPopular ? "border-emerald-500 shadow-emerald-500/20 shadow-lg" : "border-border hover:border-primary/50"
-                } ${!plan.isEnabled ? "opacity-60" : ""}`}>
-                  {plan.isPopular && (
-                    <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                      {labels.popular}
-                    </div>
-                  )}
-                  {!plan.isEnabled && (
-                    <div className="absolute top-0 right-0 bg-gray-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                      {labels.comingSoon}
-                    </div>
-                  )}
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center`}>
-                        <CryptoIcon currency="USDT" size="sm" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">{plan.title}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {labels.lockPeriod}: {plan.termDays === 0 ? (language === "en" ? "No lock" : "بدون قفل") : `${plan.termDays} ${labels.days}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <div className={`text-4xl font-bold bg-gradient-to-r ${plan.gradient} bg-clip-text text-transparent`}>
-                        {plan.apyPercent}%
-                      </div>
-                      <p className="text-xs text-muted-foreground">APY</p>
-                    </div>
-
-                    <ul className="space-y-2 mb-6">
-                      {(plan.features || []).map((feature, fi) => (
-                        <li key={fi} className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="text-xs text-muted-foreground mb-4">
-                      {labels.minDeposit}: <span className="font-semibold text-foreground">${plan.minDeposit}</span>
-                    </div>
-
-                    <Button 
-                      className={`w-full bg-gradient-to-r ${plan.gradient} hover:opacity-90 text-white border-0`}
-                      onClick={() => handleSelectPlan(plan)}
-                      disabled={!plan.isEnabled}
-                    >
-                      {labels.selectPlan}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center mb-10">{labels.howItWorks}</h2>
-          
-          <div className="grid sm:grid-cols-3 gap-6">
-            {[
-              { icon: Lock, title: labels.step1Title, desc: labels.step1Desc, gradient: "from-blue-500 to-cyan-500" },
-              { icon: Sparkles, title: labels.step2Title, desc: labels.step2Desc, gradient: "from-emerald-500 to-teal-500" },
-              { icon: TrendingUp, title: labels.step3Title, desc: labels.step3Desc, gradient: "from-purple-500 to-pink-500" },
-            ].map((step, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mx-auto mb-4`}>
-                  <step.icon className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-2xl font-bold text-foreground mb-2">0{i + 1}</div>
-                <h3 className="font-bold text-foreground mb-2">{step.title}</h3>
-                <p className="text-sm text-muted-foreground">{step.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Why Stake Section */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center mb-10">{labels.whyStake}</h2>
-          
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              { icon: Shield, text: labels.benefit1 },
-              { icon: Clock, text: labels.benefit2 },
-              { icon: CheckCircle2, text: labels.benefit3 },
-              { icon: Gift, text: labels.benefit4 },
-            ].map((benefit, i) => (
-              <Card key={i} className="border-border">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <benefit.icon className="w-6 h-6 text-primary" />
+              <Card key={i} className="bg-card">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <stat.icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">{stat.label}</span>
                   </div>
-                  <span className="font-medium text-foreground">{benefit.text}</span>
+                  <p className="text-lg font-bold text-foreground">{stat.value}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-      </section>
+        )}
 
-      {/* My Positions */}
-      {isAuthenticated && (
-        <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold text-foreground">{labels.myPositions}</h2>
-              <Button variant="outline" onClick={loadData} disabled={loading} size="sm">
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                {labels.refresh}
+        {/* Main Content: Plans + Amount Panel */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Plans Grid */}
+          <div className="md:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">{labels.choosePlan}</h2>
+              <Button variant="ghost" size="sm" onClick={loadData} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
             </div>
-            
-            {positions.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="py-12 text-center">
-                  <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">{labels.noPositions}</p>
-                </CardContent>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              {plans.map((plan) => (
+                <PlanCard
+                  key={plan.key}
+                  plan={plan}
+                  isSelected={selectedPlan?.key === plan.key}
+                  onSelect={handleSelectPlan}
+                  labels={labels}
+                  isEligibleFirstStake={isEligibleFirstStake}
+                />
+              ))}
+            </div>
+
+            {/* How it works - Compact */}
+            <div className="p-4 bg-muted/30 rounded-lg space-y-2">
+              <h3 className="text-sm font-medium text-foreground">{labels.howItWorks}</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">1</span> {labels.step1}</span>
+                <ChevronRight className="w-4 h-4 hidden sm:block" />
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">2</span> {labels.step2}</span>
+                <ChevronRight className="w-4 h-4 hidden sm:block" />
+                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">3</span> {labels.step3}</span>
+              </div>
+              <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {labels.disclaimer}
+              </p>
+            </div>
+          </div>
+
+          {/* Desktop: Right Panel for Amount Entry */}
+          {!isMobile && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground">{labels.step2Title}</h2>
+              {selectedPlan ? (
+                AmountPanel
+              ) : (
+                <Card className="p-6 text-center">
+                  <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">
+                    {isAuthenticated ? "Select a plan to continue" : labels.loginRequired}
+                  </p>
+                  {!isAuthenticated && (
+                    <Button className="mt-3" onClick={navigateToLogin}>Login</Button>
+                  )}
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* My Positions */}
+        {isAuthenticated && (
+          <div ref={positionsRef} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">{labels.myPositions}</h2>
+              <Tabs value={positionsFilter} onValueChange={setPositionsFilter} className="w-auto">
+                <TabsList className="h-8">
+                  <TabsTrigger value="all" className="text-xs px-2 h-6">{labels.all}</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs px-2 h-6">{labels.pending}</TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs px-2 h-6">{labels.active}</TabsTrigger>
+                  <TabsTrigger value="completed" className="text-xs px-2 h-6">{labels.completed}</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {filteredPositions.length === 0 ? (
+              <Card className="p-6 text-center border-dashed">
+                <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">{labels.noPositions}</p>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {positions.map((pos) => {
-                  const daysRemaining = formatDaysRemaining(pos.endsAt);
-                  return (
-                    <Card key={pos.id} className="border-border">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                              <Lock className="w-6 h-6 text-primary" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-lg">{formatUsdt(pos.principal)} USDT</span>
-                                <Badge className={statusColors[pos.status] || ""}>
-                                  {getStatusLabel(pos.status)}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {pos.planKey} • {pos.apyPercent}% APY • {pos.termDays} {labels.days}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-6 text-sm">
-                            {pos.status === "ACTIVE" && daysRemaining !== null && (
-                              <div className="text-center">
-                                <p className="text-xs text-muted-foreground">{labels.endsIn}</p>
-                                <p className="font-bold text-foreground">{daysRemaining} {labels.days}</p>
-                              </div>
-                            )}
-                            {pos.status === "ACTIVE" && (
-                              <div className="text-center">
-                                <p className="text-xs text-muted-foreground">{labels.estEarned}</p>
-                                <p className="font-bold text-emerald-500">+${formatUsdt(pos.estimatedEarned)}</p>
-                              </div>
-                            )}
-                            {pos.status === "REJECTED" && pos.rejectReason && (
-                              <p className="text-sm text-red-500">{pos.rejectReason}</p>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+              <div className="grid gap-3">
+                {filteredPositions.map((pos) => (
+                  <PositionRow
+                    key={pos.id}
+                    position={pos}
+                    labels={labels}
+                    onCancel={pos.status === "PENDING_APPROVAL" ? handleCancelPosition : null}
+                  />
+                ))}
               </div>
             )}
           </div>
-        </section>
+        )}
+      </div>
+
+      {/* Mobile: Bottom Sheet for Amount Entry */}
+      {isMobile && (
+        <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
+          <DrawerContent className="max-h-[85vh]">
+            <DrawerHeader className="border-b border-border pb-3">
+              <DrawerTitle>{labels.step2Title}</DrawerTitle>
+              <DrawerDescription className="sr-only">Enter staking amount</DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 overflow-auto">
+              {AmountPanel}
+            </div>
+          </DrawerContent>
+        </Drawer>
       )}
-
-      {/* Stake Dialog */}
-      <Dialog open={stakeDialogOpen} onOpenChange={setStakeDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {labels.stakeNow} - {selectedPlan?.title}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedPlan?.apyPercent}% APY • {selectedPlan?.termDays} {labels.days}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label>{labels.amount}</Label>
-              <div className="relative mt-1">
-                <Input
-                  type="number"
-                  value={stakeAmount}
-                  onChange={(e) => setStakeAmount(e.target.value)}
-                  placeholder={String(selectedPlan?.minDeposit || 100)}
-                  min={selectedPlan?.minDeposit}
-                  className="pr-16"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">USDT</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {labels.minAmount}: {selectedPlan?.minDeposit} USDT • Balance: {formatUsdt(tradingBalance)} USDT
-              </p>
-            </div>
-
-            {stakeAmount && parseFloat(stakeAmount) >= (selectedPlan?.minDeposit || 0) && (
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{labels.estEarned} ({selectedPlan?.termDays} {labels.days})</span>
-                  <span className="font-bold text-emerald-500">
-                    +${formatUsdt(parseFloat(stakeAmount) * (selectedPlan?.apyPercent || 0) / 100 * (selectedPlan?.termDays || 30) / 365)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                {language === "en" 
-                  ? "Funds will be locked for the duration of the staking period. Early withdrawal may not be available." 
-                  : "سيتم قفل الأموال طوال فترة الاستثمار. قد لا يكون السحب المبكر متاحاً."}
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setStakeDialogOpen(false)} disabled={processing}>
-              {labels.cancel}
-            </Button>
-            <Button 
-              onClick={handleStake} 
-              disabled={processing || !stakeAmount || parseFloat(stakeAmount) < (selectedPlan?.minDeposit || 0)}
-            >
-              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {processing ? labels.processing : labels.confirm}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
