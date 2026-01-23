@@ -494,7 +494,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
             <div className="hidden md:flex items-center gap-3">
               <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />
 
-              {isMemeCoinsPage ? <SolanaNavWalletButton /> : <Web3ModalButton language={language} />}
+              {isMemeCoinsPage && <SolanaNavWalletButton />}
 
               <Button
                 type="button"
