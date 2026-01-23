@@ -46,13 +46,29 @@ export function useUserReadiness({ enabled = true } = {}) {
         return;
       }
       
-      const [verifications, requests] = await Promise.all([
+      const [verifications, requests, exchangeAccounts] = await Promise.all([
         base44.entities.VerificationRequest.filter({ user_id: user.id }, '-submitted_at', 1),
-        base44.entities.LiveAccountRequest.filter({ user_id: user.id }, '-created_date', 1)
+        base44.entities.LiveAccountRequest.filter({ user_id: user.id }, '-created_date', 1),
+        base44.entities.UserExchangeAccount.filter({ user_id: user.id, status: 'ACTIVE' }, '-created_date', 1)
       ]);
       
       const verification = verifications?.[0] || null;
       const request = requests?.[0] || null;
+      const activeExchangeAccount = exchangeAccounts?.[0] || null;
+      
+      // === FAST PATH: User already has an ACTIVE exchange account ===
+      // This covers admins or users provisioned outside the normal flow
+      if (activeExchangeAccount) {
+        setIsReady(true);
+        setNextAction({
+          route: createPageUrl("Futures"),
+          label: { en: "Start Trading", ar: "ابدأ التداول" },
+          reason: null,
+          blocking: false
+        });
+        setLoading(false);
+        return;
+      }
       
       // === STEP 1: KYC Check ===
       const kycApproved = verification?.status === 'approved';
