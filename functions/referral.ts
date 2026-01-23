@@ -170,9 +170,9 @@ Deno.serve(async (req) => {
       // Use query param format that works with Base44 routing
       const referralLink = `${REFERRAL_DOMAIN}/?ref=${referralCode}`;
 
-      // Get stats
-      const attributions = await base44.entities.ReferralAttribution.filter({ referrer_user_id: user.id });
-      const rewards = await base44.entities.RewardLedger.filter({ user_id: user.id });
+      // Get stats - use service role since ReferralAttribution has restricted RLS
+      const attributions = await base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: user.id });
+      const rewards = await base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id });
 
       const stats = {
         clicks: attributions?.filter(a => a.status === 'clicked').length || 0,
