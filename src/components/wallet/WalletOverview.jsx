@@ -61,6 +61,7 @@ export default function WalletOverview({
   hasOkxAccount = false,
   isFullyUnlocked = false,
   onDeposit,
+  onTransfer,
   onRefresh
 }) {
   const t = translations[language] || translations.en;
@@ -118,6 +119,7 @@ export default function WalletOverview({
               <Button
                 variant="outline"
                 disabled={!isFullyUnlocked}
+                onClick={onTransfer}
                 className="rounded-xl border-border flex-1 sm:flex-none"
               >
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
@@ -195,6 +197,7 @@ export default function WalletOverview({
                 size="sm"
                 variant="outline"
                 disabled={!isFullyUnlocked}
+                onClick={onTransfer}
                 className="rounded-lg text-xs flex-1"
               >
                 <ArrowLeftRight className="h-3 w-3 mr-1" />
@@ -288,5 +291,6 @@ WalletOverview.propTypes = {
   hasOkxAccount: PropTypes.bool,
   isFullyUnlocked: PropTypes.bool,
   onDeposit: PropTypes.func,
+  onTransfer: PropTypes.func,
   onRefresh: PropTypes.func
 };
