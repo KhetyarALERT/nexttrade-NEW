@@ -111,6 +111,8 @@ Deno.serve(async (req) => {
         return Response.json({ ok: true, status: 'already_attributed' });
       }
 
+      const now = new Date().toISOString();
+
       // Create L1 attribution
       await base44.asServiceRole.entities.ReferralAttribution.create({
         referrer_user_id: referrer.id,
@@ -119,8 +121,8 @@ Deno.serve(async (req) => {
         referred_email: user.email,
         level: 1,
         status: 'registered',
-        clicked_at: new Date().toISOString(),
-        registered_at: new Date().toISOString()
+        clicked_at: now,
+        registered_at: now
       });
 
       // Update referred user with referral info
@@ -130,19 +132,46 @@ Deno.serve(async (req) => {
 
       // Create L2 attribution if referrer was also referred
       if (referrer.referred_by) {
-        const grandReferrers = await base44.asServiceRole.entities.User.filter({ 
+        const l2Referrers = await base44.asServiceRole.entities.User.filter({ 
           referral_code: referrer.referred_by 
         });
-        if (grandReferrers?.length) {
-          await base44.asServiceRole.entities.ReferralAttribution.create({
-            referrer_user_id: grandReferrers[0].id,
-            referrer_code: referrer.referred_by,
-            referred_user_id: user.id,
-            referred_email: user.email,
-            level: 2,
-            status: 'registered',
-            registered_at: new Date().toISOString()
-          });
+        if (l2Referrers?.length) {
+          const l2Referrer = l2Referrers[0];
+          
+          // Prevent self-referral loop
+          if (l2Referrer.id !== user.id) {
+            await base44.asServiceRole.entities.ReferralAttribution.create({
+              referrer_user_id: l2Referrer.id,
+              referrer_code: referrer.referred_by,
+              referred_user_id: user.id,
+              referred_email: user.email,
+              level: 2,
+              status: 'registered',
+              registered_at: now
+            });
+
+            // Create L3 attribution if L2 referrer was also referred
+            if (l2Referrer.referred_by) {
+              const l3Referrers = await base44.asServiceRole.entities.User.filter({ 
+                referral_code: l2Referrer.referred_by 
+              });
+              if (l3Referrers?.length) {
+                const l3Referrer = l3Referrers[0];
+                // Prevent loops
+                if (l3Referrer.id !== user.id && l3Referrer.id !== referrer.id) {
+                  await base44.asServiceRole.entities.ReferralAttribution.create({
+                    referrer_user_id: l3Referrer.id,
+                    referrer_code: l2Referrer.referred_by,
+                    referred_user_id: user.id,
+                    referred_email: user.email,
+                    level: 3,
+                    status: 'registered',
+                    registered_at: now
+                  });
+                }
+              }
+            }
+          }
         }
       }
 
