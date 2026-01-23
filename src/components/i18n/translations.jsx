@@ -25,7 +25,7 @@ export const translations = {
     ar: {
       overview: "نظرة عامة",
       trade: "تداول",
-      wallet: "المحفظة",
+      wallet: "الأصول",
       support: "الدعم",
       account: "الحساب",
       home: "الرئيسية",
