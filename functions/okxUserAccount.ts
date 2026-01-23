@@ -201,6 +201,30 @@ Deno.serve(async (req) => {
       // Available balance = total equity - margin used (what user can actually use for new trades)
       const availableBalance = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
 
+      // Build perCcy object for all currencies (funding + trading combined)
+      const perCcy = {};
+      
+      // Add funding balances
+      for (const f of fundingDetails) {
+        const ccy = f.ccy;
+        if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
+        perCcy[ccy].funding = parseFloat(f.bal || '0');
+        perCcy[ccy].availFunding = parseFloat(f.availBal || f.bal || '0');
+      }
+      
+      // Add trading balances
+      for (const t of tradingDetails) {
+        const ccy = t.ccy;
+        if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
+        perCcy[ccy].trading = parseFloat(t.cashBal || '0');
+        perCcy[ccy].availTrading = parseFloat(t.availBal || '0');
+      }
+      
+      // Calculate totals
+      for (const ccy of Object.keys(perCcy)) {
+        perCcy[ccy].total = perCcy[ccy].funding + perCcy[ccy].trading;
+      }
+
       // Update cached balance
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.UserExchangeAccount.update(account.id, {
@@ -227,6 +251,7 @@ Deno.serve(async (req) => {
             marginUsed,
             unrealizedPnl
           },
+          perCcy,
           positionCount: positions.length,
           accountMode: account.account_mode,
           marginMode: account.margin_mode,
