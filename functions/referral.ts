@@ -4,6 +4,9 @@ const REFERRAL_DOMAIN = 'https://nexttrade.exchange';
 const L1_REWARD_AMOUNT = 10; // $10 for L1 referral
 const L2_REWARD_AMOUNT = 2;  // $2 for L2 referral
 
+// Valid referral code pattern: 4-32 chars, alphanumeric + hyphen
+const REFERRAL_CODE_REGEX = /^[A-Z0-9-]{4,32}$/i;
+
 function generateReferralCode(userId) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'NEXT-';
@@ -11,6 +14,10 @@ function generateReferralCode(userId) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+function isValidReferralCode(code) {
+  return REFERRAL_CODE_REGEX.test(code);
 }
 
 Deno.serve(async (req) => {
@@ -44,31 +51,102 @@ Deno.serve(async (req) => {
       });
     }
 
-    // === PUBLIC: Record click (no auth needed) ===
+    // === PUBLIC: Record click (no auth needed) - lightweight, just validates ===
     if (action === 'recordClick') {
       const code = String(params.code || '').trim().toUpperCase();
-      if (!code) {
-        return Response.json({ success: false, error: 'Code required' }, { status: 400 });
+      if (!code || !isValidReferralCode(code)) {
+        return Response.json({ success: false, error: 'Invalid code format' }, { status: 400 });
       }
 
-      // Find referrer
+      // Find referrer - just validate the code exists
       const users = await base44.asServiceRole.entities.User.filter({ referral_code: code });
       if (!users?.length) {
         return Response.json({ success: false, error: 'Invalid code' }, { status: 400 });
       }
 
-      const referrer = users[0];
+      // Don't create attribution here - wait until user actually registers
+      // This prevents orphan click records
+      return Response.json({ success: true, valid: true });
+    }
 
-      // Create click attribution
+    // === AUTHENTICATED: Finalize referral attribution after login ===
+    if (action === 'finalizeReferral') {
+      const user = await base44.auth.me();
+      if (!user) {
+        return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const code = String(params.code || '').trim().toUpperCase();
+      if (!code || !isValidReferralCode(code)) {
+        return Response.json({ ok: false, status: 'invalid_code', error: 'Invalid code format' });
+      }
+
+      // Find referrer by code
+      const referrers = await base44.asServiceRole.entities.User.filter({ referral_code: code });
+      if (!referrers?.length) {
+        return Response.json({ ok: false, status: 'invalid_code', error: 'Code not found' });
+      }
+
+      const referrer = referrers[0];
+
+      // Block self-referral
+      if (referrer.id === user.id) {
+        return Response.json({ ok: false, status: 'self_referral', error: 'Cannot refer yourself' });
+      }
+
+      // Idempotency: Check if user already has ANY attribution (as referred user)
+      const existingAttrs = await base44.asServiceRole.entities.ReferralAttribution.filter({
+        referred_user_id: user.id
+      });
+      if (existingAttrs?.length > 0) {
+        return Response.json({ ok: true, status: 'already_attributed' });
+      }
+
+      // Also check for duplicate referrer+referred pair
+      const duplicateCheck = await base44.asServiceRole.entities.ReferralAttribution.filter({
+        referrer_user_id: referrer.id,
+        referred_user_id: user.id
+      });
+      if (duplicateCheck?.length > 0) {
+        return Response.json({ ok: true, status: 'already_attributed' });
+      }
+
+      // Create L1 attribution
       await base44.asServiceRole.entities.ReferralAttribution.create({
         referrer_user_id: referrer.id,
         referrer_code: code,
+        referred_user_id: user.id,
+        referred_email: user.email,
         level: 1,
-        status: 'clicked',
-        clicked_at: new Date().toISOString()
+        status: 'registered',
+        clicked_at: new Date().toISOString(),
+        registered_at: new Date().toISOString()
       });
 
-      return Response.json({ success: true });
+      // Update referred user with referral info
+      await base44.asServiceRole.entities.User.update(user.id, {
+        referred_by: code
+      });
+
+      // Create L2 attribution if referrer was also referred
+      if (referrer.referred_by) {
+        const grandReferrers = await base44.asServiceRole.entities.User.filter({ 
+          referral_code: referrer.referred_by 
+        });
+        if (grandReferrers?.length) {
+          await base44.asServiceRole.entities.ReferralAttribution.create({
+            referrer_user_id: grandReferrers[0].id,
+            referrer_code: referrer.referred_by,
+            referred_user_id: user.id,
+            referred_email: user.email,
+            level: 2,
+            status: 'registered',
+            registered_at: new Date().toISOString()
+          });
+        }
+      }
+
+      return Response.json({ ok: true, status: 'created' });
     }
 
     // === AUTHENTICATED ACTIONS ===
@@ -89,7 +167,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const referralLink = `${REFERRAL_DOMAIN}/r/${referralCode}`;
+      // Use query param format that works with Base44 routing
+      const referralLink = `${REFERRAL_DOMAIN}/?ref=${referralCode}`;
 
       // Get stats
       const attributions = await base44.entities.ReferralAttribution.filter({ referrer_user_id: user.id });
