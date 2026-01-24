@@ -300,7 +300,13 @@ Deno.serve(async (req) => {
       const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
       // Execute OKX transfer: TRADING → FUNDING → MAIN (direct call, no function invoke)
-      console.log(`[COPY_TRADING] Starting OKX transfer for ${amountNum} USDT from user ${user.email}`);
+      console.log(JSON.stringify({ 
+        event: 'COPY_TRADING_DEPOSIT_START', 
+        userId: user.id, 
+        userEmail: user.email, 
+        amount: amountNum,
+        idempotencyKey
+      }));
       
       const credResult = await getUserOkxCredential(base44, user.id);
       if (!credResult.ok) {
@@ -400,32 +406,70 @@ Deno.serve(async (req) => {
           console.error(`[COPY_TRADING] Revert failed:`, revertErr.message);
         }
         
-        // Record failed attempt in ledger for admin visibility
+        // Record failed attempt in ledger for admin visibility (VOID = failed)
+        const wallet = await getOrCreateWallet(base44, user);
         await base44.asServiceRole.entities.CopyTradingLedger.create({
           user_id: user.id,
           kind: 'CREDIT',
           amount: amountNum,
           currency: 'USDT',
           status: 'VOID',
-          ref_type: 'ALLOCATION',
+          ref_type: 'DEPOSIT',
           idempotency_key: idempotencyKey,
-          balance_before: 0,
-          balance_after: 0,
-          description: 'Deposit FAILED - transfer to main',
+          balance_before: wallet.available_balance || 0,
+          balance_after: wallet.available_balance || 0,
+          description: `Deposit FAILED: ${errMsg.slice(0, 100)}`,
           meta: { 
             source: 'OKX_TRADING', 
             step1TransferId: internalResult?.transId,
-            last_error: errMsg,
+            step2_error: {
+              okxCode: toMainRes.error?.okxCode,
+              okxMsg: toMainRes.error?.okxMsg,
+              resultCode: toMainResult?.code,
+              resultMsg: toMainResult?.msg
+            },
+            subAcctName,
+            revert_attempted: true,
             failed_at: now
           },
           created_at: now
         });
+
+        // Create failure notification for user
+        try {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: user.id,
+            type: 'withdrawal_failed',
+            title: 'Copy Trading Deposit Failed',
+            message: `Failed to deposit ${amountNum} USDT: ${errMsg.slice(0, 80)}`,
+            data: { amount: amountNum, error: errMsg },
+            read: false,
+            priority: 'high'
+          });
+        } catch (notifErr) {
+          console.error('[COPY_TRADING] Failed to create notification:', notifErr.message);
+        }
+
+        console.log(JSON.stringify({ 
+          event: 'COPY_TRADING_DEPOSIT_FAILED', 
+          userId: user.id, 
+          amount: amountNum, 
+          step: 'step2_to_main',
+          error: errMsg,
+          step1TransferId: internalResult?.transId
+        }));
         
         return Response.json({ ok: false, error: { code: 'TRANSFER_TO_MAIN_FAILED', message: errMsg } });
       }
 
       const externalTransferId = toMainResult?.transId || `tf_${Date.now()}`;
-      console.log(`[COPY_TRADING] OKX transfer complete: ${amountNum} USDT from ${subAcctName} to main, transId=${externalTransferId}`);
+      console.log(JSON.stringify({ 
+        event: 'COPY_TRADING_OKX_COMPLETE', 
+        userId: user.id, 
+        amount: amountNum, 
+        subAcctName, 
+        step2TransferId: externalTransferId 
+      }));
 
       // Get or create wallet
       const wallet = await getOrCreateWallet(base44, user);
@@ -440,39 +484,52 @@ Deno.serve(async (req) => {
         updated_at: now
       });
 
-      // Create ledger entry
+      // Create ledger entry (POSTED = success)
       const ledgerEntry = await base44.asServiceRole.entities.CopyTradingLedger.create({
         user_id: user.id,
         kind: 'CREDIT',
         amount: amountNum,
         currency: 'USDT',
         status: 'POSTED',
-        ref_type: 'ALLOCATION',
+        ref_type: 'DEPOSIT',
         idempotency_key: idempotencyKey,
         balance_before: balanceBefore,
         balance_after: balanceAfter,
         description: 'Deposit from Trading Account',
-        meta: { source: 'OKX_TRADING', transferId: externalTransferId },
+        meta: { 
+          source: 'OKX_TRADING', 
+          step1TransferId: internalResult?.transId,
+          step2TransferId: externalTransferId,
+          subAcctName
+        },
         created_at: now
       });
 
-      // Create allocation record for admin visibility (ACTIVE immediately)
-      await base44.asServiceRole.entities.CopyTradingAllocation.create({
-        user_id: user.id,
-        user_email: user.email,
-        amount: amountNum,
-        status: 'ACTIVE',
-        deposit_source: 'OKX_TRADING',
-        idempotency_key: idempotencyKey,
-        okx_transfer_id: externalTransferId,
-        approved_at: now,
-        approved_by: 'SYSTEM',
-        approved_by_type: 'AUTOMATION',
-        created_at: now,
-        updated_at: now
-      });
+      // Create notification for user
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'deposit_confirmed',
+          title: 'Copy Trading Deposit',
+          message: `Successfully deposited ${amountNum} USDT to Copy Trading`,
+          data: { amount: amountNum, newBalance: balanceAfter, ledgerId: ledgerEntry.id },
+          read: false,
+          priority: 'normal'
+        });
+      } catch (notifErr) {
+        console.error('[COPY_TRADING] Failed to create notification:', notifErr.message);
+      }
 
-      console.log(`[COPY_TRADING] Deposit SUCCESS: ${amountNum} USDT for user ${user.email}, new balance: ${balanceAfter}, OKX transfer: ${externalTransferId}`);
+      console.log(JSON.stringify({ 
+        event: 'COPY_TRADING_DEPOSIT_SUCCESS', 
+        userId: user.id, 
+        amount: amountNum, 
+        balanceBefore, 
+        balanceAfter, 
+        ledgerId: ledgerEntry.id,
+        step1TransferId: internalResult?.transId,
+        step2TransferId: externalTransferId
+      }));
 
       return Response.json({ 
         ok: true, 
@@ -481,7 +538,8 @@ Deno.serve(async (req) => {
           amount: amountNum,
           newBalance: balanceAfter,
           ledgerId: ledgerEntry.id,
-          transferId: externalTransferId
+          transferId: externalTransferId,
+          balanceBefore
         } 
       });
     }
