@@ -20,6 +20,7 @@ import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
 import UsdtIcon from "@/components/ui/UsdtIcon";
+import { formatUsdt, formatPercent } from "@/utils/formatters";
 
 // Translations
 const t = {
@@ -93,11 +94,7 @@ const t = {
   }
 };
 
-function formatUsdt(val, language = "en") {
-  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
-  const locale = language === "ar" ? "ar-SA" : "en-US";
-  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-}
+// Using shared formatUsdt from utils/formatters
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(false);
@@ -351,7 +348,7 @@ export default function Investing({ language = "en" }) {
                 <StatCard icon={Lock} label={labels.totalStaked} value={`${formatUsdt(summary.totalStaked, language)} USDT`} />
                 <StatCard icon={Gift} label={labels.earned} value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} highlight />
                 <StatCard icon={CheckCircle2} label={labels.activePositions} value={summary.activePositions} />
-                <StatCard icon={TrendingUp} label={labels.avgApy} value={`${summary.avgApy.toFixed(1)}%`} />
+                <StatCard icon={TrendingUp} label={labels.avgApy} value={formatPercent(summary.avgApy, language)} />
               </>
             )}
           </div>
