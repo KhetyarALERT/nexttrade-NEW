@@ -1224,6 +1224,14 @@ export default function Profile({ language = "en" }) {
               language={language}
               existingRequest={existingVerification}
             />
+
+            {/* Copy Trading Deposit Modal */}
+            <AllocationModal
+              open={copyTradingDepositOpen}
+              onOpenChange={setCopyTradingDepositOpen}
+              language={language}
+              onSuccess={loadTradingAccounts}
+            />
           </TabsContent>
 
           {/* Referrals Tab - Link to Rewards Hub */}
