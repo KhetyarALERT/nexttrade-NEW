@@ -964,6 +964,16 @@ export default function Profile({ language = "en" }) {
                             </p>
                           </div>
                         </div>
+                        <div className="p-3 border-t border-slate-100">
+                          <Button
+                            size="sm"
+                            onClick={() => setCopyTradingDepositOpen(true)}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs"
+                          >
+                            <ArrowDownToLine className="h-3 w-3 mr-1" />
+                            {language === "en" ? "Transfer to Copy Trading" : "تحويل إلى نسخ التداول"}
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
