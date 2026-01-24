@@ -92,9 +92,11 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     }
   }, []);
 
+  // Load data once on mount - no interval to prevent spam
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAllocationSuccess = () => {
     setAllocationModalOpen(false);
@@ -122,16 +124,12 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     CANCELED: labels.canceled
   };
 
-  if (!config?.enabled) {
+  // Always show Copy Trading - even if config not loaded yet or disabled
+  // Users can see their wallet but features may be limited
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full p-6">
-        <Card className="max-w-md w-full border-dashed">
-          <CardContent className="p-8 text-center">
-            <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-            <h3 className="text-lg font-semibold mb-2">{labels.comingSoon}</h3>
-            <p className="text-sm text-muted-foreground">{labels.signalsPlaceholder}</p>
-          </CardContent>
-        </Card>
+        <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
