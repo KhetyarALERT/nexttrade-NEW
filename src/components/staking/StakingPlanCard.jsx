@@ -11,27 +11,31 @@ const t = {
     recommended: "Recommended",
     unavailable: "Unavailable",
     days: "days",
+    day: "day",
     min: "Min",
     bonusRewards: "Bonus Rewards",
     bonusTooltip: "Bonus Rewards unlock perks automatically. No action required.",
-    perDollar: "/$ staked",
+    perDollar: "/USDT staked",
     perks: "Perks while active",
     viewAllPerks: "View all perks",
     firstStakeBonus: "First stake bonus",
-    select: "Select Plan"
+    select: "Select Plan",
+    apy: "APY"
   },
   ar: {
     recommended: "موصى به",
     unavailable: "غير متاح",
-    days: "يوم",
+    days: "أيام",
+    day: "يوم",
     min: "الحد الأدنى",
     bonusRewards: "المكافآت الإضافية",
     bonusTooltip: "المكافآت الإضافية تفتح المزايا تلقائياً. لا حاجة لأي إجراء.",
-    perDollar: "/$ مستثمر",
+    perDollar: "/USDT مستثمر",
     perks: "المزايا أثناء النشاط",
     viewAllPerks: "عرض كل المزايا",
     firstStakeBonus: "مكافأة الستيك الأول",
-    select: "اختر الخطة"
+    select: "اختر الخطة",
+    apy: "عائد سنوي"
   }
 };
 
@@ -85,11 +89,11 @@ export default function StakingPlanCard({
         <div className="flex items-start justify-between pt-1">
           <div>
             <h3 className="font-semibold text-foreground text-base">{plan.title}</h3>
-            <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days}</p>
+            <p className="text-xs text-muted-foreground">{plan.termDays} {plan.termDays === 1 ? labels.day : labels.days}</p>
           </div>
-          <div className="text-right">
+          <div className={language === "ar" ? "text-left" : "text-right"}>
             <div className="text-2xl font-bold text-primary">{plan.apyPercent}%</div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">APY</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{labels.apy}</p>
           </div>
         </div>
 
@@ -98,7 +102,7 @@ export default function StakingPlanCard({
           <span className="text-muted-foreground">{labels.min}</span>
           <div className="flex items-center gap-1.5">
             <UsdtIcon size="xs" showTooltip language={language} />
-            <span className="font-mono font-medium">${plan.minDeposit}</span>
+            <span className="font-mono font-medium">{plan.minDeposit} USDT</span>
           </div>
         </div>
 
