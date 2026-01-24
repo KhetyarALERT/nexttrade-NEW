@@ -287,51 +287,9 @@ export default function Trading({ language = "en" }) {
     />
   );
 
-  // Readiness gate - show blocking UI if user not ready
-  if (isAuthenticated && !isLoadingAuth && !loadingReadiness && !isReady && nextAction?.blocking) {
-    const BlockIcon = nextAction.reason?.includes("reject") ? XCircle : 
-                      nextAction.reason?.includes("review") ? ClockIcon : ShieldIcon;
-    
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <div className="max-w-md w-full">
-          <Alert className="border-amber-500/30 bg-amber-500/5 mb-6">
-            <BlockIcon className="h-5 w-5 text-amber-500" />
-            <AlertDescription className="text-sm">
-              {nextAction.reason}
-            </AlertDescription>
-          </Alert>
-          
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4">
-              <Lock className="h-8 w-8 text-amber-500" />
-            </div>
-            <h2 className="text-xl font-bold text-foreground">
-              {isAr ? "الوصول محدود" : "Access Restricted"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {isAr 
-                ? "يجب إكمال الخطوات المطلوبة للوصول إلى التداول"
-                : "Please complete the required steps to access trading"}
-            </p>
-            
-            <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl">
-              <Link to={nextAction.route}>
-                {nextAction.label?.[isAr ? "ar" : "en"] || (isAr ? "المتابعة" : "Continue")}
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            
-            <Button asChild variant="outline" className="w-full">
-              <Link to={createPageUrl("Dashboard")}>
-                {isAr ? "العودة للوحة التحكم" : "Back to Dashboard"}
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Note: Removed blocking gate - Futures page is always accessible
+  // Users without accounts can view charts/prices and see prompts to complete onboarding
+  // The hasLiveAccount check in the UI will show/hide trading controls appropriately
   
   // Mobile Layout - Full screen
   if (isMobile) {
