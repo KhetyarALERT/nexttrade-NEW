@@ -29,36 +29,151 @@ async function getOrCreateWallet(base44, user) {
   return newWallet;
 }
 
-// Helper: Get user's OKX trading balance via real API call
+// Crypto helpers for OKX API calls
+function base64Encode(bytes) {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+function base64Decode(text) {
+  const bin = atob(text);
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+function getEnv(key) {
+  return Deno.env.get(key);
+}
+
+async function importAesKey() {
+  const raw = getEnv('APP_ENCRYPTION_KEY');
+  if (!raw) throw new Error('Missing APP_ENCRYPTION_KEY');
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(raw));
+  return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function decryptSecret(payload) {
+  if (!payload) return '';
+  const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  const iv = base64Decode(parsed.iv);
+  const tag = base64Decode(parsed.tag);
+  const ciphertext = base64Decode(parsed.ciphertext);
+  const combined = new Uint8Array(ciphertext.length + tag.length);
+  combined.set(ciphertext, 0);
+  combined.set(tag, ciphertext.length);
+  const key = await importAesKey();
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, combined);
+  return new TextDecoder().decode(decrypted);
+}
+
+async function generateOkxSignature(timestamp, method, requestPath, body, secretKey) {
+  const prehash = timestamp + method.toUpperCase() + requestPath + body;
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secretKey);
+  const msgData = encoder.encode(prehash);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  return base64Encode(new Uint8Array(signature));
+}
+
+async function okxRequest({ credential, method, path, body }) {
+  const timestamp = new Date().toISOString();
+  const bodyStr = body ? JSON.stringify(body) : '';
+  const signature = await generateOkxSignature(timestamp, method, path, bodyStr, credential.secretKey);
+
+  const headers = {
+    'OK-ACCESS-KEY': credential.apiKey,
+    'OK-ACCESS-SIGN': signature,
+    'OK-ACCESS-TIMESTAMP': timestamp,
+    'OK-ACCESS-PASSPHRASE': credential.passphrase,
+    'Content-Type': 'application/json',
+  };
+
+  const baseUrl = getEnv('OKX_BASE_URL') || 'https://www.okx.com';
+  const url = `${baseUrl}${path}`;
+
+  try {
+    const res = await fetch(url, {
+      method: method.toUpperCase(),
+      headers,
+      body: method.toUpperCase() === 'GET' ? undefined : (bodyStr || undefined),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || (data?.code && data.code !== '0')) {
+      return { ok: false, error: { httpStatus: res.status, okxCode: data?.code, okxMsg: data?.msg } };
+    }
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: { okxMsg: error?.message || 'Network error' } };
+  }
+}
+
+// Helper: Get user's OKX account and credentials
+async function getUserOkxCredential(base44, userId) {
+  const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+    user_id: userId,
+    provider: 'OKX',
+    status: 'ACTIVE'
+  });
+
+  if (!accounts?.length) {
+    return { ok: false, error: { code: 'NO_ACCOUNT', message: 'No active OKX account' } };
+  }
+
+  const account = accounts[0];
+
+  const credentials = await base44.asServiceRole.entities.ExchangeCredential.filter({
+    user_exchange_account_id: account.id,
+    provider: 'OKX',
+    status: 'ACTIVE'
+  });
+
+  if (!credentials?.length) {
+    return { ok: false, error: { code: 'NO_CREDENTIALS', message: 'No active credentials' } };
+  }
+
+  const cred = credentials[0];
+
+  return {
+    ok: true,
+    data: {
+      account,
+      credential: {
+        apiKey: cred.api_key,
+        secretKey: await decryptSecret(cred.secret_enc),
+        passphrase: await decryptSecret(cred.passphrase_enc)
+      }
+    }
+  };
+}
+
+// Helper: Get user's OKX trading balance via direct API call
 async function getOkxTradingBalance(base44, userId) {
   try {
-    // Call okxUserAccount function to get fresh balance
-    const okxRes = await base44.asServiceRole.functions.invoke('okxUserAccount', { action: 'getMyAccount', userId });
+    const credResult = await getUserOkxCredential(base44, userId);
     
-    if (!okxRes?.ok && !okxRes?.data?.ok) {
-      // Fallback: check cached account
-      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
-        user_id: userId,
-        provider: 'OKX',
-        status: 'ACTIVE'
-      });
-      
-      if (!accounts?.length) {
-        return { ok: false, balance: 0, error: 'No OKX account' };
-      }
-      
-      const account = accounts[0];
-      const tradingBalance = account.trading_balance || account.tradingBalance || 0;
-      return { ok: true, balance: tradingBalance, source: 'cached' };
+    if (!credResult.ok) {
+      return { ok: false, balance: 0, error: credResult.error?.message || 'No OKX account' };
     }
-    
-    const data = okxRes?.data?.data || okxRes?.data;
-    if (!data?.hasAccount) {
-      return { ok: false, balance: 0, error: 'No OKX account' };
+
+    const { credential } = credResult.data;
+
+    // Fetch trading balance directly from OKX
+    const tradingRes = await okxRequest({
+      credential,
+      method: 'GET',
+      path: '/api/v5/account/balance'
+    });
+
+    if (!tradingRes.ok) {
+      return { ok: false, balance: 0, error: tradingRes.error?.okxMsg || 'Failed to fetch balance' };
     }
-    
-    const tradingBalance = data.balances?.tradingUsdt || 0;
-    return { ok: true, balance: tradingBalance, source: 'live' };
+
+    const details = tradingRes.data?.data?.[0]?.details || [];
+    const usdtDetail = details.find(d => d.ccy === 'USDT');
+    const availableBalance = parseFloat(usdtDetail?.availBal || '0');
+
+    return { ok: true, balance: availableBalance, source: 'live' };
   } catch (err) {
     console.error('[COPY_TRADING] Failed to get OKX balance:', err.message);
     return { ok: false, balance: 0, error: err.message };
