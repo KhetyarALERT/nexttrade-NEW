@@ -350,7 +350,7 @@ Deno.serve(async (req) => {
 
         // Re-check status
         const freshAllocs = await base44.asServiceRole.entities.CopyTradingAllocation.filter({ id: allocation.id });
-        if (!freshAllocs?.length || freshAllocs[0].status !== 'PENDING') {
+        if (!freshAllocs?.length || freshAllocs[0].status !== 'PENDING_SETTLEMENT') {
           detail.status = 'skipped';
           detail.reason = 'Status changed during processing';
           result.skippedCount++;
@@ -359,9 +359,80 @@ Deno.serve(async (req) => {
         }
 
         const nowIso = now.toISOString();
-        const completedAt = nowIso;
 
-        // Get or create user's copy trading wallet
+        // Create step2 transfer record BEFORE OKX call
+        let step2TransferId = null;
+        try {
+          const step2Transfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+            user_id: allocation.user_id,
+            provider: 'OKX',
+            from_account: subAccountName,
+            from_account_type: 'funding',
+            to_account: 'main',
+            to_account_type: 'funding',
+            currency: 'USDT',
+            amount: allocation.amount,
+            status: 'PENDING',
+            created_at: nowIso
+          });
+          step2TransferId = step2Transfer?.id;
+        } catch (e) {
+          console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Failed to create step2 transfer record:`, e.message);
+        }
+
+        // Execute OKX transfer: Funding(subaccount) → Funding(main) using MASTER credentials
+        const transferRes = await okxRequest({
+          credential: masterCredential,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            ccy: 'USDT',
+            amt: String(allocation.amount),
+            from: '6',  // Funding
+            to: '6',    // Funding
+            type: '2',  // Sub-account to main (master-initiated)
+            subAcct: subAccountName
+          }
+        });
+
+        const transferResult = transferRes.data?.data?.[0];
+        const completedAt = new Date().toISOString();
+
+        if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+          const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Step2 transfer failed';
+
+          if (step2TransferId) {
+            await base44.asServiceRole.entities.ExchangeTransfer.update(step2TransferId, {
+              status: 'FAILED',
+              error_message: errMsg,
+              completed_at: completedAt
+            });
+          }
+
+          await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
+            retry_count: (allocation.retry_count || 0) + 1,
+            last_retry_at: completedAt,
+            last_error: errMsg,
+            updated_at: completedAt
+          });
+
+          detail.status = 'failed';
+          detail.reason = errMsg;
+          result.failedCount++;
+          result.details.push(detail);
+          continue;
+        }
+
+        // Update step2 transfer to COMPLETED
+        if (step2TransferId) {
+          await base44.asServiceRole.entities.ExchangeTransfer.update(step2TransferId, {
+            status: 'COMPLETED',
+            external_transfer_id: transferResult?.transId || null,
+            completed_at: completedAt
+          });
+        }
+
+        // ========== Credit user's Copy Trading Wallet ==========
         let wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: allocation.user_id });
         let wallet = wallets?.[0];
 
@@ -399,7 +470,8 @@ Deno.serve(async (req) => {
             idempotency_key: ledgerKey,
             balance_before: balanceBefore,
             balance_after: balanceAfter,
-            description: `Copy trading allocation of ${allocation.amount} USDT`,
+            description: `Copy trading deposit of ${allocation.amount} USDT settled`,
+            meta: { step2_transfer_id: step2TransferId },
             created_at: completedAt
           });
         }
@@ -412,14 +484,16 @@ Deno.serve(async (req) => {
           updated_at: completedAt
         });
 
-        // Update allocation to ACTIVE (no external transfer for OKX_FUNDING - funds stay in subaccount)
+        // Update allocation to ACTIVE with settlement info
         await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
           status: 'ACTIVE',
+          step2_transfer_id: step2TransferId,
+          settled_at: completedAt,
           approved_at: nowIso,
           approved_by: 'AUTOMATION',
           approved_by_type: 'AUTOMATION',
           last_error: null,
-          updated_at: nowIso
+          updated_at: completedAt
         });
 
         // Notify user
@@ -427,21 +501,21 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.Notification.create({
             user_id: allocation.user_id,
             type: 'system',
-            title: 'Copy Trading Funded! 🎉',
-            message: `${allocation.amount} USDT has been added to your Copy Trading balance.`,
-            data: { allocationId: allocation.id, action: 'copy_trading_funded' },
+            title: 'Copy Trading Deposit Settled! 🎉',
+            message: `${allocation.amount} USDT has been credited to your Copy Trading balance.`,
+            data: { allocationId: allocation.id, action: 'copy_trading_settled' },
             read: false,
             priority: 'high'
           });
         } catch (e) {
-          console.log(`[COPY_TRADING_AUTO] [${runId}] Failed to notify user:`, e.message);
+          console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Failed to notify user:`, e.message);
         }
 
-        detail.status = 'approved';
+        detail.status = 'settled';
         result.approvedCount++;
         result.details.push(detail);
 
-        console.log(`[COPY_TRADING_AUTO] [${runId}] Approved allocation ${allocation.id}`);
+        console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Settled allocation ${allocation.id}`);
 
       } catch (err) {
         console.error(`[COPY_TRADING_AUTO] [${runId}] Error processing allocation ${allocation.id}:`, err.message);
