@@ -29,25 +29,36 @@ async function getOrCreateWallet(base44, user) {
   return newWallet;
 }
 
-// Helper: Get user's OKX trading balance
+// Helper: Get user's OKX trading balance via real API call
 async function getOkxTradingBalance(base44, userId) {
   try {
-    // Check if user has OKX account
-    const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
-      user_id: userId,
-      provider: 'OKX',
-      status: 'ACTIVE'
-    });
+    // Call okxUserAccount function to get fresh balance
+    const okxRes = await base44.asServiceRole.functions.invoke('okxUserAccount', { action: 'getMyAccount', userId });
     
-    if (!accounts?.length) {
+    if (!okxRes?.ok && !okxRes?.data?.ok) {
+      // Fallback: check cached account
+      const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+        user_id: userId,
+        provider: 'OKX',
+        status: 'ACTIVE'
+      });
+      
+      if (!accounts?.length) {
+        return { ok: false, balance: 0, error: 'No OKX account' };
+      }
+      
+      const account = accounts[0];
+      const tradingBalance = account.trading_balance || account.tradingBalance || 0;
+      return { ok: true, balance: tradingBalance, source: 'cached' };
+    }
+    
+    const data = okxRes?.data?.data || okxRes?.data;
+    if (!data?.hasAccount) {
       return { ok: false, balance: 0, error: 'No OKX account' };
     }
     
-    // Get cached balance from account record
-    const account = accounts[0];
-    const tradingBalance = account.trading_balance || account.tradingBalance || 0;
-    
-    return { ok: true, balance: tradingBalance };
+    const tradingBalance = data.balances?.tradingUsdt || 0;
+    return { ok: true, balance: tradingBalance, source: 'live' };
   } catch (err) {
     console.error('[COPY_TRADING] Failed to get OKX balance:', err.message);
     return { ok: false, balance: 0, error: err.message };

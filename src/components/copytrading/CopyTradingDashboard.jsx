@@ -99,7 +99,7 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const handleAllocationSuccess = () => {
     setAllocationModalOpen(false);
     loadData();
-    toast.success(language === "ar" ? "تم إنشاء طلب التخصيص" : "Allocation request created");
+    // Toast already shown by AllocationModal, no duplicate needed
   };
 
 

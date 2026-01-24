@@ -147,19 +147,22 @@ Deno.serve(async (req) => {
       pool_wallet_name = 'Main Copy Trading Pool'
     } = config;
 
-    // Get pending allocations
-    const pendingAllocations = await base44.asServiceRole.entities.CopyTradingAllocation.filter(
+    // Get pending allocations (EXCLUDE OKX_TRADING - those are instant now)
+    const allPending = await base44.asServiceRole.entities.CopyTradingAllocation.filter(
       { status: 'PENDING' },
       'created_at',
       100
     );
 
+    // Filter out OKX_TRADING deposits - they should be instant and not need auto-approve
+    const pendingAllocations = (allPending || []).filter(a => a.deposit_source !== 'OKX_TRADING');
+
     if (!pendingAllocations?.length) {
-      console.log(`[COPY_TRADING_AUTO] [${runId}] No pending allocations`);
-      return Response.json({ ok: true, data: { ...result, message: 'No pending allocations' } });
+      console.log(`[COPY_TRADING_AUTO] [${runId}] No pending allocations (excluding ${(allPending?.length || 0) - pendingAllocations.length} OKX_TRADING)`);
+      return Response.json({ ok: true, data: { ...result, message: 'No pending allocations requiring processing' } });
     }
 
-    console.log(`[COPY_TRADING_AUTO] [${runId}] Found ${pendingAllocations.length} pending allocations`);
+    console.log(`[COPY_TRADING_AUTO] [${runId}] Found ${pendingAllocations.length} pending allocations (excluded ${(allPending?.length || 0) - pendingAllocations.length} OKX_TRADING)`);
 
     const now = new Date();
     const minAgeMs = auto_approve_min_age_minutes * 60 * 1000;
