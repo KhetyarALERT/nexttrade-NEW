@@ -257,15 +257,13 @@ export default function Dashboard({ language = "en" }) {
     setLoading(true);
     
     try {
-      const [liveRes, walletsRes, tradesRes, stakingRes, okxRes] = await Promise.all([
-        base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
-        base44.functions.invoke('wallet', { action: 'list' }),
-        base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
-        base44.functions.invoke('wallet', { action: 'getStakingPositions' }),
-        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' })
+      // Fetch data in parallel - use .catch() for each to prevent one failure from blocking others
+      const [walletsRes, tradesRes, stakingRes, okxRes] = await Promise.all([
+        base44.functions.invoke('wallet', { action: 'list' }).catch(() => ({ data: { success: false } })),
+        base44.functions.invoke('tradingAccount', { action: 'getTrades' }).catch(() => ({ data: { success: false } })),
+        base44.functions.invoke('wallet', { action: 'getStakingPositions' }).catch(() => ({ data: { success: false } })),
+        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } }))
       ]);
-
-      if (liveRes.data?.success) setLiveAccount(liveRes.data.data);
 
       const nextWallets = walletsRes.data?.success ? (walletsRes.data.data || []) : [];
       setWallets(nextWallets);
@@ -273,6 +271,10 @@ export default function Dashboard({ language = "en" }) {
       // OKX balance
       const okxData = okxRes.data?.ok ? okxRes.data.data : null;
       const okxBalance = okxData?.hasAccount ? (okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0) : 0;
+      
+      if (okxData?.hasAccount) {
+        setLiveAccount({ hasAccount: true, ...okxData });
+      }
 
       const usdtWallets = nextWallets.filter((w) => (w.currency || '').toUpperCase() === 'USDT');
       const spot = sum(usdtWallets.map((w) => w.balance));
@@ -287,9 +289,9 @@ export default function Dashboard({ language = "en" }) {
 
       const allTrades = tradesRes.data?.success ? (tradesRes.data.data || []) : [];
 
-      // If user has OKX account, fetch OKX positions
+      // If user has OKX account, fetch OKX positions (already have positions from getMyAccount if needed)
       let okxPositions = [];
-      if (okxData?.hasAccount) {
+      if (okxData?.hasAccount && okxData?.positionCount > 0) {
         try {
           const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' });
           if (posRes.data?.ok) {
