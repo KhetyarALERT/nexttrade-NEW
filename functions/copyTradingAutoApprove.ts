@@ -364,10 +364,9 @@ Deno.serve(async (req) => {
           updated_at: completedAt
         });
 
-        // Update allocation to ACTIVE
+        // Update allocation to ACTIVE (no external transfer for OKX_FUNDING - funds stay in subaccount)
         await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
           status: 'ACTIVE',
-          okx_transfer_id: transferId,
           approved_at: nowIso,
           approved_by: 'AUTOMATION',
           approved_by_type: 'AUTOMATION',
