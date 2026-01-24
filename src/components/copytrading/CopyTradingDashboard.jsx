@@ -39,8 +39,7 @@ const t = {
     active: "Active",
     failed: "Failed",
     canceled: "Canceled",
-    cancel: "Cancel",
-    canceling: "Canceling...",
+
   },
   ar: {
     title: "نسخ التداول",
@@ -60,8 +59,7 @@ const t = {
     active: "نشط",
     failed: "فشل",
     canceled: "ملغي",
-    cancel: "إلغاء",
-    canceling: "جاري الإلغاء...",
+
   }
 };
 
