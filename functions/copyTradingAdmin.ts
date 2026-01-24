@@ -114,13 +114,13 @@ Deno.serve(async (req) => {
       let entries;
       if (user_id) {
         entries = await base44.asServiceRole.entities.CopyTradingLedger.filter(
-          { user_id, status: 'POSTED' },
+          { user_id },
           '-created_at',
           Math.min(500, Number(limit) || 100)
         );
       } else {
-        entries = await base44.asServiceRole.entities.CopyTradingLedger.filter(
-          { status: 'POSTED' },
+        // List all ledger entries (POSTED and VOID) for admin visibility
+        entries = await base44.asServiceRole.entities.CopyTradingLedger.list(
           '-created_at',
           Math.min(500, Number(limit) || 100)
         );
