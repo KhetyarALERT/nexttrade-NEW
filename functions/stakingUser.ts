@@ -136,17 +136,15 @@ async function getUserOkxCredential(base44, userId) {
   };
 }
 
-// Calculate estimated earned for an active position
-function calculateEstimatedEarned(position) {
-  if (position.status !== 'ACTIVE' || !position.started_at) return 0;
-  
-  const startedAt = new Date(position.started_at).getTime();
-  const now = Date.now();
-  const daysElapsed = Math.max(0, (now - startedAt) / (1000 * 60 * 60 * 24));
-  
-  // Simple interest: principal * (apy/100) * (days/365)
-  const earned = position.principal_amount * (position.apy_percent / 100) * (daysElapsed / 365);
-  return Math.round(earned * 10000) / 10000; // 4 decimal places
+// Get accrued amount - use real accrued_amount from daily processor
+function getAccruedAmount(position) {
+  // Return real accrued amount if available, otherwise 0
+  return position.accrued_amount || 0;
+}
+
+// Claimable = accrued - paid
+function getClaimableAmount(position) {
+  return (position.accrued_amount || 0) - (position.paid_amount || 0);
 }
 
 // ==================== MAIN HANDLER ====================
@@ -211,10 +209,12 @@ Deno.serve(async (req) => {
       }
       const avgApy = totalActiveStaked > 0 ? weightedApySum / totalActiveStaked : 0;
       
-      // Estimated earned (ACTIVE only)
-      let totalEstimatedEarned = 0;
+      // Real accrued and claimable (from daily processor)
+      let totalAccrued = 0;
+      let totalClaimable = 0;
       for (const p of (positions || []).filter(pos => pos.status === 'ACTIVE')) {
-        totalEstimatedEarned += calculateEstimatedEarned(p);
+        totalAccrued += getAccruedAmount(p);
+        totalClaimable += getClaimableAmount(p);
       }
 
       return Response.json({
@@ -224,7 +224,9 @@ Deno.serve(async (req) => {
           activePositions: activeCount,
           pendingPositions: activePositions.filter(p => p.status === 'PENDING_APPROVAL').length,
           avgApy: Math.round(avgApy * 100) / 100,
-          estimatedEarned: Math.round(totalEstimatedEarned * 100) / 100
+          estimatedEarned: Math.round(totalAccrued * 100) / 100, // Now real accrued
+          totalAccrued: Math.round(totalAccrued * 100) / 100,
+          totalClaimable: Math.round(totalClaimable * 100) / 100
         }
       });
     }
@@ -277,13 +279,15 @@ Deno.serve(async (req) => {
         endsAt: p.ends_at,
         apyPercent: p.apy_percent,
         status: p.status,
-        estimatedEarned: calculateEstimatedEarned(p)
+        accruedAmount: getAccruedAmount(p),
+        claimableAmount: getClaimableAmount(p),
+        lastAccrualAt: p.last_accrual_at
       }));
       
-      // Estimated earned total
-      let totalEstimatedEarned = 0;
+      // Real accrued total (from daily processor)
+      let totalAccrued = 0;
       for (const p of activePositions) {
-        totalEstimatedEarned += calculateEstimatedEarned(p);
+        totalAccrued += getAccruedAmount(p);
       }
 
       return Response.json({
@@ -296,7 +300,7 @@ Deno.serve(async (req) => {
           nextUnlockAt,
           lastStakeCreatedAt,
           activePositionsPreview,
-          totalEstimatedEarned: Math.round(totalEstimatedEarned * 100) / 100
+          totalEstimatedEarned: Math.round(totalAccrued * 100) / 100 // Now real accrued
         }
       });
     }
@@ -320,7 +324,14 @@ Deno.serve(async (req) => {
           status: p.status,
           startedAt: p.started_at,
           endsAt: p.ends_at,
-          estimatedEarned: calculateEstimatedEarned(p),
+          // Real accrued values from daily processor
+          accruedAmount: getAccruedAmount(p),
+          paidAmount: p.paid_amount || 0,
+          claimableAmount: getClaimableAmount(p),
+          payoutStatus: p.payout_status || 'NONE',
+          lastAccrualAt: p.last_accrual_at,
+          // Legacy field - now returns real accrued
+          estimatedEarned: getAccruedAmount(p),
           createdAt: p.created_at || p.created_date,
           rejectReason: p.reject_reason,
           destinationPool: p.destination_pool
