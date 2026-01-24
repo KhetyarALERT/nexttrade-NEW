@@ -130,17 +130,23 @@ Deno.serve(async (req) => {
 
     // ==================== GET STATS ====================
     if (action === 'getStats') {
-      const [wallets, allocations] = await Promise.all([
-        base44.asServiceRole.entities.CopyTradingWallet.list('-updated_at', 1000),
-        base44.asServiceRole.entities.CopyTradingAllocation.list('-created_at', 1000),
+      // Fetch all data with same limits used by list actions to ensure consistency
+      const [wallets, ledgerEntries] = await Promise.all([
+        base44.asServiceRole.entities.CopyTradingWallet.list('-updated_at', 200),
+        base44.asServiceRole.entities.CopyTradingLedger.list('-created_at', 500),
       ]);
 
       const walls = wallets || [];
-      const allocs = allocations || [];
+      const ledger = ledgerEntries || [];
 
+      // Compute totals from wallet records
       const totalBalance = walls.reduce((sum, w) => sum + (w.available_balance || 0), 0);
       const totalAllocated = walls.reduce((sum, w) => sum + (w.locked_balance || 0), 0);
-      const pendingAllocations = allocs.filter(a => a.status === 'PENDING').length;
+      const totalLifetimeDeposited = walls.reduce((sum, w) => sum + (w.lifetime_deposited || 0), 0);
+      
+      // Count ledger entries by status
+      const postedCredits = ledger.filter(e => e.status === 'POSTED' && e.kind === 'CREDIT').length;
+      const voidCredits = ledger.filter(e => e.status === 'VOID' && e.kind === 'CREDIT').length;
 
       return Response.json({
         ok: true,
@@ -148,7 +154,11 @@ Deno.serve(async (req) => {
           totalWallets: walls.length,
           totalBalance,
           totalAllocated,
-          pendingAllocations
+          totalLifetimeDeposited,
+          postedDeposits: postedCredits,
+          failedDeposits: voidCredits,
+          // Legacy field for backward compatibility
+          pendingAllocations: 0
         }
       });
     }
