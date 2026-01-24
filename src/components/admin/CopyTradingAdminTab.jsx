@@ -29,7 +29,6 @@ const statusColors = {
   SUSPENDED: "bg-orange-500/10 text-orange-500 border-orange-500/20",
   CLOSED: "bg-gray-500/10 text-gray-500 border-gray-500/20",
   PENDING: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  AWAITING_OKX_TRANSFER: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   FAILED: "bg-red-500/10 text-red-500 border-red-500/20",
   CANCELED: "bg-gray-500/10 text-gray-500 border-gray-500/20"
 };
@@ -47,14 +46,13 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [configRes, statsRes, walletsRes, allocationsRes] = await Promise.all([
-        base44.functions.invoke("copyTradingAdmin", { action: "getConfig" }),
-        base44.functions.invoke("copyTradingAdmin", { action: "getStats" }),
-        base44.functions.invoke("copyTradingAdmin", { action: "listWallets" }),
-        base44.functions.invoke("copyTradingAdmin", { action: "listAllocations" }),
+      const [configRes, walletsRes, allocationsRes] = await Promise.all([
+        base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: "default" }),
+        base44.asServiceRole.entities.CopyTradingWallet.list("-updated_at", 50),
+        base44.asServiceRole.entities.CopyTradingAllocation.list("-created_at", 100),
       ]);
 
-      const cfg = configRes.data?.ok ? configRes.data.data : null;
+      const cfg = configRes?.[0] || null;
       setConfig(cfg);
       setConfigForm({
         enabled: cfg?.enabled || false,
@@ -68,19 +66,22 @@ export default function CopyTradingAdminTab({ onRefresh }) {
         pool_wallet_name: cfg?.pool_wallet_name || "Main Copy Trading Pool"
       });
 
-      const walls = walletsRes.data?.ok ? (walletsRes.data.data || []) : [];
+      const walls = walletsRes || [];
       setWallets(walls);
 
-      const allocs = allocationsRes.data?.ok ? (allocationsRes.data.data || []) : [];
+      const allocs = allocationsRes || [];
       setAllocations(allocs);
 
-      const statsData = statsRes.data?.ok ? statsRes.data.data : {};
+      // Calculate stats
+      const totalBalance = walls.reduce((sum, w) => sum + (w.available_balance || 0), 0);
+      const totalAllocated = walls.reduce((sum, w) => sum + (w.locked_balance || 0), 0);
+      const pendingAllocations = allocs.filter(a => a.status === "PENDING").length;
+
       setStats({
-        totalWallets: statsData.totalWallets || 0,
-        totalBalance: statsData.totalBalance || 0,
-        totalAllocated: statsData.totalAllocated || 0,
-        pendingAllocations: statsData.pendingAllocations || 0,
-        awaitingTransfer: statsData.awaitingTransfer || 0
+        totalWallets: walls.length,
+        totalBalance,
+        totalAllocated,
+        pendingAllocations
       });
     } catch (err) {
       console.error("Failed to load copy trading admin data:", err);
@@ -97,17 +98,26 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
-      const res = await base44.functions.invoke("copyTradingAdmin", {
-        action: "saveConfig",
-        configData: configForm
-      });
+      const user = await base44.auth.me();
+      const now = new Date().toISOString();
 
-      if (res.data?.ok) {
-        toast.success("Configuration saved");
-        loadData();
+      const configData = {
+        ...configForm,
+        updated_at: now,
+        updated_by: user.email
+      };
+
+      if (config?.id) {
+        await base44.asServiceRole.entities.CopyTradingConfig.update(config.id, configData);
       } else {
-        toast.error(res.data?.error?.message || "Failed to save config");
+        await base44.asServiceRole.entities.CopyTradingConfig.create({
+          config_key: "default",
+          ...configData
+        });
       }
+
+      toast.success("Configuration saved");
+      loadData();
     } catch (err) {
       toast.error("Failed to save config: " + err.message);
     } finally {
@@ -118,7 +128,7 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const handleRunProcessor = async () => {
     setRunningProcessor(true);
     try {
-      const res = await base44.functions.invoke("copyTradingAdmin", { action: "runProcessorNow" });
+      const res = await base44.functions.invoke("copyTradingAutoApprove", {});
       
       if (res.data?.ok) {
         const data = res.data.data;
