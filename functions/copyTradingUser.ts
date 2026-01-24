@@ -239,10 +239,8 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: entries || [] });
     }
 
-    // ==================== DEPOSIT FUNDS (Lock in Funding, credit internal wallet) ====================
-    // Same pattern as Staking: Trading→Funding (user cred), then Funding→Main via auto-approve
-    // BUT for Copy Trading: We ONLY do Trading→Funding + credit internal wallet immediately
-    // The funds stay in user's Funding account (locked from trading) - NO transfer to main needed
+    // ==================== DEPOSIT FUNDS (Same as Staking: Trading→Funding, then auto-approve transfers to Main) ====================
+    // Flow: Trading→Funding (user cred) → Create PENDING allocation → Auto-approve processor → Funding→Main (master) + credit wallet
     if (action === 'createAllocation' || action === 'depositFunds') {
       const { amount } = body;
       const amountNum = Number(amount);
@@ -287,14 +285,14 @@ Deno.serve(async (req) => {
       }
 
       // Idempotency check - prevent duplicate deposits within 30 seconds
-      const recentLedger = await base44.asServiceRole.entities.CopyTradingLedger.filter(
-        { user_id: user.id, kind: 'CREDIT', status: 'POSTED' },
+      const recentAllocations = await base44.asServiceRole.entities.CopyTradingAllocation.filter(
+        { user_id: user.id, status: 'PENDING' },
         '-created_at',
         1
       );
-      if (recentLedger?.length > 0) {
-        const lastDeposit = new Date(recentLedger[0].created_at || recentLedger[0].created_date);
-        if (Date.now() - lastDeposit.getTime() < 30000) {
+      if (recentAllocations?.length > 0) {
+        const lastAlloc = new Date(recentAllocations[0].created_at || recentAllocations[0].created_date);
+        if (Date.now() - lastAlloc.getTime() < 30000) {
           return Response.json({ ok: false, error: { code: 'DUPLICATE_REQUEST', message: 'Please wait before submitting another deposit' } });
         }
       }
@@ -317,7 +315,7 @@ Deno.serve(async (req) => {
 
       const { account, credential } = credResult.data;
 
-      // Create transfer record BEFORE OKX call (like staking does)
+      // STEP 1: Create transfer record BEFORE OKX call (like staking does)
       let lockTransferId = null;
       try {
         const lockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
@@ -338,8 +336,7 @@ Deno.serve(async (req) => {
         console.log('[COPY_TRADING] Failed to create lock transfer record:', e.message);
       }
 
-      // Execute OKX transfer: Trading(18) → Funding(6) using USER's credentials
-      // This locks funds from futures trading but keeps them in user's subaccount
+      // STEP 2: Execute OKX transfer: Trading(18) → Funding(6) using USER's credentials
       const transferRes = await okxRequest({
         credential,
         method: 'POST',
@@ -390,49 +387,48 @@ Deno.serve(async (req) => {
         }
       }
 
-      // OKX transfer succeeded - funds are now in user's FUNDING account (locked from trading)
-      // Now credit the INTERNAL CopyTradingWallet (this is the demo/internal balance)
-      const wallet = await getOrCreateWallet(base44, user);
-      const balanceBefore = wallet.available_balance || 0;
-      const balanceAfter = balanceBefore + amountNum;
-
-      // Update internal wallet balance
-      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
-        available_balance: balanceAfter,
-        lifetime_deposited: (wallet.lifetime_deposited || 0) + amountNum,
-        last_activity_at: completedAt,
+      // STEP 3: Create PENDING allocation (auto-approve processor will handle Funding→Main + wallet credit)
+      const allocation = await base44.asServiceRole.entities.CopyTradingAllocation.create({
+        user_id: user.id,
+        user_email: user.email,
+        amount: amountNum,
+        status: 'PENDING',
+        deposit_source: 'OKX_FUNDING', // Funds are now in Funding account
+        okx_transfer_id: lockTransferId,
+        idempotency_key: idempotencyKey,
+        retry_count: 0,
+        created_at: completedAt,
         updated_at: completedAt
       });
 
-      // Create ledger entry (POSTED = success)
-      const ledgerEntry = await base44.asServiceRole.entities.CopyTradingLedger.create({
-        user_id: user.id,
-        kind: 'CREDIT',
-        amount: amountNum,
-        currency: 'USDT',
-        status: 'POSTED',
-        ref_type: 'DEPOSIT',
-        idempotency_key: idempotencyKey,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
-        description: 'Deposit from Trading Account',
-        meta: { 
-          source: 'OKX_TRADING', 
-          lockTransferId,
-          okxTransferId: transferResult?.transId,
-          lockedInFunding: true  // Funds locked in user's Funding account
-        },
-        created_at: completedAt
-      });
+      console.log('[COPY_TRADING] Created PENDING allocation:', allocation.id);
+
+      // Notify admins
+      try {
+        const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+        for (const admin of (admins || []).slice(0, 5)) {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'system',
+            title: 'New Copy Trading Deposit',
+            message: `${user.email} deposited ${amountNum} USDT for Copy Trading`,
+            data: { allocationId: allocation.id, action: 'copy_trading_deposit' },
+            read: false,
+            priority: 'high'
+          });
+        }
+      } catch (e) {
+        console.log('[COPY_TRADING] Failed to notify admins:', e.message);
+      }
 
       // Create notification for user
       try {
         await base44.asServiceRole.entities.Notification.create({
           user_id: user.id,
-          type: 'deposit_confirmed',
-          title: 'Copy Trading Deposit',
-          message: `Successfully deposited ${amountNum} USDT to Copy Trading`,
-          data: { amount: amountNum, newBalance: balanceAfter, ledgerId: ledgerEntry.id },
+          type: 'system',
+          title: 'Copy Trading Deposit Pending',
+          message: `Your deposit of ${amountNum} USDT is being processed. It will be credited to your Copy Trading balance shortly.`,
+          data: { amount: amountNum, allocationId: allocation.id },
           read: false,
           priority: 'normal'
         });
@@ -441,12 +437,10 @@ Deno.serve(async (req) => {
       }
 
       console.log(JSON.stringify({ 
-        event: 'COPY_TRADING_DEPOSIT_SUCCESS', 
+        event: 'COPY_TRADING_DEPOSIT_PENDING', 
         userId: user.id, 
         amount: amountNum, 
-        balanceBefore, 
-        balanceAfter, 
-        ledgerId: ledgerEntry.id,
+        allocationId: allocation.id,
         lockTransferId,
         okxTransferId: transferResult?.transId
       }));
@@ -456,10 +450,10 @@ Deno.serve(async (req) => {
         data: { 
           success: true,
           amount: amountNum,
-          newBalance: balanceAfter,
-          ledgerId: ledgerEntry.id,
+          status: 'PENDING',
+          allocationId: allocation.id,
           lockTransferId,
-          balanceBefore
+          message: 'Funds locked. Processing deposit to Copy Trading balance.'
         } 
       });
     }
