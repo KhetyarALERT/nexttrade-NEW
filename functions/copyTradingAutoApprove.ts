@@ -160,12 +160,6 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const minAgeMs = auto_approve_min_age_minutes * 60 * 1000;
-    const masterCreds = getMasterCredentials();
-
-    if (!masterCreds.ok) {
-      console.error(`[COPY_TRADING_AUTO] [${runId}] Missing master credentials`);
-      return Response.json({ ok: false, error: masterCreds.error }, { status: 500 });
-    }
 
     // Pre-fetch KYC statuses
     const userKycMap = {};
