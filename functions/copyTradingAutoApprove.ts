@@ -1,6 +1,9 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
 // Copy Trading Auto-Approve Processor - Runs via automation every 5 minutes
+// NOTE: For OKX_TRADING deposits, funds are already in user's Funding account
+// We just need to verify and credit their internal Copy Trading Wallet
+// NO transfer to main account needed (avoids IP whitelist issues)
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const DEFAULT_OKX_BASE_URL = 'https://www.okx.com';
@@ -96,16 +99,6 @@ async function okxRequest({ credential, method, path, query, body }) {
   } catch (error) {
     return { ok: false, error: { okxMsg: error?.message || 'Network error' } };
   }
-}
-
-function getMasterCredentials() {
-  const apiKey = getEnv('OKX_MAIN_API_KEY');
-  const secretKey = getEnv('OKX_MAIN_SECRET');
-  const passphrase = getEnv('OKX_MAIN_PASSPHRASE');
-  if (!apiKey || !secretKey || !passphrase) {
-    return { ok: false, error: { code: 'CONFIG_ERROR', message: 'Missing OKX credentials' } };
-  }
-  return { ok: true, data: { apiKey, secretKey, passphrase } };
 }
 
 Deno.serve(async (req) => {
