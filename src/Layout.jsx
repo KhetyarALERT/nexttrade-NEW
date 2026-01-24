@@ -116,7 +116,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const [theme, setTheme] = useState("dark");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
-  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
+  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingEnabled: false, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
@@ -299,13 +299,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         base44.functions.invoke("wallet", { action: "list" }),
         base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
         base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
+        base44.functions.invoke("copyTradingUser", { action: "getSummary" }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
       const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
       const stakingData = stakingResult.data?.ok ? stakingResult.data.data : null;
-      const copyTradingData = copyTradingResult.data?.ok ? copyTradingResult.data.data : null;
+      const copyTradingSummary = copyTradingResult.data?.ok ? copyTradingResult.data.data : null;
 
       // Wallets: Fund Account balance (internal platform wallets)
       const internalFundingUsdt = wallets.reduce((sum, w) => {
@@ -330,8 +330,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const nextUnlockAt = stakingData?.nextUnlockAt || null;
 
       // Copy Trading: Available balance (in pool), Locked (in signals)
-      const copyTradingAvailableUsdt = copyTradingData?.available_balance || 0;
-      const copyTradingLockedUsdt = copyTradingData?.locked_balance || 0;
+      const copyTradingEnabled = copyTradingSummary?.enabled || false;
+      const copyTradingAvailableUsdt = copyTradingSummary?.wallet?.available || 0;
+      const copyTradingLockedUsdt = copyTradingSummary?.wallet?.locked || 0;
 
       // Combined totals
       // OKX total (what's in user's subaccount) = funding + trading (includes pending staking)
@@ -351,13 +352,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         stakedActiveUsdt,
         stakedPendingUsdt,
         nextUnlockAt,
+        copyTradingEnabled,
         copyTradingAvailableUsdt,
         copyTradingLockedUsdt,
       });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
       setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
-      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
+      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingEnabled: false, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
     } finally {
       setLoadingAccountTotals(false);
     }
@@ -616,8 +618,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                     </Link>
                                   </DropdownMenuItem>
 
-                      {/* Copy Trading - show if any balance */}
-                      {(accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
+                      {/* Copy Trading - show if enabled and has balance or enabled */}
+                      {accountBalances.copyTradingEnabled && (accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Futures")}>
                             <div className="flex w-full items-center justify-between gap-3">

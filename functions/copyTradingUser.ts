@@ -35,6 +35,34 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: config });
     }
 
+    // ==================== GET SUMMARY (for user dropdown) ====================
+    if (action === 'getSummary') {
+      const [configs, wallets, allocations] = await Promise.all([
+        base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' }),
+        base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id }),
+        base44.asServiceRole.entities.CopyTradingAllocation.filter({ user_id: user.id, status: 'PENDING' }),
+      ]);
+
+      const config = configs?.[0];
+      const wallet = wallets?.[0];
+      const pendingCount = allocations?.length || 0;
+
+      return Response.json({
+        ok: true,
+        data: {
+          enabled: config?.enabled || false,
+          wallet: wallet ? {
+            available: wallet.available_balance || 0,
+            locked: wallet.locked_balance || 0,
+            lifetimeDeposited: wallet.lifetime_deposited || 0,
+            lifetimePnl: wallet.lifetime_pnl || 0,
+          } : null,
+          pendingAllocationsCount: pendingCount,
+          lastActivityAt: wallet?.last_activity_at || null,
+        }
+      });
+    }
+
     // ==================== GET WALLET ====================
     if (action === 'getWallet') {
       const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
