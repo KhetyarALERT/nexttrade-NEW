@@ -151,10 +151,23 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: { ...result, message: 'No pending settlement allocations' } });
     }
 
-    console.log(`[COPY_TRADING_AUTO] [${runId}] Found ${pendingAllocations.length} pending allocations`);
+    console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Found ${pendingAllocations.length} pending settlement allocations`);
 
     const now = new Date();
     const minAgeMs = auto_approve_min_age_minutes * 60 * 1000;
+    const MAX_RETRIES = 5;
+
+    // Get master credentials for step2 transfer
+    const masterApiKey = getEnv('OKX_MAIN_API_KEY');
+    const masterSecret = getEnv('OKX_MAIN_SECRET');
+    const masterPassphrase = getEnv('OKX_MAIN_PASSPHRASE');
+
+    if (!masterApiKey || !masterSecret || !masterPassphrase) {
+      console.error(`[COPY_TRADING_SETTLEMENT] [${runId}] Missing master OKX credentials`);
+      return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'Missing OKX master credentials' } }, { status: 500 });
+    }
+
+    const masterCredential = { apiKey: masterApiKey, secretKey: masterSecret, passphrase: masterPassphrase };
 
     // Pre-fetch KYC statuses
     const userKycMap = {};
@@ -180,8 +193,17 @@ Deno.serve(async (req) => {
       const detail = { id: allocation.id, userEmail: allocation.user_email, amount: allocation.amount, status: 'pending' };
 
       try {
-        // Idempotency check
-        if (allocation.status !== 'PENDING') {
+        // Idempotency check - skip if already has step2_transfer_id
+        if (allocation.step2_transfer_id) {
+          detail.status = 'skipped';
+          detail.reason = 'Already has step2 transfer';
+          result.skippedCount++;
+          result.details.push(detail);
+          continue;
+        }
+
+        // Status check
+        if (allocation.status !== 'PENDING_SETTLEMENT') {
           detail.status = 'skipped';
           detail.reason = 'Status changed';
           result.skippedCount++;
@@ -218,11 +240,43 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Retry limit check
-        if ((allocation.retry_count || 0) >= 5) {
-          detail.status = 'skipped';
-          detail.reason = 'Max retries reached';
-          result.skippedCount++;
+        // Retry limit check - mark as FAILED after max retries
+        if ((allocation.retry_count || 0) >= MAX_RETRIES) {
+          await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
+            status: 'FAILED',
+            failed_at: now.toISOString(),
+            last_error: 'Max retries exceeded',
+            updated_at: now.toISOString()
+          });
+
+          // Notify admin and user
+          try {
+            const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+            if (admins?.length) {
+              await base44.asServiceRole.entities.Notification.create({
+                user_id: admins[0].id,
+                type: 'system',
+                title: 'Copy Trading Settlement Failed',
+                message: `Settlement failed for ${allocation.user_email}: ${allocation.amount} USDT after ${MAX_RETRIES} retries`,
+                data: { allocationId: allocation.id, action: 'copy_trading_settlement_failed' },
+                read: false,
+                priority: 'high'
+              });
+            }
+            await base44.asServiceRole.entities.Notification.create({
+              user_id: allocation.user_id,
+              type: 'system',
+              title: 'Copy Trading Deposit Failed',
+              message: `Your deposit of ${allocation.amount} USDT could not be processed. Please contact support.`,
+              data: { allocationId: allocation.id },
+              read: false,
+              priority: 'high'
+            });
+          } catch {}
+
+          detail.status = 'failed';
+          detail.reason = 'Max retries exceeded - marked as FAILED';
+          result.failedCount++;
           result.details.push(detail);
           continue;
         }
@@ -253,14 +307,15 @@ Deno.serve(async (req) => {
         }
 
         const pool = pools[0];
+        const subAccountName = pool.subaccount_name;
+
+        // Verify funding balance in subaccount using pool credentials
         const credential = {
           apiKey: pool.api_key,
           secretKey: await decryptSecret(pool.secret_enc),
           passphrase: await decryptSecret(pool.passphrase_enc)
         };
 
-        // For OKX_FUNDING deposits: Verify balance in user's funding account
-        // (The transfer from Trading→Funding was already done by user in depositFunds)
         const fundingRes = await okxRequest({
           credential,
           method: 'GET',
@@ -271,7 +326,7 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
             retry_count: (allocation.retry_count || 0) + 1,
             last_retry_at: now.toISOString(),
-            last_error: `Failed to check balance: ${fundingRes.error?.okxMsg}`,
+            last_error: `Balance check failed: ${fundingRes.error?.okxMsg}`,
             updated_at: now.toISOString()
           });
           detail.status = 'failed';
@@ -290,10 +345,8 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // ========== APPROVE ALLOCATION ==========
-        // For OKX_FUNDING: Credit internal wallet (funds stay in user's OKX funding account)
-        // No transfer to main pool - user's funds remain isolated in their subaccount
-        console.log(`[COPY_TRADING_AUTO] [${runId}] Approving allocation ${allocation.id}`);
+        // ========== STEP 2: TRANSFER Funding(subaccount) → Funding(main) ==========
+        console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Settling allocation ${allocation.id} - ${subAccountName} → main`);
 
         // Re-check status
         const freshAllocs = await base44.asServiceRole.entities.CopyTradingAllocation.filter({ id: allocation.id });
