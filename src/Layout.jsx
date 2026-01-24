@@ -616,8 +616,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                     </Link>
                                   </DropdownMenuItem>
 
-                      {/* Copy Trading - always show if config enabled */}
-                      {copyTradingData?.available_balance !== undefined && (
+                      {/* Copy Trading - show if any balance */}
+                      {(accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Futures") + "?tab=bots"}>
                             <div className="flex w-full items-center justify-between gap-3">
