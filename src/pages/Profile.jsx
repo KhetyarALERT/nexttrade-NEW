@@ -262,6 +262,7 @@ export default function Profile({ language = "en" }) {
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [existingVerification, setExistingVerification] = useState(null);
+  const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
