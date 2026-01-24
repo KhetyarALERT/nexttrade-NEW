@@ -1116,7 +1116,7 @@ export default function OKXAdminHub({ language = 'en' }) {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes, requestsRes, verificationsRes, stakingReqRes, stakingStatsRes] = await Promise.all([
+      const [statsRes, poolRes, accountsRes, usersRes, withdrawalsRes, transfersRes, requestsRes, verificationsRes, stakingReqRes, stakingStatsRes, copyTradingStatsRes] = await Promise.all([
         base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
         base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
         base44.functions.invoke('okxAdminHub', { action: 'listUserAccounts' }),
@@ -1127,9 +1127,17 @@ export default function OKXAdminHub({ language = 'en' }) {
         base44.entities.VerificationRequest.list('-created_date', 100),
         base44.functions.invoke('okxAdminHub', { action: 'listStakingRequests', status: 'all', limit: 100 }),
         base44.functions.invoke('okxAdminHub', { action: 'getStakingStats' }),
+        base44.functions.invoke('copyTradingAdmin', { action: 'getCopyTradingStats' }),
       ]);
       
-      if (statsRes.data?.ok) setStats(statsRes.data.data);
+      if (statsRes.data?.ok) {
+        const baseStats = statsRes.data.data;
+        // Merge copy trading stats
+        if (copyTradingStatsRes.data?.ok) {
+          baseStats.copyTrading = copyTradingStatsRes.data.data;
+        }
+        setStats(baseStats);
+      }
       if (poolRes.data?.ok) setPoolAccounts(poolRes.data.data || []);
       if (accountsRes.data?.ok) setUserAccounts(accountsRes.data.data || []);
       if (usersRes.data?.ok) setUsers(usersRes.data.data || []);
