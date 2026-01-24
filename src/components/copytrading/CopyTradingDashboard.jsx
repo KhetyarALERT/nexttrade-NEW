@@ -70,21 +70,21 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
   const [wallet, setWallet] = useState(null);
-  const [allocations, setAllocations] = useState([]);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [configRes, walletRes, allocationsRes] = await Promise.all([
+      const [configRes, walletRes, ledgerRes] = await Promise.all([
         base44.functions.invoke("copyTradingUser", { action: "getConfig" }),
         base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
-        base44.functions.invoke("copyTradingUser", { action: "getAllocations" }),
+        base44.functions.invoke("copyTradingUser", { action: "getLedger", limit: 10 }),
       ]);
 
       if (configRes.data?.ok) setConfig(configRes.data.data);
       if (walletRes.data?.ok) setWallet(walletRes.data.data);
-      if (allocationsRes.data?.ok) setAllocations(allocationsRes.data.data || []);
+      if (ledgerRes.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
     } catch (err) {
       console.error("Failed to load copy trading data:", err);
     } finally {
@@ -110,18 +110,17 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const lockedBalance = wallet?.locked_balance || 0;
   const lifetimePnl = wallet?.lifetime_pnl || 0;
 
-  const statusColors = {
-    PENDING: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-    ACTIVE: "bg-green-500/10 text-green-500 border-green-500/20",
-    FAILED: "bg-red-500/10 text-red-500 border-red-500/20",
-    CANCELED: "bg-gray-500/10 text-gray-500 border-gray-500/20"
+  const ledgerKindColors = {
+    CREDIT: "bg-green-500/10 text-green-500 border-green-500/20",
+    DEBIT: "bg-red-500/10 text-red-500 border-red-500/20",
+    ALLOCATION_LOCK: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    ALLOCATION_UNLOCK: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+    PNL: "bg-amber-500/10 text-amber-500 border-amber-500/20"
   };
 
-  const statusLabels = {
-    PENDING: labels.pending,
-    ACTIVE: labels.active,
-    FAILED: labels.failed,
-    CANCELED: labels.canceled
+  const ledgerKindLabels = {
+    en: { CREDIT: "Deposit", DEBIT: "Withdraw", ALLOCATION_LOCK: "Locked", ALLOCATION_UNLOCK: "Unlocked", PNL: "P&L" },
+    ar: { CREDIT: "إيداع", DEBIT: "سحب", ALLOCATION_LOCK: "مقفل", ALLOCATION_UNLOCK: "مفتوح", PNL: "ربح/خسارة" }
   };
 
   // Always show Copy Trading - even if config not loaded yet or disabled
@@ -205,25 +204,25 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
         </CardContent>
       </Card>
 
-      {/* Recent Activity - Phase 2: Show signal allocations */}
-      {allocations.length > 0 && (
+      {/* Recent Activity - Show ledger entries */}
+      {ledgerEntries.length > 0 && (
         <Card>
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold mb-3">{labels.recentAllocations}</h3>
             <div className="space-y-2">
-              {allocations.slice(0, 5).map((alloc) => (
-                <div key={alloc.id} className="flex items-center justify-between text-sm bg-muted/30 rounded-lg px-3 py-2">
+              {ledgerEntries.slice(0, 5).map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between text-sm bg-muted/30 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Badge className={statusColors[alloc.status] || ""} variant="outline">
-                      {statusLabels[alloc.status] || alloc.status}
+                    <Badge className={ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} variant="outline">
+                      {ledgerKindLabels[language]?.[entry.kind] || entry.kind}
                     </Badge>
                     <span className="text-muted-foreground text-xs">
-                      {formatDate(alloc.created_at || alloc.created_date)}
+                      {formatDate(entry.created_at || entry.created_date)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-medium">
-                      {formatUsdt(alloc.amount)} USDT
+                    <span className={`font-mono font-medium ${entry.kind === 'CREDIT' ? 'text-green-500' : entry.kind === 'DEBIT' ? 'text-red-500' : ''}`}>
+                      {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))} USDT
                     </span>
                   </div>
                 </div>

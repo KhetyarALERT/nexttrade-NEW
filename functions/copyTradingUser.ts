@@ -379,6 +379,48 @@ Deno.serve(async (req) => {
       if (!toMainRes.ok || (toMainResult?.code && toMainResult.code !== '0')) {
         const errMsg = toMainRes.error?.okxMsg || toMainResult?.msg || 'Transfer to main failed';
         console.error(`[COPY_TRADING] Subaccount->Main failed:`, errMsg);
+        
+        // Attempt revert: Funding -> Trading
+        console.log(`[COPY_TRADING] Attempting revert: Funding -> Trading`);
+        try {
+          await okxRequest({
+            credential,
+            method: 'POST',
+            path: '/api/v5/asset/transfer',
+            body: {
+              ccy: 'USDT',
+              amt: String(amountNum),
+              from: '6',  // Funding
+              to: '18',   // Trading
+              type: '0'
+            }
+          });
+          console.log(`[COPY_TRADING] Revert successful`);
+        } catch (revertErr) {
+          console.error(`[COPY_TRADING] Revert failed:`, revertErr.message);
+        }
+        
+        // Record failed attempt in ledger for admin visibility
+        await base44.asServiceRole.entities.CopyTradingLedger.create({
+          user_id: user.id,
+          kind: 'CREDIT',
+          amount: amountNum,
+          currency: 'USDT',
+          status: 'VOID',
+          ref_type: 'ALLOCATION',
+          idempotency_key: idempotencyKey,
+          balance_before: 0,
+          balance_after: 0,
+          description: 'Deposit FAILED - transfer to main',
+          meta: { 
+            source: 'OKX_TRADING', 
+            step1TransferId: internalResult?.transId,
+            last_error: errMsg,
+            failed_at: now
+          },
+          created_at: now
+        });
+        
         return Response.json({ ok: false, error: { code: 'TRANSFER_TO_MAIN_FAILED', message: errMsg } });
       }
 
