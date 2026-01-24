@@ -140,15 +140,19 @@ Deno.serve(async (req) => {
       pool_wallet_name = 'Main Copy Trading Pool'
     } = config;
 
-    // Get pending allocations (OKX_FUNDING deposits need processing: Funding→Main + wallet credit)
-    const pendingAllocations = await base44.asServiceRole.entities.CopyTradingAllocation.filter(
+    // Get pending allocations (OKX_FUNDING deposits need processing)
+    // NOTE: OKX_TRADING deposits are instant (already credited in depositFunds) - skip them here
+    const allPendingAllocations = await base44.asServiceRole.entities.CopyTradingAllocation.filter(
       { status: 'PENDING' },
       'created_at',
       100
     );
 
+    // Filter out OKX_TRADING deposits - they are already processed instantly
+    const pendingAllocations = (allPendingAllocations || []).filter(a => a.deposit_source !== 'OKX_TRADING');
+
     if (!pendingAllocations?.length) {
-      console.log(`[COPY_TRADING_AUTO] [${runId}] No pending allocations`);
+      console.log(`[COPY_TRADING_AUTO] [${runId}] No pending allocations (skipped ${(allPendingAllocations || []).length - pendingAllocations.length} OKX_TRADING instant deposits)`);
       return Response.json({ ok: true, data: { ...result, message: 'No pending allocations requiring processing' } });
     }
 
