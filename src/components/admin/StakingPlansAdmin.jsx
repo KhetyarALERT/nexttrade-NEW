@@ -9,17 +9,21 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Pencil, Copy, Trash2, Loader2, Settings, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Copy, Trash2, Loader2, Settings, RefreshCw, Zap, Play } from 'lucide-react';
 
 export default function StakingPlansAdmin({ onRefresh }) {
+  const [adminTab, setAdminTab] = useState('plans');
   const [plans, setPlans] = useState([]);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [autoApproveDialogOpen, setAutoApproveDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [runningAutoApprove, setRunningAutoApprove] = useState(false);
 
   const [form, setForm] = useState({
     key: '',
@@ -44,6 +48,14 @@ export default function StakingPlansAdmin({ onRefresh }) {
     main_staking_pool_name: 'Main Staking Pool',
   });
 
+  const [autoApproveForm, setAutoApproveForm] = useState({
+    auto_approve_enabled: false,
+    auto_approve_max_amount: 1000,
+    auto_approve_plans: '',
+    auto_approve_require_kyc: true,
+    auto_approve_min_age_minutes: 5,
+  });
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -61,6 +73,13 @@ export default function StakingPlansAdmin({ onRefresh }) {
           first_stake_cap_principal: configRes[0].first_stake_cap_principal ?? 300,
           first_stake_bonus_multiplier: configRes[0].first_stake_bonus_multiplier ?? 1.5,
           main_staking_pool_name: configRes[0].main_staking_pool_name ?? 'Main Staking Pool',
+        });
+        setAutoApproveForm({
+          auto_approve_enabled: configRes[0].auto_approve_enabled ?? false,
+          auto_approve_max_amount: configRes[0].auto_approve_max_amount ?? 1000,
+          auto_approve_plans: (configRes[0].auto_approve_plans || []).join(', '),
+          auto_approve_require_kyc: configRes[0].auto_approve_require_kyc ?? true,
+          auto_approve_min_age_minutes: configRes[0].auto_approve_min_age_minutes ?? 5,
         });
       }
     } catch (err) {
@@ -223,6 +242,57 @@ export default function StakingPlansAdmin({ onRefresh }) {
     }
   };
 
+  const handleSaveAutoApprove = async () => {
+    setProcessing(true);
+    try {
+      const plansArray = autoApproveForm.auto_approve_plans
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean);
+
+      const data = {
+        auto_approve_enabled: autoApproveForm.auto_approve_enabled,
+        auto_approve_max_amount: Number(autoApproveForm.auto_approve_max_amount),
+        auto_approve_plans: plansArray,
+        auto_approve_require_kyc: autoApproveForm.auto_approve_require_kyc,
+        auto_approve_min_age_minutes: Number(autoApproveForm.auto_approve_min_age_minutes),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (config) {
+        await base44.entities.StakingConfig.update(config.id, data);
+      } else {
+        await base44.entities.StakingConfig.create({ ...data, config_key: 'default' });
+      }
+
+      toast.success('Auto-approve settings saved');
+      setAutoApproveDialogOpen(false);
+      loadData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRunAutoApprove = async () => {
+    setRunningAutoApprove(true);
+    try {
+      const res = await base44.functions.invoke('stakingAutoApprove', {});
+      if (res.data?.ok) {
+        const d = res.data.data;
+        toast.success(`Auto-approve completed: ${d.approvedCount} approved, ${d.skippedCount} skipped, ${d.failedCount} failed`);
+        onRefresh?.();
+      } else {
+        toast.error(res.data?.error?.message || 'Auto-approve failed');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to run');
+    } finally {
+      setRunningAutoApprove(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -231,7 +301,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
           <h2 className="text-lg font-semibold">Staking Plans Management</h2>
           <p className="text-sm text-muted-foreground">Create and manage staking plans</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -240,12 +310,49 @@ export default function StakingPlansAdmin({ onRefresh }) {
             <Settings className="w-4 h-4 mr-1" />
             Promo Settings
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setAutoApproveDialogOpen(true)}>
+            <Zap className="w-4 h-4 mr-1" />
+            Auto-Approve
+          </Button>
           <Button size="sm" onClick={() => openEditDialog()}>
             <Plus className="w-4 h-4 mr-1" />
             Add Plan
           </Button>
         </div>
       </div>
+
+      {/* Auto-Approve Status Banner */}
+      {config && (
+        <Card className={config.auto_approve_enabled ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-muted'}>
+          <CardContent className="p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Zap className={`w-5 h-5 ${config.auto_approve_enabled ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+              <div>
+                <p className="text-sm font-medium">
+                  Auto-Approve: {config.auto_approve_enabled ? 'Enabled' : 'Disabled'}
+                </p>
+                {config.auto_approve_enabled && (
+                  <p className="text-xs text-muted-foreground">
+                    Max ${config.auto_approve_max_amount} • 
+                    {config.auto_approve_require_kyc ? ' KYC required' : ' No KYC'} • 
+                    Min age {config.auto_approve_min_age_minutes}min
+                    {config.auto_approve_plans?.length > 0 && ` • Plans: ${config.auto_approve_plans.join(', ')}`}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRunAutoApprove}
+              disabled={runningAutoApprove || !config.auto_approve_enabled}
+            >
+              {runningAutoApprove ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
+              Run Now
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Plans Table */}
       <Card>
@@ -539,6 +646,85 @@ export default function StakingPlansAdmin({ onRefresh }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSaveConfig} disabled={processing}>
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-Approve Settings Dialog */}
+      <Dialog open={autoApproveDialogOpen} onOpenChange={setAutoApproveDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Auto-Approve Settings</DialogTitle>
+            <DialogDescription>Configure automatic approval of pending stakes (runs every 5 minutes)</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Auto-Approve Enabled</Label>
+                <p className="text-xs text-muted-foreground">Automatically approve eligible pending stakes</p>
+              </div>
+              <Switch
+                checked={autoApproveForm.auto_approve_enabled}
+                onCheckedChange={(v) => setAutoApproveForm({ ...autoApproveForm, auto_approve_enabled: v })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Max Amount ($)</Label>
+                <Input
+                  type="number"
+                  value={autoApproveForm.auto_approve_max_amount}
+                  onChange={(e) => setAutoApproveForm({ ...autoApproveForm, auto_approve_max_amount: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Stakes above this need manual approval</p>
+              </div>
+              <div>
+                <Label>Min Age (minutes)</Label>
+                <Input
+                  type="number"
+                  value={autoApproveForm.auto_approve_min_age_minutes}
+                  onChange={(e) => setAutoApproveForm({ ...autoApproveForm, auto_approve_min_age_minutes: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Wait before auto-approving</p>
+              </div>
+            </div>
+
+            <div>
+              <Label>Eligible Plans (comma-separated, empty = all)</Label>
+              <Input
+                value={autoApproveForm.auto_approve_plans}
+                onChange={(e) => setAutoApproveForm({ ...autoApproveForm, auto_approve_plans: e.target.value })}
+                placeholder="e.g., 30d, 60d, 90d"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Leave empty to allow all enabled plans</p>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Require KYC</Label>
+                <p className="text-xs text-muted-foreground">Only auto-approve KYC-verified users</p>
+              </div>
+              <Switch
+                checked={autoApproveForm.auto_approve_require_kyc}
+                onCheckedChange={(v) => setAutoApproveForm({ ...autoApproveForm, auto_approve_require_kyc: v })}
+              />
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm">
+              <p className="text-amber-700 dark:text-amber-400">
+                <strong>Safety:</strong> Auto-approve verifies lock transfer completed, checks funding balance, and prevents duplicate approvals. Failed attempts are logged and admin is notified.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAutoApproveDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveAutoApprove} disabled={processing}>
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save
             </Button>
