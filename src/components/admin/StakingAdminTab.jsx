@@ -80,6 +80,34 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
     }
   };
 
+  // Run daily accrual processor manually
+  const [accrualRunning, setAccrualRunning] = useState(false);
+  const [accrualResult, setAccrualResult] = useState(null);
+  
+  const handleRunAccrual = async () => {
+    setAccrualRunning(true);
+    setAccrualResult(null);
+    try {
+      const res = await base44.functions.invoke('stakingRewardsProcessor', { action: 'processDailyAccrual' });
+      if (res.data?.ok) {
+        const data = res.data.data;
+        setAccrualResult(data);
+        if (data.accruedCount > 0) {
+          toast.success(`Accrued rewards for ${data.accruedCount} position(s) - $${data.totalAccrued?.toFixed(6)}`);
+        } else {
+          toast.info(data.message || 'No positions to accrue');
+        }
+        onRefresh?.();
+      } else {
+        toast.error(res.data?.error?.message || 'Accrual failed');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to run accrual');
+    } finally {
+      setAccrualRunning(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!selectedPosition) return;
     
@@ -262,6 +290,48 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
           </CardContent>
         </Card>
       </div>
+
+      {/* Daily Accrual Tool */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-medium flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+                Daily Rewards Accrual
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Calculate and record APY interest for all ACTIVE positions (runs daily at 00:05 UTC)
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleRunAccrual}
+              disabled={accrualRunning}
+              className="gap-2"
+            >
+              {accrualRunning ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              Run Accrual Now
+            </Button>
+          </div>
+          
+          {accrualResult && (
+            <div className="mt-3 p-2 bg-muted/50 rounded-lg text-xs">
+              <div className="flex gap-4 flex-wrap">
+                <span>Date: <strong>{accrualResult.dateKey}</strong></span>
+                <span>Processed: <strong>{accrualResult.processedCount}</strong></span>
+                <span className="text-emerald-600">Accrued: <strong>{accrualResult.accruedCount}</strong></span>
+                <span className="text-muted-foreground">Skipped: {accrualResult.skippedCount}</span>
+                <span className="text-primary">Total: <strong>${accrualResult.totalAccrued?.toFixed(6)}</strong></span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Admin Tabs */}
       <Tabs value={adminTab} onValueChange={setAdminTab}>
