@@ -1,7 +1,58 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// Copy Trading User Functions - Phase 1: Allocation/Funding
+// Copy Trading User Functions - Phase 1: Immediate OKX Transfer Funding
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+
+// Helper: Get or create CopyTradingWallet for user (ensures wallet always exists)
+async function getOrCreateWallet(base44, user) {
+  const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
+  if (wallets?.length > 0) {
+    return wallets[0];
+  }
+  
+  // Create new wallet with zero balance
+  const now = new Date().toISOString();
+  const newWallet = await base44.asServiceRole.entities.CopyTradingWallet.create({
+    user_id: user.id,
+    user_email: user.email,
+    available_balance: 0,
+    locked_balance: 0,
+    lifetime_deposited: 0,
+    lifetime_withdrawn: 0,
+    lifetime_pnl: 0,
+    status: 'ACTIVE',
+    created_at: now,
+    updated_at: now
+  });
+  
+  console.log(`[COPY_TRADING] Created wallet for user ${user.email}`);
+  return newWallet;
+}
+
+// Helper: Get user's OKX trading balance
+async function getOkxTradingBalance(base44, userId) {
+  try {
+    // Check if user has OKX account
+    const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+      user_id: userId,
+      provider: 'OKX',
+      status: 'ACTIVE'
+    });
+    
+    if (!accounts?.length) {
+      return { ok: false, balance: 0, error: 'No OKX account' };
+    }
+    
+    // Get cached balance from account record
+    const account = accounts[0];
+    const tradingBalance = account.trading_balance || account.tradingBalance || 0;
+    
+    return { ok: true, balance: tradingBalance };
+  } catch (err) {
+    console.error('[COPY_TRADING] Failed to get OKX balance:', err.message);
+    return { ok: false, balance: 0, error: err.message };
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -29,16 +80,15 @@ Deno.serve(async (req) => {
         enabled: false,
         min_deposit_usdt: 50,
         require_kyc: true,
-        deposit_source: 'OKX_FUNDING',
+        deposit_source: 'OKX_TRADING',
         signals_enabled: false
       };
       return Response.json({ ok: true, data: config });
     }
 
-    // ==================== GET WALLET ====================
+    // ==================== GET WALLET (auto-create if missing) ====================
     if (action === 'getWallet') {
-      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
-      const wallet = wallets?.[0] || null;
+      const wallet = await getOrCreateWallet(base44, user);
       return Response.json({ ok: true, data: wallet });
     }
 
@@ -63,9 +113,9 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: entries || [] });
     }
 
-    // ==================== CREATE ALLOCATION ====================
-    if (action === 'createAllocation') {
-      const { amount, depositSource } = body;
+    // ==================== DEPOSIT FUNDS (Immediate for OKX_TRADING) ====================
+    if (action === 'createAllocation' || action === 'depositFunds') {
+      const { amount } = body;
       const amountNum = Number(amount);
 
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
@@ -80,8 +130,9 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'DISABLED', message: 'Copy trading is not enabled' } });
       }
 
-      if (amountNum < (config.min_deposit_usdt || 50)) {
-        return Response.json({ ok: false, error: { code: 'MIN_AMOUNT', message: `Minimum allocation is ${config.min_deposit_usdt || 50} USDT` } });
+      const minDeposit = config.min_deposit_usdt || 50;
+      if (amountNum < minDeposit) {
+        return Response.json({ ok: false, error: { code: 'MIN_AMOUNT', message: `Minimum deposit is ${minDeposit} USDT` } });
       }
 
       // Check KYC if required
@@ -96,23 +147,87 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create allocation request
-      const now = new Date().toISOString();
-      const idempotencyKey = `alloc:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+      // Get OKX trading balance to validate
+      const balanceCheck = await getOkxTradingBalance(base44, user.id);
+      if (!balanceCheck.ok) {
+        return Response.json({ ok: false, error: { code: 'NO_OKX_ACCOUNT', message: 'Please set up your trading account first' } });
+      }
 
-      const allocation = await base44.asServiceRole.entities.CopyTradingAllocation.create({
+      if (balanceCheck.balance < amountNum) {
+        return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient balance. Available: ${balanceCheck.balance.toFixed(2)} USDT` } });
+      }
+
+      // Idempotency check - prevent duplicate deposits within 30 seconds
+      const recentLedger = await base44.asServiceRole.entities.CopyTradingLedger.filter(
+        { user_id: user.id, kind: 'CREDIT', status: 'POSTED' },
+        '-created_at',
+        1
+      );
+      if (recentLedger?.length > 0) {
+        const lastDeposit = new Date(recentLedger[0].created_at || recentLedger[0].created_date);
+        if (Date.now() - lastDeposit.getTime() < 30000) {
+          return Response.json({ ok: false, error: { code: 'DUPLICATE_REQUEST', message: 'Please wait before submitting another deposit' } });
+        }
+      }
+
+      const now = new Date().toISOString();
+      const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+
+      // Get or create wallet
+      const wallet = await getOrCreateWallet(base44, user);
+      const balanceBefore = wallet.available_balance || 0;
+      const balanceAfter = balanceBefore + amountNum;
+
+      // Update wallet balance IMMEDIATELY (no pending state)
+      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+        available_balance: balanceAfter,
+        lifetime_deposited: (wallet.lifetime_deposited || 0) + amountNum,
+        last_activity_at: now,
+        updated_at: now
+      });
+
+      // Create ledger entry
+      const ledgerEntry = await base44.asServiceRole.entities.CopyTradingLedger.create({
+        user_id: user.id,
+        kind: 'CREDIT',
+        amount: amountNum,
+        currency: 'USDT',
+        status: 'POSTED',
+        ref_type: 'ALLOCATION',
+        idempotency_key: idempotencyKey,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        description: 'Deposit from Trading Account',
+        meta: { source: 'OKX_TRADING' },
+        created_at: now
+      });
+
+      // Also create an allocation record for admin visibility (ACTIVE immediately)
+      await base44.asServiceRole.entities.CopyTradingAllocation.create({
         user_id: user.id,
         user_email: user.email,
         amount: amountNum,
-        status: 'PENDING',
-        deposit_source: depositSource || config.deposit_source || 'OKX_FUNDING',
+        status: 'ACTIVE',
+        deposit_source: 'OKX_TRADING',
         idempotency_key: idempotencyKey,
-        retry_count: 0,
+        approved_at: now,
+        approved_by: 'SYSTEM',
+        approved_by_type: 'AUTOMATION',
         created_at: now,
         updated_at: now
       });
 
-      return Response.json({ ok: true, data: allocation });
+      console.log(`[COPY_TRADING] Deposit SUCCESS: ${amountNum} USDT for user ${user.email}, new balance: ${balanceAfter}`);
+
+      return Response.json({ 
+        ok: true, 
+        data: { 
+          success: true,
+          amount: amountNum,
+          newBalance: balanceAfter,
+          ledgerId: ledgerEntry.id
+        } 
+      });
     }
 
     // ==================== CANCEL ALLOCATION (Phase 2 - Signal allocations only) ====================
