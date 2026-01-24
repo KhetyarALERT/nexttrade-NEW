@@ -8,14 +8,15 @@ import { Wallet, TrendingUp, Lock, PlusCircle, RefreshCw, Sparkles, X, Loader2 }
 import { toast } from "sonner";
 import AllocationModal from "./AllocationModal";
 
-// Format number with English digits always
+// Format number with English digits always (even in Arabic UI)
 function formatUsdt(val) {
   if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
-function formatDate(dateStr, language = "en") {
+function formatDate(dateStr) {
   if (!dateStr) return "-";
+  // Always use English locale for consistent digits
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 

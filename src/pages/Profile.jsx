@@ -908,12 +908,12 @@ export default function Profile({ language = "en" }) {
                   {demoAccount && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse" />
-                          {language === "en" ? "Demo Account" : "حساب تجريبي"}
+                          {language === "en" ? "Copy Trading Account" : "حساب نسخ التداول"}
                         </h3>
                         <Badge className="bg-blue-100 text-blue-700 border-0">
-                          {language === "en" ? "Practice" : "تدريب"}
+                          {language === "en" ? "Managed" : "مُدار"}
                         </Badge>
                       </div>
                       <TradingAccountCard account={demoAccount} language={language} onRefresh={loadTradingAccounts} />

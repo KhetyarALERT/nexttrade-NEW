@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock } from "lucide-react";
 
+// Format with English digits always
 function formatUsdt(val) {
   if (val === null || val === undefined) return "-";
   if (!Number.isFinite(val)) return "-";
@@ -20,7 +21,14 @@ function formatUsdt(val) {
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleString("en-US");
+  // Always use English locale for consistent digits
+  return new Date(dateStr).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 const statusColors = {
