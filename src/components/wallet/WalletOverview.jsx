@@ -355,6 +355,58 @@ export default function WalletOverview({
             </div>
           </CardContent>
         </Card>
+
+        {/* Copy Trading Card */}
+        {copyTradingWallet && (
+          <Card className="border-border/60 border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  {language === "ar" ? "نسخ التداول" : "Copy Trading"}
+                </CardTitle>
+                {copyTradingWallet.status === 'ACTIVE' && (
+                  <Badge className="bg-blue-500/20 text-blue-700 border-0 text-xs">
+                    {language === "ar" ? "نشط" : "Active"}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">
+                {formatUSD((copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0))}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {language === "ar" ? "متاح" : "Available"}: {formatUSD(copyTradingWallet.available_balance || 0)}
+                {copyTradingWallet.locked_balance > 0 && (
+                  <> • {language === "ar" ? "مقفل" : "Locked"}: {formatUSD(copyTradingWallet.locked_balance)}</>
+                )}
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onCopyTradingDeposit}
+                  disabled={!isFullyUnlocked}
+                  className="rounded-lg text-xs flex-1 border-blue-500/30 text-blue-700 hover:bg-blue-500/10"
+                >
+                  <ArrowDownToLine className="h-3 w-3 mr-1" />
+                  {t.deposit}
+                </Button>
+                <Button
+                  size="sm"
+                  asChild
+                  className="rounded-lg text-xs flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Link to={createPageUrl("Futures") + "?tab=bots"}>
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {language === "ar" ? "عرض" : "View"}
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Assets List */}
