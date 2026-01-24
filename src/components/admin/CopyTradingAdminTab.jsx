@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock } from "lucide-react";
@@ -16,12 +15,12 @@ import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock } from
 function formatUsdt(val) {
   if (val === null || val === undefined) return "-";
   if (!Number.isFinite(val)) return "-";
-  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleString();
+  return new Date(dateStr).toLocaleString("en-US");
 }
 
 const statusColors = {
@@ -36,7 +35,17 @@ const statusColors = {
 export default function CopyTradingAdminTab({ onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
-  const [configForm, setConfigForm] = useState({});
+  const [configForm, setConfigForm] = useState({
+    enabled: false,
+    min_deposit_usdt: 50,
+    require_kyc: true,
+    deposit_source: "OKX_FUNDING",
+    auto_approve_enabled: true,
+    auto_approve_max_amount: 1000,
+    auto_approve_min_age_minutes: 5,
+    signals_enabled: false,
+    pool_wallet_name: "Main Copy Trading Pool"
+  });
   const [wallets, setWallets] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, pendingAllocations: 0 });
@@ -46,43 +55,40 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [configRes, walletsRes, allocationsRes] = await Promise.all([
-        base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: "default" }),
-        base44.asServiceRole.entities.CopyTradingWallet.list("-updated_at", 50),
-        base44.asServiceRole.entities.CopyTradingAllocation.list("-created_at", 100),
+      const [configRes, statsRes, walletsRes, allocationsRes] = await Promise.all([
+        base44.functions.invoke("copyTradingAdmin", { action: "getConfig" }),
+        base44.functions.invoke("copyTradingAdmin", { action: "getStats" }),
+        base44.functions.invoke("copyTradingAdmin", { action: "listWallets", limit: 50 }),
+        base44.functions.invoke("copyTradingAdmin", { action: "listAllocations", limit: 100 }),
       ]);
 
-      const cfg = configRes?.[0] || null;
-      setConfig(cfg);
-      setConfigForm({
-        enabled: cfg?.enabled || false,
-        min_deposit_usdt: cfg?.min_deposit_usdt || 50,
-        require_kyc: cfg?.require_kyc !== false,
-        deposit_source: cfg?.deposit_source || "OKX_FUNDING",
-        auto_approve_enabled: cfg?.auto_approve_enabled !== false,
-        auto_approve_max_amount: cfg?.auto_approve_max_amount || 1000,
-        auto_approve_min_age_minutes: cfg?.auto_approve_min_age_minutes || 5,
-        signals_enabled: cfg?.signals_enabled || false,
-        pool_wallet_name: cfg?.pool_wallet_name || "Main Copy Trading Pool"
-      });
+      if (configRes.data?.ok) {
+        const cfg = configRes.data.data;
+        setConfig(cfg);
+        setConfigForm({
+          enabled: cfg?.enabled || false,
+          min_deposit_usdt: cfg?.min_deposit_usdt || 50,
+          require_kyc: cfg?.require_kyc !== false,
+          deposit_source: cfg?.deposit_source || "OKX_FUNDING",
+          auto_approve_enabled: cfg?.auto_approve_enabled !== false,
+          auto_approve_max_amount: cfg?.auto_approve_max_amount || 1000,
+          auto_approve_min_age_minutes: cfg?.auto_approve_min_age_minutes || 5,
+          signals_enabled: cfg?.signals_enabled || false,
+          pool_wallet_name: cfg?.pool_wallet_name || "Main Copy Trading Pool"
+        });
+      }
 
-      const walls = walletsRes || [];
-      setWallets(walls);
+      if (statsRes.data?.ok) {
+        setStats(statsRes.data.data);
+      }
 
-      const allocs = allocationsRes || [];
-      setAllocations(allocs);
+      if (walletsRes.data?.ok) {
+        setWallets(walletsRes.data.data || []);
+      }
 
-      // Calculate stats
-      const totalBalance = walls.reduce((sum, w) => sum + (w.available_balance || 0), 0);
-      const totalAllocated = walls.reduce((sum, w) => sum + (w.locked_balance || 0), 0);
-      const pendingAllocations = allocs.filter(a => a.status === "PENDING").length;
-
-      setStats({
-        totalWallets: walls.length,
-        totalBalance,
-        totalAllocated,
-        pendingAllocations
-      });
+      if (allocationsRes.data?.ok) {
+        setAllocations(allocationsRes.data.data || []);
+      }
     } catch (err) {
       console.error("Failed to load copy trading admin data:", err);
       toast.error("Failed to load data");
@@ -98,26 +104,17 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
-      const user = await base44.auth.me();
-      const now = new Date().toISOString();
+      const res = await base44.functions.invoke("copyTradingAdmin", {
+        action: "saveConfig",
+        configData: configForm
+      });
 
-      const configData = {
-        ...configForm,
-        updated_at: now,
-        updated_by: user.email
-      };
-
-      if (config?.id) {
-        await base44.asServiceRole.entities.CopyTradingConfig.update(config.id, configData);
+      if (res.data?.ok) {
+        toast.success("Configuration saved");
+        loadData();
       } else {
-        await base44.asServiceRole.entities.CopyTradingConfig.create({
-          config_key: "default",
-          ...configData
-        });
+        toast.error(res.data?.error?.message || "Failed to save config");
       }
-
-      toast.success("Configuration saved");
-      loadData();
     } catch (err) {
       toast.error("Failed to save config: " + err.message);
     } finally {
@@ -128,11 +125,11 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const handleRunProcessor = async () => {
     setRunningProcessor(true);
     try {
-      const res = await base44.functions.invoke("copyTradingAutoApprove", {});
+      const res = await base44.functions.invoke("copyTradingAdmin", { action: "runProcessorNow" });
       
       if (res.data?.ok) {
         const data = res.data.data;
-        toast.success(`Processed ${data.processedCount} allocations: ${data.approvedCount} approved, ${data.skippedCount} skipped, ${data.failedCount} failed`);
+        toast.success(`Processed ${data.processedCount || 0} allocations: ${data.approvedCount || 0} approved, ${data.skippedCount || 0} skipped, ${data.failedCount || 0} failed`);
         loadData();
       } else {
         toast.error(res.data?.error?.message || "Processor failed");
@@ -429,7 +426,7 @@ export default function CopyTradingAdminTab({ onRefresh }) {
                         <TableCell className="text-xs text-red-500 max-w-[200px] truncate">
                           {a.last_error || "-"}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(a.created_at)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(a.created_at || a.created_date)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(a.approved_at)}</TableCell>
                       </TableRow>
                     ))

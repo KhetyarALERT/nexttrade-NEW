@@ -3,13 +3,13 @@ import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowRight, Wallet } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 
+// Format number with English digits always
 function formatUsdt(val) {
   if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
@@ -165,7 +165,7 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`${labels.minDeposit}: ${minDeposit}`}
-                className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                className="w-full bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground font-mono"
                 inputMode="decimal"
                 autoFocus
               />
