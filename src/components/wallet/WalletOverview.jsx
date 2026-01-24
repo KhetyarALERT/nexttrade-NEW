@@ -553,7 +553,9 @@ WalletOverview.propTypes = {
   hasOkxAccount: PropTypes.bool,
   isFullyUnlocked: PropTypes.bool,
   stakingOverlay: PropTypes.object,
+  copyTradingWallet: PropTypes.object,
   onDeposit: PropTypes.func,
   onTransfer: PropTypes.func,
+  onCopyTradingDeposit: PropTypes.func,
   onRefresh: PropTypes.func
 };
