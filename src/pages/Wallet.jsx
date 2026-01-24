@@ -215,6 +215,16 @@ export default function WalletPage({ language = "en" }) {
         console.log("[Wallet] Failed to load staking overlay:", e);
       }
 
+      // Load copy trading wallet
+      try {
+        const copyTradingRes = await base44.functions.invoke("copyTradingUser", { action: "getWallet" });
+        if (copyTradingRes.data?.ok) {
+          setCopyTradingWallet(copyTradingRes.data.data);
+        }
+      } catch (e) {
+        console.log("[Wallet] Failed to load copy trading wallet:", e);
+      }
+
       // Calculate total balance
       const internalBalance = (walletsResult.data?.data || []).reduce((sum, w) => {
         if (w.currency === "USDT" || w.currency === "USDC") return sum + (w.balance || 0);
