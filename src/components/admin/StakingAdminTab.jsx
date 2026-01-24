@@ -343,7 +343,7 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                     <TableHead>Rewards</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Pool</TableHead>
-                    <TableHead>Started</TableHead>
+                    <TableHead>Approved</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -368,7 +368,14 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                           <Badge className={STATUS_COLORS[req.status] || ''}>{req.status}</Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{req.destinationPool || '-'}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{formatDate(req.startedAt)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDate(req.startedAt)}
+                          {req.approvedByType && (
+                            <Badge variant="outline" className={`ml-1 text-[10px] ${req.approvedByType === 'AUTOMATION' ? 'border-emerald-500/50 text-emerald-600' : ''}`}>
+                              {req.approvedByType === 'AUTOMATION' ? 'Auto' : 'Admin'}
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
