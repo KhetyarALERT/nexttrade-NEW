@@ -111,27 +111,32 @@ Deno.serve(async (req) => {
       }
       
       if (!accounts?.length) {
-        const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
+        // For demo accounts, auto-create via service role
+        // For non-demo accounts, user must use requestAccount action
         const isDemo = accountType === 'demo';
+        
+        if (!isDemo) {
+          // Non-demo accounts cannot be auto-created - user must request
+          return Response.json({ 
+            success: false, 
+            error: 'Live trading account not found. Please request one through the Request Trading Account flow.',
+            code: 'NO_LIVE_ACCOUNT'
+          }, { status: 404 });
+        }
+        
+        const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
         
         const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
           account_id: accountId, user_id: user.id, user_email: user.email,
-          nickname: params.nickname || (isDemo ? 'Demo Account' : 'Live Account'),
-          account_type: accountType, balance: isDemo ? 10000 : 0, equity: isDemo ? 10000 : 0,
+          nickname: params.nickname || 'Demo Account',
+          account_type: accountType, balance: 10000, equity: 10000,
           margin_used: 0, unrealized_pnl: 0, realized_pnl: 0, total_trades: 0, winning_trades: 0,
-          status: 'active', default_leverage: 10, is_demo: isDemo, demo_balance: isDemo ? 10000 : 0
+          status: 'active', default_leverage: 10, is_demo: true, demo_balance: 10000
         });
         
         audit('ACCOUNT_CREATED', user.id, { account_id: accountId, accountType });
         
-        let wallet = null;
-        if (!isDemo) {
-          wallet = await base44.asServiceRole.entities.Wallet.create({
-            trading_account_id: newAccount.id, user_id: user.id, currency: 'USDT',
-            network: 'TRC20', balance: 0, status: 'active', is_primary: true
-          });
-        }
-        return Response.json({ success: true, data: newAccount, wallet, isNew: true });
+        return Response.json({ success: true, data: newAccount, wallet: null, isNew: true });
       }
       
       const selected = accounts[0];
@@ -141,6 +146,54 @@ Deno.serve(async (req) => {
         wallet = wallets?.[0] || null;
       }
       return Response.json({ success: true, data: selected, wallet, isNew: false });
+    }
+
+    // Request a live trading account (creates a request, admin approves)
+    if (action === 'requestAccount') {
+      // Check if user already has a live account
+      const existingAccounts = await base44.entities.TradingAccount.filter({ 
+        user_id: user.id, 
+        account_type: 'mentor' 
+      });
+      
+      if (existingAccounts?.length) {
+        return Response.json({ 
+          success: false, 
+          error: 'You already have a live trading account',
+          code: 'ALREADY_EXISTS'
+        });
+      }
+      
+      // Check for pending requests
+      const pendingRequests = await base44.asServiceRole.entities.LiveAccountRequest.filter({
+        user_id: user.id,
+        status: 'PENDING'
+      });
+      
+      if (pendingRequests?.length) {
+        return Response.json({ 
+          success: false, 
+          error: 'You already have a pending request',
+          code: 'PENDING_REQUEST'
+        });
+      }
+      
+      // Create a request (admin will approve and create the actual TradingAccount)
+      const request = await base44.asServiceRole.entities.LiveAccountRequest.create({
+        user_id: user.id,
+        user_email: user.email,
+        status: 'PENDING',
+        requested_at: new Date().toISOString(),
+        notes: params.notes || ''
+      });
+      
+      audit('ACCOUNT_REQUEST_CREATED', user.id, { requestId: request.id });
+      
+      return Response.json({ 
+        success: true, 
+        data: { requestId: request.id, status: 'PENDING' },
+        message: 'Your request has been submitted and is pending approval'
+      });
     }
 
     if (action === 'openTrade') {
