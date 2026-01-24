@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock } from "lucide-react";
+import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock, FileText } from "lucide-react";
 
 // Format with English digits always
 function formatUsdt(val) {
@@ -56,6 +56,7 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   });
   const [wallets, setWallets] = useState([]);
   const [allocations, setAllocations] = useState([]);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
   const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, pendingAllocations: 0 });
   const [savingConfig, setSavingConfig] = useState(false);
   const [runningProcessor, setRunningProcessor] = useState(false);
@@ -63,11 +64,12 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [configRes, statsRes, walletsRes, allocationsRes] = await Promise.all([
+      const [configRes, statsRes, walletsRes, allocationsRes, ledgerRes] = await Promise.all([
         base44.functions.invoke("copyTradingAdmin", { action: "getConfig" }),
         base44.functions.invoke("copyTradingAdmin", { action: "getStats" }),
         base44.functions.invoke("copyTradingAdmin", { action: "listWallets", limit: 50 }),
         base44.functions.invoke("copyTradingAdmin", { action: "listAllocations", limit: 100 }),
+        base44.functions.invoke("copyTradingAdmin", { action: "listLedger", limit: 100 }),
       ]);
 
       if (configRes.data?.ok) {
@@ -96,6 +98,10 @@ export default function CopyTradingAdminTab({ onRefresh }) {
 
       if (allocationsRes.data?.ok) {
         setAllocations(allocationsRes.data.data || []);
+      }
+
+      if (ledgerRes.data?.ok) {
+        setLedgerEntries(ledgerRes.data.data || []);
       }
     } catch (err) {
       console.error("Failed to load copy trading admin data:", err);
@@ -203,10 +209,11 @@ export default function CopyTradingAdminTab({ onRefresh }) {
       </div>
 
       <Tabs defaultValue="config" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-4 w-full max-w-3xl">
           <TabsTrigger value="config">Configuration</TabsTrigger>
           <TabsTrigger value="wallets">User Wallets</TabsTrigger>
-          <TabsTrigger value="allocations">Allocations</TabsTrigger>
+          <TabsTrigger value="ledger">Ledger</TabsTrigger>
+          <TabsTrigger value="allocations">Allocations (Phase 2)</TabsTrigger>
         </TabsList>
 
         {/* Configuration Tab */}
@@ -377,6 +384,72 @@ export default function CopyTradingAdminTab({ onRefresh }) {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(w.last_activity_at)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ledger Tab */}
+        <TabsContent value="ledger" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Copy Trading Ledger
+                </CardTitle>
+                <Button variant="outline" onClick={loadData} disabled={loading}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Balance Before</TableHead>
+                    <TableHead>Balance After</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Created</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ledgerEntries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No ledger entries yet
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ledgerEntries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="font-medium text-xs">{entry.user_id?.slice(-8)}</TableCell>
+                        <TableCell>
+                          <Badge className={entry.kind === 'CREDIT' ? 'bg-green-500/10 text-green-500' : entry.kind === 'DEBIT' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'} variant="outline">
+                            {entry.kind}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={`font-mono ${entry.kind === 'CREDIT' ? 'text-green-500' : entry.kind === 'DEBIT' ? 'text-red-500' : ''}`}>
+                          {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))} USDT
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={entry.status === 'POSTED' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'} variant="outline">
+                            {entry.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{formatUsdt(entry.balance_before)}</TableCell>
+                        <TableCell className="font-mono text-sm">{formatUsdt(entry.balance_after)}</TableCell>
+                        <TableCell className="text-xs max-w-[150px] truncate">{entry.description || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(entry.created_at || entry.created_date)}</TableCell>
                       </TableRow>
                     ))
                   )}
