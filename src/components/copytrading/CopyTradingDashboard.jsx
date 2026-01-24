@@ -98,10 +98,9 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAllocationSuccess = () => {
-    setAllocationModalOpen(false);
+  const handleAllocationSuccess = (data) => {
+    // Modal already closed by AllocationModal, just refresh data
     loadData();
-    // Toast already shown by AllocationModal, no duplicate needed
   };
 
 

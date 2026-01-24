@@ -100,7 +100,7 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
   };
 
   const handleConfirm = async () => {
-    if (!isValid) return;
+    if (!isValid || processing) return;
 
     setProcessing(true);
     try {
@@ -110,10 +110,17 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
       });
 
       if (res.data?.ok) {
-        toast.success(language === "ar" ? "تم الإيداع بنجاح!" : "Deposit successful!");
+        const newBalance = res.data.data?.newBalance || amountNum;
+        toast.success(
+          language === "ar" 
+            ? `تم إيداع ${amountNum} USDT بنجاح!` 
+            : `Successfully deposited ${amountNum} USDT!`
+        );
+        onOpenChange(false);
         onSuccess(res.data.data);
       } else {
-        toast.error(res.data?.error?.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed"));
+        const errMsg = res.data?.error?.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed");
+        toast.error(errMsg);
       }
     } catch (err) {
       toast.error(err.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed"));
