@@ -229,6 +229,78 @@ Deno.serve(async (req) => {
       });
     }
 
+    // GET WALLET OVERLAY - Returns staking data for Wallet page display
+    // ACCOUNTING: PENDING_APPROVAL funds are still in user's OKX (funding), ACTIVE funds are in main pool
+    if (action === 'getWalletOverlay') {
+      const positions = await base44.entities.StakingPosition.filter({ user_id: user.id }, '-created_date', 100);
+      
+      // Separate pending vs active
+      const pendingPositions = (positions || []).filter(p => p.status === 'PENDING_APPROVAL');
+      const activePositions = (positions || []).filter(p => p.status === 'ACTIVE');
+      
+      // Build locked amounts by currency
+      const pendingLockedByCcy = {};
+      const activeLockedByCcy = {};
+      
+      for (const p of pendingPositions) {
+        const ccy = p.currency || 'USDT';
+        pendingLockedByCcy[ccy] = (pendingLockedByCcy[ccy] || 0) + (p.principal_amount || 0);
+      }
+      
+      for (const p of activePositions) {
+        const ccy = p.currency || 'USDT';
+        activeLockedByCcy[ccy] = (activeLockedByCcy[ccy] || 0) + (p.principal_amount || 0);
+      }
+      
+      // Find next unlock date (earliest ends_at among ACTIVE)
+      let nextUnlockAt = null;
+      for (const p of activePositions) {
+        if (p.ends_at) {
+          if (!nextUnlockAt || new Date(p.ends_at) < new Date(nextUnlockAt)) {
+            nextUnlockAt = p.ends_at;
+          }
+        }
+      }
+      
+      // Last stake created
+      const allStakes = [...pendingPositions, ...activePositions].sort((a, b) => 
+        new Date(b.created_at || b.created_date || 0).getTime() - new Date(a.created_at || a.created_date || 0).getTime()
+      );
+      const lastStakeCreatedAt = allStakes.length > 0 ? (allStakes[0].created_at || allStakes[0].created_date) : null;
+      
+      // Preview of active positions (top 3)
+      const activePositionsPreview = activePositions.slice(0, 3).map(p => ({
+        id: p.id,
+        amount: p.principal_amount,
+        currency: p.currency || 'USDT',
+        startedAt: p.started_at,
+        endsAt: p.ends_at,
+        apyPercent: p.apy_percent,
+        status: p.status,
+        estimatedEarned: calculateEstimatedEarned(p)
+      }));
+      
+      // Estimated earned total
+      let totalEstimatedEarned = 0;
+      for (const p of activePositions) {
+        totalEstimatedEarned += calculateEstimatedEarned(p);
+      }
+
+      return Response.json({
+        ok: true,
+        data: {
+          pendingLockedByCcy,
+          activeLockedByCcy,
+          pendingCount: pendingPositions.length,
+          activeCount: activePositions.length,
+          nextUnlockAt,
+          lastStakeCreatedAt,
+          activePositionsPreview,
+          totalEstimatedEarned: Math.round(totalEstimatedEarned * 100) / 100
+        }
+      });
+    }
+
     // GET POSITIONS - Returns user's staking positions
     if (action === 'getPositions') {
       const positions = await base44.entities.StakingPosition.filter({ user_id: user.id }, '-created_date', 50);
