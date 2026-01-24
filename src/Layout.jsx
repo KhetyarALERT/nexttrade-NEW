@@ -617,7 +617,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                   </DropdownMenuItem>
 
                       {/* Copy Trading - always show when wallet exists */}
-                      {accountBalances.hasCopyTrading && (
+                      {(accountBalances.hasCopyTrading || accountBalances.copyTradingAvailableUsdt > 0) && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Futures") + "?tab=bots"}>
                             <div className="flex w-full items-center justify-between gap-3">
@@ -625,7 +625,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                 <TrendingUp className="h-4 w-4 text-blue-600" />
                                 <span>{language === "ar" ? "نسخ التداول" : "Copy Trading"}</span>
                               </div>
-                              <span className="text-xs font-medium text-blue-600">{formatUsdt(accountBalances.copyTradingAvailableUsdt)} USDT</span>
+                              <span className="text-xs font-medium text-blue-600">{formatUsdt(accountBalances.copyTradingAvailableUsdt + accountBalances.copyTradingLockedUsdt)} USDT</span>
                             </div>
                           </Link>
                         </DropdownMenuItem>
