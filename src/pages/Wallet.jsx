@@ -565,6 +565,14 @@ export default function WalletPage({ language = "en" }) {
         language={language}
         onSuccess={handleRefresh}
       />
+
+      {/* Copy Trading Deposit Modal */}
+      <AllocationModal
+        open={copyTradingDepositOpen}
+        onOpenChange={setCopyTradingDepositOpen}
+        language={language}
+        onSuccess={handleRefresh}
+      />
     </div>
   );
 }
