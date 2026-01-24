@@ -26,7 +26,8 @@ import {
   Users,
   DollarSign,
   BarChart3,
-  Shield
+  Shield,
+  Wallet
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
@@ -254,6 +255,7 @@ export default function Profile({ language = "en" }) {
   const [demoAccount, setDemoAccount] = useState(null);
   const [liveAccount, setLiveAccount] = useState(null);
   const [okxAccount, setOkxAccount] = useState(null);
+  const [copyTradingWallet, setCopyTradingWallet] = useState(null);
   const [wallets, setWallets] = useState([]);
   const [trades, setTrades] = useState([]);
   const [loadingAccount, setLoadingAccount] = useState(false);
@@ -290,12 +292,13 @@ export default function Profile({ language = "en" }) {
   const loadTradingAccounts = useCallback(async () => {
     setLoadingAccount(true);
     try {
-      const [demoResult, liveResult, walletsResult, tradesResult, okxResult] = await Promise.all([
+      const [demoResult, liveResult, walletsResult, tradesResult, okxResult, copyTradingResult] = await Promise.all([
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'demo' }),
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
         base44.functions.invoke('wallet', { action: 'list' }),
         base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
-        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' })
+        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }),
+        base44.functions.invoke('copyTradingUser', { action: 'getWallet' }).catch(() => ({ data: { ok: false } }))
       ]);
       
       if (demoResult.data?.success) setDemoAccount(demoResult.data.data);
@@ -304,6 +307,9 @@ export default function Profile({ language = "en" }) {
       if (tradesResult.data?.success) setTrades(tradesResult.data.data || []);
       if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
         setOkxAccount(okxResult.data.data);
+      }
+      if (copyTradingResult.data?.ok) {
+        setCopyTradingWallet(copyTradingResult.data.data);
       }
     } catch (err) {
       console.error("Failed to load accounts", err);
@@ -905,20 +911,58 @@ export default function Profile({ language = "en" }) {
             ) : (
               <div className="space-y-6">
                 <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-                  {demoAccount && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse" />
-                          {language === "en" ? "Copy Trading Account" : "حساب نسخ التداول"}
-                        </h3>
-                        <Badge className="bg-blue-100 text-blue-700 border-0">
-                          {language === "en" ? "Managed" : "مُدار"}
-                        </Badge>
-                      </div>
-                      <TradingAccountCard account={demoAccount} language={language} onRefresh={loadTradingAccounts} />
+                  {/* Copy Trading Wallet Card */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse" />
+                        {language === "en" ? "Copy Trading Account" : "حساب نسخ التداول"}
+                      </h3>
+                      <Badge className="bg-blue-100 text-blue-700 border-0">
+                        {language === "en" ? "Managed" : "مُدار"}
+                      </Badge>
                     </div>
-                  )}
+                    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                              <Wallet className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-slate-900">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
+                              <Badge className={`text-[10px] ${copyTradingWallet?.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                                {copyTradingWallet?.status === 'ACTIVE' ? (language === "en" ? "Active" : "نشط") : (language === "en" ? "Inactive" : "غير نشط")}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={loadTradingAccounts} className="h-8 w-8">
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50">
+                          <p className="text-xs text-slate-500 mb-1">{language === "en" ? "Available Balance" : "الرصيد المتاح"}</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-slate-900">
+                            ${(copyTradingWallet?.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-px bg-slate-100">
+                          <div className="p-3 bg-white">
+                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Locked" : "مقفل"}</p>
+                            <p className="text-sm font-bold text-slate-900">
+                              ${(copyTradingWallet?.locked_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-white">
+                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Total Deposited" : "إجمالي الإيداع"}</p>
+                            <p className="text-sm font-bold text-slate-900">
+                              ${(copyTradingWallet?.lifetime_deposited || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                   {/* OKX Live Account - Priority */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
