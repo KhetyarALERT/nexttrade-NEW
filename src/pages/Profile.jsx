@@ -65,6 +65,7 @@ import { createPageUrl } from "@/utils";
 import { useAuth } from "@/lib/AuthContext";
 import AuthRequiredState from "@/components/AuthRequiredState";
 import VerificationModal from "@/components/profile/VerificationModal";
+import AllocationModal from "@/components/copytrading/AllocationModal";
 
 const translations = {
   en: {
