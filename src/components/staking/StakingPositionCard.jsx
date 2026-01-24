@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Gift, AlertCircle, CheckCircle2, XCircle, Loader2, Calendar } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
+import { formatUsdt, formatShortDate } from "@/components/utils/formatters";
 
 const t = {
   en: {
@@ -49,17 +50,7 @@ const STATUS_CONFIG = {
   UNLOCKING: { color: "bg-purple-500/10 text-purple-600 border-purple-500/30", icon: Loader2, spin: true },
 };
 
-function formatUsdt(val, language = "en") {
-  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
-  const locale = language === "ar" ? "ar-SA" : "en-US";
-  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-}
-
-function formatDate(dateStr, language = "en") {
-  if (!dateStr) return "-";
-  const locale = language === "ar" ? "ar-SA" : "en-US";
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(new Date(dateStr));
-}
+// Using shared formatters from components/utils/formatters
 
 function formatDaysRemaining(endsAt) {
   if (!endsAt) return null;
@@ -132,7 +123,7 @@ export default function StakingPositionCard({ position, onCancel, language = "en
             <Progress value={progressPercent} className="h-2" />
             {position.lastAccrualAt && (
               <p className="text-[10px] text-muted-foreground">
-                {labels.lastUpdated}: {formatDate(position.lastAccrualAt, language)}
+                {labels.lastUpdated}: {formatShortDate(position.lastAccrualAt, language)}
               </p>
             )}
           </div>
@@ -162,7 +153,7 @@ export default function StakingPositionCard({ position, onCancel, language = "en
         {position.status === "COMPLETED" && position.endsAt && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="w-4 h-4 text-blue-500" />
-            <span>{labels.completedOn}: {formatDate(position.endsAt, language)}</span>
+            <span>{labels.completedOn}: {formatShortDate(position.endsAt, language)}</span>
           </div>
         )}
 
