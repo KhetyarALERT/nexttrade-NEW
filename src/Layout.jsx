@@ -116,7 +116,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const [theme, setTheme] = useState("dark");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
-  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0 });
+  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
@@ -295,13 +295,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
-      const [walletsResult, okxAccountResult] = await Promise.all([
+      const [walletsResult, okxAccountResult, stakingResult] = await Promise.all([
         base44.functions.invoke("wallet", { action: "list" }),
         base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
+        base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
       const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
+      const stakingData = stakingResult.data?.ok ? stakingResult.data.data : null;
 
       // Wallets: Fund Account balance (internal platform wallets)
       const internalFundingUsdt = wallets.reduce((sum, w) => {
@@ -320,9 +322,16 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
       const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
 
+      // Staking: ACTIVE funds are OUT of OKX (in main pool), PENDING are still in OKX funding
+      const stakedActiveUsdt = stakingData?.activeLockedByCcy?.USDT || 0;
+      const stakedPendingUsdt = stakingData?.pendingLockedByCcy?.USDT || 0;
+      const nextUnlockAt = stakingData?.nextUnlockAt || null;
+
       // Combined totals
-      // Total = internal funding + OKX funding + OKX trading + wealth
-      const totalUsdt = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
+      // OKX total (what's in user's subaccount) = funding + trading (includes pending staking)
+      const okxTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
+      // Total including staking = OKX total + ACTIVE staked (which left the subaccount)
+      const totalUsdt = okxTotal + stakedActiveUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
       setAccountTotals({ totalUsd, totalUsdt });
@@ -333,11 +342,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         // Futures = OKX trading account (where margin trading happens)
         futuresUsdt: okxData?.hasAccount ? okxTradingUsdt : null,
         wealthUsdt,
+        stakedActiveUsdt,
+        stakedPendingUsdt,
+        nextUnlockAt,
       });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
       setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
-      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0 });
+      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null });
     } finally {
       setLoadingAccountTotals(false);
     }
@@ -585,18 +597,48 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحسابات" : "Accounts"}</div>
                     <ConnectedWalletAccountsItem language={language} />
                     <DropdownMenuItem asChild>
-                                  <Link to={createPageUrl("Wallet")}>
-                                    <div className="flex w-full items-center justify-between gap-3">
-                                      <div className="flex items-center gap-2">
-                                        <Wallet className="h-4 w-4" />
-                                        <span>{language === "ar" ? "المحفظة" : "Wallet"}</span>
+                                    <Link to={createPageUrl("Wallet")}>
+                                      <div className="flex w-full items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                          <Wallet className="h-4 w-4" />
+                                          <span>{language === "ar" ? "المحفظة" : "Wallet"}</span>
+                                        </div>
+                                        <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.totalUsdt - accountBalances.stakedActiveUsdt)} USDT</span>
                                       </div>
-                                      <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.totalUsdt)} USDT</span>
-                                    </div>
-                                  </Link>
-                                </DropdownMenuItem>
+                                    </Link>
+                                  </DropdownMenuItem>
 
-                    <DropdownMenuSeparator />
+                      {/* Staking (Locked) - show if any staking exists */}
+                      {(accountBalances.stakedActiveUsdt > 0 || accountBalances.stakedPendingUsdt > 0) && (
+                        <DropdownMenuItem asChild>
+                          <Link to={createPageUrl("Investing")}>
+                            <div className="flex w-full items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4 text-amber-600" />
+                                <span>{language === "ar" ? "مستثمر (مقفل)" : "Staked (Locked)"}</span>
+                              </div>
+                              <span className="text-xs font-medium text-amber-600">{formatUsdt(accountBalances.stakedActiveUsdt)} USDT</span>
+                            </div>
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Show Total incl staking if active staking exists */}
+                      {accountBalances.stakedActiveUsdt > 0 && (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-between">
+                          <span>{language === "ar" ? "الإجمالي (شامل الستيكنج)" : "Total (incl. staking)"}</span>
+                          <span className="font-medium text-foreground">{formatUsdt(accountTotals.totalUsdt)} USDT</span>
+                        </div>
+                      )}
+
+                      {/* Next unlock date */}
+                      {accountBalances.nextUnlockAt && (
+                        <div className="px-2 py-1 text-[10px] text-muted-foreground">
+                          {language === "ar" ? "يفتح في" : "Unlocks"}: {new Date(accountBalances.nextUnlockAt).toLocaleDateString()}
+                        </div>
+                      )}
+
+                      <DropdownMenuSeparator />
 
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحساب" : "Account"}</div>
                     <DropdownMenuItem asChild>
