@@ -977,6 +977,8 @@ export default function Profile({ language = "en" }) {
                         </div>
                       </CardContent>
                     </Card>
+                    {/* Copy Trading Deposit History */}
+                    <CopyTradingDepositHistory language={language} limit={5} />
                   </div>
                   {/* OKX Live Account - Priority */}
                   <div className="space-y-3">
