@@ -99,10 +99,10 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     loadData();
   }, [loadData]);
 
-  const handleAllocationSuccess = (depositData) => {
+  const handleAllocationSuccess = () => {
     setAllocationModalOpen(false);
     loadData();
-    // Toast is already shown in AllocationModal
+    toast.success(language === "ar" ? "تم إنشاء طلب التخصيص" : "Allocation request created");
   };
 
   const handleCancelAllocation = async (allocationId) => {
