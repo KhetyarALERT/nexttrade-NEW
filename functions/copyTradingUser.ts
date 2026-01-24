@@ -299,30 +299,91 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
-      // Execute OKX transfer: TRADING → FUNDING → MAIN
+      // Execute OKX transfer: TRADING → FUNDING → MAIN (direct call, no function invoke)
       console.log(`[COPY_TRADING] Starting OKX transfer for ${amountNum} USDT from user ${user.email}`);
       
-      const transferRes = await base44.asServiceRole.functions.invoke('okxUserAccount', {
-        action: 'transferToMain',
-        userId: user.id,
-        amount: amountNum,
-        currency: 'USDT',
-        source: 'TRADING'
-      });
-
-      if (!transferRes?.ok && !transferRes?.data?.ok) {
-        console.error('[COPY_TRADING] OKX transfer failed:', transferRes?.data?.error || transferRes?.error);
-        return Response.json({ 
-          ok: false, 
-          error: { 
-            code: 'TRANSFER_FAILED', 
-            message: transferRes?.data?.error?.message || 'Failed to transfer funds from Trading account' 
-          } 
-        });
+      const credResult = await getUserOkxCredential(base44, user.id);
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: { code: 'NO_OKX_ACCOUNT', message: 'Trading account not available' } });
       }
 
-      const transferData = transferRes?.data?.data || transferRes?.data;
-      const externalTransferId = transferData?.transferId || transferData?.transId || null;
+      const { account, credential } = credResult.data;
+
+      // Step 1: Transfer from Trading (18) to Funding (6) within subaccount
+      console.log(`[COPY_TRADING] Step 1: Trading -> Funding for ${amountNum} USDT`);
+      
+      const internalRes = await okxRequest({
+        credential,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy: 'USDT',
+          amt: String(amountNum),
+          from: '18', // Trading
+          to: '6',    // Funding
+          type: '0'   // Within same account
+        }
+      });
+
+      const internalResult = internalRes.data?.data?.[0];
+      if (!internalRes.ok || (internalResult?.code && internalResult.code !== '0')) {
+        const errMsg = internalRes.error?.okxMsg || internalResult?.msg || 'Internal transfer failed';
+        console.error(`[COPY_TRADING] Trading->Funding failed:`, errMsg);
+        return Response.json({ ok: false, error: { code: 'INTERNAL_TRANSFER_FAILED', message: errMsg } });
+      }
+
+      console.log(`[COPY_TRADING] Step 1 complete: transId=${internalResult?.transId}`);
+
+      // Step 2: Transfer from Subaccount Funding to Main Funding using MASTER credentials
+      console.log(`[COPY_TRADING] Step 2: Subaccount Funding -> Main Funding`);
+
+      const masterApiKey = getEnv('OKX_MAIN_API_KEY');
+      const masterSecret = getEnv('OKX_MAIN_SECRET');
+      const masterPassphrase = getEnv('OKX_MAIN_PASSPHRASE');
+
+      if (!masterApiKey || !masterSecret || !masterPassphrase) {
+        return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'Master credentials not configured' } });
+      }
+
+      const masterCred = {
+        apiKey: masterApiKey,
+        secretKey: masterSecret,
+        passphrase: masterPassphrase
+      };
+
+      // Get subaccount name from pool
+      const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+      const pool = pools?.[0];
+      const subAcctName = pool?.subaccount_name || account.external_account_id;
+
+      if (!subAcctName) {
+        return Response.json({ ok: false, error: { code: 'NO_SUBACCOUNT', message: 'Subaccount name not found' } });
+      }
+
+      // Transfer from subaccount to main using master credentials
+      const toMainRes = await okxRequest({
+        credential: masterCred,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy: 'USDT',
+          amt: String(amountNum),
+          from: '6',  // Funding
+          to: '6',    // Funding
+          type: '2',  // Sub-account to master
+          subAcct: subAcctName
+        }
+      });
+
+      const toMainResult = toMainRes.data?.data?.[0];
+      if (!toMainRes.ok || (toMainResult?.code && toMainResult.code !== '0')) {
+        const errMsg = toMainRes.error?.okxMsg || toMainResult?.msg || 'Transfer to main failed';
+        console.error(`[COPY_TRADING] Subaccount->Main failed:`, errMsg);
+        return Response.json({ ok: false, error: { code: 'TRANSFER_TO_MAIN_FAILED', message: errMsg } });
+      }
+
+      const externalTransferId = toMainResult?.transId || `tf_${Date.now()}`;
+      console.log(`[COPY_TRADING] OKX transfer complete: ${amountNum} USDT from ${subAcctName} to main, transId=${externalTransferId}`);
 
       // Get or create wallet
       const wallet = await getOrCreateWallet(base44, user);
