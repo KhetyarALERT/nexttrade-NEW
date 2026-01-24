@@ -91,8 +91,10 @@ export default function WalletOverview({
   hasOkxAccount = false,
   isFullyUnlocked = false,
   stakingOverlay = null,
+  copyTradingWallet = null,
   onDeposit,
   onTransfer,
+  onCopyTradingDeposit,
   onRefresh
 }) {
   const t = translations[language] || translations.en;
