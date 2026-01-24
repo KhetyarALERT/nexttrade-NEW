@@ -292,9 +292,9 @@ export default function Profile({ language = "en" }) {
   const loadTradingAccounts = useCallback(async () => {
     setLoadingAccount(true);
     try {
-      const [demoResult, liveResult, walletsResult, tradesResult, okxResult, copyTradingResult] = await Promise.all([
+      // Note: We don't auto-create live accounts from frontend. Only demo accounts are auto-created.
+      const [demoResult, walletsResult, tradesResult, okxResult, copyTradingResult] = await Promise.all([
         base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'demo' }),
-        base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'live' }),
         base44.functions.invoke('wallet', { action: 'list' }),
         base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
         base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }),
@@ -302,7 +302,8 @@ export default function Profile({ language = "en" }) {
       ]);
       
       if (demoResult.data?.success) setDemoAccount(demoResult.data.data);
-      if (liveResult.data?.success) setLiveAccount(liveResult.data.data);
+      // Don't set liveAccount from demo result - live accounts are OKX-based only
+      setLiveAccount(null);
       if (walletsResult.data?.success) setWallets(walletsResult.data.data || []);
       if (tradesResult.data?.success) setTrades(tradesResult.data.data || []);
       if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
@@ -682,7 +683,8 @@ export default function Profile({ language = "en" }) {
                 {[
                   { 
                     label: language === "en" ? "Total Balance" : "الرصيد الكلي", 
-                    value: `$${((liveAccount?.balance || 0) + (demoAccount?.balance || 0)).toFixed(2)}`,
+                    // Show OKX real balance + Copy Trading balance (no demo)
+                    value: `$${((okxAccount?.balances?.tradingUsdt || 0) + (okxAccount?.balances?.fundingUsdt || 0) + (copyTradingWallet?.available_balance || 0)).toFixed(2)}`,
                     icon: DollarSign,
                     gradient: "from-emerald-500 to-teal-600",
                     bgGradient: "from-emerald-50 to-teal-50"

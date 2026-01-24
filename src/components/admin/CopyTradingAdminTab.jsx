@@ -57,7 +57,7 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const [wallets, setWallets] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, pendingAllocations: 0 });
+  const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, totalLifetimeDeposited: 0, postedDeposits: 0, failedDeposits: 0 });
   const [savingConfig, setSavingConfig] = useState(false);
   const [runningProcessor, setRunningProcessor] = useState(false);
 
@@ -187,10 +187,10 @@ export default function CopyTradingAdminTab({ onRefresh }) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Allocated</p>
-                <p className="text-2xl font-bold">${formatUsdt(stats.totalAllocated)}</p>
+                <p className="text-sm text-muted-foreground">Total Deposited</p>
+                <p className="text-2xl font-bold">${formatUsdt(stats.totalLifetimeDeposited)}</p>
               </div>
-              <Lock className="h-8 w-8 opacity-50" />
+              <TrendingUp className="h-8 w-8 opacity-50" />
             </div>
           </CardContent>
         </Card>
@@ -199,10 +199,14 @@ export default function CopyTradingAdminTab({ onRefresh }) {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">{stats.pendingAllocations}</p>
+                <p className="text-sm text-muted-foreground">Deposits (OK / Fail)</p>
+                <p className="text-2xl font-bold">
+                  <span className="text-green-600">{stats.postedDeposits}</span>
+                  <span className="text-muted-foreground mx-1">/</span>
+                  <span className="text-red-500">{stats.failedDeposits}</span>
+                </p>
               </div>
-              <TrendingUp className="h-8 w-8 opacity-50" />
+              <FileText className="h-8 w-8 opacity-50" />
             </div>
           </CardContent>
         </Card>
