@@ -87,18 +87,18 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
     setProcessing(true);
     try {
       const res = await base44.functions.invoke("copyTradingUser", {
-        action: "createAllocation",
-        amount: amountNum,
-        depositSource: "OKX_TRADING" // Always from trading account
+        action: "depositFunds",
+        amount: amountNum
       });
 
       if (res.data?.ok) {
-        onSuccess();
+        toast.success(labels.success);
+        onSuccess(res.data.data);
       } else {
-        toast.error(res.data?.error?.message || "Failed to create allocation");
+        toast.error(res.data?.error?.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed"));
       }
     } catch (err) {
-      toast.error(err.message || "Failed to create allocation");
+      toast.error(err.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed"));
     } finally {
       setProcessing(false);
     }
