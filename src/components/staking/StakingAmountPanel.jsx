@@ -4,7 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
-import { formatUsdt, formatDate } from "@/components/utils/formatters";
+// Shared formatters with Latin digits
+function getLocale(lang) {
+  return lang === "ar" ? "ar-u-nu-latn" : "en-US";
+}
+
+function formatUsdt(val, language = "en") {
+  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
+  return new Intl.NumberFormat(getLocale(language), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+}
+
+function formatDate(date, language = "en") {
+  if (!date) return "-";
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(dateObj.getTime())) return "-";
+  return new Intl.DateTimeFormat(getLocale(language), { month: "short", day: "numeric", year: "numeric" }).format(dateObj);
+}
 
 const t = {
   en: {

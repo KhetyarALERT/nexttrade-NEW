@@ -5,7 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Gift, AlertCircle, CheckCircle2, XCircle, Loader2, Calendar } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
-import { formatUsdt, formatShortDate } from "@/components/utils/formatters";
+// Shared formatters with Latin digits
+function getLocale(lang) {
+  return lang === "ar" ? "ar-u-nu-latn" : "en-US";
+}
+
+function formatUsdt(val, language = "en") {
+  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
+  return new Intl.NumberFormat(getLocale(language), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+}
+
+function formatShortDate(dateStr, language = "en") {
+  if (!dateStr) return "-";
+  const dateObj = new Date(dateStr);
+  if (isNaN(dateObj.getTime())) return "-";
+  return new Intl.DateTimeFormat(getLocale(language), { month: "short", day: "numeric" }).format(dateObj);
+}
 
 const t = {
   en: {

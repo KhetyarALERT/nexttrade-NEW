@@ -20,7 +20,21 @@ import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
 import UsdtIcon from "@/components/ui/UsdtIcon";
-import { formatUsdt, formatPercent } from "@/components/utils/formatters";
+// Shared formatters with Latin digits
+function getLocale(lang) {
+  return lang === "ar" ? "ar-u-nu-latn" : "en-US";
+}
+
+function formatUsdt(val, language = "en") {
+  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
+  return new Intl.NumberFormat(getLocale(language), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+}
+
+function formatPercent(val, language = "en", decimals = 1) {
+  if (val === null || val === undefined || !Number.isFinite(val)) return "0%";
+  const formatted = new Intl.NumberFormat(getLocale(language), { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(val);
+  return `${formatted}%`;
+}
 
 // Translations
 const t = {
