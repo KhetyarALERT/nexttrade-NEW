@@ -22,6 +22,7 @@ import {
   Sparkles
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";
+import RecentTransfersCard from "./RecentTransfersCard";
 
 const translations = {
   en: {
