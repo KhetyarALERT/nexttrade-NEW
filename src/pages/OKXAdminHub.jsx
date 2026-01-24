@@ -1583,6 +1583,44 @@ export default function OKXAdminHub({ language = 'en' }) {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Copy Trading Stats */}
+              <Card className="border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-blue-600/5">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    Copy Trading
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Available</span>
+                      <span className="font-medium text-green-500">{stats?.copyTrading?.available || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Assigned</span>
+                      <span className="font-medium text-blue-500">{stats?.copyTrading?.assigned || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Error</span>
+                      <span className="font-medium text-red-500">{stats?.copyTrading?.error || 0}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 mt-2">
+                      <span className="text-muted-foreground">Total Balance</span>
+                      <span className="font-medium">${formatUsdt(stats?.copyTrading?.totalBalance)}</span>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-3" 
+                    variant="outline"
+                    onClick={() => setActiveTab('copytrading')}
+                  >
+                    Manage Copy Trading
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
           

@@ -9,8 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock, FileText } from "lucide-react";
+import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock, FileText, Plus, Loader2 } from "lucide-react";
 
 // Format with English digits always
 function formatUsdt(val) {
@@ -60,6 +62,12 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, totalLifetimeDeposited: 0, postedDeposits: 0, failedDeposits: 0 });
   const [savingConfig, setSavingConfig] = useState(false);
   const [runningProcessor, setRunningProcessor] = useState(false);
+  
+  // Manual top-up state
+  const [topUpDialogOpen, setTopUpDialogOpen] = useState(false);
+  const [topUpForm, setTopUpForm] = useState({ userEmail: "", amount: "", note: "" });
+  const [topUpLoading, setTopUpLoading] = useState(false);
+  const [userSearchResults, setUserSearchResults] = useState([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -152,6 +160,55 @@ export default function CopyTradingAdminTab({ onRefresh }) {
       toast.error("Failed to run processor: " + err.message);
     } finally {
       setRunningProcessor(false);
+    }
+  };
+
+  const handleManualTopUp = async () => {
+    if (!topUpForm.userEmail || !topUpForm.amount || parseFloat(topUpForm.amount) <= 0) {
+      toast.error("Please enter a valid user email and amount");
+      return;
+    }
+
+    setTopUpLoading(true);
+    try {
+      console.log("[ADMIN_TOPUP] Starting manual top-up:", { userEmail: topUpForm.userEmail, amount: topUpForm.amount });
+      
+      const res = await base44.functions.invoke("copyTradingAdmin", {
+        action: "manualTopUp",
+        userEmail: topUpForm.userEmail.trim(),
+        amount: parseFloat(topUpForm.amount),
+        note: topUpForm.note || "Admin manual top-up"
+      });
+
+      if (res.data?.ok) {
+        console.log("[ADMIN_TOPUP] Success:", res.data.data);
+        toast.success(`Successfully topped up ${topUpForm.amount} USDT for ${topUpForm.userEmail}`);
+        setTopUpDialogOpen(false);
+        setTopUpForm({ userEmail: "", amount: "", note: "" });
+        loadData();
+      } else {
+        console.error("[ADMIN_TOPUP] Failed:", res.data?.error);
+        toast.error(res.data?.error?.message || "Failed to process top-up");
+      }
+    } catch (err) {
+      console.error("[ADMIN_TOPUP] Error:", err);
+      toast.error("Top-up failed: " + err.message);
+    } finally {
+      setTopUpLoading(false);
+    }
+  };
+
+  const handleSearchUser = async (email) => {
+    if (!email || email.length < 3) {
+      setUserSearchResults([]);
+      return;
+    }
+    try {
+      // Search wallets by user_email
+      const existing = wallets.filter(w => w.user_email?.toLowerCase().includes(email.toLowerCase()));
+      setUserSearchResults(existing.slice(0, 5));
+    } catch {
+      setUserSearchResults([]);
     }
   };
 
@@ -346,10 +403,16 @@ export default function CopyTradingAdminTab({ onRefresh }) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>User Copy Trading Wallets</CardTitle>
-                <Button variant="outline" onClick={loadData} disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="default" onClick={() => setTopUpDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Manual Top-Up
+                  </Button>
+                  <Button variant="outline" onClick={loadData} disabled={loading}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                    Refresh
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -522,6 +585,94 @@ export default function CopyTradingAdminTab({ onRefresh }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Manual Top-Up Dialog */}
+      <Dialog open={topUpDialogOpen} onOpenChange={setTopUpDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Manual Copy Trading Top-Up
+            </DialogTitle>
+            <DialogDescription>
+              Add USDT to a user's copy trading wallet. This creates a ledger entry and updates their balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>User Email *</Label>
+              <Input
+                type="email"
+                placeholder="user@example.com"
+                value={topUpForm.userEmail}
+                onChange={(e) => {
+                  setTopUpForm({ ...topUpForm, userEmail: e.target.value });
+                  handleSearchUser(e.target.value);
+                }}
+                className="mt-1"
+              />
+              {userSearchResults.length > 0 && (
+                <div className="mt-1 border rounded-md max-h-32 overflow-auto">
+                  {userSearchResults.map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between"
+                      onClick={() => {
+                        setTopUpForm({ ...topUpForm, userEmail: w.user_email });
+                        setUserSearchResults([]);
+                      }}
+                    >
+                      <span>{w.user_email}</span>
+                      <span className="text-muted-foreground">{formatUsdt(w.available_balance)} USDT</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <Label>Amount (USDT) *</Label>
+              <Input
+                type="number"
+                placeholder="100.00"
+                min="0.01"
+                step="0.01"
+                value={topUpForm.amount}
+                onChange={(e) => setTopUpForm({ ...topUpForm, amount: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Admin Note (optional)</Label>
+              <Textarea
+                placeholder="Reason for this top-up..."
+                value={topUpForm.note}
+                onChange={(e) => setTopUpForm({ ...topUpForm, note: e.target.value })}
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTopUpDialogOpen(false)} disabled={topUpLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleManualTopUp} disabled={topUpLoading || !topUpForm.userEmail || !topUpForm.amount}>
+              {topUpLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Top Up
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -529,3 +680,6 @@ export default function CopyTradingAdminTab({ onRefresh }) {
 CopyTradingAdminTab.propTypes = {
   onRefresh: () => {}
 };
+
+// Manual Top-Up Dialog is rendered at the end of the component
+// Adding it inside the main component return
