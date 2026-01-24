@@ -320,7 +320,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       }, 0);
 
       // OKX Balances - REAL synced data from OKX subaccount
-      const okxTotalEquity = okxData?.hasAccount ? (okxData.balances?.totalEquity || 0) : 0;
       const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
       const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
 
@@ -353,11 +352,12 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         nextUnlockAt,
         copyTradingAvailableUsdt,
         copyTradingLockedUsdt,
+        hasCopyTrading: copyTradingData !== null,
       });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
       setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
-      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
+      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0, hasCopyTrading: false });
     } finally {
       setLoadingAccountTotals(false);
     }
@@ -616,8 +616,8 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                     </Link>
                                   </DropdownMenuItem>
 
-                      {/* Copy Trading - show if any balance */}
-                      {(accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
+                      {/* Copy Trading - always show when wallet exists */}
+                      {accountBalances.hasCopyTrading && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Futures") + "?tab=bots"}>
                             <div className="flex w-full items-center justify-between gap-3">
