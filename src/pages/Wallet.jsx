@@ -137,6 +137,7 @@ export default function WalletPage({ language = "en" }) {
   const [wallets, setWallets] = useState([]);
   const [okxBalances, setOkxBalances] = useState(null);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [stakingOverlay, setStakingOverlay] = useState(null);
   
   // Transfer Modal
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -200,6 +201,16 @@ export default function WalletPage({ language = "en" }) {
       const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
       if (walletsResult.data?.success) {
         setWallets(walletsResult.data.data || []);
+      }
+
+      // Load staking overlay
+      try {
+        const stakingRes = await base44.functions.invoke("stakingUser", { action: "getWalletOverlay" });
+        if (stakingRes.data?.ok) {
+          setStakingOverlay(stakingRes.data.data);
+        }
+      } catch (e) {
+        console.log("[Wallet] Failed to load staking overlay:", e);
       }
 
       // Calculate total balance
@@ -509,6 +520,7 @@ export default function WalletPage({ language = "en" }) {
                 totalBalance={totalBalance}
                 hasOkxAccount={hasOkxAccount}
                 isFullyUnlocked={isFullyUnlocked}
+                stakingOverlay={stakingOverlay}
                 onDeposit={() => setSubPage("deposit")}
                 onTransfer={() => setTransferModalOpen(true)}
                 onRefresh={handleRefresh}

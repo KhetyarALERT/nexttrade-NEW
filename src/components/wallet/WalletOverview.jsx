@@ -16,15 +16,20 @@ import {
   EyeOff,
   RefreshCw,
   ChevronRight,
-  Info
+  Info,
+  Lock,
+  Clock,
+  Sparkles
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 
 const translations = {
   en: {
     totalBalance: "Total Balance",
+    totalInclStaking: "Total (incl. staking)",
     fundingAccount: "Funding Account",
     tradingAccount: "Trading Account",
+    stakingLocked: "Staking (Locked)",
     available: "Available",
     inOrders: "In Orders",
     deposit: "Deposit",
@@ -37,12 +42,22 @@ const translations = {
     quickActions: "Quick Actions",
     total: "Total",
     funding: "Funding",
-    trading: "Trading"
+    trading: "Trading",
+    staked: "Staked",
+    locked: "Locked",
+    unlocks: "Unlocks",
+    pendingApproval: "Pending approval",
+    activeLocked: "Active (locked)",
+    viewStaking: "View Staking",
+    noActiveStakes: "No active stakes",
+    stakedFundsLocked: "Staked funds are locked and not tradable until unlock date"
   },
   ar: {
     totalBalance: "الرصيد الكلي",
+    totalInclStaking: "الإجمالي (شامل الستيكنج)",
     fundingAccount: "حساب التمويل",
     tradingAccount: "حساب التداول",
+    stakingLocked: "الستيكنج (مقفل)",
     available: "المتاح",
     inOrders: "في الأوامر",
     deposit: "إيداع",
@@ -55,7 +70,15 @@ const translations = {
     quickActions: "إجراءات سريعة",
     total: "الإجمالي",
     funding: "التمويل",
-    trading: "التداول"
+    trading: "التداول",
+    staked: "مستثمر",
+    locked: "مقفل",
+    unlocks: "يفتح في",
+    pendingApproval: "بانتظار الموافقة",
+    activeLocked: "نشط (مقفل)",
+    viewStaking: "عرض الستيكنج",
+    noActiveStakes: "لا توجد استثمارات نشطة",
+    stakedFundsLocked: "الأموال المستثمرة مقفلة ولا يمكن تداولها حتى تاريخ الفتح"
   }
 };
 
@@ -67,12 +90,22 @@ export default function WalletOverview({
   totalBalance = 0,
   hasOkxAccount = false,
   isFullyUnlocked = false,
+  stakingOverlay = null,
   onDeposit,
   onTransfer,
   onRefresh
 }) {
   const t = translations[language] || translations.en;
-  const [assetView, setAssetView] = useState("total"); // total | funding | trading
+  const [assetView, setAssetView] = useState("total"); // total | funding | trading | staked
+
+  // Staking amounts (from overlay)
+  const activeLockedUsdt = stakingOverlay?.activeLockedByCcy?.USDT || 0;
+  const pendingLockedUsdt = stakingOverlay?.pendingLockedByCcy?.USDT || 0;
+  const nextUnlockAt = stakingOverlay?.nextUnlockAt;
+  const hasStaking = activeLockedUsdt > 0 || pendingLockedUsdt > 0;
+  
+  // Total including staking: OKX total + ACTIVE locked (pending is still in OKX funding)
+  const totalWithStaking = totalBalance + activeLockedUsdt;
 
   const formatBalance = (val) => {
     if (!showBalances) return "****";
@@ -145,6 +178,11 @@ export default function WalletOverview({
               <p className="text-3xl sm:text-4xl font-bold text-foreground">
                 {formatUSD(totalBalance)}
               </p>
+              {activeLockedUsdt > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t.totalInclStaking}: <span className="font-medium text-foreground">{formatUSD(totalWithStaking)}</span>
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -178,7 +216,7 @@ export default function WalletOverview({
       </Card>
 
       {/* Account Cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Funding Account */}
         <Card className="border-border/60">
           <CardHeader className="pb-2">
@@ -264,6 +302,57 @@ export default function WalletOverview({
             </div>
           </CardContent>
         </Card>
+
+        {/* Staking (Locked) Card */}
+        <Card className="border-border/60 border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Lock className="h-4 w-4 text-amber-600" />
+                {t.stakingLocked}
+              </CardTitle>
+              {activeLockedUsdt > 0 && (
+                <Badge className="bg-amber-500/20 text-amber-700 border-0 text-xs">
+                  {t.locked}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">
+              {formatUSD(activeLockedUsdt)}
+            </p>
+            {nextUnlockAt ? (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {t.unlocks}: {new Date(nextUnlockAt).toLocaleDateString()}
+              </p>
+            ) : activeLockedUsdt > 0 ? (
+              <p className="text-xs text-amber-600 mt-1">Unlock date pending</p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">{t.noActiveStakes}</p>
+            )}
+            {pendingLockedUsdt > 0 && (
+              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                {t.pendingApproval}: {formatUSD(pendingLockedUsdt)}
+              </p>
+            )}
+            <div className="mt-3">
+              <Button
+                size="sm"
+                asChild
+                variant="outline"
+                className="rounded-lg text-xs w-full border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+              >
+                <Link to={createPageUrl("Investing")}>
+                  <Lock className="h-3 w-3 mr-1" />
+                  {t.viewStaking}
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Assets List */}
@@ -276,15 +365,82 @@ export default function WalletOverview({
           </div>
           {/* View Toggle */}
           <Tabs value={assetView} onValueChange={setAssetView} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full max-w-sm">
+            <TabsList className={`grid w-full max-w-md ${hasStaking ? 'grid-cols-4' : 'grid-cols-3'}`}>
               <TabsTrigger value="total" className="text-xs">{t.total}</TabsTrigger>
               <TabsTrigger value="funding" className="text-xs">{t.funding}</TabsTrigger>
               <TabsTrigger value="trading" className="text-xs">{t.trading}</TabsTrigger>
+              {hasStaking && (
+                <TabsTrigger value="staked" className="text-xs">{t.staked}</TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent>
-          {assetList.length === 0 ? (
+          {/* Staked Tab Content */}
+          {assetView === "staked" ? (
+            <div className="space-y-3">
+              {/* Info banner */}
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                  <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                  {t.stakedFundsLocked}
+                </p>
+              </div>
+              
+              {/* Active locked */}
+              {activeLockedUsdt > 0 && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <CryptoIcon currency="USDT" size="md" />
+                    <div>
+                      <p className="font-medium text-foreground">USDT</p>
+                      <p className="text-xs text-emerald-600">{t.activeLocked}</p>
+                      {nextUnlockAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {t.unlocks}: {new Date(nextUnlockAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-foreground font-mono">{formatBalance(activeLockedUsdt)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Pending locked */}
+              {pendingLockedUsdt > 0 && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-amber-500/20">
+                  <div className="flex items-center gap-3">
+                    <CryptoIcon currency="USDT" size="md" />
+                    <div>
+                      <p className="font-medium text-foreground">USDT</p>
+                      <p className="text-xs text-amber-600">{t.pendingApproval}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-foreground font-mono">{formatBalance(pendingLockedUsdt)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {!activeLockedUsdt && !pendingLockedUsdt && (
+                <div className="text-center py-8">
+                  <Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">{t.noActiveStakes}</p>
+                  <Button
+                    asChild
+                    className="mt-4 bg-amber-600 hover:bg-amber-700 rounded-xl"
+                  >
+                    <Link to={createPageUrl("Investing")}>
+                      <Lock className="h-4 w-4 mr-2" />
+                      {t.viewStaking}
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : assetList.length === 0 ? (
             <div className="text-center py-8">
               <Wallet className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">{t.noAssets}</p>
@@ -342,6 +498,7 @@ WalletOverview.propTypes = {
   totalBalance: PropTypes.number,
   hasOkxAccount: PropTypes.bool,
   isFullyUnlocked: PropTypes.bool,
+  stakingOverlay: PropTypes.object,
   onDeposit: PropTypes.func,
   onTransfer: PropTypes.func,
   onRefresh: PropTypes.func
