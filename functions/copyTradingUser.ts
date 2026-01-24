@@ -154,9 +154,9 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: entries || [] });
     }
 
-    // ==================== CREATE ALLOCATION ====================
-    if (action === 'createAllocation') {
-      const { amount, depositSource } = body;
+    // ==================== DEPOSIT FUNDS (Immediate OKX Transfer) ====================
+    if (action === 'depositFunds' || action === 'createAllocation') {
+      const { amount } = body;
       const amountNum = Number(amount);
 
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
@@ -171,8 +171,9 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'DISABLED', message: 'Copy trading is not enabled' } });
       }
 
-      if (amountNum < (config.min_deposit_usdt || 50)) {
-        return Response.json({ ok: false, error: { code: 'MIN_AMOUNT', message: `Minimum allocation is ${config.min_deposit_usdt || 50} USDT` } });
+      const minDeposit = config.min_deposit_usdt || 50;
+      if (amountNum < minDeposit) {
+        return Response.json({ ok: false, error: { code: 'MIN_AMOUNT', message: `Minimum deposit is ${minDeposit} USDT` } });
       }
 
       // Check KYC if required
@@ -187,23 +188,88 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create allocation request
       const now = new Date().toISOString();
-      const idempotencyKey = `alloc:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+      const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
-      const allocation = await base44.asServiceRole.entities.CopyTradingAllocation.create({
-        user_id: user.id,
-        user_email: user.email,
-        amount: amountNum,
-        status: 'PENDING',
-        deposit_source: depositSource || config.deposit_source || 'OKX_FUNDING',
-        idempotency_key: idempotencyKey,
-        retry_count: 0,
-        created_at: now,
+      // Check idempotency - prevent duplicate deposits within 30 seconds
+      const recentLedger = await base44.asServiceRole.entities.CopyTradingLedger.filter(
+        { user_id: user.id, kind: 'CREDIT', status: 'POSTED' },
+        '-created_at',
+        1
+      );
+      if (recentLedger?.length > 0) {
+        const lastDeposit = new Date(recentLedger[0].created_at || recentLedger[0].created_date);
+        if (Date.now() - lastDeposit.getTime() < 30000) {
+          return Response.json({ ok: false, error: { code: 'DUPLICATE_REQUEST', message: 'Please wait before submitting another deposit' } });
+        }
+      }
+
+      // Execute OKX transfer immediately
+      const transferResult = await executeOkxTransfer(base44, user, amountNum);
+      
+      if (!transferResult.ok) {
+        // Log failed attempt
+        await base44.asServiceRole.entities.CopyTradingLedger.create({
+          user_id: user.id,
+          kind: 'CREDIT',
+          amount: amountNum,
+          currency: 'USDT',
+          status: 'VOID',
+          ref_type: 'ALLOCATION',
+          idempotency_key: idempotencyKey,
+          description: `Failed deposit: ${transferResult.error?.message || 'Transfer failed'}`,
+          meta: { error: transferResult.error },
+          created_at: now
+        });
+        
+        return Response.json({ ok: false, error: transferResult.error });
+      }
+
+      // Get or create wallet
+      const wallet = await getOrCreateWallet(base44, user);
+      const balanceBefore = wallet.available_balance || 0;
+      const balanceAfter = balanceBefore + amountNum;
+
+      // Update wallet balance
+      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+        available_balance: balanceAfter,
+        lifetime_deposited: (wallet.lifetime_deposited || 0) + amountNum,
+        last_activity_at: now,
         updated_at: now
       });
 
-      return Response.json({ ok: true, data: allocation });
+      // Create ledger entry
+      const ledgerEntry = await base44.asServiceRole.entities.CopyTradingLedger.create({
+        user_id: user.id,
+        kind: 'CREDIT',
+        amount: amountNum,
+        currency: 'USDT',
+        status: 'POSTED',
+        ref_type: 'ALLOCATION',
+        ref_id: transferResult.data.transferId,
+        idempotency_key: idempotencyKey,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
+        description: `Deposit from Trading Account`,
+        meta: { 
+          source: 'OKX_TRADING',
+          okx_transfer_id: transferResult.data.externalId
+        },
+        created_at: now
+      });
+
+      console.log(`[COPY_TRADING] Deposit SUCCESS: ${amountNum} USDT for user ${user.email}, new balance: ${balanceAfter}`);
+
+      return Response.json({ 
+        ok: true, 
+        data: { 
+          success: true,
+          amount: amountNum,
+          newBalance: balanceAfter,
+          ledgerId: ledgerEntry.id,
+          transferId: transferResult.data.transferId
+        } 
+      });
     }
 
     // ==================== CANCEL ALLOCATION ====================
