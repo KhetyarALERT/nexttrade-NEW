@@ -541,6 +541,9 @@ export default function WalletOverview({
           )}
         </CardContent>
       </Card>
+
+      {/* Recent Transfers */}
+      <RecentTransfersCard language={language} limit={5} />
     </div>
   );
 }
