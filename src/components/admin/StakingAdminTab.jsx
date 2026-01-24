@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   CheckCircle2, XCircle, Clock, Loader2, Lock, TrendingUp, 
-  AlertCircle, DollarSign, Settings, RefreshCw, Gift, RotateCcw
+  AlertCircle, DollarSign, Settings, RefreshCw, Gift, RotateCcw, Zap, Play
 } from 'lucide-react';
 import StakingPlansAdmin from './StakingPlansAdmin';
 
@@ -47,9 +47,38 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
   const [destinationPool, setDestinationPool] = useState('Main Staking Pool');
   const [rewardsAdjustment, setRewardsAdjustment] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [autoApproveRunning, setAutoApproveRunning] = useState(false);
+  const [autoApproveResult, setAutoApproveResult] = useState(null);
 
   const pendingRequests = stakingRequests.filter(r => r.status === 'PENDING_APPROVAL');
   const otherRequests = stakingRequests.filter(r => r.status !== 'PENDING_APPROVAL');
+
+  // Run auto-approve job manually
+  const handleRunAutoApprove = async () => {
+    setAutoApproveRunning(true);
+    setAutoApproveResult(null);
+    try {
+      const res = await base44.functions.invoke('stakingAutoApprove', {});
+      if (res.data?.ok) {
+        const data = res.data.data;
+        setAutoApproveResult(data);
+        if (data.approvedCount > 0) {
+          toast.success(`Auto-approved ${data.approvedCount} position(s)`);
+        } else if (data.processedCount > 0) {
+          toast.info(`Processed ${data.processedCount}, none eligible for auto-approval`);
+        } else {
+          toast.info(data.message || 'No pending positions');
+        }
+        onRefresh?.();
+      } else {
+        toast.error(res.data?.error?.message || 'Auto-approve failed');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to run auto-approve');
+    } finally {
+      setAutoApproveRunning(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!selectedPosition) return;
@@ -251,6 +280,69 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
 
         {/* Pending Requests */}
         <TabsContent value="requests" className="space-y-4">
+          {/* Auto-Approve Actions */}
+          {pendingRequests.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-medium flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-primary" />
+                      Auto-Approve
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Run the auto-approval job to process eligible pending requests
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleRunAutoApprove}
+                    disabled={autoApproveRunning}
+                    className="gap-2"
+                  >
+                    {autoApproveRunning ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4" />
+                    )}
+                    Run Now
+                  </Button>
+                </div>
+                
+                {/* Results */}
+                {autoApproveResult && (
+                  <div className="mt-3 p-2 bg-card rounded-lg text-xs space-y-1">
+                    <div className="flex gap-4 flex-wrap">
+                      <span>Processed: <strong>{autoApproveResult.processedCount}</strong></span>
+                      <span className="text-green-600">Approved: <strong>{autoApproveResult.approvedCount}</strong></span>
+                      <span className="text-muted-foreground">Skipped: {autoApproveResult.skippedCount}</span>
+                      <span className="text-red-600">Failed: {autoApproveResult.failedCount}</span>
+                    </div>
+                    {autoApproveResult.details?.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                          View details ({autoApproveResult.details.length})
+                        </summary>
+                        <div className="mt-1 max-h-32 overflow-auto space-y-1">
+                          {autoApproveResult.details.map((d, i) => (
+                            <div key={i} className={`p-1 rounded ${d.status === 'approved' ? 'bg-green-500/10' : d.status === 'failed' ? 'bg-red-500/10' : 'bg-muted/50'}`}>
+                              <span className="font-mono">{d.userEmail || d.id?.slice(0, 8)}</span>
+                              {' - '}
+                              <span className={d.status === 'approved' ? 'text-green-600' : d.status === 'failed' ? 'text-red-600' : 'text-muted-foreground'}>
+                                {d.status}
+                              </span>
+                              {d.reason && <span className="text-muted-foreground"> ({d.reason})</span>}
+                              {d.rewardsGranted && <span className="text-primary"> +{d.rewardsGranted} rewards</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {pendingRequests.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="py-8 text-center">
