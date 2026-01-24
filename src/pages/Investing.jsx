@@ -93,9 +93,10 @@ const t = {
   }
 };
 
-function formatUsdt(val) {
+function formatUsdt(val, language = "en") {
   if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
-  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const locale = language === "ar" ? "ar-SA" : "en-US";
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
 function useMediaQuery(query) {
@@ -347,8 +348,8 @@ export default function Investing({ language = "en" }) {
               ))
             ) : (
               <>
-                <StatCard icon={Lock} label={labels.totalStaked} value={`$${formatUsdt(summary.totalStaked)}`} />
-                <StatCard icon={Gift} label={labels.earned} value={`$${formatUsdt(summary.estimatedEarned)}`} highlight />
+                <StatCard icon={Lock} label={labels.totalStaked} value={`${formatUsdt(summary.totalStaked, language)} USDT`} />
+                <StatCard icon={Gift} label={labels.earned} value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} highlight />
                 <StatCard icon={CheckCircle2} label={labels.activePositions} value={summary.activePositions} />
                 <StatCard icon={TrendingUp} label={labels.avgApy} value={`${summary.avgApy.toFixed(1)}%`} />
               </>
