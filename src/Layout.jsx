@@ -328,14 +328,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const stakedPendingUsdt = stakingData?.pendingLockedByCcy?.USDT || 0;
       const nextUnlockAt = stakingData?.nextUnlockAt || null;
 
-      // Copy Trading: Available balance (in pool), Locked (in signals)
+      // Copy Trading: Available balance (internal wallet), Locked (in signals)
+      // Note: Copy Trading balance is INTERNAL (demo USDT), not in OKX
       const copyTradingAvailableUsdt = copyTradingData?.available_balance || 0;
       const copyTradingLockedUsdt = copyTradingData?.locked_balance || 0;
 
       // Combined totals
-      // OKX total (what's in user's subaccount) = funding + trading (includes pending staking)
+      // OKX total (what's in user's subaccount) = funding + trading
       const okxTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
-      // Total including staking = OKX total + ACTIVE staked (which left the subaccount) + Copy Trading (in pool)
+      // Total including staking & copy trading = OKX total + ACTIVE staked + Copy Trading internal balance
       const totalUsdt = okxTotal + stakedActiveUsdt + copyTradingAvailableUsdt + copyTradingLockedUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
@@ -352,7 +353,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         nextUnlockAt,
         copyTradingAvailableUsdt,
         copyTradingLockedUsdt,
-        hasCopyTrading: copyTradingData !== null,
+        hasCopyTrading: copyTradingData !== null && (copyTradingAvailableUsdt > 0 || copyTradingLockedUsdt > 0 || (copyTradingData?.lifetime_deposited || 0) > 0),
       });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
