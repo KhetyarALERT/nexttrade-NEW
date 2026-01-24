@@ -533,8 +533,10 @@ export default function WalletPage({ language = "en" }) {
                 hasOkxAccount={hasOkxAccount}
                 isFullyUnlocked={isFullyUnlocked}
                 stakingOverlay={stakingOverlay}
+                copyTradingWallet={copyTradingWallet}
                 onDeposit={() => setSubPage("deposit")}
                 onTransfer={() => setTransferModalOpen(true)}
+                onCopyTradingDeposit={() => setCopyTradingDepositOpen(true)}
                 onRefresh={handleRefresh}
               />
             )}
