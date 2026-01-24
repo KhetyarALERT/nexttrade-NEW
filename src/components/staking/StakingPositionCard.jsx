@@ -9,6 +9,7 @@ import UsdtIcon from "@/components/ui/UsdtIcon";
 const t = {
   en: {
     days: "days",
+    day: "day",
     earned: "Earned",
     accrualPending: "Accrual pending",
     lastUpdated: "Last updated",
@@ -18,20 +19,23 @@ const t = {
     bonusRewards: "Bonus",
     startedOn: "Started",
     completedOn: "Completed",
-    rejectedReason: "Reason"
+    rejectedReason: "Reason",
+    apy: "APY"
   },
   ar: {
-    days: "يوم",
+    days: "أيام",
+    day: "يوم",
     earned: "المكتسب",
     accrualPending: "الاحتساب معلق",
     lastUpdated: "آخر تحديث",
-    endsIn: "ينتهي في",
+    endsIn: "ينتهي خلال",
     waitingApproval: "بانتظار الموافقة",
     cancel: "إلغاء",
     bonusRewards: "المكافأة",
     startedOn: "بدأ في",
     completedOn: "اكتمل في",
-    rejectedReason: "السبب"
+    rejectedReason: "السبب",
+    apy: "عائد سنوي"
   }
 };
 
@@ -45,14 +49,16 @@ const STATUS_CONFIG = {
   UNLOCKING: { color: "bg-purple-500/10 text-purple-600 border-purple-500/30", icon: Loader2, spin: true },
 };
 
-function formatUsdt(val) {
+function formatUsdt(val, language = "en") {
   if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
-  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const locale = language === "ar" ? "ar-SA" : "en-US";
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr, language = "en") {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const locale = language === "ar" ? "ar-SA" : "en-US";
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(new Date(dateStr));
 }
 
 function formatDaysRemaining(endsAt) {
@@ -84,11 +90,14 @@ export default function StakingPositionCard({ position, onCancel, language = "en
             <UsdtIcon size="md" language={language} />
             <div>
               <p className="font-mono font-bold text-lg text-foreground">
-                {formatUsdt(position.principal)}
-                <span className="text-sm font-normal text-muted-foreground ml-1">USDT</span>
+                {formatUsdt(position.principal, language)}
+                <span className="text-sm font-normal text-muted-foreground ltr:ml-1 rtl:mr-1">USDT</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {position.planKey} • {position.apyPercent}% APY • {position.termDays}d
+                {language === "ar" 
+                  ? `${position.termDays} ${labels.day} • ${labels.apy} ${position.apyPercent}%`
+                  : `${position.termDays} ${labels.days} • ${position.apyPercent}% ${labels.apy}`
+                }
               </p>
             </div>
           </div>
@@ -105,11 +114,16 @@ export default function StakingPositionCard({ position, onCancel, language = "en
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Calendar className="w-3.5 h-3.5" />
-                <span>{labels.endsIn}: <strong className="text-foreground">{daysRemaining}</strong> {labels.days}</span>
+                <span>
+                  {language === "ar"
+                    ? <>{labels.endsIn} <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
+                    : <>{labels.endsIn}: <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
+                  }
+                </span>
               </div>
-              <div className="text-right">
+              <div className={language === "ar" ? "text-left" : "text-right"}>
                 {hasRealAccrual ? (
-                  <span className="text-emerald-600 font-semibold">+${formatUsdt(accruedAmount)} {labels.earned}</span>
+                  <span className="text-emerald-600 font-semibold">+{formatUsdt(accruedAmount, language)} USDT {labels.earned}</span>
                 ) : (
                   <span className="text-muted-foreground text-xs">{labels.accrualPending}</span>
                 )}
@@ -118,7 +132,7 @@ export default function StakingPositionCard({ position, onCancel, language = "en
             <Progress value={progressPercent} className="h-2" />
             {position.lastAccrualAt && (
               <p className="text-[10px] text-muted-foreground">
-                {labels.lastUpdated}: {formatDate(position.lastAccrualAt)}
+                {labels.lastUpdated}: {formatDate(position.lastAccrualAt, language)}
               </p>
             )}
           </div>
@@ -148,7 +162,7 @@ export default function StakingPositionCard({ position, onCancel, language = "en
         {position.status === "COMPLETED" && position.endsAt && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="w-4 h-4 text-blue-500" />
-            <span>{labels.completedOn}: {formatDate(position.endsAt)}</span>
+            <span>{labels.completedOn}: {formatDate(position.endsAt, language)}</span>
           </div>
         )}
 
