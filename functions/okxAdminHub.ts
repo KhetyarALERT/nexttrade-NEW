@@ -508,6 +508,8 @@ Deno.serve(async (req) => {
           rewardsGranted: p.rewards_granted || 0,
           firstStakeBonusApplied: p.first_stake_bonus_applied || false,
           destinationPool: p.destination_pool,
+          approvedByType: p.approved_by_type || (p.approved_by ? 'ADMIN' : null),
+          approvalNote: p.approval_note,
           status: p.status,
           lockTransferId: p.lock_transfer_id,
           stakeTransferId: p.stake_transfer_id,
@@ -723,7 +725,9 @@ Deno.serve(async (req) => {
         started_at: nowIso,
         ends_at: endsAt,
         approved_by: user.email,
+        approved_by_type: 'ADMIN',
         approved_at: nowIso,
+        approval_note: adminNote || 'Manual approval by admin',
         notes: adminNote || null,
         updated_at: nowIso
       });
