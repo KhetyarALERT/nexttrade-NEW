@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
+import { formatUsdt, formatDate } from "@/components/utils/formatters";
 
 const t = {
   en: {
@@ -56,16 +57,7 @@ const t = {
   }
 };
 
-function formatDate(date, language = "en") {
-  const locale = language === "ar" ? "ar-SA" : "en-US";
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
-}
-
-function formatNumber(val, language = "en") {
-  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
-  const locale = language === "ar" ? "ar-SA" : "en-US";
-  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-}
+// Using shared formatters from components/utils/formatters
 
 export default function StakingAmountPanel({ 
   plan, 
@@ -135,7 +127,7 @@ export default function StakingAmountPanel({
         <div className="flex items-center gap-1.5">
           <UsdtIcon size="xs" language={language} />
           <span className="font-mono font-semibold">
-            {formatNumber(availableBalance, language)} USDT
+            {formatUsdt(availableBalance, language)} USDT
           </span>
         </div>
       </div>

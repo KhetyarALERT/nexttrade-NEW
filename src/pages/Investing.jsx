@@ -20,7 +20,7 @@ import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
 import UsdtIcon from "@/components/ui/UsdtIcon";
-import { formatUsdt, formatPercent } from "@/utils/formatters";
+import { formatUsdt, formatPercent } from "@/components/utils/formatters";
 
 // Translations
 const t = {
