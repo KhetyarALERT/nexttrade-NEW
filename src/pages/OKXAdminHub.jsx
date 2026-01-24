@@ -1654,8 +1654,10 @@ export default function OKXAdminHub({ language = 'en' }) {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      poolAccounts.map((pool) => (
-                        <React.Fragment key={pool.id}>
+                      poolAccounts.map((pool) => {
+                        const poolRowKey = pool.id;
+                        return (
+                        <React.Fragment key={poolRowKey}>
                           <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRowExpand(pool.id)}>
                             <TableCell>
                               {expandedRows[pool.id] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1763,7 +1765,8 @@ export default function OKXAdminHub({ language = 'en' }) {
                             </TableRow>
                           )}
                         </React.Fragment>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
