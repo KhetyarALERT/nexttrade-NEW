@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
   const runId = crypto.randomUUID().substring(0, 8);
   const startTime = Date.now();
 
-  console.log(`[COPY_TRADING_AUTO] [${runId}] Starting auto-approval job`);
+  console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Starting settlement processor`);
 
   const result = {
     runId,
@@ -128,8 +128,8 @@ Deno.serve(async (req) => {
     const config = configs?.[0];
 
     if (!config?.enabled || !config?.auto_approve_enabled) {
-      console.log(`[COPY_TRADING_AUTO] [${runId}] Auto-approval disabled`);
-      return Response.json({ ok: true, data: { ...result, message: 'Auto-approval disabled' } });
+      console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Auto-settlement disabled`);
+      return Response.json({ ok: true, data: { ...result, message: 'Auto-settlement disabled' } });
     }
 
     const {
@@ -532,7 +532,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, data: { ...result, durationMs: duration } });
 
   } catch (error) {
-    console.error(`[COPY_TRADING_AUTO] [${runId}] Fatal error:`, error.message);
+    console.error(`[COPY_TRADING_SETTLEMENT] [${runId}] Fatal error:`, error.message);
     return Response.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: error.message } }, { status: 500 });
   }
 });
