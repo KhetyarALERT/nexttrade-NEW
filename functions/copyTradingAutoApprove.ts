@@ -518,7 +518,7 @@ Deno.serve(async (req) => {
         console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Settled allocation ${allocation.id}`);
 
       } catch (err) {
-        console.error(`[COPY_TRADING_AUTO] [${runId}] Error processing allocation ${allocation.id}:`, err.message);
+        console.error(`[COPY_TRADING_SETTLEMENT] [${runId}] Error processing allocation ${allocation.id}:`, err.message);
         detail.status = 'error';
         detail.reason = err.message;
         result.failedCount++;
@@ -527,7 +527,7 @@ Deno.serve(async (req) => {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[COPY_TRADING_AUTO] [${runId}] Completed in ${duration}ms: processed=${result.processedCount}, approved=${result.approvedCount}, skipped=${result.skippedCount}, failed=${result.failedCount}`);
+    console.log(`[COPY_TRADING_SETTLEMENT] [${runId}] Completed in ${duration}ms: processed=${result.processedCount}, settled=${result.approvedCount}, skipped=${result.skippedCount}, failed=${result.failedCount}`);
 
     return Response.json({ ok: true, data: { ...result, durationMs: duration } });
 
