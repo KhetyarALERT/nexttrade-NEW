@@ -138,9 +138,11 @@ export default function WalletPage({ language = "en" }) {
   const [okxBalances, setOkxBalances] = useState(null);
   const [totalBalance, setTotalBalance] = useState(0);
   const [stakingOverlay, setStakingOverlay] = useState(null);
+  const [copyTradingWallet, setCopyTradingWallet] = useState(null);
   
   // Transfer Modal
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
 
   // Update URL when sub-page changes
   const setSubPage = useCallback((page) => {
