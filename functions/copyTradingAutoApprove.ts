@@ -1,9 +1,8 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// Copy Trading Auto-Approve Processor - Runs via automation every 5 minutes
-// NOTE: For OKX_TRADING deposits, funds are already in user's Funding account
-// We just need to verify and credit their internal Copy Trading Wallet
-// NO transfer to main account needed (avoids IP whitelist issues)
+// Copy Trading Settlement Processor - Runs via automation every 5 minutes
+// Handles Step2: Funding(subaccount) → Funding(main) using master API
+// Then credits user's internal Copy Trading Wallet
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const DEFAULT_OKX_BASE_URL = 'https://www.okx.com';

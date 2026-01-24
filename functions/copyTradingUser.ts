@@ -387,14 +387,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      // STEP 3: Create PENDING allocation (auto-approve processor will handle Funding→Main + wallet credit)
+      // STEP 3: Create PENDING_SETTLEMENT allocation (settlement processor will handle Funding→Main + wallet credit)
       const allocation = await base44.asServiceRole.entities.CopyTradingAllocation.create({
         user_id: user.id,
         user_email: user.email,
         amount: amountNum,
-        status: 'PENDING',
-        deposit_source: 'OKX_FUNDING', // Funds are now in Funding account
-        okx_transfer_id: lockTransferId,
+        status: 'PENDING_SETTLEMENT', // Awaiting step2 (Funding subaccount → Funding main)
+        deposit_source: 'OKX_FUNDING',
+        step1_transfer_id: lockTransferId, // Trading→Funding completed
         idempotency_key: idempotencyKey,
         retry_count: 0,
         created_at: completedAt,
