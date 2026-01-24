@@ -994,6 +994,158 @@ Deno.serve(async (req) => {
       });
     }
 
+    // TRANSFER TO MAIN - Transfer from user subaccount to main pool (for Copy Trading, Staking)
+    if (action === 'transferToMain') {
+      const { userId, amount, currency = 'USDT', source = 'TRADING' } = params;
+      
+      // This can be called by service role with userId, or by user directly
+      const targetUserId = userId || user.id;
+      
+      if (!amount || amount <= 0) {
+        return Response.json({ ok: false, error: { code: 'INVALID_AMOUNT', message: 'Amount must be positive' } }, { status: 400 });
+      }
+      
+      const credResult = await getUserOkxCredential(base44, targetUserId);
+      if (!credResult.ok) {
+        return Response.json({ ok: false, error: credResult.error });
+      }
+
+      const { account, credential } = credResult.data;
+      const now = new Date().toISOString();
+
+      // Step 1: If source is TRADING, first transfer from Trading to Funding within subaccount
+      if (source.toUpperCase() === 'TRADING') {
+        console.log(`[OKX_TRANSFER_TO_MAIN] Step 1: Trading -> Funding for ${amount} ${currency}`);
+        
+        // Check trading balance first
+        const tradingRes = await okxRequest({
+          credential,
+          method: 'GET',
+          path: '/api/v5/account/balance',
+          isTradingEndpoint: true
+        });
+        
+        const tradingUsdt = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === currency)?.availBal || '0');
+        if (tradingUsdt < amount) {
+          return Response.json({ 
+            ok: false, 
+            error: { 
+              code: 'INSUFFICIENT_BALANCE', 
+              message: `Insufficient trading balance. Available: ${tradingUsdt.toFixed(2)} ${currency}` 
+            } 
+          });
+        }
+        
+        // Transfer Trading (18) -> Funding (6) within subaccount
+        const internalRes = await okxRequest({
+          credential,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            ccy: currency,
+            amt: String(amount),
+            from: '18', // Trading
+            to: '6',    // Funding
+            type: '0'   // Within same account
+          },
+          isTradingEndpoint: false
+        });
+        
+        const internalResult = internalRes.data?.data?.[0];
+        if (!internalRes.ok || (internalResult?.code && internalResult.code !== '0')) {
+          const errMsg = internalRes.error?.okxMsg || internalResult?.msg || 'Internal transfer failed';
+          console.error(`[OKX_TRANSFER_TO_MAIN] Trading->Funding failed:`, errMsg);
+          return Response.json({ ok: false, error: { code: 'INTERNAL_TRANSFER_FAILED', message: errMsg } });
+        }
+        
+        console.log(`[OKX_TRANSFER_TO_MAIN] Step 1 complete: transId=${internalResult?.transId}`);
+      }
+
+      // Step 2: Transfer from Subaccount Funding to Main Funding using MASTER credentials
+      console.log(`[OKX_TRANSFER_TO_MAIN] Step 2: Subaccount Funding -> Main Funding for ${amount} ${currency}`);
+      
+      const masterApiKey = getEnv('OKX_MAIN_API_KEY');
+      const masterSecret = getEnv('OKX_MAIN_SECRET');
+      const masterPassphrase = getEnv('OKX_MAIN_PASSPHRASE');
+      
+      if (!masterApiKey || !masterSecret || !masterPassphrase) {
+        return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'Master credentials not configured' } });
+      }
+      
+      const masterCred = {
+        apiKey: masterApiKey,
+        secretKey: masterSecret,
+        passphrase: masterPassphrase
+      };
+      
+      // Get subaccount name from pool
+      const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+      const pool = pools?.[0];
+      const subAcctName = pool?.subaccount_name || account.external_account_id;
+      
+      if (!subAcctName) {
+        return Response.json({ ok: false, error: { code: 'NO_SUBACCOUNT', message: 'Subaccount name not found' } });
+      }
+      
+      // Transfer from subaccount to main using master credentials
+      // type=2 means sub-account to master account
+      const toMainRes = await okxRequest({
+        credential: masterCred,
+        method: 'POST',
+        path: '/api/v5/asset/transfer',
+        body: {
+          ccy: currency,
+          amt: String(amount),
+          from: '6',  // Funding
+          to: '6',    // Funding
+          type: '2',  // Sub-account to master
+          subAcct: subAcctName
+        },
+        isTradingEndpoint: false
+      });
+      
+      const toMainResult = toMainRes.data?.data?.[0];
+      if (!toMainRes.ok || (toMainResult?.code && toMainResult.code !== '0')) {
+        const errMsg = toMainRes.error?.okxMsg || toMainResult?.msg || 'Transfer to main failed';
+        console.error(`[OKX_TRANSFER_TO_MAIN] Subaccount->Main failed:`, errMsg);
+        return Response.json({ ok: false, error: { code: 'TRANSFER_TO_MAIN_FAILED', message: errMsg } });
+      }
+      
+      const transferId = toMainResult?.transId || `tf_${Date.now()}`;
+      console.log(`[OKX_TRANSFER_TO_MAIN] Complete: ${amount} ${currency} from ${subAcctName} to main, transId=${transferId}`);
+      
+      // Record the transfer
+      try {
+        await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: targetUserId,
+          provider: 'OKX',
+          from_account: subAcctName,
+          from_account_type: source.toLowerCase(),
+          to_account: 'main',
+          to_account_type: 'funding',
+          currency,
+          amount: parseFloat(amount),
+          status: 'COMPLETED',
+          external_transfer_id: transferId,
+          completed_at: now,
+          created_at: now
+        });
+      } catch (logErr) {
+        console.log('[OKX_TRANSFER_TO_MAIN] Failed to log transfer (non-blocking):', logErr.message);
+      }
+      
+      return Response.json({
+        ok: true,
+        data: {
+          transferId,
+          amount: parseFloat(amount),
+          currency,
+          source,
+          status: 'COMPLETED'
+        }
+      });
+    }
+
     return Response.json({ ok: false, error: { code: 'INVALID_ACTION' } }, { status: 400 });
 
   } catch (error) {
