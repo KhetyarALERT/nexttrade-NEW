@@ -74,7 +74,6 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const [wallet, setWallet] = useState(null);
   const [allocations, setAllocations] = useState([]);
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
-  const [cancelingId, setCancelingId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -105,26 +104,7 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     toast.success(language === "ar" ? "تم إنشاء طلب التخصيص" : "Allocation request created");
   };
 
-  const handleCancelAllocation = async (allocationId) => {
-    setCancelingId(allocationId);
-    try {
-      const res = await base44.functions.invoke("copyTradingUser", {
-        action: "cancelAllocation",
-        allocationId
-      });
 
-      if (res.data?.ok) {
-        toast.success(language === "ar" ? "تم إلغاء التخصيص" : "Allocation cancelled");
-        loadData();
-      } else {
-        toast.error(res.data?.error?.message || "Failed to cancel");
-      }
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setCancelingId(null);
-    }
-  };
 
   const availableBalance = wallet?.available_balance || 0;
   const lockedBalance = wallet?.locked_balance || 0;
@@ -229,50 +209,33 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
         </CardContent>
       </Card>
 
-      {/* Allocations */}
-      <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3">{labels.recentAllocations}</h3>
-          {allocations.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">{labels.noAllocations}</p>
-          ) : (
+      {/* Recent Activity - Phase 2: Show signal allocations */}
+      {allocations.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold mb-3">{labels.recentAllocations}</h3>
             <div className="space-y-2">
-              {allocations.slice(0, 10).map((alloc) => (
+              {allocations.slice(0, 5).map((alloc) => (
                 <div key={alloc.id} className="flex items-center justify-between text-sm bg-muted/30 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
                     <Badge className={statusColors[alloc.status] || ""} variant="outline">
                       {statusLabels[alloc.status] || alloc.status}
                     </Badge>
                     <span className="text-muted-foreground text-xs">
-                      {formatDate(alloc.created_at || alloc.created_date, language)}
+                      {formatDate(alloc.created_at || alloc.created_date)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-medium">
                       {formatUsdt(alloc.amount)} USDT
                     </span>
-                    {alloc.status === "PENDING" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleCancelAllocation(alloc.id)}
-                        disabled={cancelingId === alloc.id}
-                      >
-                        {cancelingId === alloc.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                        )}
-                      </Button>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Allocation Modal */}
       <AllocationModal

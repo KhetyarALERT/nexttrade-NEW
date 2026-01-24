@@ -299,7 +299,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         base44.functions.invoke("wallet", { action: "list" }),
         base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
         base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
+        base44.functions.invoke("copyTradingUser", { action: "getWallet" }).catch(() => ({ data: { ok: false } })),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
@@ -616,10 +616,10 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                     </Link>
                                   </DropdownMenuItem>
 
-                      {/* Copy Trading - show if any balance */}
-                      {(accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
+                      {/* Copy Trading - always show if config enabled */}
+                      {copyTradingData?.available_balance !== undefined && (
                         <DropdownMenuItem asChild>
-                          <Link to={createPageUrl("Futures")}>
+                          <Link to={createPageUrl("Futures") + "?tab=bots"}>
                             <div className="flex w-full items-center justify-between gap-3">
                               <div className="flex items-center gap-2">
                                 <TrendingUp className="h-4 w-4 text-blue-600" />

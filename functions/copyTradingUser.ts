@@ -115,31 +115,11 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: allocation });
     }
 
-    // ==================== CANCEL ALLOCATION ====================
+    // ==================== CANCEL ALLOCATION (Phase 2 - Signal allocations only) ====================
     if (action === 'cancelAllocation') {
-      const { allocationId } = body;
-
-      if (!allocationId) {
-        return Response.json({ ok: false, error: { code: 'MISSING_ID', message: 'Missing allocation ID' } });
-      }
-
-      const allocations = await base44.asServiceRole.entities.CopyTradingAllocation.filter({ id: allocationId });
-      const allocation = allocations?.[0];
-
-      if (!allocation || allocation.user_id !== user.id) {
-        return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Allocation not found' } });
-      }
-
-      if (allocation.status !== 'PENDING') {
-        return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: 'Can only cancel pending allocations' } });
-      }
-
-      await base44.asServiceRole.entities.CopyTradingAllocation.update(allocationId, {
-        status: 'CANCELED',
-        updated_at: new Date().toISOString()
-      });
-
-      return Response.json({ ok: true, data: { message: 'Allocation cancelled' } });
+      // This is for canceling signal allocations in Phase 2
+      // Deposits are immediate and cannot be cancelled
+      return Response.json({ ok: false, error: { code: 'NOT_SUPPORTED', message: 'Deposits cannot be cancelled. Use withdrawal instead.' } });
     }
 
     // ==================== GET SIGNALS (STUB) ====================
