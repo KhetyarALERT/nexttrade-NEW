@@ -11,7 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, Pencil, Copy, Trash2, Loader2, Settings, RefreshCw, Zap, Play } from 'lucide-react';
+import { Plus, Pencil, Copy, Trash2, Loader2, Settings, RefreshCw, Zap, Play, Crown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const SIGNALS_TIERS = ['NONE', 'BASIC', 'PRO', 'VIP'];
+const COPY_TRADING_LEVELS = ['NONE', 'ACCESS', 'PRIORITY', 'FULL'];
 
 export default function StakingPlansAdmin({ onRefresh }) {
   const [adminTab, setAdminTab] = useState('plans');
@@ -34,6 +38,14 @@ export default function StakingPlansAdmin({ onRefresh }) {
     min_deposit: 50,
     base_rewards_per_dollar: 10,
     perks: '',
+    // Entitlement fields
+    signals_tier: 'NONE',
+    copy_trading_level: 'ACCESS',
+    leverage_max: 10,
+    fee_discount_bps: 0,
+    mentor_access: false,
+    priority_support: false,
+    priority: 0,
     is_enabled: true,
     is_recommended: false,
     sort_order: 0,
@@ -105,6 +117,14 @@ export default function StakingPlansAdmin({ onRefresh }) {
         min_deposit: plan.min_deposit || 50,
         base_rewards_per_dollar: plan.base_rewards_per_dollar || 10,
         perks: (plan.perks || []).join('\n'),
+        // Entitlement fields
+        signals_tier: plan.signals_tier || 'NONE',
+        copy_trading_level: plan.copy_trading_level || 'ACCESS',
+        leverage_max: plan.leverage_max || 10,
+        fee_discount_bps: plan.fee_discount_bps || 0,
+        mentor_access: plan.mentor_access || false,
+        priority_support: plan.priority_support || false,
+        priority: plan.priority || 0,
         is_enabled: plan.is_enabled !== false,
         is_recommended: plan.is_recommended || false,
         sort_order: plan.sort_order || 0,
@@ -120,6 +140,14 @@ export default function StakingPlansAdmin({ onRefresh }) {
         min_deposit: 50,
         base_rewards_per_dollar: 10,
         perks: '',
+        // Entitlement fields
+        signals_tier: 'NONE',
+        copy_trading_level: 'ACCESS',
+        leverage_max: 10,
+        fee_discount_bps: 0,
+        mentor_access: false,
+        priority_support: false,
+        priority: 0,
         is_enabled: true,
         is_recommended: false,
         sort_order: plans.length + 1,
@@ -146,6 +174,15 @@ export default function StakingPlansAdmin({ onRefresh }) {
         min_deposit: Number(form.min_deposit),
         base_rewards_per_dollar: Number(form.base_rewards_per_dollar),
         perks: perksArray,
+        perks_display: perksArray,
+        // Entitlement fields
+        signals_tier: form.signals_tier,
+        copy_trading_level: form.copy_trading_level,
+        leverage_max: Number(form.leverage_max),
+        fee_discount_bps: Number(form.fee_discount_bps),
+        mentor_access: form.mentor_access,
+        priority_support: form.priority_support,
+        priority: Number(form.priority),
         is_enabled: form.is_enabled,
         is_recommended: form.is_recommended,
         sort_order: Number(form.sort_order),
@@ -528,42 +565,129 @@ export default function StakingPlansAdmin({ onRefresh }) {
             </div>
 
             <div>
-              <Label>Perks (one per line)</Label>
-              <Textarea
-                value={form.perks}
-                onChange={(e) => setForm({ ...form, perks: e.target.value })}
-                placeholder="Signals Basic&#10;Priority onboarding"
-                rows={3}
-              />
+            <Label>Perks (one per line)</Label>
+            <Textarea
+              value={form.perks}
+              onChange={(e) => setForm({ ...form, perks: e.target.value })}
+              placeholder="Signals Basic&#10;Priority onboarding"
+              rows={3}
+            />
+            </div>
+
+            {/* Entitlements Section */}
+            <div className="border-t pt-4 mt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Crown className="w-4 h-4 text-amber-500" />
+              <Label className="text-sm font-semibold">Feature Entitlements</Label>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Sort Order</Label>
-                <Input
-                  type="number"
-                  value={form.sort_order}
-                  onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
-                />
+                <Label>Copy Trading Level</Label>
+                <Select
+                  value={form.copy_trading_level}
+                  onValueChange={(v) => setForm({ ...form, copy_trading_level: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COPY_TRADING_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>{level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2 pt-5">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.is_enabled}
-                    onCheckedChange={(v) => setForm({ ...form, is_enabled: v })}
-                  />
-                  <Label>Enabled</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.is_recommended}
-                    onCheckedChange={(v) => setForm({ ...form, is_recommended: v })}
-                  />
-                  <Label>Recommended</Label>
-                </div>
+              <div>
+                <Label>Signals Tier</Label>
+                <Select
+                  value={form.signals_tier}
+                  onValueChange={(v) => setForm({ ...form, signals_tier: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SIGNALS_TIERS.map((tier) => (
+                      <SelectItem key={tier} value={tier}>{tier}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </div>
+
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <Label>Max Leverage</Label>
+                <Input
+                  type="number"
+                  value={form.leverage_max}
+                  onChange={(e) => setForm({ ...form, leverage_max: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Fee Discount (bps)</Label>
+                <Input
+                  type="number"
+                  value={form.fee_discount_bps}
+                  onChange={(e) => setForm({ ...form, fee_discount_bps: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Input
+                  type="number"
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-6 mt-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.mentor_access}
+                  onCheckedChange={(v) => setForm({ ...form, mentor_access: v })}
+                />
+                <Label>Mentor Access</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.priority_support}
+                  onCheckedChange={(v) => setForm({ ...form, priority_support: v })}
+                />
+                <Label>Priority Support</Label>
+              </div>
+            </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Sort Order</Label>
+              <Input
+                type="number"
+                value={form.sort_order}
+                onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2 pt-5">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.is_enabled}
+                  onCheckedChange={(v) => setForm({ ...form, is_enabled: v })}
+                />
+                <Label>Enabled</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={form.is_recommended}
+                  onCheckedChange={(v) => setForm({ ...form, is_recommended: v })}
+                />
+                <Label>Recommended</Label>
+              </div>
+            </div>
+            </div>
+            </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
