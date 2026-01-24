@@ -27,7 +27,8 @@ import {
   DollarSign,
   BarChart3,
   Shield,
-  Wallet
+  Wallet,
+  ArrowDownToLine
 } from "lucide-react";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
