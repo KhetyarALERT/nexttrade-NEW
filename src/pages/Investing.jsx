@@ -23,7 +23,7 @@ const t = {
     subtitle: "Lock USDT for a fixed period. Earn APY + Bonus Rewards.",
     infoStrip: "Approval required → Funds lock immediately → Position activates after approval",
     totalStaked: "Total Staked",
-    estEarned: "Est. Earned",
+    estEarned: "Earned",
     activePositions: "Active Positions",
     avgApy: "Avg. APY",
     choosePlan: "Choose a Plan",
@@ -65,7 +65,7 @@ const t = {
     step1: "Choose plan + amount",
     step2: "Funds lock (Trading → Funding)",
     step3: "After approval, stake becomes Active",
-    disclaimer: "Rewards are estimates until distribution is implemented.",
+    disclaimer: "Rewards accrue daily. Payouts processed manually by admin.",
     loginRequired: "Login to start staking",
     noTradingAccount: "Activate your trading account first",
     stakeSuccess: "Stake request submitted",
@@ -83,7 +83,7 @@ const t = {
     subtitle: "اقفل USDT لفترة محددة. اربح APY + مكافآت إضافية.",
     infoStrip: "مطلوب موافقة ← الأموال تُقفل فوراً ← المركز يُفعّل بعد الموافقة",
     totalStaked: "إجمالي المستثمر",
-    estEarned: "المكتسب التقديري",
+    estEarned: "المكتسب",
     activePositions: "المراكز النشطة",
     avgApy: "متوسط APY",
     choosePlan: "اختر خطة",
@@ -125,7 +125,7 @@ const t = {
     step1: "اختر الخطة + المبلغ",
     step2: "الأموال تُقفل (التداول ← التمويل)",
     step3: "بعد الموافقة، يصبح المركز نشطاً",
-    disclaimer: "المكافآت تقديرية حتى يتم تطبيق التوزيع.",
+    disclaimer: "المكافآت تُحتسب يومياً. الدفعات تُعالج يدوياً من قبل الإدارة.",
     loginRequired: "سجل الدخول لبدء الستيكنج",
     noTradingAccount: "فعّل حساب التداول أولاً",
     stakeSuccess: "تم تقديم طلب الستيكنج",
@@ -446,6 +446,11 @@ function PositionRow({ position, labels, onCancel }) {
     ? Math.min(100, Math.max(0, ((position.termDays - (daysRemaining || 0)) / position.termDays) * 100))
     : 0;
 
+  // Real accrued values from daily processor
+  const accruedAmount = position.accruedAmount || 0;
+  const claimableAmount = position.claimableAmount || 0;
+  const hasRealAccrual = accruedAmount > 0;
+
   return (
     <div className="p-3 border border-border rounded-lg bg-card space-y-2">
       <div className="flex items-start justify-between">
@@ -472,9 +477,20 @@ function PositionRow({ position, labels, onCancel }) {
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">{labels.endsIn}: {daysRemaining} {labels.days}</span>
-            <span className="text-primary font-medium">+${formatUsdt(position.estimatedEarned)} est.</span>
+            <div className="text-right">
+              {hasRealAccrual ? (
+                <span className="text-primary font-medium">+${formatUsdt(accruedAmount)} earned</span>
+              ) : (
+                <span className="text-muted-foreground">Accrual pending...</span>
+              )}
+            </div>
           </div>
           <Progress value={progressPercent} className="h-1.5" />
+          {position.lastAccrualAt && (
+            <p className="text-[10px] text-muted-foreground">
+              Last updated: {formatDate(position.lastAccrualAt)}
+            </p>
+          )}
         </div>
       )}
 
