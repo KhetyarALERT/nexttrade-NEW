@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowRight, Wallet, AlertCircle } from "lucide-react";
+import { Loader2, ArrowRight, Wallet, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 
@@ -57,18 +57,36 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
 
   const [amount, setAmount] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [freshBalance, setFreshBalance] = useState(null);
 
-  // Fixed source: always from Trading Account (OKX Trading balance)
-  const availableBalance = liveAccount?.tradingBalance || 0;
-  const minDeposit = config?.min_deposit_usdt || 50;
-  const presets = [50, 100, 250, 500];
+  // Fetch fresh balance from OKX when modal opens
+  const loadFreshBalance = useCallback(async () => {
+    setLoadingBalance(true);
+    try {
+      const res = await base44.functions.invoke("okxUserAccount", { action: "getMyAccount" });
+      if (res.data?.ok && res.data.data?.hasAccount) {
+        setFreshBalance(res.data.data.balances?.tradingUsdt || 0);
+      }
+    } catch (err) {
+      console.error("Failed to load balance:", err);
+    } finally {
+      setLoadingBalance(false);
+    }
+  }, []);
 
-  // Reset amount when modal opens
+  // Reset amount and load fresh balance when modal opens
   useEffect(() => {
     if (open) {
       setAmount("");
+      loadFreshBalance();
     }
-  }, [open]);
+  }, [open, loadFreshBalance]);
+
+  // Use fresh balance if available, otherwise fall back to prop
+  const availableBalance = freshBalance !== null ? freshBalance : (liveAccount?.tradingBalance || 0);
+  const minDeposit = config?.min_deposit_usdt || 50;
+  const presets = [50, 100, 250, 500];
 
   const amountNum = Number(amount) || 0;
   const isInsufficientBalance = amountNum > availableBalance;
@@ -92,7 +110,7 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
       });
 
       if (res.data?.ok) {
-        toast.success(labels.success);
+        toast.success(language === "ar" ? "تم الإيداع بنجاح!" : "Deposit successful!");
         onSuccess(res.data.data);
       } else {
         toast.error(res.data?.error?.message || (language === "ar" ? "فشل الإيداع" : "Deposit failed"));
@@ -124,10 +142,23 @@ export default function AllocationModal({ open, onOpenChange, onSuccess, liveAcc
                 <span className="text-sm text-muted-foreground">{labels.from}:</span>
                 <span className="text-sm font-medium text-foreground">{labels.tradingAccount}</span>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={loadFreshBalance}
+                disabled={loadingBalance}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingBalance ? "animate-spin" : ""}`} />
+              </Button>
             </div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{labels.available}:</span>
-              <span className="text-sm font-bold font-mono text-foreground">{formatUsdt(availableBalance)} USDT</span>
+              {loadingBalance ? (
+                <span className="text-xs text-muted-foreground">Loading...</span>
+              ) : (
+                <span className="text-sm font-bold font-mono text-foreground">{formatUsdt(availableBalance)} USDT</span>
+              )}
             </div>
           </div>
 
