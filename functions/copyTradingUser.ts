@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: entries || [] });
     }
 
-    // ==================== DEPOSIT FUNDS (Immediate for OKX_TRADING) ====================
+    // ==================== DEPOSIT FUNDS (Immediate OKX Transfer from TRADING) ====================
     if (action === 'createAllocation' || action === 'depositFunds') {
       const { amount } = body;
       const amountNum = Number(amount);
@@ -184,12 +184,37 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
+      // Execute OKX transfer: TRADING → FUNDING → MAIN
+      console.log(`[COPY_TRADING] Starting OKX transfer for ${amountNum} USDT from user ${user.email}`);
+      
+      const transferRes = await base44.asServiceRole.functions.invoke('okxUserAccount', {
+        action: 'transferToMain',
+        userId: user.id,
+        amount: amountNum,
+        currency: 'USDT',
+        source: 'TRADING'
+      });
+
+      if (!transferRes?.ok && !transferRes?.data?.ok) {
+        console.error('[COPY_TRADING] OKX transfer failed:', transferRes?.data?.error || transferRes?.error);
+        return Response.json({ 
+          ok: false, 
+          error: { 
+            code: 'TRANSFER_FAILED', 
+            message: transferRes?.data?.error?.message || 'Failed to transfer funds from Trading account' 
+          } 
+        });
+      }
+
+      const transferData = transferRes?.data?.data || transferRes?.data;
+      const externalTransferId = transferData?.transferId || transferData?.transId || null;
+
       // Get or create wallet
       const wallet = await getOrCreateWallet(base44, user);
       const balanceBefore = wallet.available_balance || 0;
       const balanceAfter = balanceBefore + amountNum;
 
-      // Update wallet balance IMMEDIATELY (no pending state)
+      // Update wallet balance after successful OKX transfer
       await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
         available_balance: balanceAfter,
         lifetime_deposited: (wallet.lifetime_deposited || 0) + amountNum,
@@ -209,11 +234,11 @@ Deno.serve(async (req) => {
         balance_before: balanceBefore,
         balance_after: balanceAfter,
         description: 'Deposit from Trading Account',
-        meta: { source: 'OKX_TRADING' },
+        meta: { source: 'OKX_TRADING', transferId: externalTransferId },
         created_at: now
       });
 
-      // Also create an allocation record for admin visibility (ACTIVE immediately)
+      // Create allocation record for admin visibility (ACTIVE immediately)
       await base44.asServiceRole.entities.CopyTradingAllocation.create({
         user_id: user.id,
         user_email: user.email,
@@ -221,6 +246,7 @@ Deno.serve(async (req) => {
         status: 'ACTIVE',
         deposit_source: 'OKX_TRADING',
         idempotency_key: idempotencyKey,
+        okx_transfer_id: externalTransferId,
         approved_at: now,
         approved_by: 'SYSTEM',
         approved_by_type: 'AUTOMATION',
@@ -228,7 +254,7 @@ Deno.serve(async (req) => {
         updated_at: now
       });
 
-      console.log(`[COPY_TRADING] Deposit SUCCESS: ${amountNum} USDT for user ${user.email}, new balance: ${balanceAfter}`);
+      console.log(`[COPY_TRADING] Deposit SUCCESS: ${amountNum} USDT for user ${user.email}, new balance: ${balanceAfter}, OKX transfer: ${externalTransferId}`);
 
       return Response.json({ 
         ok: true, 
@@ -236,9 +262,36 @@ Deno.serve(async (req) => {
           success: true,
           amount: amountNum,
           newBalance: balanceAfter,
-          ledgerId: ledgerEntry.id
+          ledgerId: ledgerEntry.id,
+          transferId: externalTransferId
         } 
       });
+    }
+
+    // ==================== CLEANUP OLD PENDING ====================
+    if (action === 'cleanupPending') {
+      // Admin-only cleanup of stuck PENDING allocations from OKX_TRADING
+      const adminUser = await base44.auth.me();
+      if (adminUser?.role !== 'admin') {
+        return Response.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } }, { status: 403 });
+      }
+
+      const oldPending = await base44.asServiceRole.entities.CopyTradingAllocation.filter({
+        status: 'PENDING',
+        deposit_source: 'OKX_TRADING'
+      });
+
+      let cleaned = 0;
+      for (const alloc of oldPending || []) {
+        await base44.asServiceRole.entities.CopyTradingAllocation.update(alloc.id, {
+          status: 'CANCELED',
+          note: 'Auto-canceled: OKX_TRADING deposits are now instant',
+          updated_at: new Date().toISOString()
+        });
+        cleaned++;
+      }
+
+      return Response.json({ ok: true, data: { cleaned, message: `Cleaned ${cleaned} old PENDING allocations` } });
     }
 
     // ==================== CANCEL ALLOCATION (Phase 2 - Signal allocations only) ====================
