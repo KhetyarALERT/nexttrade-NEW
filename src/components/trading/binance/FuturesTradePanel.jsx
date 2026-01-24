@@ -1818,51 +1818,40 @@ export default function FuturesTradePanel({
         <div className="flex-1 overflow-auto p-3">
           <TabsContent value="trade" className="mt-0">
             {renderOrderForm({ demoMode: false })}
+            
+            {/* Account Info for Trade tab */}
+            <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.account}</div>
+              <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                    <span>{labels.balance}</span>
+                  </div>
+                  <div className="font-mono text-foreground mt-1">
+                    {(() => {
+                      const snap = getAccountSnapshot(false);
+                      return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                    <span>{labels.margin}</span>
+                  </div>
+                  <div className="font-mono text-foreground mt-1">
+                    {(() => {
+                      const snap = getAccountSnapshot(false);
+                      return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="bots" className="mt-0">
             <CopyTradingDashboard language={language} liveAccount={liveAccount} />
           </TabsContent>
-
-          <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.account}</div>
-            <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                  <span>{labels.balance}</span>
-                  <span
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-background text-[10px] text-muted-foreground border border-border"
-                    title={language === "ar" ? "الرصيد المتاح في الحساب بعد الخصومات" : "Account balance after debits/credits"}
-                  >
-                    !
-                  </span>
-                </div>
-                <div className="font-mono text-foreground mt-1">
-                  {(() => {
-                    const snap = getAccountSnapshot(activeTab === "bots");
-                    return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
-                  })()}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                  <span>{labels.margin}</span>
-                  <span
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground"
-                    title={language === "ar" ? "الهامش المستخدم حاليًا للمراكز المفتوحة" : "Margin currently used by open positions"}
-                  >
-                    !
-                  </span>
-                </div>
-                <div className="font-mono text-foreground mt-1">
-                  {(() => {
-                    const snap = getAccountSnapshot(activeTab === "bots");
-                    return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </Tabs>
     </aside>
