@@ -86,23 +86,27 @@ export default function Trading({ language = "en" }) {
     localStorage.setItem("trading_symbol", selectedSymbol);
   }, [selectedSymbol]);
 
-  // Load demo account
+  // Load demo account via backend function (service role creates if needed)
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
     
+    let mounted = true;
     const loadDemoAccount = async () => {
       try {
         const res = await base44.functions.invoke("tradingAccount", {
           action: "getOrCreate",
           accountType: "demo"
         });
-        if (res?.data?.success) {
+        if (mounted && res?.data?.success) {
           setDemoAccount(res.data.data);
         }
-      } catch {}
+      } catch (err) {
+        console.error("Failed to load demo account:", err);
+      }
     };
     
     loadDemoAccount();
+    return () => { mounted = false; };
   }, [isAuthenticated, isLoadingAuth]);
 
   // WebSocket connection status - check both public and business WS
