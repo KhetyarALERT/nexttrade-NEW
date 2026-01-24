@@ -22,6 +22,7 @@ import {
   HelpCircle, MessageSquare, Image, Trash2, Lock
 } from 'lucide-react';
 import StakingAdminTab from '@/components/admin/StakingAdminTab';
+import EntitlementsAdminTab from '@/components/admin/EntitlementsAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',
@@ -1394,7 +1395,7 @@ export default function OKXAdminHub({ language = 'en' }) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-8 w-full max-w-5xl">
+          <TabsList className="grid grid-cols-9 w-full max-w-6xl">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="verification" className="relative">
               KYC
@@ -1419,6 +1420,10 @@ export default function OKXAdminHub({ language = 'en' }) {
                   {stakingRequests.filter(s => s.status === 'PENDING_APPROVAL').length}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="entitlements">
+              <Shield className="w-4 h-4 mr-1" />
+              Entitlements
             </TabsTrigger>
             <TabsTrigger value="pool">Pool</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
@@ -1606,6 +1611,11 @@ export default function OKXAdminHub({ language = 'en' }) {
               stakingStats={stakingStats}
               onRefresh={loadDashboard}
             />
+          </TabsContent>
+
+          {/* Entitlements Tab */}
+          <TabsContent value="entitlements">
+            <EntitlementsAdminTab onRefresh={loadDashboard} />
           </TabsContent>
 
           {/* Pool Tab */}
