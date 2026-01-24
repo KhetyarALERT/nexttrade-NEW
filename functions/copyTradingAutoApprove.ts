@@ -264,7 +264,8 @@ Deno.serve(async (req) => {
           passphrase: await decryptSecret(pool.passphrase_enc)
         };
 
-        // Check funding balance
+        // For OKX_FUNDING deposits: Verify balance in user's funding account
+        // (The transfer from Trading→Funding was already done by user in depositFunds)
         const fundingRes = await okxRequest({
           credential,
           method: 'GET',
@@ -295,6 +296,8 @@ Deno.serve(async (req) => {
         }
 
         // ========== APPROVE ALLOCATION ==========
+        // For OKX_FUNDING: Credit internal wallet (funds stay in user's OKX funding account)
+        // No transfer to main pool - user's funds remain isolated in their subaccount
         console.log(`[COPY_TRADING_AUTO] [${runId}] Approving allocation ${allocation.id}`);
 
         // Re-check status
@@ -308,78 +311,7 @@ Deno.serve(async (req) => {
         }
 
         const nowIso = now.toISOString();
-
-        // Create transfer record
-        let transferId = null;
-        try {
-          const transfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
-            user_id: allocation.user_id,
-            provider: 'OKX',
-            from_account: pool.subaccount_name,
-            from_account_type: 'funding',
-            to_account: 'main',
-            to_account_type: 'funding',
-            currency: 'USDT',
-            amount: allocation.amount,
-            status: 'PENDING',
-            created_at: nowIso
-          });
-          transferId = transfer?.id;
-        } catch (e) {
-          console.log(`[COPY_TRADING_AUTO] [${runId}] Failed to create transfer record:`, e.message);
-        }
-
-        // Execute transfer to main pool
-        const transferRes = await okxRequest({
-          credential: masterCreds.data,
-          method: 'POST',
-          path: '/api/v5/asset/transfer',
-          body: {
-            ccy: 'USDT',
-            amt: String(allocation.amount),
-            from: '6',
-            to: '6',
-            type: '2',
-            subAcct: pool.subaccount_name
-          }
-        });
-
-        const transferResult = transferRes.data?.data?.[0];
-        const completedAt = new Date().toISOString();
-
-        if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
-          const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Transfer failed';
-
-          if (transferId) {
-            await base44.asServiceRole.entities.ExchangeTransfer.update(transferId, {
-              status: 'FAILED',
-              error_message: errMsg,
-              completed_at: completedAt
-            });
-          }
-
-          await base44.asServiceRole.entities.CopyTradingAllocation.update(allocation.id, {
-            retry_count: (allocation.retry_count || 0) + 1,
-            last_retry_at: completedAt,
-            last_error: errMsg,
-            updated_at: completedAt
-          });
-
-          detail.status = 'failed';
-          detail.reason = errMsg;
-          result.failedCount++;
-          result.details.push(detail);
-          continue;
-        }
-
-        // Update transfer to COMPLETED
-        if (transferId) {
-          await base44.asServiceRole.entities.ExchangeTransfer.update(transferId, {
-            status: 'COMPLETED',
-            external_transfer_id: transferResult?.transId || null,
-            completed_at: completedAt
-          });
-        }
+        const completedAt = nowIso;
 
         // Get or create user's copy trading wallet
         let wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: allocation.user_id });
