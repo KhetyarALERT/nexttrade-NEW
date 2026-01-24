@@ -401,16 +401,17 @@ export default function StakingPlansAdmin({ onRefresh }) {
                 <TableHead>Term</TableHead>
                 <TableHead>APY</TableHead>
                 <TableHead>Min Deposit</TableHead>
-                <TableHead>Rewards/$ </TableHead>
+                <TableHead>Rewards/$</TableHead>
+                <TableHead>Copy Trading</TableHead>
+                <TableHead>Signals</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Order</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {plans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No plans configured
                   </TableCell>
                 </TableRow>
@@ -431,12 +432,21 @@ export default function StakingPlansAdmin({ onRefresh }) {
                     <TableCell className="font-mono">${plan.min_deposit}</TableCell>
                     <TableCell className="font-mono">+{plan.base_rewards_per_dollar}</TableCell>
                     <TableCell>
+                      <Badge variant="outline" className={`text-xs ${plan.copy_trading_level === 'NONE' ? 'text-muted-foreground' : 'text-blue-500 border-blue-500/30'}`}>
+                        {plan.copy_trading_level || 'ACCESS'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-xs ${plan.signals_tier === 'NONE' ? 'text-muted-foreground' : 'text-purple-500 border-purple-500/30'}`}>
+                        {plan.signals_tier || 'NONE'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Switch
                         checked={plan.is_enabled !== false}
                         onCheckedChange={() => handleToggleEnabled(plan)}
                       />
                     </TableCell>
-                    <TableCell>{plan.sort_order}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(plan)}>
