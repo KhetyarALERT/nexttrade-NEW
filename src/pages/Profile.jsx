@@ -67,7 +67,7 @@ import { useAuth } from "@/lib/AuthContext";
 import AuthRequiredState from "@/components/AuthRequiredState";
 import VerificationModal from "@/components/profile/VerificationModal";
 import AllocationModal from "@/components/copytrading/AllocationModal";
-import CopyTradingDepositHistory from "@/components/copytrading/CopyTradingDepositHistory";
+import CopyTradingDepositHistory from "@/components/copytrading/CopyTradingDepositHistory.jsx";
 
 const translations = {
   en: {
