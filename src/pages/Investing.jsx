@@ -3,168 +3,99 @@ import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { Progress } from "@/components/ui/progress";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Lock, Clock, ChevronRight, Info, CheckCircle2, 
-  AlertCircle, Loader2, RefreshCw, Gift, X, Sparkles
+  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
+import { createPageUrl } from "@/utils";
+import { Link } from "react-router-dom";
 
+// Premium components
+import StakingPlanCard from "@/components/staking/StakingPlanCard";
+import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
+import StakingPositionCard from "@/components/staking/StakingPositionCard";
+import UsdtIcon from "@/components/ui/UsdtIcon";
+
+// Translations
 const t = {
   en: {
     title: "Staking",
-    subtitle: "Lock USDT for a fixed period. Earn APY + Bonus Rewards.",
-    infoStrip: "Approval required → Funds lock immediately → Position activates after approval",
+    subtitle: "Lock USDT, earn rewards. Funds lock immediately, activates after approval.",
+    infoAutoApprove: "Auto-approve enabled",
+    infoManualApprove: "Manual approval required",
     totalStaked: "Total Staked",
-    estEarned: "Earned",
-    activePositions: "Active Positions",
+    earned: "Earned",
+    activePositions: "Active",
     avgApy: "Avg. APY",
     choosePlan: "Choose a Plan",
-    recommended: "Recommended",
-    disabled: "Unavailable",
-    minDeposit: "Min",
-    lockPeriod: "Lock",
-    days: "days",
-    perks: "Perks while active",
-    viewAllPerks: "View all perks",
-    bonusRewards: "Bonus Rewards",
-    bonusTooltip: "Bonus Rewards unlock perks automatically. No action required.",
     step2Title: "Enter Amount",
-    availableBalance: "Available",
-    amountLabel: "Stake Amount (USDT)",
-    youWillGet: "Summary",
-    lockPeriodLabel: "Lock Period",
-    unlockDate: "Est. Unlock Date",
-    apyLabel: "APY",
-    rewardsLabel: "Bonus Rewards",
-    firstStakeBonus: "First stake bonus available",
-    firstStakeBonusInfo: "+50% bonus on first stake (min $100, 60+ days)",
-    statusAfterSubmit: "Status after submit",
-    pendingApproval: "Pending Approval",
-    stakeNow: "Stake Now",
-    back: "Back",
-    processing: "Processing...",
+    selectPlanFirst: "Select a plan to continue",
     myPositions: "My Positions",
     all: "All",
     pending: "Pending",
     active: "Active",
     completed: "Completed",
-    rejected: "Rejected",
     noPositions: "No positions yet",
-    cancelRequest: "Cancel",
-    waitingApproval: "Waiting for approval",
-    endsIn: "Ends in",
+    noPositionsDesc: "Start staking to earn rewards",
     howItWorks: "How it works",
-    step1: "Choose plan + amount",
-    step2: "Funds lock (Trading → Funding)",
-    step3: "After approval, stake becomes Active",
-    disclaimer: "Rewards accrue daily. Payouts processed manually by admin.",
+    step1: "Choose plan & amount",
+    step2: "Funds lock instantly",
+    step3: "Activates after approval",
+    disclaimer: "Rewards accrue daily. Payouts processed manually.",
     loginRequired: "Login to start staking",
+    login: "Login",
     noTradingAccount: "Activate your trading account first",
-    stakeSuccess: "Stake request submitted",
+    activateAccount: "Activate Account",
+    stakeSuccess: "Stake request submitted!",
     stakeFailed: "Staking failed",
     insufficientBalance: "Insufficient balance",
-    refresh: "Refresh",
-    created: "Created",
-    amount: "Amount",
-    term: "Term",
-    status: "Status",
-    rewards: "Rewards",
+    transferUsdt: "Transfer USDT",
+    refresh: "Refresh"
   },
   ar: {
-    title: "الستيكنج",
-    subtitle: "اقفل USDT لفترة محددة. اربح APY + مكافآت إضافية.",
-    infoStrip: "مطلوب موافقة ← الأموال تُقفل فوراً ← المركز يُفعّل بعد الموافقة",
+    title: "الستاكينغ",
+    subtitle: "اقفل USDT، واربح مكافآت. الأموال تُقفل فوراً، وتُفعّل بعد الموافقة.",
+    infoAutoApprove: "الموافقة التلقائية مفعّلة",
+    infoManualApprove: "مطلوب موافقة يدوية",
     totalStaked: "إجمالي المستثمر",
-    estEarned: "المكتسب",
-    activePositions: "المراكز النشطة",
+    earned: "المكتسب",
+    activePositions: "نشط",
     avgApy: "متوسط APY",
     choosePlan: "اختر خطة",
-    recommended: "موصى به",
-    disabled: "غير متاح",
-    minDeposit: "الحد الأدنى",
-    lockPeriod: "القفل",
-    days: "يوم",
-    perks: "المزايا أثناء النشاط",
-    viewAllPerks: "عرض كل المزايا",
-    bonusRewards: "المكافآت الإضافية",
-    bonusTooltip: "المكافآت الإضافية تفتح المزايا تلقائياً. لا حاجة لأي إجراء.",
     step2Title: "أدخل المبلغ",
-    availableBalance: "المتاح",
-    amountLabel: "مبلغ الستيكنج (USDT)",
-    youWillGet: "الملخص",
-    lockPeriodLabel: "فترة القفل",
-    unlockDate: "تاريخ الفتح المتوقع",
-    apyLabel: "APY",
-    rewardsLabel: "المكافآت الإضافية",
-    firstStakeBonus: "مكافأة الستيك الأول متاحة",
-    firstStakeBonusInfo: "+50% مكافأة على أول استثمار (حد أدنى $100، 60+ يوم)",
-    statusAfterSubmit: "الحالة بعد الإرسال",
-    pendingApproval: "بانتظار الموافقة",
-    stakeNow: "استثمر الآن",
-    back: "رجوع",
-    processing: "جارٍ المعالجة...",
+    selectPlanFirst: "اختر خطة للمتابعة",
     myPositions: "مراكزي",
     all: "الكل",
     pending: "قيد الانتظار",
     active: "نشط",
     completed: "مكتمل",
-    rejected: "مرفوض",
     noPositions: "لا توجد مراكز بعد",
-    cancelRequest: "إلغاء",
-    waitingApproval: "بانتظار الموافقة",
-    endsIn: "ينتهي في",
+    noPositionsDesc: "ابدأ الستاكينغ لكسب المكافآت",
     howItWorks: "كيف يعمل",
-    step1: "اختر الخطة + المبلغ",
-    step2: "الأموال تُقفل (التداول ← التمويل)",
-    step3: "بعد الموافقة، يصبح المركز نشطاً",
-    disclaimer: "المكافآت تُحتسب يومياً. الدفعات تُعالج يدوياً من قبل الإدارة.",
-    loginRequired: "سجل الدخول لبدء الستيكنج",
+    step1: "اختر الخطة والمبلغ",
+    step2: "الأموال تُقفل فوراً",
+    step3: "يُفعّل بعد الموافقة",
+    disclaimer: "المكافآت تُحتسب يومياً. الدفعات تُعالج يدوياً.",
+    loginRequired: "سجل الدخول لبدء الستاكينغ",
+    login: "تسجيل الدخول",
     noTradingAccount: "فعّل حساب التداول أولاً",
-    stakeSuccess: "تم تقديم طلب الستيكنج",
-    stakeFailed: "فشل الستيكنج",
+    activateAccount: "تفعيل الحساب",
+    stakeSuccess: "تم تقديم طلب الستاكينغ!",
+    stakeFailed: "فشل الستاكينغ",
     insufficientBalance: "رصيد غير كافي",
-    refresh: "تحديث",
-    created: "تاريخ الإنشاء",
-    amount: "المبلغ",
-    term: "المدة",
-    status: "الحالة",
-    rewards: "المكافآت",
-  },
-};
-
-const STATUS_COLORS = {
-  PENDING_LOCK: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-  PENDING_APPROVAL: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-  ACTIVE: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-  REJECTED: "bg-red-500/10 text-red-600 border-red-500/30",
-  CANCELLED: "bg-muted text-muted-foreground border-border",
-  COMPLETED: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-  UNLOCKING: "bg-purple-500/10 text-purple-600 border-purple-500/30",
+    transferUsdt: "حوّل USDT",
+    refresh: "تحديث"
+  }
 };
 
 function formatUsdt(val) {
   if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
   return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatDaysRemaining(endsAt) {
-  if (!endsAt) return null;
-  const diff = new Date(endsAt).getTime() - Date.now();
-  if (diff <= 0) return 0;
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString();
 }
 
 function useMediaQuery(query) {
@@ -179,341 +110,29 @@ function useMediaQuery(query) {
   return matches;
 }
 
-// Plan Card Component
-function PlanCard({ plan, isSelected, onSelect, labels, isEligibleFirstStake }) {
-  const perksToShow = (plan.perks || []).slice(0, 2);
-  const hasMorePerks = (plan.perks || []).length > 2;
-
+// Stats Card component
+function StatCard({ icon: Icon, label, value, highlight = false }) {
   return (
-    <Card
-      className={`relative cursor-pointer transition-all duration-200 hover:shadow-lg ${
-        isSelected
-          ? "ring-2 ring-primary border-primary shadow-lg"
-          : plan.isEnabled
-          ? "hover:border-primary/50"
-          : "opacity-50 cursor-not-allowed"
-      }`}
-      onClick={() => plan.isEnabled && onSelect(plan)}
-    >
-      {plan.isRecommended && (
-        <div className="absolute -top-2.5 left-4 px-2 py-0.5 bg-primary text-primary-foreground text-xs font-medium rounded-full">
-          {labels.recommended}
+    <Card className={`${highlight ? "border-primary/30 bg-primary/5" : ""}`}>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Icon className={`w-4 h-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
+          <span className="text-xs text-muted-foreground">{label}</span>
         </div>
-      )}
-      {!plan.isEnabled && (
-        <div className="absolute -top-2.5 left-4 px-2 py-0.5 bg-muted text-muted-foreground text-xs font-medium rounded-full">
-          {labels.disabled}
-        </div>
-      )}
-
-      <CardContent className="p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold text-foreground">{plan.title}</h3>
-            <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-primary">{plan.apyPercent}%</div>
-            <p className="text-xs text-muted-foreground">APY</p>
-          </div>
-        </div>
-
-        {/* Min deposit */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{labels.minDeposit}</span>
-          <span className="font-medium">${plan.minDeposit}</span>
-        </div>
-
-        {/* Bonus Rewards */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1">
-            <Gift className="w-3.5 h-3.5 text-primary" />
-            <span className="text-muted-foreground">{labels.bonusRewards}</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[200px] text-xs">
-                  {labels.bonusTooltip}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <span className="font-medium">+{plan.baseRewardsPerDollar}/$ staked</span>
-        </div>
-
-        {/* First stake badge */}
-        {isEligibleFirstStake && plan.termDays >= 60 && (
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span className="text-xs text-amber-700 dark:text-amber-400">{labels.firstStakeBonus}</span>
-          </div>
-        )}
-
-        {/* Perks */}
-        {perksToShow.length > 0 && (
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-1.5">{labels.perks}</p>
-            <div className="space-y-1">
-              {perksToShow.map((perk, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-xs text-foreground">
-                  <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                  <span>{perk}</span>
-                </div>
-              ))}
-              {hasMorePerks && (
-                <p className="text-xs text-primary cursor-pointer hover:underline">
-                  {labels.viewAllPerks} →
-                </p>
-              )}
-            </div>
-          </div>
-        )}
+        <p className={`text-lg sm:text-xl font-bold ${highlight ? "text-primary" : "text-foreground"}`}>
+          {value}
+        </p>
       </CardContent>
     </Card>
   );
 }
 
-// Amount Entry Panel Component
-function AmountEntryPanel({ 
-  plan, 
-  amount, 
-  setAmount, 
-  availableBalance, 
-  onStake, 
-  onBack, 
-  processing, 
-  labels, 
-  isEligibleFirstStake,
-  stakingConfig,
-  language
-}) {
-  if (!plan) return null;
-
-  const amountNum = parseFloat(amount) || 0;
-  const isValidAmount = amountNum >= plan.minDeposit && amountNum <= availableBalance;
-
-  // Calculate bonus rewards
-  let baseRewards = amountNum * (plan.baseRewardsPerDollar || 0);
-  let firstStakeBonus = 0;
-  
-  if (isEligibleFirstStake && plan.termDays >= (stakingConfig?.first_stake_min_term_days || 60)) {
-    const eligibleAmount = Math.min(amountNum, stakingConfig?.first_stake_cap_principal || 300);
-    const bonusMultiplier = (stakingConfig?.first_stake_bonus_multiplier || 1.5) - 1;
-    firstStakeBonus = eligibleAmount * (plan.baseRewardsPerDollar || 0) * bonusMultiplier;
-  }
-  
-  const totalRewards = Math.round(baseRewards + firstStakeBonus);
-
-  // Estimated unlock date (approval + term)
-  const estUnlockDate = new Date();
-  estUnlockDate.setDate(estUnlockDate.getDate() + plan.termDays + 1); // +1 for approval delay
-
-  const presets = [50, 100, 250, 500];
-
-  return (
-    <div className="space-y-4">
-      {/* Plan Summary */}
-      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-        <div>
-          <p className="font-medium text-foreground">{plan.title}</p>
-          <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days} • {plan.apyPercent}% APY</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={onBack} className="text-xs">
-          Change
-        </Button>
-      </div>
-
-      {/* Available Balance */}
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{labels.availableBalance}</span>
-        <span className="font-mono font-medium">{formatUsdt(availableBalance)} USDT</span>
-      </div>
-
-      {/* Amount Input */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">{labels.amountLabel}</label>
-        <div className="relative">
-          <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={String(plan.minDeposit)}
-            min={plan.minDeposit}
-            max={availableBalance}
-            className="pr-16 text-lg font-mono"
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">USDT</span>
-        </div>
-        
-        {/* Preset chips */}
-        <div className="flex gap-2 flex-wrap">
-          {presets.map((preset) => (
-            <Button
-              key={preset}
-              variant={parseFloat(amount) === preset ? "default" : "outline"}
-              size="sm"
-              onClick={() => setAmount(String(preset))}
-              className="text-xs"
-              disabled={preset > availableBalance}
-            >
-              ${preset}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAmount(String(Math.floor(availableBalance)))}
-            className="text-xs"
-            disabled={availableBalance < plan.minDeposit}
-          >
-            Max
-          </Button>
-        </div>
-      </div>
-
-      {/* Summary Box */}
-      {amountNum > 0 && (
-        <div className="p-3 border border-border rounded-lg space-y-2 bg-card">
-          <p className="text-sm font-medium text-foreground">{labels.youWillGet}</p>
-          
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.lockPeriodLabel}</span>
-              <span className="font-medium">{plan.termDays} {labels.days}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.unlockDate}</span>
-              <span className="font-medium">{formatDate(estUnlockDate)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.apyLabel}</span>
-              <span className="font-medium text-primary">{plan.apyPercent}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{labels.rewardsLabel}</span>
-              <div className="text-right">
-                <span className="font-medium text-primary">+{totalRewards}</span>
-                {firstStakeBonus > 0 && (
-                  <span className="ml-1 text-xs text-amber-600">(incl. +{Math.round(firstStakeBonus)} bonus)</span>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-between pt-2 border-t border-border">
-              <span className="text-muted-foreground">{labels.statusAfterSubmit}</span>
-              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-                {labels.pendingApproval}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* First stake promo */}
-      {isEligibleFirstStake && plan.termDays >= 60 && amountNum >= 100 && (
-        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-amber-700 dark:text-amber-400">{labels.firstStakeBonusInfo}</p>
-          </div>
-        </div>
-      )}
-
-      {/* CTA */}
-      <div className="flex gap-2 pt-2">
-        <Button variant="outline" onClick={onBack} className="flex-1" disabled={processing}>
-          {labels.back}
-        </Button>
-        <Button 
-          onClick={onStake} 
-          disabled={processing || !isValidAmount}
-          className="flex-1"
-        >
-          {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {processing ? labels.processing : labels.stakeNow}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// Position Row Component
-function PositionRow({ position, labels, onCancel }) {
-  const daysRemaining = formatDaysRemaining(position.endsAt);
-  const progressPercent = position.status === "ACTIVE" && position.termDays > 0
-    ? Math.min(100, Math.max(0, ((position.termDays - (daysRemaining || 0)) / position.termDays) * 100))
-    : 0;
-
-  // Real accrued values from daily processor
-  const accruedAmount = position.accruedAmount || 0;
-  const claimableAmount = position.claimableAmount || 0;
-  const hasRealAccrual = accruedAmount > 0;
-
-  return (
-    <div className="p-3 border border-border rounded-lg bg-card space-y-2">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-semibold">{formatUsdt(position.principal)} USDT</span>
-            <Badge className={`text-xs ${STATUS_COLORS[position.status] || ""}`}>
-              {position.status}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {position.planKey} • {position.apyPercent}% APY • {position.termDays}d
-          </p>
-        </div>
-        
-        {position.status === "PENDING_APPROVAL" && onCancel && (
-          <Button variant="ghost" size="sm" onClick={() => onCancel(position.id)} className="text-xs text-muted-foreground h-7">
-            {labels.cancelRequest}
-          </Button>
-        )}
-      </div>
-
-      {position.status === "ACTIVE" && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">{labels.endsIn}: {daysRemaining} {labels.days}</span>
-            <div className="text-right">
-              {hasRealAccrual ? (
-                <span className="text-primary font-medium">+${formatUsdt(accruedAmount)} earned</span>
-              ) : (
-                <span className="text-muted-foreground">Accrual pending...</span>
-              )}
-            </div>
-          </div>
-          <Progress value={progressPercent} className="h-1.5" />
-          {position.lastAccrualAt && (
-            <p className="text-[10px] text-muted-foreground">
-              Last updated: {formatDate(position.lastAccrualAt)}
-            </p>
-          )}
-        </div>
-      )}
-
-      {position.status === "PENDING_APPROVAL" && (
-        <div className="flex items-center gap-1.5 text-xs text-amber-600">
-          <Clock className="w-3 h-3" />
-          <span>{labels.waitingApproval}</span>
-        </div>
-      )}
-
-      {position.status === "REJECTED" && position.rejectReason && (
-        <p className="text-xs text-red-600">{position.rejectReason}</p>
-      )}
-
-      {position.rewardsGranted > 0 && (
-        <div className="flex items-center gap-1.5 text-xs text-primary">
-          <Gift className="w-3 h-3" />
-          <span>+{position.rewardsGranted} {labels.rewards}</span>
-        </div>
-      )}
-    </div>
-  );
-}
+StatCard.propTypes = {
+  icon: PropTypes.elementType.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node.isRequired,
+  highlight: PropTypes.bool
+};
 
 export default function Investing({ language = "en" }) {
   const labels = t[language] || t.en;
@@ -578,7 +197,7 @@ export default function Investing({ language = "en" }) {
           }));
           setPositions(pos);
           
-          // Check first stake eligibility: no ACTIVE or COMPLETED positions
+          // Check first stake eligibility
           const hasCompletedStake = pos.some(p => p.status === "ACTIVE" || p.status === "COMPLETED");
           setIsEligibleFirstStake(!hasCompletedStake);
         }
@@ -682,122 +301,163 @@ export default function Investing({ language = "en" }) {
     if (positionsFilter === "all") return true;
     if (positionsFilter === "pending") return p.status === "PENDING_APPROVAL" || p.status === "PENDING_LOCK";
     if (positionsFilter === "active") return p.status === "ACTIVE";
-    if (positionsFilter === "completed") return p.status === "COMPLETED";
-    if (positionsFilter === "rejected") return p.status === "REJECTED" || p.status === "CANCELLED";
+    if (positionsFilter === "completed") return p.status === "COMPLETED" || p.status === "REJECTED" || p.status === "CANCELLED";
     return true;
   });
 
-  const AmountPanel = (
-    <AmountEntryPanel
-      plan={selectedPlan}
-      amount={stakeAmount}
-      setAmount={setStakeAmount}
-      availableBalance={tradingBalance}
-      onStake={handleStake}
-      onBack={() => { setSelectedPlan(null); setSheetOpen(false); }}
-      processing={processing}
-      labels={labels}
-      isEligibleFirstStake={isEligibleFirstStake}
-      stakingConfig={stakingConfig}
-      language={language}
-    />
-  );
+  const isRTL = language === "ar";
 
   return (
-    <div className="min-h-screen bg-background" dir={language === "ar" ? "rtl" : "ltr"}>
+    <div className="min-h-screen bg-background" dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="bg-card border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-foreground">{labels.title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{labels.subtitle}</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{labels.title}</h1>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md">{labels.subtitle}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
           
           {/* Info strip */}
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+          <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
             <Info className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>{labels.infoStrip}</span>
+            <span>
+              {stakingConfig?.auto_approve_enabled ? labels.infoAutoApprove : labels.infoManualApprove}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-8">
-        {/* Summary Cards */}
+        {/* Summary Cards - Show for authenticated users */}
         {isAuthenticated && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: labels.totalStaked, value: `$${formatUsdt(summary.totalStaked)}`, icon: Lock },
-              { label: labels.estEarned, value: `$${formatUsdt(summary.estimatedEarned)}`, icon: Gift },
-              { label: labels.activePositions, value: summary.activePositions, icon: CheckCircle2 },
-              { label: labels.avgApy, value: `${summary.avgApy.toFixed(1)}%`, icon: Clock },
-            ].map((stat, i) => (
-              <Card key={i} className="bg-card">
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <stat.icon className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{stat.label}</span>
-                  </div>
-                  <p className="text-lg font-bold text-foreground">{stat.value}</p>
-                </CardContent>
-              </Card>
-            ))}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4">
+                    <Skeleton className="h-4 w-20 mb-2" />
+                    <Skeleton className="h-6 w-16" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <>
+                <StatCard icon={Lock} label={labels.totalStaked} value={`$${formatUsdt(summary.totalStaked)}`} />
+                <StatCard icon={Gift} label={labels.earned} value={`$${formatUsdt(summary.estimatedEarned)}`} highlight />
+                <StatCard icon={CheckCircle2} label={labels.activePositions} value={summary.activePositions} />
+                <StatCard icon={TrendingUp} label={labels.avgApy} value={`${summary.avgApy.toFixed(1)}%`} />
+              </>
+            )}
           </div>
         )}
 
-        {/* Main Content: Plans + Amount Panel */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Plans Grid */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">{labels.choosePlan}</h2>
-              <Button variant="ghost" size="sm" onClick={loadData} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              </Button>
-            </div>
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Plans Section */}
+          <div className="lg:col-span-2 space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">{labels.choosePlan}</h2>
 
-            <div className="grid sm:grid-cols-2 gap-3">
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan.key}
-                  plan={plan}
-                  isSelected={selectedPlan?.key === plan.key}
-                  onSelect={handleSelectPlan}
-                  labels={labels}
-                  isEligibleFirstStake={isEligibleFirstStake}
-                />
-              ))}
-            </div>
-
-            {/* How it works - Compact */}
-            <div className="p-4 bg-muted/30 rounded-lg space-y-2">
-              <h3 className="text-sm font-medium text-foreground">{labels.howItWorks}</h3>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">1</span> {labels.step1}</span>
-                <ChevronRight className="w-4 h-4 hidden sm:block" />
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">2</span> {labels.step2}</span>
-                <ChevronRight className="w-4 h-4 hidden sm:block" />
-                <span className="flex items-center gap-1"><span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">3</span> {labels.step3}</span>
+            {loading ? (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4 space-y-3">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {labels.disclaimer}
-              </p>
-            </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {plans.map((plan) => (
+                  <StakingPlanCard
+                    key={plan.key}
+                    plan={plan}
+                    isSelected={selectedPlan?.key === plan.key}
+                    onSelect={handleSelectPlan}
+                    isEligibleFirstStake={isEligibleFirstStake}
+                    language={language}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* How it works */}
+            <Card className="bg-muted/30 border-dashed">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-medium text-foreground mb-3">{labels.howItWorks}</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  {[labels.step1, labels.step2, labels.step3].map((step, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm text-muted-foreground">{step}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground/70 mt-3">{labels.disclaimer}</p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Desktop: Right Panel for Amount Entry */}
+          {/* Desktop: Amount Panel */}
           {!isMobile && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-foreground">{labels.step2Title}</h2>
-              {selectedPlan ? (
-                AmountPanel
+              
+              {!isAuthenticated ? (
+                <Card className="p-6">
+                  <div className="text-center space-y-3">
+                    <Lock className="w-10 h-10 mx-auto text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">{labels.loginRequired}</p>
+                    <Button onClick={navigateToLogin}>{labels.login}</Button>
+                  </div>
+                </Card>
+              ) : !hasOkxAccount ? (
+                <Card className="p-6">
+                  <div className="text-center space-y-3">
+                    <Wallet className="w-10 h-10 mx-auto text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground">{labels.noTradingAccount}</p>
+                    <Button asChild>
+                      <Link to={createPageUrl("Profile") + "?tab=accounts"}>{labels.activateAccount}</Link>
+                    </Button>
+                  </div>
+                </Card>
+              ) : selectedPlan ? (
+                <Card className="p-4">
+                  <StakingAmountPanel
+                    plan={selectedPlan}
+                    amount={stakeAmount}
+                    setAmount={setStakeAmount}
+                    availableBalance={tradingBalance}
+                    onStake={handleStake}
+                    onBack={() => setSelectedPlan(null)}
+                    processing={processing}
+                    isEligibleFirstStake={isEligibleFirstStake}
+                    stakingConfig={stakingConfig}
+                    language={language}
+                  />
+                </Card>
               ) : (
-                <Card className="p-6 text-center">
-                  <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    {isAuthenticated ? "Select a plan to continue" : labels.loginRequired}
-                  </p>
-                  {!isAuthenticated && (
-                    <Button className="mt-3" onClick={navigateToLogin}>Login</Button>
-                  )}
+                <Card className="p-6">
+                  <div className="text-center space-y-3">
+                    <UsdtIcon size="xl" showTooltip language={language} className="mx-auto" />
+                    <p className="text-sm text-muted-foreground">{labels.selectPlanFirst}</p>
+                    {tradingBalance < 50 && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={createPageUrl("Wallet") + "?page=deposit"}>{labels.transferUsdt}</Link>
+                      </Button>
+                    )}
+                  </div>
                 </Card>
               )}
             </div>
@@ -807,31 +467,46 @@ export default function Investing({ language = "en" }) {
         {/* My Positions */}
         {isAuthenticated && (
           <div ref={positionsRef} className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-lg font-semibold text-foreground">{labels.myPositions}</h2>
-              <Tabs value={positionsFilter} onValueChange={setPositionsFilter} className="w-auto">
+              <Tabs value={positionsFilter} onValueChange={setPositionsFilter}>
                 <TabsList className="h-8">
-                  <TabsTrigger value="all" className="text-xs px-2 h-6">{labels.all}</TabsTrigger>
-                  <TabsTrigger value="pending" className="text-xs px-2 h-6">{labels.pending}</TabsTrigger>
-                  <TabsTrigger value="active" className="text-xs px-2 h-6">{labels.active}</TabsTrigger>
-                  <TabsTrigger value="completed" className="text-xs px-2 h-6">{labels.completed}</TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs px-3 h-7">{labels.all}</TabsTrigger>
+                  <TabsTrigger value="pending" className="text-xs px-3 h-7">{labels.pending}</TabsTrigger>
+                  <TabsTrigger value="active" className="text-xs px-3 h-7">{labels.active}</TabsTrigger>
+                  <TabsTrigger value="completed" className="text-xs px-3 h-7">{labels.completed}</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
 
-            {filteredPositions.length === 0 ? (
-              <Card className="p-6 text-center border-dashed">
-                <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">{labels.noPositions}</p>
+            {loading ? (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4 space-y-3">
+                      <Skeleton className="h-6 w-32" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-2 w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredPositions.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="py-8 text-center">
+                  <Lock className="w-10 h-10 mx-auto mb-2 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">{labels.noPositions}</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">{labels.noPositionsDesc}</p>
+                </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {filteredPositions.map((pos) => (
-                  <PositionRow
+                  <StakingPositionCard
                     key={pos.id}
                     position={pos}
-                    labels={labels}
                     onCancel={pos.status === "PENDING_APPROVAL" ? handleCancelPosition : null}
+                    language={language}
                   />
                 ))}
               </div>
@@ -840,16 +515,27 @@ export default function Investing({ language = "en" }) {
         )}
       </div>
 
-      {/* Mobile: Bottom Sheet for Amount Entry */}
+      {/* Mobile: Bottom Sheet */}
       {isMobile && (
         <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
-          <DrawerContent className="max-h-[85vh]">
+          <DrawerContent className="max-h-[90vh]">
             <DrawerHeader className="border-b border-border pb-3">
               <DrawerTitle>{labels.step2Title}</DrawerTitle>
               <DrawerDescription className="sr-only">Enter staking amount</DrawerDescription>
             </DrawerHeader>
             <div className="p-4 overflow-auto">
-              {AmountPanel}
+              <StakingAmountPanel
+                plan={selectedPlan}
+                amount={stakeAmount}
+                setAmount={setStakeAmount}
+                availableBalance={tradingBalance}
+                onStake={handleStake}
+                onBack={() => { setSelectedPlan(null); setSheetOpen(false); }}
+                processing={processing}
+                isEligibleFirstStake={isEligibleFirstStake}
+                stakingConfig={stakingConfig}
+                language={language}
+              />
             </div>
           </DrawerContent>
         </Drawer>
