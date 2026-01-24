@@ -116,7 +116,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const [theme, setTheme] = useState("dark");
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
   const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
-  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null });
+  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
@@ -295,15 +295,17 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
-      const [walletsResult, okxAccountResult, stakingResult] = await Promise.all([
+      const [walletsResult, okxAccountResult, stakingResult, copyTradingResult] = await Promise.all([
         base44.functions.invoke("wallet", { action: "list" }),
         base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
         base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }),
+        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
       const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
       const stakingData = stakingResult.data?.ok ? stakingResult.data.data : null;
+      const copyTradingData = copyTradingResult.data?.ok ? copyTradingResult.data.data : null;
 
       // Wallets: Fund Account balance (internal platform wallets)
       const internalFundingUsdt = wallets.reduce((sum, w) => {
@@ -327,11 +329,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const stakedPendingUsdt = stakingData?.pendingLockedByCcy?.USDT || 0;
       const nextUnlockAt = stakingData?.nextUnlockAt || null;
 
+      // Copy Trading: Available balance (in pool), Locked (in signals)
+      const copyTradingAvailableUsdt = copyTradingData?.available_balance || 0;
+      const copyTradingLockedUsdt = copyTradingData?.locked_balance || 0;
+
       // Combined totals
       // OKX total (what's in user's subaccount) = funding + trading (includes pending staking)
       const okxTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
-      // Total including staking = OKX total + ACTIVE staked (which left the subaccount)
-      const totalUsdt = okxTotal + stakedActiveUsdt;
+      // Total including staking = OKX total + ACTIVE staked (which left the subaccount) + Copy Trading (in pool)
+      const totalUsdt = okxTotal + stakedActiveUsdt + copyTradingAvailableUsdt + copyTradingLockedUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
       setAccountTotals({ totalUsd, totalUsdt });
@@ -345,11 +351,13 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
         stakedActiveUsdt,
         stakedPendingUsdt,
         nextUnlockAt,
+        copyTradingAvailableUsdt,
+        copyTradingLockedUsdt,
       });
     } catch (err) {
       console.error("Failed to load wallet totals:", err);
       setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
-      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null });
+      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
     } finally {
       setLoadingAccountTotals(false);
     }
@@ -607,6 +615,21 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                       </div>
                                     </Link>
                                   </DropdownMenuItem>
+
+                      {/* Copy Trading - show if any balance */}
+                      {(accountBalances.copyTradingAvailableUsdt > 0 || accountBalances.copyTradingLockedUsdt > 0) && (
+                        <DropdownMenuItem asChild>
+                          <Link to={createPageUrl("Futures")}>
+                            <div className="flex w-full items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-blue-600" />
+                                <span>{language === "ar" ? "نسخ التداول" : "Copy Trading"}</span>
+                              </div>
+                              <span className="text-xs font-medium text-blue-600">{formatUsdt(accountBalances.copyTradingAvailableUsdt)} USDT</span>
+                            </div>
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
 
                       {/* Staking (Locked) - show if any staking exists */}
                       {(accountBalances.stakedActiveUsdt > 0 || accountBalances.stakedPendingUsdt > 0) && (

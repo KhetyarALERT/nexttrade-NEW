@@ -9,6 +9,7 @@ import Invite from './pages/Invite';
 import LearnEarn from './pages/LearnEarn';
 import MemeCoins from './pages/MemeCoins';
 import MemeCoinsNew from './pages/MemeCoinsNew';
+import OKXAdminHub from './pages/OKXAdminHub';
 import OnChainDeposit from './pages/OnChainDeposit';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Profile from './pages/Profile';
@@ -17,7 +18,6 @@ import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
-import OKXAdminHub from './pages/OKXAdminHub';
 import __Layout from './Layout.jsx';
 
 
@@ -33,6 +33,7 @@ export const PAGES = {
     "LearnEarn": LearnEarn,
     "MemeCoins": MemeCoins,
     "MemeCoinsNew": MemeCoinsNew,
+    "OKXAdminHub": OKXAdminHub,
     "OnChainDeposit": OnChainDeposit,
     "PrivacyPolicy": PrivacyPolicy,
     "Profile": Profile,
@@ -41,7 +42,6 @@ export const PAGES = {
     "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
-    "OKXAdminHub": OKXAdminHub,
 }
 
 export const pagesConfig = {

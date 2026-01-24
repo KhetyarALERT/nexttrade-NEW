@@ -5,6 +5,7 @@ import { binanceFuturesStore } from "@/components/trading/binance/binanceFutures
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
 import { Loader2, AlertTriangle, Clock } from "lucide-react";
+import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);
@@ -135,7 +136,7 @@ export default function FuturesTradePanel({
     const isAr = language === "ar";
     return {
       trade: isAr ? "تداول" : "Trade",
-      bots: isAr ? "بوتات (تجريبي)" : "Bots (Demo)",
+      bots: isAr ? "نسخ التداول" : "Copy Trading",
       cross: isAr ? "مشترك" : "Cross",
       isolated: isAr ? "معزول" : "Isolated",
       demo: isAr ? "واجهة تجريبية (بدون تنفيذ)" : "Demo UI (no trading)",
@@ -1820,7 +1821,7 @@ export default function FuturesTradePanel({
           </TabsContent>
 
           <TabsContent value="bots" className="mt-0">
-            {renderOrderForm({ demoMode: true })}
+            <CopyTradingDashboard language={language} liveAccount={liveAccount} />
           </TabsContent>
 
           <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
