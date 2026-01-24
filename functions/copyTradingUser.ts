@@ -239,7 +239,10 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: entries || [] });
     }
 
-    // ==================== DEPOSIT FUNDS (Immediate OKX Transfer from TRADING) ====================
+    // ==================== DEPOSIT FUNDS (Lock in Funding, credit internal wallet) ====================
+    // Same pattern as Staking: Trading→Funding (user cred), then Funding→Main via auto-approve
+    // BUT for Copy Trading: We ONLY do Trading→Funding + credit internal wallet immediately
+    // The funds stay in user's Funding account (locked from trading) - NO transfer to main needed
     if (action === 'createAllocation' || action === 'depositFunds') {
       const { amount } = body;
       const amountNum = Number(amount);
@@ -299,7 +302,6 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const idempotencyKey = `deposit:${user.id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
-      // Execute OKX transfer: TRADING → FUNDING → MAIN (direct call, no function invoke)
       console.log(JSON.stringify({ 
         event: 'COPY_TRADING_DEPOSIT_START', 
         userId: user.id, 
@@ -315,10 +317,30 @@ Deno.serve(async (req) => {
 
       const { account, credential } = credResult.data;
 
-      // Step 1: Transfer from Trading (18) to Funding (6) within subaccount
-      console.log(`[COPY_TRADING] Step 1: Trading -> Funding for ${amountNum} USDT`);
-      
-      const internalRes = await okxRequest({
+      // Create transfer record BEFORE OKX call (like staking does)
+      let lockTransferId = null;
+      try {
+        const lockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: user.id,
+          provider: 'OKX',
+          from_account: account.external_account_id || 'self',
+          from_account_type: 'trading',
+          to_account: account.external_account_id || 'self',
+          to_account_type: 'funding',
+          currency: 'USDT',
+          amount: amountNum,
+          status: 'PENDING',
+          created_at: now
+        });
+        lockTransferId = lockTransfer?.id;
+        console.log('[COPY_TRADING] Created lock transfer record:', lockTransferId);
+      } catch (e) {
+        console.log('[COPY_TRADING] Failed to create lock transfer record:', e.message);
+      }
+
+      // Execute OKX transfer: Trading(18) → Funding(6) using USER's credentials
+      // This locks funds from futures trading but keeps them in user's subaccount
+      const transferRes = await okxRequest({
         credential,
         method: 'POST',
         path: '/api/v5/asset/transfer',
@@ -331,157 +353,55 @@ Deno.serve(async (req) => {
         }
       });
 
-      const internalResult = internalRes.data?.data?.[0];
-      if (!internalRes.ok || (internalResult?.code && internalResult.code !== '0')) {
-        const errMsg = internalRes.error?.okxMsg || internalResult?.msg || 'Internal transfer failed';
-        console.error(`[COPY_TRADING] Trading->Funding failed:`, errMsg);
-        return Response.json({ ok: false, error: { code: 'INTERNAL_TRANSFER_FAILED', message: errMsg } });
-      }
+      const transferResult = transferRes.data?.data?.[0];
+      const completedAt = new Date().toISOString();
 
-      console.log(`[COPY_TRADING] Step 1 complete: transId=${internalResult?.transId}`);
-
-      // Step 2: Transfer from Subaccount Funding to Main Funding using MASTER credentials
-      console.log(`[COPY_TRADING] Step 2: Subaccount Funding -> Main Funding`);
-
-      const masterApiKey = getEnv('OKX_MAIN_API_KEY');
-      const masterSecret = getEnv('OKX_MAIN_SECRET');
-      const masterPassphrase = getEnv('OKX_MAIN_PASSPHRASE');
-
-      if (!masterApiKey || !masterSecret || !masterPassphrase) {
-        return Response.json({ ok: false, error: { code: 'CONFIG_ERROR', message: 'Master credentials not configured' } });
-      }
-
-      const masterCred = {
-        apiKey: masterApiKey,
-        secretKey: masterSecret,
-        passphrase: masterPassphrase
-      };
-
-      // Get subaccount name from pool
-      const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
-      const pool = pools?.[0];
-      const subAcctName = pool?.subaccount_name || account.external_account_id;
-
-      if (!subAcctName) {
-        return Response.json({ ok: false, error: { code: 'NO_SUBACCOUNT', message: 'Subaccount name not found' } });
-      }
-
-      // Transfer from subaccount to main using master credentials
-      const toMainRes = await okxRequest({
-        credential: masterCred,
-        method: 'POST',
-        path: '/api/v5/asset/transfer',
-        body: {
-          ccy: 'USDT',
-          amt: String(amountNum),
-          from: '6',  // Funding
-          to: '6',    // Funding
-          type: '2',  // Sub-account to master
-          subAcct: subAcctName
-        }
-      });
-
-      const toMainResult = toMainRes.data?.data?.[0];
-      if (!toMainRes.ok || (toMainResult?.code && toMainResult.code !== '0')) {
-        const errMsg = toMainRes.error?.okxMsg || toMainResult?.msg || 'Transfer to main failed';
-        console.error(`[COPY_TRADING] Subaccount->Main failed:`, errMsg);
+      if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+        const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Lock transfer failed';
+        console.error('[COPY_TRADING] Trading->Funding failed:', errMsg);
         
-        // Attempt revert: Funding -> Trading
-        console.log(`[COPY_TRADING] Attempting revert: Funding -> Trading`);
+        // Update transfer to FAILED
+        if (lockTransferId) {
+          try {
+            await base44.asServiceRole.entities.ExchangeTransfer.update(lockTransferId, {
+              status: 'FAILED',
+              error_message: errMsg,
+              completed_at: completedAt
+            });
+          } catch (e) {
+            console.log('[COPY_TRADING] Failed to update transfer to FAILED:', e.message);
+          }
+        }
+        
+        return Response.json({ ok: false, error: { code: 'LOCK_FAILED', message: errMsg } });
+      }
+
+      // Update transfer to COMPLETED
+      if (lockTransferId) {
         try {
-          await okxRequest({
-            credential,
-            method: 'POST',
-            path: '/api/v5/asset/transfer',
-            body: {
-              ccy: 'USDT',
-              amt: String(amountNum),
-              from: '6',  // Funding
-              to: '18',   // Trading
-              type: '0'
-            }
+          await base44.asServiceRole.entities.ExchangeTransfer.update(lockTransferId, {
+            status: 'COMPLETED',
+            external_transfer_id: transferResult?.transId || null,
+            completed_at: completedAt
           });
-          console.log(`[COPY_TRADING] Revert successful`);
-        } catch (revertErr) {
-          console.error(`[COPY_TRADING] Revert failed:`, revertErr.message);
+          console.log('[COPY_TRADING] Updated lock transfer to COMPLETED:', lockTransferId);
+        } catch (e) {
+          console.log('[COPY_TRADING] Failed to update transfer to COMPLETED:', e.message);
         }
-        
-        // Record failed attempt in ledger for admin visibility (VOID = failed)
-        const wallet = await getOrCreateWallet(base44, user);
-        await base44.asServiceRole.entities.CopyTradingLedger.create({
-          user_id: user.id,
-          kind: 'CREDIT',
-          amount: amountNum,
-          currency: 'USDT',
-          status: 'VOID',
-          ref_type: 'DEPOSIT',
-          idempotency_key: idempotencyKey,
-          balance_before: wallet.available_balance || 0,
-          balance_after: wallet.available_balance || 0,
-          description: `Deposit FAILED: ${errMsg.slice(0, 100)}`,
-          meta: { 
-            source: 'OKX_TRADING', 
-            step1TransferId: internalResult?.transId,
-            step2_error: {
-              okxCode: toMainRes.error?.okxCode,
-              okxMsg: toMainRes.error?.okxMsg,
-              resultCode: toMainResult?.code,
-              resultMsg: toMainResult?.msg
-            },
-            subAcctName,
-            revert_attempted: true,
-            failed_at: now
-          },
-          created_at: now
-        });
-
-        // Create failure notification for user
-        try {
-          await base44.asServiceRole.entities.Notification.create({
-            user_id: user.id,
-            type: 'withdrawal_failed',
-            title: 'Copy Trading Deposit Failed',
-            message: `Failed to deposit ${amountNum} USDT: ${errMsg.slice(0, 80)}`,
-            data: { amount: amountNum, error: errMsg },
-            read: false,
-            priority: 'high'
-          });
-        } catch (notifErr) {
-          console.error('[COPY_TRADING] Failed to create notification:', notifErr.message);
-        }
-
-        console.log(JSON.stringify({ 
-          event: 'COPY_TRADING_DEPOSIT_FAILED', 
-          userId: user.id, 
-          amount: amountNum, 
-          step: 'step2_to_main',
-          error: errMsg,
-          step1TransferId: internalResult?.transId
-        }));
-        
-        return Response.json({ ok: false, error: { code: 'TRANSFER_TO_MAIN_FAILED', message: errMsg } });
       }
 
-      const externalTransferId = toMainResult?.transId || `tf_${Date.now()}`;
-      console.log(JSON.stringify({ 
-        event: 'COPY_TRADING_OKX_COMPLETE', 
-        userId: user.id, 
-        amount: amountNum, 
-        subAcctName, 
-        step2TransferId: externalTransferId 
-      }));
-
-      // Get or create wallet
+      // OKX transfer succeeded - funds are now in user's FUNDING account (locked from trading)
+      // Now credit the INTERNAL CopyTradingWallet (this is the demo/internal balance)
       const wallet = await getOrCreateWallet(base44, user);
       const balanceBefore = wallet.available_balance || 0;
       const balanceAfter = balanceBefore + amountNum;
 
-      // Update wallet balance after successful OKX transfer
+      // Update internal wallet balance
       await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
         available_balance: balanceAfter,
         lifetime_deposited: (wallet.lifetime_deposited || 0) + amountNum,
-        last_activity_at: now,
-        updated_at: now
+        last_activity_at: completedAt,
+        updated_at: completedAt
       });
 
       // Create ledger entry (POSTED = success)
@@ -498,11 +418,11 @@ Deno.serve(async (req) => {
         description: 'Deposit from Trading Account',
         meta: { 
           source: 'OKX_TRADING', 
-          step1TransferId: internalResult?.transId,
-          step2TransferId: externalTransferId,
-          subAcctName
+          lockTransferId,
+          okxTransferId: transferResult?.transId,
+          lockedInFunding: true  // Funds locked in user's Funding account
         },
-        created_at: now
+        created_at: completedAt
       });
 
       // Create notification for user
@@ -527,8 +447,8 @@ Deno.serve(async (req) => {
         balanceBefore, 
         balanceAfter, 
         ledgerId: ledgerEntry.id,
-        step1TransferId: internalResult?.transId,
-        step2TransferId: externalTransferId
+        lockTransferId,
+        okxTransferId: transferResult?.transId
       }));
 
       return Response.json({ 
@@ -538,7 +458,7 @@ Deno.serve(async (req) => {
           amount: amountNum,
           newBalance: balanceAfter,
           ledgerId: ledgerEntry.id,
-          transferId: externalTransferId,
+          lockTransferId,
           balanceBefore
         } 
       });
