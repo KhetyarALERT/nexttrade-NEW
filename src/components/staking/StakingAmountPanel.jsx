@@ -15,6 +15,7 @@ const t = {
     summary: "Summary",
     lockPeriod: "Lock Period",
     days: "days",
+    day: "day",
     unlockDate: "Est. Unlock",
     apy: "APY",
     bonusRewards: "Bonus Rewards",
@@ -34,12 +35,13 @@ const t = {
     available: "الرصيد المتاح",
     amountLabel: "مبلغ الستيكنج",
     usdt: "USDT",
-    max: "الحد الأقصى",
+    max: "الأقصى",
     summary: "الملخص",
     lockPeriod: "فترة القفل",
-    days: "يوم",
+    days: "أيام",
+    day: "يوم",
     unlockDate: "تاريخ الفتح المتوقع",
-    apy: "APY",
+    apy: "عائد سنوي",
     bonusRewards: "المكافآت الإضافية",
     firstStakeBonusIncl: "شامل مكافأة الستيك الأول",
     statusAfterSubmit: "الحالة بعد الإرسال",
@@ -54,8 +56,15 @@ const t = {
   }
 };
 
-function formatDate(date) {
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+function formatDate(date, language = "en") {
+  const locale = language === "ar" ? "ar-SA" : "en-US";
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+}
+
+function formatNumber(val, language = "en") {
+  if (val === null || val === undefined || !Number.isFinite(val)) return "0.00";
+  const locale = language === "ar" ? "ar-SA" : "en-US";
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
 export default function StakingAmountPanel({ 
@@ -107,7 +116,12 @@ export default function StakingAmountPanel({
           <UsdtIcon size="md" language={language} />
           <div>
             <p className="font-semibold text-foreground">{plan.title}</p>
-            <p className="text-xs text-muted-foreground">{plan.termDays} {labels.days} • {plan.apyPercent}% APY</p>
+            <p className="text-xs text-muted-foreground">
+              {language === "ar" 
+                ? `${plan.termDays} ${plan.termDays === 1 ? labels.day : labels.days} • ${labels.apy} ${plan.apyPercent}%`
+                : `${plan.termDays} ${plan.termDays === 1 ? labels.day : labels.days} • ${plan.apyPercent}% ${labels.apy}`
+              }
+            </p>
           </div>
         </div>
         <Button variant="ghost" size="sm" onClick={onBack} className="text-xs text-muted-foreground">
@@ -121,7 +135,7 @@ export default function StakingAmountPanel({
         <div className="flex items-center gap-1.5">
           <UsdtIcon size="xs" language={language} />
           <span className="font-mono font-semibold">
-            {availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatNumber(availableBalance, language)} USDT
           </span>
         </div>
       </div>
@@ -150,7 +164,7 @@ export default function StakingAmountPanel({
         {/* Validation messages */}
         {isBelowMin && (
           <p className="text-xs text-amber-600 flex items-center gap-1">
-            {labels.minRequired}: ${plan.minDeposit}
+            {labels.minRequired}: {plan.minDeposit} USDT
           </p>
         )}
         {isAboveBalance && (
@@ -167,17 +181,17 @@ export default function StakingAmountPanel({
               variant={parseFloat(amount) === preset ? "default" : "outline"}
               size="sm"
               onClick={() => setAmount(String(preset))}
-              className="text-xs h-8 px-3"
+              className="text-xs h-9 px-3 min-w-[72px]"
               disabled={preset > availableBalance}
             >
-              ${preset}
+              {preset} USDT
             </Button>
           ))}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setAmount(String(Math.floor(availableBalance * 100) / 100))}
-            className="text-xs h-8 px-3"
+            className="text-xs h-9 px-3"
             disabled={availableBalance < plan.minDeposit}
           >
             {labels.max}
@@ -193,11 +207,11 @@ export default function StakingAmountPanel({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{labels.lockPeriod}</span>
-              <span className="font-medium">{plan.termDays} {labels.days}</span>
+              <span className="font-medium">{plan.termDays} {plan.termDays === 1 ? labels.day : labels.days}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{labels.unlockDate}</span>
-              <span className="font-medium">{formatDate(estUnlockDate)}</span>
+              <span className="font-medium">{formatDate(estUnlockDate, language)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{labels.apy}</span>
