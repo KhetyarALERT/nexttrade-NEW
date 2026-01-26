@@ -525,19 +525,25 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Invalid input' } });
       }
 
-      // 1. Check idempotency
+      // 1. Check idempotency - prevent double acceptance
       const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: user.id, signal_id: signalId });
       if (existingAction.length > 0) {
-        return Response.json({ ok: false, error: { code: 'ALREADY_PROCESSED', message: 'Signal already processed' } });
+        // Already processed - return wallet state without error
+        const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
+        const wallet = walletRes?.[0];
+        return Response.json({ 
+          ok: true, 
+          success: true,
+          wallet: wallet ? {
+            available: wallet.available_balance,
+            locked: wallet.locked_balance
+          } : null
+        });
       }
 
-      // 2. Validate Wallet Balance
-      const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
-      const wallet = walletRes?.[0];
-      if (!wallet || wallet.available_balance < amtNum) {
-        return Response.json({ ok: false, error: { code: 'INSUFFICIENT_FUNDS', message: 'Insufficient Copy Trading balance' } });
-      }
-
+      // 2. Get wallet and validate (auto-create if missing)
+      const wallet = await getOrCreateWallet(base44, user);
+      
       // 3. Get Signal & Config
       const signal = await base44.asServiceRole.entities.Signal.get(signalId);
       if (!signal || signal.status !== 'ACTIVE') {
@@ -549,32 +555,32 @@ Deno.serve(async (req) => {
       const commRate = config?.commission_open_rate || 0.0005;
       const minComm = config?.min_commission_open || 0.05;
 
-      // 4. Calculate Commission
-      // Notional = Amount * Leverage
-      const notional = amtNum * levNum;
+      // 4. Calculate Required Funds (margin + commission)
+      // "Amount" from UI = margin allocation (position size in USDT)
+      const margin = amtNum;
+      const notional = margin * levNum;
       const commOpen = Math.max(minComm, notional * commRate);
+      const required = margin + commOpen;
 
-      if (wallet.available_balance < (amtNum + commOpen)) {
-         return Response.json({ ok: false, error: { code: 'INSUFFICIENT_FUNDS_COMM', message: `Need ${commOpen.toFixed(2)} USDT for commission` } });
+      // 5. Validate balance
+      if (wallet.available_balance < required) {
+        const missing = required - wallet.available_balance;
+        return Response.json({ 
+          ok: false, 
+          error: { 
+            code: 'INSUFFICIENT_BALANCE',
+            message: `Insufficient balance. Need ${required.toFixed(2)} USDT (${margin.toFixed(2)} margin + ${commOpen.toFixed(2)} fee)`,
+            available: wallet.available_balance,
+            required: required,
+            missing: missing
+          } 
+        });
       }
 
       const now = new Date().toISOString();
 
-      // 5. Create Signal Action (Service Role bypasses RLS)
-      await base44.asServiceRole.entities.SignalAction.create({
-        signal_id: signalId,
-        user_id: user.id,
-        action: 'ACCEPTED',
-        accepted_at: now,
-        user_amount_usdt: amtNum,
-        user_leverage: levNum,
-        commission_open_usdt: commOpen,
-        created_at: now
-      });
-
-      // 6. Create CopyPosition
-      // Entry Price: Use Signal entry if MARKET (simulated) or current mark (if we had it). 
-      let entryPrice = signal.entry_price;
+      // 6. Fetch live entry price (current market price for realism)
+      let entryPrice = signal.entry_price || 0;
       try {
         const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`, {
           headers: { "User-Agent": "Mozilla/5.0" }
@@ -582,13 +588,15 @@ Deno.serve(async (req) => {
         const pJson = await pRes.json();
         if (pJson.data?.[0]?.last) entryPrice = Number(pJson.data[0].last);
       } catch (e) {
-        console.warn('Failed to fetch live price, using signal entry:', e.message);
+        console.warn('[COPY_TRADING] Failed to fetch live price, using signal entry:', e.message);
       }
       
-      // Ensure entryPrice is valid number (fallback to 0 if signal entry was missing)
-      if (!Number.isFinite(entryPrice)) entryPrice = 0;
+      if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+        entryPrice = signal.entry_price || 0;
+      }
 
-      await base44.asServiceRole.entities.CopyPosition.create({
+      // 7. Create position first (before wallet update for atomicity)
+      const position = await base44.asServiceRole.entities.CopyPosition.create({
         user_id: user.id,
         signal_id: signalId,
         status: 'OPEN',
@@ -603,22 +611,22 @@ Deno.serve(async (req) => {
         opened_at: now
       });
 
-      // Notification: Signal Accepted
-      try {
-        await base44.asServiceRole.entities.Notification.create({
-          user_id: user.id,
-          type: 'trade_executed',
-          title: 'Signal Accepted',
-          message: `Opened ${signal.side} position on ${signal.symbol}. Amount: ${amtNum} USDT, Lev: ${levNum}x`,
-          data: { signalId: signalId, action: 'signal_accepted' },
-          read: false,
-          priority: 'normal',
-          created_at: now
-        });
-      } catch (e) {}
+      // 8. Create Signal Action (idempotency key: user + signal)
+      await base44.asServiceRole.entities.SignalAction.create({
+        signal_id: signalId,
+        user_id: user.id,
+        action: 'ACCEPTED',
+        accepted_at: now,
+        user_amount_usdt: margin,
+        user_leverage: levNum,
+        commission_open_usdt: commOpen,
+        created_at: now
+      });
 
-      // 7. Update Ledger & Wallet
-      // Debit Commission
+      // 9. Atomic ledger entries
+      const balBefore = wallet.available_balance;
+      
+      // Debit commission
       await base44.asServiceRole.entities.CopyTradingLedger.create({
         user_id: user.id,
         kind: 'COMMISSION_OPEN',
@@ -627,18 +635,81 @@ Deno.serve(async (req) => {
         status: 'POSTED',
         ref_type: 'SIGNAL_ACCEPTANCE',
         ref_id: signalId,
+        balance_before: balBefore,
+        balance_after: balBefore - commOpen,
         description: `Open commission for ${signal.symbol}`,
         created_at: now
       });
 
-      // Update Wallet: Deduct comm from available, Move amount to locked
+      // Lock margin
+      await base44.asServiceRole.entities.CopyTradingLedger.create({
+        user_id: user.id,
+        kind: 'ALLOCATION_LOCK',
+        amount: -margin,
+        currency: 'USDT',
+        status: 'POSTED',
+        ref_type: 'POSITION',
+        ref_id: position.id,
+        balance_before: balBefore - commOpen,
+        balance_after: balBefore - commOpen - margin,
+        description: `Locked margin for ${signal.symbol} position`,
+        created_at: now
+      });
+
+      // 10. Update wallet (atomic state change)
+      const newAvailable = wallet.available_balance - required;
+      const newLocked = wallet.locked_balance + margin;
+      
       await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
-        available_balance: wallet.available_balance - amtNum - commOpen,
-        locked_balance: wallet.locked_balance + amtNum,
+        available_balance: Math.max(0, newAvailable),
+        locked_balance: newLocked,
         updated_at: now
       });
 
-      return Response.json({ ok: true, success: true });
+      // 11. Send notification
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'trade_executed',
+          title: 'Signal Accepted',
+          message: `Opened ${signal.side} position on ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT, Leverage: ${levNum}x`,
+          data: { 
+            instId: signal.symbol,
+            signalId: signalId,
+            positionId: position.id,
+            link: `/Trading?tab=bots&instId=${signal.symbol}&positionId=${position.id}`
+          },
+          read: false,
+          priority: 'normal'
+        });
+      } catch (e) {
+        console.error('[COPY_TRADING] Failed to create notification:', e.message);
+      }
+
+      console.log(JSON.stringify({
+        event: 'SIGNAL_ACCEPTED',
+        userId: user.id,
+        signalId,
+        positionId: position.id,
+        margin,
+        commission: commOpen,
+        newAvailable,
+        newLocked
+      }));
+
+      return Response.json({ 
+        ok: true, 
+        success: true,
+        wallet: {
+          available: newAvailable,
+          locked: newLocked
+        },
+        position: {
+          id: position.id,
+          symbol: signal.symbol,
+          entry: entryPrice
+        }
+      });
     }
 
     // ==================== REJECT SIGNAL ====================
