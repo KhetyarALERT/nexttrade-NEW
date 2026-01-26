@@ -19,7 +19,7 @@ import {
   XCircle, Clock, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, 
   ArrowUpFromLine, Settings, Shield, Loader2, ChevronDown, ChevronUp,
   History, ExternalLink, TrendingUp, TrendingDown, FileText, UserCheck,
-  HelpCircle, MessageSquare, Image, Trash2, Lock
+  HelpCircle, MessageSquare, Image, Trash2, Lock, Radio
 } from 'lucide-react';
 import StakingAdminTab from '@/components/admin/StakingAdminTab';
 import EntitlementsAdminTab from '@/components/admin/EntitlementsAdminTab';

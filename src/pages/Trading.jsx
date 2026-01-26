@@ -394,6 +394,69 @@ export default function Trading({ language = "en" }) {
   }
 
   // Desktop Layout - Full screen
+  if (isCopyMode) {
+    return (
+      <div className="flex h-screen flex-col bg-background overflow-hidden">
+        {/* Copy Mode Header */}
+        <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel bg-blue-500/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold text-foreground">Copy Trading</h1>
+                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">PAPER MODE</span>
+              </div>
+            </div>
+            {isAuthenticated && (
+              <div className="flex items-center gap-4">
+                <div className="text-xs text-muted-foreground">
+                  Wallet Balance: <span className="font-mono text-foreground font-medium">$0.00</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: Signals Inbox */}
+          <div className="w-[350px] border-r border-border/50 flex flex-col overflow-hidden shrink-0 bg-muted/10">
+            <div className="p-4 border-b border-border/50">
+              <h2 className="font-semibold mb-1">Signals Inbox</h2>
+              <p className="text-xs text-muted-foreground">Expert signals to follow</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <SignalsInbox onSignalAccepted={handleRefresh} />
+            </div>
+          </div>
+
+          {/* Center: Chart + Positions */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Chart (Reused but stripped of real trading overlays) */}
+            <div className="flex-1 overflow-hidden px-3 py-2 min-h-0">
+              <div className="h-full min-h-[250px]">
+                {/* Note: Ideally we pass copy positions here for overlay */}
+                {chartComponent} 
+              </div>
+            </div>
+
+            {/* Copy Positions Table */}
+            <div className="border-t border-border/50 h-[300px] overflow-hidden shrink-0 glass-panel p-4 overflow-y-auto">
+              <CopyPositionsTable refreshTrigger={isRefreshing} />
+            </div>
+          </div>
+
+          {/* Right: Copy Dashboard / Wallet */}
+          <div className="w-[300px] border-l border-border/50 flex flex-col overflow-hidden shrink-0 bg-background">
+             <CopyTradingDashboard language={language} liveAccount={liveAccount} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Standard Trading Layout
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
       {/* Desktop Header - Glass Effect */}
