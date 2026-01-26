@@ -90,6 +90,24 @@ export default function Trading({ language = "en" }) {
   // Track refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Copy Trading State
+  const [paperPositions, setPaperPositions] = useState([]);
+  
+  useEffect(() => {
+    if (isCopyMode && isAuthenticated) {
+      const loadPaperPositions = async () => {
+        try {
+          const res = await base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' });
+          if (res.data?.ok) setPaperPositions(res.data.data || []);
+        } catch (e) { console.error(e); }
+      };
+      loadPaperPositions();
+      // Poll every 10s
+      const interval = setInterval(loadPaperPositions, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isCopyMode, isAuthenticated, isRefreshing]);
+
   // Persist symbol selection
   useEffect(() => {
     localStorage.setItem("trading_symbol", selectedSymbol);
@@ -259,14 +277,19 @@ export default function Trading({ language = "en" }) {
   }, [selectedSymbol]);
 
   // Chart component (shared between mobile and desktop)
+  // In Copy Mode, show paper position on chart. In Live Mode, show real position.
+  const activePosition = isCopyMode 
+    ? paperPositions.find(p => p.symbol === selectedSymbol)
+    : livePositions.find(p => p.instId === selectedSymbol);
+
   const chartComponent = (
     <div className="h-full w-full min-h-[250px]">
       <BinanceFuturesChart
         symbol={selectedSymbol}
         language={language}
         onPriceUpdate={handlePriceUpdate}
-        positionTrade={livePositions.find(p => p.instId === selectedSymbol)}
-        pendingOrders={liveOrders.filter(o => o.instId === selectedSymbol)}
+        positionTrade={activePosition}
+        pendingOrders={isCopyMode ? [] : liveOrders.filter(o => o.instId === selectedSymbol)}
       />
     </div>
   );
