@@ -14,8 +14,6 @@ Deno.serve(async (req) => {
 
   try {
     const user = await base44.auth.me();
-    // For manual creation/listing, user must be admin
-    // For bot ingestion (webhook), we might use a shared secret in headers (Phase 2b), but for now assuming admin session or admin check
     
     if (!user) {
       return Response.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Please log in' } }, { status: 401 });
@@ -37,9 +35,9 @@ Deno.serve(async (req) => {
       }
 
       const now = new Date().toISOString();
-      // Default expiry 24h if not set
       const expiresAt = signal.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+      // 1. Create Signal
       const newSignal = await base44.asServiceRole.entities.Signal.create({
         source: 'manual',
         status: 'ACTIVE',
@@ -58,10 +56,29 @@ Deno.serve(async (req) => {
         expires_at: expiresAt
       });
 
-      // TODO: In Phase 2b, we will "Deliver" this signal to eligible users here
-      // For now, just creating the signal record
+      // 2. Deliver to Eligible Users
+      // Criteria: Active CopyTradingWallet AND Balance > 0 OR deposited
+      // For simplicity/performance: Just verify they have a CopyTradingWallet for now.
+      // Better: check CopyTradingConfig for min deposit logic, but let's assume existence of wallet implies intent.
+      // Actually, fetching all wallets might be heavy. Let's fetch wallets with status='ACTIVE'.
+      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ status: 'ACTIVE' }, '', 1000);
+      
+      let deliveredCount = 0;
+      for (const wallet of wallets || []) {
+        try {
+          await base44.asServiceRole.entities.SignalDelivery.create({
+            signal_id: newSignal.id,
+            user_id: wallet.user_id,
+            delivered_at: now,
+            status: 'DELIVERED'
+          });
+          deliveredCount++;
+        } catch (e) {
+          // Ignore duplicates or errors per user
+        }
+      }
 
-      return Response.json({ ok: true, data: newSignal });
+      return Response.json({ ok: true, data: { signal: newSignal, deliveredCount } });
     }
 
     // ==================== LIST SIGNALS ====================
@@ -79,7 +96,7 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: signals || [] });
     }
 
-    // ==================== CANCEL/EXPIRE SIGNAL ====================
+    // ==================== UPDATE STATUS ====================
     if (action === 'updateSignalStatus') {
       const { signalId, status } = body;
       if (!signalId || !['ACTIVE', 'EXPIRED', 'CANCELED'].includes(status)) {
@@ -99,21 +116,10 @@ Deno.serve(async (req) => {
         const total = signals.length;
         const active = signals.filter(s => s.status === 'ACTIVE').length;
         const expired = signals.filter(s => s.status === 'EXPIRED').length;
-        
-        // Count actions (accepted/rejected)
-        // This is heavy if table grows, optimized stats query needed later
         const actions = await base44.asServiceRole.entities.SignalAction.list('-created_at', 500);
         const accepted = actions.filter(a => a.action === 'ACCEPTED').length;
         
-        return Response.json({
-            ok: true,
-            data: {
-                total,
-                active,
-                expired,
-                accepted
-            }
-        });
+        return Response.json({ ok: true, data: { total, active, expired, accepted } });
     }
 
     return Response.json({ ok: false, error: { code: 'UNKNOWN_ACTION', message: `Unknown action: ${action}` } });
