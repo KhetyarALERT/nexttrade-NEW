@@ -1807,53 +1807,39 @@ export default function FuturesTradePanel({
 
   return (
     <aside className="h-full w-full trading-panel text-foreground rounded-2xl shadow-xl flex flex-col overflow-hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <div className="p-3 border-b border-border shrink-0 bg-card">
-          <TabsList className="bg-muted">
-            <TabsTrigger value="trade" className="data-[state=active]:bg-background">{labels.trade}</TabsTrigger>
-            <TabsTrigger value="bots" className="data-[state=active]:bg-background">{labels.bots}</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="flex-1 overflow-auto p-3">
-          <TabsContent value="trade" className="mt-0">
-            {renderOrderForm({ demoMode: false })}
-            
-            {/* Account Info for Trade tab */}
-            <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.account}</div>
-              <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                    <span>{labels.balance}</span>
-                  </div>
-                  <div className="font-mono text-foreground mt-1">
-                    {(() => {
-                      const snap = getAccountSnapshot(false);
-                      return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
-                    })()}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                    <span>{labels.margin}</span>
-                  </div>
-                  <div className="font-mono text-foreground mt-1">
-                    {(() => {
-                      const snap = getAccountSnapshot(false);
-                      return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
-                    })()}
-                  </div>
-                </div>
+      {/* Trade Panel Content - Tabs Removed, controlled by parent page */}
+      <div className="flex-1 overflow-auto p-3">
+        {renderOrderForm({ demoMode: false })}
+        
+        {/* Account Info for Trade tab */}
+        <div className="mt-4 rounded-xl bg-card/50 border border-border p-4">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{labels.account}</div>
+          <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                <span>{labels.balance}</span>
+              </div>
+              <div className="font-mono text-foreground mt-1">
+                {(() => {
+                  const snap = getAccountSnapshot(false);
+                  return snap.hasAccount ? `${formatNumber(snap.balance, 2)} USDT` : "—";
+                })()}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="bots" className="mt-0">
-            <CopyTradingDashboard language={language} liveAccount={liveAccount} />
-          </TabsContent>
+            <div>
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+                <span>{labels.margin}</span>
+              </div>
+              <div className="font-mono text-foreground mt-1">
+                {(() => {
+                  const snap = getAccountSnapshot(false);
+                  return snap.hasAccount ? `${formatNumber(snap.marginUsed, 2)} USDT` : "—";
+                })()}
+              </div>
+            </div>
+          </div>
         </div>
-      </Tabs>
+      </div>
     </aside>
   );
 

@@ -15,7 +15,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,20 @@ import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
 
 export default function Trading({ language = "en" }) {
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
+  const [searchParams, setSearchParams] = useSearchParams();
   const isCopyMode = searchParams.get("tab") === "bots";
 
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+
+  const toggleMode = (mode) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (mode === 'bots') {
+      newParams.set('tab', 'bots');
+    } else {
+      newParams.delete('tab'); // default to trade
+    }
+    setSearchParams(newParams);
+  };
   const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated && !isLoadingAuth });
   const isAr = language === "ar";
   
@@ -432,6 +442,23 @@ export default function Trading({ language = "en" }) {
                 <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">PAPER MODE</span>
               </div>
             </div>
+
+            {/* Mode Switcher */}
+            <div className="flex bg-muted/50 p-1 rounded-lg mx-4">
+              <button
+                onClick={() => toggleMode('trade')}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Trade
+              </button>
+              <button
+                onClick={() => toggleMode('bots')}
+                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Copy Trading
+              </button>
+            </div>
+
             {isAuthenticated && (
               <div className="flex items-center gap-4">
                 <div className="text-xs text-muted-foreground">
@@ -500,6 +527,22 @@ export default function Trading({ language = "en" }) {
               {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               <span>{wsConnected ? "Live" : "Connecting"}</span>
             </div>
+          </div>
+
+          {/* Mode Switcher */}
+          <div className="flex bg-muted/50 p-1 rounded-lg mx-4">
+            <button
+              onClick={() => toggleMode('trade')}
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Trade
+            </button>
+            <button
+              onClick={() => toggleMode('bots')}
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Copy Trading
+            </button>
           </div>
           
           <div className="flex items-center gap-2">

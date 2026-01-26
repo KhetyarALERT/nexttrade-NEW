@@ -20,7 +20,7 @@ export default function SignalsAdminTab({ onRefresh }) {
   const [processing, setProcessing] = useState(false);
 
   const [newSignal, setNewSignal] = useState({
-    symbol: 'BTC-USDT',
+    symbol: 'BTC-USDT-SWAP',
     side: 'LONG',
     entry_type: 'MARKET',
     entry_price: '',
@@ -29,6 +29,59 @@ export default function SignalsAdminTab({ onRefresh }) {
     tp2: '',
     notes: ''
   });
+
+  const [livePrice, setLivePrice] = useState(null);
+  const [fetchingPrice, setFetchingPrice] = useState(false);
+
+  // Popular OKX Perpetual Swaps
+  const POPULAR_SYMBOLS = [
+    "BTC-USDT-SWAP",
+    "ETH-USDT-SWAP",
+    "SOL-USDT-SWAP",
+    "XRP-USDT-SWAP",
+    "DOGE-USDT-SWAP",
+    "ADA-USDT-SWAP",
+    "AVAX-USDT-SWAP",
+    "DOT-USDT-SWAP",
+    "MATIC-USDT-SWAP",
+    "LINK-USDT-SWAP",
+    "LTC-USDT-SWAP",
+    "SHIB-USDT-SWAP",
+    "TRX-USDT-SWAP",
+    "UNI-USDT-SWAP",
+    "ATOM-USDT-SWAP",
+    "ETC-USDT-SWAP",
+    "FIL-USDT-SWAP",
+    "NEAR-USDT-SWAP",
+    "ALGO-USDT-SWAP",
+    "APE-USDT-SWAP"
+  ];
+
+  const fetchLivePrice = async (instId) => {
+    setFetchingPrice(true);
+    try {
+      // Use OKX public API via proxy or direct if CORS allows (it usually doesn't). 
+      // Using existing backend function if available or just a public aggregation.
+      // Better: use the market data function available in the project.
+      const res = await base44.functions.invoke("okxMarketData", { action: "getTicker", instId });
+      if (res.data?.ok && res.data?.data?.last) {
+        setLivePrice(Number(res.data.data.last));
+      } else {
+        // Fallback or clear
+        setLivePrice(null);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingPrice(false);
+    }
+  };
+
+  useEffect(() => {
+    if (createDialogOpen && newSignal.symbol) {
+      fetchLivePrice(newSignal.symbol);
+    }
+  }, [createDialogOpen, newSignal.symbol]);
 
   const loadData = async () => {
     setLoading(true);
@@ -252,12 +305,28 @@ export default function SignalsAdminTab({ onRefresh }) {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Symbol</Label>
-                <Input 
-                  value={newSignal.symbol} 
-                  onChange={(e) => setNewSignal({...newSignal, symbol: e.target.value.toUpperCase()})}
-                  placeholder="BTC-USDT" 
-                />
+                <Label>Symbol (instId)</Label>
+                <div className="relative">
+                  <Select 
+                    value={newSignal.symbol} 
+                    onValueChange={(v) => setNewSignal({...newSignal, symbol: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Symbol" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {POPULAR_SYMBOLS.map(sym => (
+                        <SelectItem key={sym} value={sym}>{sym}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {livePrice && (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    Live Mark: <span className="font-mono text-emerald-500">${livePrice}</span>
+                    {fetchingPrice && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Side</Label>

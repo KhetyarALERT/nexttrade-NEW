@@ -57,28 +57,52 @@ Deno.serve(async (req) => {
       });
 
       // 2. Deliver to Eligible Users
-      // Criteria: Active CopyTradingWallet AND Balance > 0 OR deposited
-      // For simplicity/performance: Just verify they have a CopyTradingWallet for now.
-      // Better: check CopyTradingConfig for min deposit logic, but let's assume existence of wallet implies intent.
-      // Actually, fetching all wallets might be heavy. Let's fetch wallets with status='ACTIVE'.
-      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ status: 'ACTIVE' }, '', 1000);
+      // Simplified targeting for Phase 2: Deliver to ALL users with a CopyTradingWallet (ACTIVE or not) 
+      // + The creator (if they have a user account) to ensure testing works.
       
+      // Fetch ALL wallets (up to 1000 for now)
+      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.list('', 1000);
+      
+      // Also ensure current user is in the list if they aren't already
+      let targets = [...(wallets || [])];
+      
+      // Check if current user has a wallet
+      const userWallet = targets.find(w => w.user_id === user.id);
+      if (!userWallet) {
+        // If admin doesn't have a wallet, auto-create one for testing purposes? 
+        // No, better to just deliver even without wallet, so they see it in Inbox (and then are prompted to create wallet/deposit).
+        // Actually, Inbox requires Copy Mode which usually requires wallet? 
+        // Let's just add the user ID to the delivery list regardless.
+        targets.push({ user_id: user.id });
+      }
+
+      // Deduplicate
+      const uniqueUserIds = [...new Set(targets.map(t => t.user_id))];
+
       let deliveredCount = 0;
-      for (const wallet of wallets || []) {
+      const deliveryDetails = [];
+
+      for (const userId of uniqueUserIds) {
+        if (!userId) continue;
         try {
-          await base44.asServiceRole.entities.SignalDelivery.create({
-            signal_id: newSignal.id,
-            user_id: wallet.user_id,
-            delivered_at: now,
-            status: 'DELIVERED'
-          });
-          deliveredCount++;
+          // Check if already delivered (idempotency)
+          const existing = await base44.asServiceRole.entities.SignalDelivery.filter({ signal_id: newSignal.id, user_id: userId });
+          if (existing.length === 0) {
+            await base44.asServiceRole.entities.SignalDelivery.create({
+              signal_id: newSignal.id,
+              user_id: userId,
+              delivered_at: now,
+              status: 'DELIVERED'
+            });
+            deliveredCount++;
+            deliveryDetails.push(userId);
+          }
         } catch (e) {
-          // Ignore duplicates or errors per user
+          console.error(`Failed delivery to ${userId}:`, e);
         }
       }
 
-      return Response.json({ ok: true, data: { signal: newSignal, deliveredCount } });
+      return Response.json({ ok: true, data: { signal: newSignal, deliveredCount, recipients: deliveryDetails } });
     }
 
     // ==================== LIST SIGNALS ====================
