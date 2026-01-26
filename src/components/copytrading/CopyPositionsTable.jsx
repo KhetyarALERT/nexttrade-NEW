@@ -27,6 +27,41 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false })
   useEffect(() => {
     loadPositions();
   }, [refreshTrigger]);
+  
+  // Subscribe to live prices for PnL updates
+  useEffect(() => {
+    if (!positions.length) return;
+    
+    const symbols = [...new Set(positions.map(p => p.symbol).filter(Boolean))];
+    const unsubs = [];
+    
+    // Fetch initial prices
+    symbols.forEach(async (sym) => {
+      try {
+        const res = await base44.functions.invoke('okxMarketData', { action: 'getTicker', instId: sym });
+        if (res.data?.ok && res.data.data?.last) {
+          setLivePrices(prev => ({ ...prev, [sym]: res.data.data.last }));
+        }
+      } catch (e) {}
+    });
+    
+    // Poll for updates every 3 seconds
+    const interval = setInterval(() => {
+      symbols.forEach(async (sym) => {
+        try {
+          const res = await base44.functions.invoke('okxMarketData', { action: 'getTicker', instId: sym });
+          if (res.data?.ok && res.data.data?.last) {
+            setLivePrices(prev => ({ ...prev, [sym]: res.data.data.last }));
+          }
+        } catch (e) {}
+      });
+    }, 3000);
+    
+    return () => {
+      clearInterval(interval);
+      unsubs.forEach(u => { try { u?.(); } catch {} });
+    };
+  }, [positions.map(p => p.symbol).join(',')]);
 
   if (loading && positions.length === 0) {
     return <div className="p-4 text-center text-muted-foreground text-xs">Loading positions...</div>;

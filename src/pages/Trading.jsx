@@ -36,11 +36,17 @@ import { useLocation } from "react-router-dom";
 import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard";
 import SignalsInbox from "@/components/copytrading/SignalsInbox";
 import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 export default function Trading({ language = "en" }) {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isCopyMode = searchParams.get("tab") === "bots";
+  
+  // Deep-link handling: instId and positionId from URL params
+  const urlInstId = searchParams.get("instId");
+  const urlPositionId = searchParams.get("positionId");
+  const urlSignalId = searchParams.get("signalId");
 
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
 
@@ -65,11 +71,20 @@ export default function Trading({ language = "en" }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   
-  // Symbol selection with persistence
+  // Symbol selection with persistence + deep-link override
   const [selectedSymbol, setSelectedSymbol] = useState(() => {
+    if (urlInstId) return normalizeOkxSymbol(urlInstId);
     const stored = localStorage.getItem("trading_symbol");
     return normalizeOkxSymbol(stored || "BTC-USDT-SWAP") || "BTC-USDT-SWAP";
   });
+  
+  // Apply deep-link instId on mount if present
+  useEffect(() => {
+    if (urlInstId) {
+      const normalized = normalizeOkxSymbol(urlInstId);
+      if (normalized) setSelectedSymbol(normalized);
+    }
+  }, [urlInstId]);
 
   // Market data state
   const [lastPrice, setLastPrice] = useState(0);
@@ -565,7 +580,7 @@ export default function Trading({ language = "en" }) {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Signals Inbox */}
           <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0">
-            <SignalsInbox onSignalAccepted={handleRefresh} />
+            <SignalsInbox onSignalAccepted={handleRefresh} liveAccount={liveAccount} />
           </div>
 
           {/* Center: Chart (Top) + Positions (Bottom) */}
@@ -581,7 +596,15 @@ export default function Trading({ language = "en" }) {
               {chartComponent}
             </div>
             <div className="h-[250px] shrink-0 bg-background">
-              <CopyPositionsTable refreshTrigger={isRefreshing} />
+              <CopyPositionsTable 
+                refreshTrigger={isRefreshing}
+                onPositionClick={(pos) => {
+                  // When clicking position, switch chart to that symbol
+                  if (pos?.symbol) {
+                    setSelectedSymbol(pos.symbol);
+                  }
+                }}
+              />
             </div>
           </div>
 
@@ -634,6 +657,8 @@ export default function Trading({ language = "en" }) {
           </div>
           
           <div className="flex items-center gap-2">
+            {isAuthenticated && <NotificationBell />}
+            
             {isAuthenticated && (
               <button
                 onClick={handleRefresh}

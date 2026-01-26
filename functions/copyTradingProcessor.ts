@@ -141,34 +141,37 @@ Deno.serve(async (req) => {
           });
         }
 
-        // Notification: Position Closed (TP/SL)
+        // Notification: Position Closed (TP/SL) with deep-link
         try {
-          // Check prefs
           let shouldNotify = true;
           try {
             const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: pos.user_id });
             if (prefs?.[0] && prefs[0].notifications_enabled === false) shouldNotify = false;
-            // Map 'notify_trade_executions' or 'notify_signals' to this? Let's use trade_executions for now or signals if strict.
-            // Prompt said "Add settings toggles: New signals / Position updates".
-            // I'll check notify_trade_executions as a fallback for position updates if notify_signals is specifically for new signals.
             if (prefs?.[0] && prefs[0].notify_trade_executions === false) shouldNotify = false;
           } catch (e) {}
 
           if (shouldNotify) {
             const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}` : `${pnl.toFixed(2)}`;
+            const notifType = closeReason === 'TP' ? 'trade_closed' : 'margin_warning'; // SL = warning, TP = success
+            
             await base44.asServiceRole.entities.Notification.create({
               user_id: pos.user_id,
-              type: 'trade_closed',
-              title: `${closeReason} Hit: ${pos.symbol}`,
-              message: `Position closed at ${currentPrice}. PnL: ${pnlStr} USDT`,
-              data: { positionId: pos.id, pnl, reason: closeReason },
+              type: notifType,
+              title: closeReason === 'TP' ? `✅ Take Profit Hit` : `🛑 Stop Loss Hit`,
+              message: `${pos.symbol} closed @ ${currentPrice.toFixed(2)}. PnL: ${pnlStr} USDT`,
+              data: { 
+                instId: pos.symbol,
+                positionId: pos.id,
+                pnl,
+                reason: closeReason,
+                link: `/Trading?tab=bots&instId=${pos.symbol}`
+              },
               read: false,
-              priority: 'high',
-              created_at: new Date().toISOString()
+              priority: 'high'
             });
           }
         } catch (e) {
-          console.error('Failed to send close notification', e);
+          console.error('[COPY_TRADING_PROCESSOR] Failed to send notification:', e.message);
         }
 
         updates.push({ id: pos.id, symbol: pos.symbol, pnl });
