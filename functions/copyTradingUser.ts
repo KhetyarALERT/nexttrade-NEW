@@ -560,9 +560,8 @@ Deno.serve(async (req) => {
 
       const now = new Date().toISOString();
 
-      // 5. Create Signal Action (User context to satisfy RLS if service role has issues, though service role should work)
-      // We use base44.entities (user context) here because RLS allows creation by owner.
-      await base44.entities.SignalAction.create({
+      // 5. Create Signal Action (Service Role bypasses RLS)
+      await base44.asServiceRole.entities.SignalAction.create({
         signal_id: signalId,
         user_id: user.id,
         action: 'ACCEPTED',
