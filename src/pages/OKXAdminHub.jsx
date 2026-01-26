@@ -25,6 +25,7 @@ import StakingAdminTab from '@/components/admin/StakingAdminTab';
 import EntitlementsAdminTab from '@/components/admin/EntitlementsAdminTab';
 import CopyTradingAdminTab from '@/components/admin/CopyTradingAdminTab';
 import SignalsAdminTab from '@/components/admin/SignalsAdminTab';
+import SignalsAdminTab from '@/components/admin/SignalsAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',

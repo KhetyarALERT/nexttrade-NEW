@@ -6,21 +6,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Plus, Ban, Radio, RefreshCw } from 'lucide-react';
+import { Plus, Radio, ArrowUpRight, ArrowDownRight, Clock, Ban, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 
 export default function SignalsAdminTab({ onRefresh }) {
   const [signals, setSignals] = useState([]);
+  const [stats, setStats] = useState({ total: 0, active: 0, expired: 0, accepted: 0 });
   const [loading, setLoading] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // New Signal Form State
-  const [formData, setFormData] = useState({
-    symbol: 'BTC-USDT-SWAP',
+  const [processing, setProcessing] = useState(false);
+
+  const [newSignal, setNewSignal] = useState({
+    symbol: 'BTC-USDT',
     side: 'LONG',
     entry_type: 'MARKET',
     entry_price: '',
@@ -30,54 +30,46 @@ export default function SignalsAdminTab({ onRefresh }) {
     notes: ''
   });
 
-  const loadSignals = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const res = await base44.functions.invoke('copyTradingAdmin', { 
-        action: 'listSignals',
-        limit: 50
-      });
-      if (res.data?.ok) {
-        setSignals(res.data.data || []);
-      }
+      const [listRes, statsRes] = await Promise.all([
+        base44.functions.invoke('signals', { action: 'listSignals', limit: 50 }),
+        base44.functions.invoke('signals', { action: 'getSignalStats' })
+      ]);
+
+      if (listRes.data?.ok) setSignals(listRes.data.data || []);
+      if (statsRes.data?.ok) setStats(statsRes.data.data || { total: 0, active: 0, expired: 0, accepted: 0 });
     } catch (err) {
       toast.error('Failed to load signals');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadSignals();
+    loadData();
   }, []);
 
   const handleCreate = async () => {
-    if (!formData.symbol || !formData.entry_price || !formData.stop_loss) {
-      toast.error('Please fill required fields (Symbol, Entry, SL)');
+    if (!newSignal.symbol || !newSignal.entry_price || !newSignal.stop_loss) {
+      toast.error('Missing required fields (Symbol, Entry, SL)');
       return;
     }
 
-    setSubmitting(true);
+    setProcessing(true);
     try {
-      const res = await base44.functions.invoke('copyTradingAdmin', {
+      const res = await base44.functions.invoke('signals', {
         action: 'createSignal',
-        signal: {
-          ...formData,
-          symbol: formData.symbol.toUpperCase(),
-          entry_price: Number(formData.entry_price),
-          stop_loss: Number(formData.stop_loss),
-          tp1: formData.tp1 ? Number(formData.tp1) : 0,
-          tp2: formData.tp2 ? Number(formData.tp2) : 0,
-        }
+        signal: newSignal
       });
 
       if (res.data?.ok) {
         toast.success('Signal created successfully');
         setCreateDialogOpen(false);
-        loadSignals();
-        // Reset form
-        setFormData({
-          symbol: 'BTC-USDT-SWAP',
+        setNewSignal({
+          symbol: 'BTC-USDT',
           side: 'LONG',
           entry_type: 'MARKET',
           entry_price: '',
@@ -86,75 +78,115 @@ export default function SignalsAdminTab({ onRefresh }) {
           tp2: '',
           notes: ''
         });
+        loadData();
       } else {
         toast.error(res.data?.error?.message || 'Failed to create signal');
       }
     } catch (err) {
-      toast.error(err.message);
+      toast.error('Failed to create signal: ' + err.message);
     } finally {
-      setSubmitting(false);
+      setProcessing(false);
     }
   };
 
-  const handleExpire = async (signalId) => {
+  const handleStatusUpdate = async (signalId, status) => {
     try {
-      const res = await base44.functions.invoke('copyTradingAdmin', {
-        action: 'expireSignal',
-        signalId
+      const res = await base44.functions.invoke('signals', {
+        action: 'updateSignalStatus',
+        signalId,
+        status
       });
       if (res.data?.ok) {
-        toast.success('Signal expired');
-        loadSignals();
+        toast.success(`Signal ${status}`);
+        loadData();
       }
     } catch (err) {
-      toast.error('Failed to expire signal');
+      toast.error('Failed to update status');
     }
   };
 
-  const statusColors = {
-    ACTIVE: 'bg-green-500/10 text-green-500 border-green-500/20',
-    EXPIRED: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-    CANCELED: 'bg-red-500/10 text-red-500 border-red-500/20'
+  const statusColor = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'EXPIRED': return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+      case 'CANCELED': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      default: return '';
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Signals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Now</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-500">{stats.active}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Accepted (Total)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">{stats.accepted}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Expired</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-500">{stats.expired}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Signals Management</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Signal
+          </Button>
+        </div>
+      </div>
+
+      {/* Signals Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Signals Management</CardTitle>
-            <CardDescription>Create and manage trading signals</CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={loadSignals} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Signal
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Time</TableHead>
                 <TableHead>Symbol</TableHead>
                 <TableHead>Side</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Entry</TableHead>
                 <TableHead>TP/SL</TableHead>
-                <TableHead>Source</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {signals.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No signals found
                   </TableCell>
                 </TableRow>
@@ -164,35 +196,41 @@ export default function SignalsAdminTab({ onRefresh }) {
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(signal.published_at).toLocaleString()}
                     </TableCell>
-                    <TableCell className="font-medium">{signal.symbol}</TableCell>
+                    <TableCell className="font-bold">{signal.symbol}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={signal.side === 'LONG' ? 'text-green-500 border-green-500/30' : 'text-red-500 border-red-500/30'}>
+                      <Badge variant="outline" className={signal.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}>
+                        {signal.side === 'LONG' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
                         {signal.side}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs">{signal.entry_type}</TableCell>
-                    <TableCell className="font-mono text-xs">{signal.entry_price}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <div className="text-green-500">TP: {signal.tp1}</div>
-                      <div className="text-red-500">SL: {signal.stop_loss}</div>
-                    </TableCell>
-                    <TableCell className="text-xs capitalize">{signal.source}</TableCell>
                     <TableCell>
-                      <Badge className={statusColors[signal.status] || ''}>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-mono">{signal.entry_price}</span>
+                        <span className="text-[10px] text-muted-foreground">{signal.entry_type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col text-xs font-mono">
+                        <span className="text-green-500">TP: {signal.tp1}</span>
+                        <span className="text-red-500">SL: {signal.stop_loss}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusColor(signal.status)}>
                         {signal.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs capitalize">{signal.source}</TableCell>
+                    <TableCell className="text-right">
                       {signal.status === 'ACTIVE' && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10"
-                          onClick={() => handleExpire(signal.id)}
-                          title="Expire Signal"
-                        >
-                          <Ban className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500" onClick={() => handleStatusUpdate(signal.id, 'EXPIRED')} title="Expire">
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleStatusUpdate(signal.id, 'CANCELED')} title="Cancel">
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -203,12 +241,12 @@ export default function SignalsAdminTab({ onRefresh }) {
         </CardContent>
       </Card>
 
-      {/* Create Signal Dialog */}
+      {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Create Manual Signal</DialogTitle>
-            <DialogDescription>Publish a new signal to all eligible users</DialogDescription>
+            <DialogDescription>Publish a new signal to copy trading users</DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
@@ -216,20 +254,20 @@ export default function SignalsAdminTab({ onRefresh }) {
               <div className="space-y-2">
                 <Label>Symbol</Label>
                 <Input 
-                  value={formData.symbol} 
-                  onChange={(e) => setFormData({...formData, symbol: e.target.value})}
-                  placeholder="e.g. BTC-USDT-SWAP"
+                  value={newSignal.symbol} 
+                  onChange={(e) => setNewSignal({...newSignal, symbol: e.target.value.toUpperCase()})}
+                  placeholder="BTC-USDT" 
                 />
               </div>
               <div className="space-y-2">
                 <Label>Side</Label>
-                <Select value={formData.side} onValueChange={(v) => setFormData({...formData, side: v})}>
+                <Select value={newSignal.side} onValueChange={(v) => setNewSignal({...newSignal, side: v})}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LONG">Long</SelectItem>
-                    <SelectItem value="SHORT">Short</SelectItem>
+                    <SelectItem value="LONG">LONG</SelectItem>
+                    <SelectItem value="SHORT">SHORT</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -240,39 +278,51 @@ export default function SignalsAdminTab({ onRefresh }) {
                 <Label>Entry Price</Label>
                 <Input 
                   type="number" 
-                  value={formData.entry_price} 
-                  onChange={(e) => setFormData({...formData, entry_price: e.target.value})}
-                  placeholder="0.00"
+                  value={newSignal.entry_price}
+                  onChange={(e) => setNewSignal({...newSignal, entry_price: e.target.value})}
+                  placeholder="0.00" 
                 />
               </div>
               <div className="space-y-2">
-                <Label>Stop Loss</Label>
-                <Input 
-                  type="number" 
-                  value={formData.stop_loss} 
-                  onChange={(e) => setFormData({...formData, stop_loss: e.target.value})}
-                  placeholder="0.00"
-                />
+                <Label>Type</Label>
+                <Select value={newSignal.entry_type} onValueChange={(v) => setNewSignal({...newSignal, entry_type: v})}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MARKET">MARKET</SelectItem>
+                    <SelectItem value="LIMIT">LIMIT</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-2">
               <div className="space-y-2">
-                <Label>Take Profit 1</Label>
+                <Label className="text-red-500">Stop Loss</Label>
                 <Input 
                   type="number" 
-                  value={formData.tp1} 
-                  onChange={(e) => setFormData({...formData, tp1: e.target.value})}
-                  placeholder="0.00"
+                  value={newSignal.stop_loss}
+                  onChange={(e) => setNewSignal({...newSignal, stop_loss: e.target.value})}
+                  placeholder="0.00" 
                 />
               </div>
               <div className="space-y-2">
-                <Label>Take Profit 2 (Optional)</Label>
+                <Label className="text-green-500">TP 1</Label>
                 <Input 
                   type="number" 
-                  value={formData.tp2} 
-                  onChange={(e) => setFormData({...formData, tp2: e.target.value})}
-                  placeholder="0.00"
+                  value={newSignal.tp1}
+                  onChange={(e) => setNewSignal({...newSignal, tp1: e.target.value})}
+                  placeholder="0.00" 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-green-500">TP 2 (Opt)</Label>
+                <Input 
+                  type="number" 
+                  value={newSignal.tp2}
+                  onChange={(e) => setNewSignal({...newSignal, tp2: e.target.value})}
+                  placeholder="0.00" 
                 />
               </div>
             </div>
@@ -280,17 +330,17 @@ export default function SignalsAdminTab({ onRefresh }) {
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea 
-                value={formData.notes} 
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                placeholder="Optional analysis or instructions..."
+                value={newSignal.notes}
+                onChange={(e) => setNewSignal({...newSignal, notes: e.target.value})}
+                placeholder="Analysis or comments..."
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={submitting}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleCreate} disabled={processing}>
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Publish Signal
             </Button>
           </DialogFooter>
