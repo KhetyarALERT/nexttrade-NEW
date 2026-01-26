@@ -69,8 +69,52 @@ function num(x) {
 
 // Safe OKX JSON fetch (handles WAF/HTML/non-JSON without crashing)
 async function okxGetJson(url) {
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-  const text = await res.text();
+  try {
+    const res = await fetch(url, { 
+      headers: { 
+        "accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      } 
+    });
+    const text = await res.text();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new HttpError(
+        502,
+        "UPSTREAM_NON_JSON",
+        `OKX returned non-JSON (HTTP ${res.status})`,
+        { url, sample: text.slice(0, 200) }
+      );
+    }
+
+    if (!res.ok) {
+      throw new HttpError(
+        502,
+        "UPSTREAM_HTTP",
+        `OKX HTTP error (HTTP ${res.status})`,
+        { url, upstream: parsed }
+      );
+    }
+
+    if (parsed?.code !== "0") {
+      throw new HttpError(
+        502,
+        "OKX_ERROR",
+        parsed?.msg || "OKX error",
+        { url, upstream: parsed }
+      );
+    }
+
+    return parsed;
+  } catch (err) {
+    // Handle network errors (connection reset, timeout) gracefully
+    if (err instanceof HttpError) throw err;
+    throw new HttpError(503, "NETWORK_ERROR", err.message, { url });
+  }
+}
 
   let parsed;
   try {

@@ -560,8 +560,9 @@ Deno.serve(async (req) => {
 
       const now = new Date().toISOString();
 
-      // 5. Create Signal Action
-      await base44.asServiceRole.entities.SignalAction.create({
+      // 5. Create Signal Action (User context to satisfy RLS if service role has issues, though service role should work)
+      // We use base44.entities (user context) here because RLS allows creation by owner.
+      await base44.entities.SignalAction.create({
         signal_id: signalId,
         user_id: user.id,
         action: 'ACCEPTED',
@@ -574,15 +575,19 @@ Deno.serve(async (req) => {
 
       // 6. Create CopyPosition
       // Entry Price: Use Signal entry if MARKET (simulated) or current mark (if we had it). 
-      // Task requirement: "entryPrice = current mark at accept time"
-      // Since we don't have live price here easily without calling external, let's use Signal's entry for MARKET as a proxy 
-      // OR fetch it. Let's try to fetch if possible, else fallback to signal entry.
       let entryPrice = signal.entry_price;
       try {
-        const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`);
+        const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`, {
+          headers: { "User-Agent": "Mozilla/5.0" }
+        });
         const pJson = await pRes.json();
         if (pJson.data?.[0]?.last) entryPrice = Number(pJson.data[0].last);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Failed to fetch live price, using signal entry:', e.message);
+      }
+      
+      // Ensure entryPrice is valid number (fallback to 0 if signal entry was missing)
+      if (!Number.isFinite(entryPrice)) entryPrice = 0;
 
       await base44.asServiceRole.entities.CopyPosition.create({
         user_id: user.id,
