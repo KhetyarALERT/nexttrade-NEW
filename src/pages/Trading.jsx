@@ -32,7 +32,16 @@ function formatCompactNumber(value) {
   return Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(value);
 }
 
+import { useLocation } from "react-router-dom";
+import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard";
+import SignalsInbox from "@/components/copytrading/SignalsInbox";
+import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
+
 export default function Trading({ language = "en" }) {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isCopyMode = searchParams.get("tab") === "bots";
+
   const { isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated && !isLoadingAuth });
   const isAr = language === "ar";
