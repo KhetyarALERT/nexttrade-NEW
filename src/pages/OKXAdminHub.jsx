@@ -24,6 +24,7 @@ import {
 import StakingAdminTab from '@/components/admin/StakingAdminTab';
 import EntitlementsAdminTab from '@/components/admin/EntitlementsAdminTab';
 import CopyTradingAdminTab from '@/components/admin/CopyTradingAdminTab';
+import SignalsAdminTab from '@/components/admin/SignalsAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',
@@ -1435,6 +1436,10 @@ export default function OKXAdminHub({ language = 'en' }) {
               Entitlements
             </TabsTrigger>
             <TabsTrigger value="copytrading">Copy Trading</TabsTrigger>
+            <TabsTrigger value="signals">
+              <Radio className="w-4 h-4 mr-1" />
+              Signals
+            </TabsTrigger>
             <TabsTrigger value="pool">Pool</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
@@ -1669,6 +1674,11 @@ export default function OKXAdminHub({ language = 'en' }) {
           {/* Copy Trading Tab */}
           <TabsContent value="copytrading">
             <CopyTradingAdminTab onRefresh={loadDashboard} />
+          </TabsContent>
+
+          {/* Signals Tab */}
+          <TabsContent value="signals">
+            <SignalsAdminTab onRefresh={loadDashboard} />
           </TabsContent>
 
           {/* Pool Tab */}

@@ -272,6 +272,62 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ==================== SIGNAL MANAGEMENT (PHASE 2) ====================
+    
+    if (action === 'listSignals') {
+      const { limit = 50, status } = body;
+      const query = status ? { status } : {};
+      const signals = await base44.asServiceRole.entities.Signal.filter(query, '-published_at', Number(limit));
+      return Response.json({ ok: true, data: signals || [] });
+    }
+
+    if (action === 'createSignal') {
+      const { signal } = body;
+      if (!signal || !signal.symbol || !signal.side) {
+        return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Missing required fields' } });
+      }
+
+      const now = new Date().toISOString();
+      // Default expiration: 24h if not set
+      const expiresAt = signal.expires_at || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+      const newSignal = await base44.asServiceRole.entities.Signal.create({
+        source: 'manual',
+        source_message_id: `manual_${Date.now()}`,
+        status: 'ACTIVE',
+        symbol: signal.symbol.toUpperCase(),
+        side: signal.side.toUpperCase(),
+        entry_type: signal.entry_type || 'MARKET',
+        entry_price: Number(signal.entry_price) || 0,
+        entry_range_low: Number(signal.entry_range_low) || 0,
+        entry_range_high: Number(signal.entry_range_high) || 0,
+        stop_loss: Number(signal.stop_loss) || 0,
+        tp1: Number(signal.tp1) || 0,
+        tp2: Number(signal.tp2) || 0,
+        timeframe: signal.timeframe || '1h',
+        notes: signal.notes || '',
+        raw_text: signal.raw_text || 'Manual signal created by admin',
+        published_at: now,
+        expires_at: expiresAt
+      });
+
+      // TODO: In future, trigger delivery to users here (or via separate processor)
+      
+      return Response.json({ ok: true, data: newSignal });
+    }
+
+    if (action === 'expireSignal') {
+      const { signalId } = body;
+      if (!signalId) return Response.json({ ok: false, error: { code: 'MISSING_ID', message: 'Signal ID required' } });
+
+      await base44.asServiceRole.entities.Signal.update(signalId, {
+        status: 'EXPIRED',
+        expires_at: new Date().toISOString() // Expire immediately
+      });
+
+      return Response.json({ ok: true, data: { signalId, status: 'EXPIRED' } });
+    }
+
     // ==================== GET COPY TRADING STATS FOR DASHBOARD ====================
     if (action === 'getCopyTradingStats') {
       const [wallets, allocations] = await Promise.all([
