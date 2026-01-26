@@ -471,9 +471,12 @@ export default function Trading({ language = "en" }) {
                   Signals
                 </button>
               </div>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setWalletOpen(true)}>
-                <ShieldIcon className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {isAuthenticated && <NotificationBell />}
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setWalletOpen(true)}>
+                  <ShieldIcon className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Segmented Control */}

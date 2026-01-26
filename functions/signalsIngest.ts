@@ -106,10 +106,43 @@ Deno.serve(async (req) => {
       if (deliveries.length > 0) {
         await base44.asServiceRole.entities.SignalDelivery.bulkCreate(deliveries);
         console.log(`[SIGNALS_INGEST] Delivered signal to ${deliveries.length} users`);
+        
+        // Send notifications to users with preferences enabled
+        for (const delivery of deliveries) {
+          try {
+            // Check user preferences
+            let shouldNotify = true;
+            try {
+              const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: delivery.user_id });
+              if (prefs?.[0]) {
+                if (prefs[0].notifications_enabled === false) shouldNotify = false;
+                if (prefs[0].notify_signals === false) shouldNotify = false;
+              }
+            } catch (e) {}
+            
+            if (shouldNotify) {
+              await base44.asServiceRole.entities.Notification.create({
+                user_id: delivery.user_id,
+                type: 'trade_executed',
+                title: '🚀 New Trading Signal',
+                message: `${finalSymbol} ${signalData.side.toUpperCase()} @ ${signalData.entry_price}`,
+                data: { 
+                  instId: finalSymbol,
+                  signalId: signal.id,
+                  link: `/Trading?tab=bots&instId=${finalSymbol}&signalId=${signal.id}`
+                },
+                read: false,
+                priority: 'high'
+              });
+            }
+          } catch (e) {
+            console.error(`[SIGNALS_INGEST] Failed to send notification to ${delivery.user_id}:`, e.message);
+          }
+        }
       }
     }
 
-    return Response.json({ ok: true, data: { signalId: signal.id, delivered: true } });
+    return Response.json({ ok: true, data: { signalId: signal.id, delivered: deliveries.length || 0 } });
 
   } catch (error) {
     console.error('[SIGNALS_INGEST_ERROR]', error);
