@@ -6,9 +6,10 @@ import { RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-export default function CopyPositionsTable({ refreshTrigger, isMobile = false }) {
+export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick }) {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [livePrices, setLivePrices] = useState({});
 
   const loadPositions = async () => {
     setLoading(true);
@@ -62,6 +63,22 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false })
       unsubs.forEach(u => { try { u?.(); } catch {} });
     };
   }, [positions.map(p => p.symbol).join(',')]);
+  
+  // Calculate live PnL
+  const calculatePnL = (pos) => {
+    const currentPrice = livePrices[pos.symbol];
+    if (!currentPrice || !pos.entry_price) return { pnl: 0, pnlPct: 0 };
+    
+    const qty = pos.notional_usdt / pos.entry_price;
+    const rawPnl = pos.side === 'LONG' 
+      ? (currentPrice - pos.entry_price) * qty
+      : (pos.entry_price - currentPrice) * qty;
+    
+    const margin = pos.notional_usdt / pos.leverage;
+    const pnlPct = (rawPnl / margin) * 100;
+    
+    return { pnl: rawPnl, pnlPct };
+  };
 
   if (loading && positions.length === 0) {
     return <div className="p-4 text-center text-muted-foreground text-xs">Loading positions...</div>;
@@ -79,22 +96,28 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false })
 
     return (
       <div className="space-y-3 pb-20 p-4">
-        {positions.map(pos => (
-          <Card key={pos.id} className="p-3 border-l-4 border-l-primary/50">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold">{pos.symbol}</span>
-                <Badge variant="outline" className={pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}>
-                  {pos.side} {pos.leverage}x
-                </Badge>
-              </div>
-              <div className="text-right">
-                <div className={pos.pnl_usdt >= 0 ? 'text-green-500 font-mono font-medium' : 'text-red-500 font-mono font-medium'}>
-                  {pos.pnl_usdt ? `${pos.pnl_usdt > 0 ? '+' : ''}${pos.pnl_usdt}` : '--'}
+        {positions.map(pos => {
+          const { pnl, pnlPct } = calculatePnL(pos);
+          return (
+            <Card 
+              key={pos.id} 
+              className="p-3 border-l-4 border-l-primary/50 cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => onPositionClick?.(pos)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{pos.symbol}</span>
+                  <Badge variant="outline" className={pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}>
+                    {pos.side} {pos.leverage}x
+                  </Badge>
                 </div>
-                <div className="text-[10px] text-muted-foreground">USDT PnL</div>
+                <div className="text-right">
+                  <div className={pnl >= 0 ? 'text-green-500 font-mono font-medium' : 'text-red-500 font-mono font-medium'}>
+                    {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">USDT PnL</div>
+                </div>
               </div>
-            </div>
             
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
@@ -115,7 +138,8 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false })
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -150,29 +174,36 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false })
                 </TableCell>
               </TableRow>
             ) : (
-              positions.map(pos => (
-                <TableRow key={pos.id} className="text-xs">
-                  <TableCell className="font-medium">{pos.symbol}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`px-1.5 py-0 text-[10px] h-5 border-0 ${pos.side === 'LONG' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                      {pos.side} {pos.leverage}x
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{pos.notional_usdt.toFixed(0)}</TableCell>
-                  <TableCell className="text-right font-mono">{pos.entry_price}</TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex flex-col text-[10px] leading-tight">
-                      <span className="text-green-500">{pos.tp1}</span>
-                      <span className="text-red-500">{pos.stop_loss}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    <span className={pos.pnl_usdt >= 0 ? 'text-green-500' : 'text-red-500'}>
-                      {pos.pnl_usdt ? `${pos.pnl_usdt > 0 ? '+' : ''}${pos.pnl_usdt}` : '--'}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))
+              positions.map(pos => {
+                const { pnl, pnlPct } = calculatePnL(pos);
+                return (
+                  <TableRow 
+                    key={pos.id} 
+                    className="text-xs cursor-pointer hover:bg-muted/50"
+                    onClick={() => onPositionClick?.(pos)}
+                  >
+                    <TableCell className="font-medium">{pos.symbol}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`px-1.5 py-0 text-[10px] h-5 border-0 ${pos.side === 'LONG' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                        {pos.side} {pos.leverage}x
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{pos.notional_usdt.toFixed(0)}</TableCell>
+                    <TableCell className="text-right font-mono">{pos.entry_price}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col text-[10px] leading-tight">
+                        <span className="text-green-500">{pos.tp1}</span>
+                        <span className="text-red-500">{pos.stop_loss}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      <span className={pnl >= 0 ? 'text-green-500' : 'text-red-500'}>
+                        {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
