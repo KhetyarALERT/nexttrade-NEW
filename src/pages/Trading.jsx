@@ -498,7 +498,13 @@ export default function Trading({ language = "en" }) {
           <div className="flex-1 overflow-hidden relative">
             {copyMobileTab === 'signals' && (
               <div className="h-full overflow-hidden">
-                <SignalsInbox onSignalAccepted={() => { handleRefresh(); setCopyMobileTab('positions'); }} />
+                <SignalsInbox 
+                  onSignalAccepted={() => { 
+                    handleRefresh(); 
+                    setCopyMobileTab('positions'); 
+                  }} 
+                  liveAccount={liveAccount}
+                />
               </div>
             )}
             
@@ -517,7 +523,16 @@ export default function Trading({ language = "en" }) {
 
             {copyMobileTab === 'positions' && (
               <div className="h-full overflow-y-auto">
-                <CopyPositionsTable refreshTrigger={isRefreshing} isMobile={true} />
+                <CopyPositionsTable 
+                  refreshTrigger={isRefreshing} 
+                  isMobile={true}
+                  onPositionClick={(pos) => {
+                    if (pos?.symbol) {
+                      setSelectedSymbol(pos.symbol);
+                      setCopyMobileTab('chart');
+                    }
+                  }}
+                />
               </div>
             )}
           </div>
