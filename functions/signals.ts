@@ -94,6 +94,28 @@ Deno.serve(async (req) => {
               delivered_at: now,
               status: 'DELIVERED'
             });
+            
+            // Check UserPreferences for notifications
+            let shouldNotify = true;
+            try {
+              const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: userId });
+              if (prefs?.[0] && prefs[0].notifications_enabled === false) shouldNotify = false;
+              if (prefs?.[0] && prefs[0].notify_signals === false) shouldNotify = false;
+            } catch (e) {}
+
+            if (shouldNotify) {
+              await base44.asServiceRole.entities.Notification.create({
+                user_id: userId,
+                type: 'system', // or specific 'signal' type if added to enum
+                title: `New Signal: ${newSignal.symbol} ${newSignal.side}`,
+                message: `Entry: ${newSignal.entry_price || 'Market'} | TP: ${newSignal.tp1} | SL: ${newSignal.stop_loss}`,
+                data: { signalId: newSignal.id, action: 'new_signal' },
+                read: false,
+                priority: 'normal',
+                created_at: now
+              });
+            }
+
             deliveredCount++;
             deliveryDetails.push(userId);
           }

@@ -426,11 +426,109 @@ export default function Trading({ language = "en" }) {
     );
   }
 
-  // Desktop Layout - Full screen
+  // Copy Mode Mobile State
+  const [copyMobileTab, setCopyMobileTab] = useState('signals'); // signals | chart | positions
+  const [walletOpen, setWalletOpen] = useState(false);
+
+  // Copy Mode Layout
   if (isCopyMode) {
+    // MOBILE COPY MODE
+    if (isMobile) {
+      return (
+        <div className="flex h-screen flex-col bg-background overflow-hidden">
+          {/* Mobile Header with Mode Toggle */}
+          <div className="border-b border-border px-3 py-2 shrink-0 bg-background/80 backdrop-blur z-20">
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={() => window.history.back()} className="text-foreground/60">
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="flex bg-muted/50 p-1 rounded-lg">
+                <button
+                  onClick={() => toggleMode('trade')}
+                  className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                >
+                  Trade
+                </button>
+                <button
+                  onClick={() => toggleMode('bots')}
+                  className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                >
+                  Signals
+                </button>
+              </div>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setWalletOpen(true)}>
+                <ShieldIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Segmented Control */}
+            <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1 rounded-lg">
+              {['signals', 'chart', 'positions'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setCopyMobileTab(tab)}
+                  className={`py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
+                    copyMobileTab === tab 
+                      ? 'bg-background text-foreground shadow-sm' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div className="flex-1 overflow-hidden relative">
+            {copyMobileTab === 'signals' && (
+              <div className="h-full overflow-hidden">
+                <SignalsInbox onSignalAccepted={() => { handleRefresh(); setCopyMobileTab('positions'); }} />
+              </div>
+            )}
+            
+            {copyMobileTab === 'chart' && (
+              <div className="h-full w-full">
+                <BinanceSymbolSelector 
+                  selectedSymbol={selectedSymbol} 
+                  onSelectSymbol={handleSymbolChange} 
+                  language={language} 
+                />
+                <div className="h-[calc(100%-50px)]">
+                  {chartComponent}
+                </div>
+              </div>
+            )}
+
+            {copyMobileTab === 'positions' && (
+              <div className="h-full overflow-y-auto">
+                <CopyPositionsTable refreshTrigger={isRefreshing} isMobile={true} />
+              </div>
+            )}
+          </div>
+
+          {/* Wallet Drawer/Sheet Stub (using simple absolute overlay for now to save complexity, or could use Sheet) */}
+          {walletOpen && (
+            <div className="absolute inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom-full duration-200">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="font-semibold">Copy Trading Wallet</h2>
+                <Button variant="ghost" size="icon" onClick={() => setWalletOpen(false)}>
+                  <XCircle className="h-5 w-5" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <CopyTradingDashboard language={language} liveAccount={liveAccount} />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // DESKTOP COPY MODE
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden">
-        {/* Copy Mode Header */}
+        {/* Header */}
         <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel bg-blue-500/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -459,46 +557,36 @@ export default function Trading({ language = "en" }) {
               </button>
             </div>
 
-            {isAuthenticated && (
-              <div className="flex items-center gap-4">
-                <div className="text-xs text-muted-foreground">
-                  Wallet Balance: <span className="font-mono text-foreground font-medium">$0.00</span>
-                </div>
-              </div>
-            )}
+            <div className="w-[100px]" /> {/* Spacer for balance alignment if needed */}
           </div>
         </div>
 
+        {/* Desktop Grid Layout */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Signals Inbox */}
-          <div className="w-[350px] border-r border-border/50 flex flex-col overflow-hidden shrink-0 bg-muted/10">
-            <div className="p-4 border-b border-border/50">
-              <h2 className="font-semibold mb-1">Signals Inbox</h2>
-              <p className="text-xs text-muted-foreground">Expert signals to follow</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <SignalsInbox onSignalAccepted={handleRefresh} />
-            </div>
+          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0">
+            <SignalsInbox onSignalAccepted={handleRefresh} />
           </div>
 
-          {/* Center: Chart + Positions */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Chart (Reused but stripped of real trading overlays) */}
-            <div className="flex-1 overflow-hidden px-3 py-2 min-h-0">
-              <div className="h-full min-h-[250px]">
-                {/* Note: Ideally we pass copy positions here for overlay */}
-                {chartComponent} 
+          {/* Center: Chart (Top) + Positions (Bottom) */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 border-b border-border/50 relative">
+              <div className="absolute top-2 left-2 z-10">
+                <BinanceSymbolSelector 
+                  selectedSymbol={selectedSymbol} 
+                  onSelectSymbol={handleSymbolChange} 
+                  language={language} 
+                />
               </div>
+              {chartComponent}
             </div>
-
-            {/* Copy Positions Table */}
-            <div className="border-t border-border/50 h-[300px] overflow-hidden shrink-0 glass-panel p-4 overflow-y-auto">
+            <div className="h-[250px] shrink-0 bg-background">
               <CopyPositionsTable refreshTrigger={isRefreshing} />
             </div>
           </div>
 
-          {/* Right: Copy Dashboard / Wallet */}
-          <div className="w-[300px] border-l border-border/50 flex flex-col overflow-hidden shrink-0 bg-background">
+          {/* Right: Wallet Panel */}
+          <div className="w-[280px] border-l border-border/50 bg-background flex flex-col shrink-0">
              <CopyTradingDashboard language={language} liveAccount={liveAccount} />
           </div>
         </div>

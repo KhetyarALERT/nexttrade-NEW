@@ -599,6 +599,20 @@ Deno.serve(async (req) => {
         opened_at: now
       });
 
+      // Notification: Signal Accepted
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'trade_executed',
+          title: 'Signal Accepted',
+          message: `Opened ${signal.side} position on ${signal.symbol}. Amount: ${amtNum} USDT, Lev: ${levNum}x`,
+          data: { signalId: signalId, action: 'signal_accepted' },
+          read: false,
+          priority: 'normal',
+          created_at: now
+        });
+      } catch (e) {}
+
       // 7. Update Ledger & Wallet
       // Debit Commission
       await base44.asServiceRole.entities.CopyTradingLedger.create({

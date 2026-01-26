@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, Inbox } from "lucide-react";
 import SignalCard from './SignalCard';
 import { toast } from 'sonner';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function SignalsInbox({ onSignalAccepted }) {
   const [signals, setSignals] = useState([]);
@@ -18,13 +19,22 @@ export default function SignalsInbox({ onSignalAccepted }) {
   const [amount, setAmount] = useState('100');
   const [leverage, setLeverage] = useState('5');
   const [processing, setProcessing] = useState(false);
+  const [balance, setBalance] = useState(0);
 
   const loadSignals = async () => {
-    setLoading(true);
+    // Silent update if we already have data
+    if(signals.length === 0) setLoading(true);
     try {
-      const res = await base44.functions.invoke('copyTradingUser', { action: 'getSignals' });
-      if (res.data?.ok) {
-        setSignals(res.data.data || []);
+      const [sigsRes, walletRes] = await Promise.all([
+        base44.functions.invoke('copyTradingUser', { action: 'getSignals' }),
+        base44.functions.invoke('copyTradingUser', { action: 'getWallet' })
+      ]);
+      
+      if (sigsRes.data?.ok) {
+        setSignals(sigsRes.data.data || []);
+      }
+      if (walletRes.data?.ok) {
+        setBalance(walletRes.data.data?.available_balance || 0);
       }
     } catch (e) {
       console.error(e);
@@ -35,7 +45,7 @@ export default function SignalsInbox({ onSignalAccepted }) {
 
   useEffect(() => {
     loadSignals();
-    const interval = setInterval(loadSignals, 30000);
+    const interval = setInterval(loadSignals, 15000); // Poll every 15s
     return () => clearInterval(interval);
   }, []);
 
@@ -45,16 +55,23 @@ export default function SignalsInbox({ onSignalAccepted }) {
   };
 
   const handleRejectClick = async (signal) => {
-    if(!confirm('Ignore this signal?')) return;
+    // Optimistic UI
+    const originalSignals = [...signals];
+    setSignals(prev => prev.filter(s => s.id !== signal.id));
+    
     try {
-      await base44.functions.invoke('copyTradingUser', { 
+      const res = await base44.functions.invoke('copyTradingUser', { 
         action: 'rejectSignal', 
         signalId: signal.id 
       });
-      setSignals(prev => prev.filter(s => s.id !== signal.id));
-      toast.success('Signal ignored');
+      if(res.data?.ok) {
+        toast.success('Signal ignored');
+      } else {
+        throw new Error(res.data?.error?.message);
+      }
     } catch(e) {
-      toast.error('Failed to reject signal');
+      setSignals(originalSignals); // Revert
+      toast.error('Failed to reject');
     }
   };
 
@@ -85,87 +102,117 @@ export default function SignalsInbox({ onSignalAccepted }) {
   };
 
   if (loading && signals.length === 0) {
-    return <div className="p-8 text-center text-muted-foreground">Loading signals...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin mb-2" />
+        <span className="text-sm">Checking signals...</span>
+      </div>
+    );
   }
 
   if (signals.length === 0) {
     return (
-      <div className="p-8 text-center border-2 border-dashed rounded-xl">
-        <p className="text-muted-foreground">No active signals right now.</p>
-        <p className="text-xs text-muted-foreground mt-1">Wait for experts to publish new opportunities.</p>
+      <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded-xl m-4 bg-muted/10">
+        <Inbox className="w-8 h-8 text-muted-foreground/50 mb-2" />
+        <p className="text-sm font-medium text-foreground">No active signals</p>
+        <p className="text-xs text-muted-foreground mt-1">Waiting for experts...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        Active Signals 
-        <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">{signals.length}</span>
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {signals.map(signal => (
-          <SignalCard 
-            key={signal.id} 
-            signal={signal} 
-            onAccept={handleAcceptClick}
-            onReject={handleRejectClick}
-          />
-        ))}
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-border/50 shrink-0 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          New Signals
+          <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+            {signals.length}
+          </span>
+        </h3>
       </div>
+      
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-3">
+          {signals.map(signal => (
+            <SignalCard 
+              key={signal.id} 
+              signal={signal} 
+              onAccept={handleAcceptClick}
+              onReject={handleRejectClick}
+            />
+          ))}
+        </div>
+      </ScrollArea>
 
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Accept Signal: {selectedSignal?.symbol}</DialogTitle>
+            <DialogTitle>Accept {selectedSignal?.symbol}</DialogTitle>
             <DialogDescription>
-              Allocate margin to follow this {selectedSignal?.side} signal.
+              Open a {selectedSignal?.side} position following this signal.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Amount (USDT)</Label>
-              <Input 
-                type="number" 
-                value={amount} 
-                onChange={e => setAmount(e.target.value)}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1"> deducted from Copy Trading Balance</p>
-            </div>
-            <div>
-              <Label>Leverage (x)</Label>
-              <Input 
-                type="number" 
-                value={leverage} 
-                onChange={e => setLeverage(e.target.value)}
-                max={20}
-                className="mt-1"
-              />
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Amount (USDT)</Label>
+                <Input 
+                  type="number" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)}
+                  className="font-mono"
+                />
+                <div className="text-[10px] text-muted-foreground text-right">
+                  Avail: <span className="font-mono text-foreground">{balance.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Leverage (x)</Label>
+                <Input 
+                  type="number" 
+                  value={leverage} 
+                  onChange={e => setLeverage(e.target.value)}
+                  max={20}
+                  className="font-mono"
+                />
+                <div className="text-[10px] text-muted-foreground text-right">
+                  Max: 20x
+                </div>
+              </div>
             </div>
             
-            <div className="bg-muted/50 p-3 rounded-lg text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>Entry Price</span>
+            <div className="bg-muted/30 p-3 rounded-lg text-sm space-y-2 border border-border/50">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Entry Price</span>
                 <span className="font-mono">{selectedSignal?.entry_price}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Notional Value</span>
-                <span className="font-mono">{(Number(amount) * Number(leverage)).toFixed(2)} USDT</span>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Est. Notional</span>
+                <span className="font-mono font-medium text-foreground">{(Number(amount) * Number(leverage)).toFixed(2)} USDT</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Est. Commission</span>
-                <span className="font-mono">~{(Number(amount) * Number(leverage) * 0.0005).toFixed(2)} USDT</span>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Fee (Est.)</span>
+                <span className="font-mono text-orange-500">~{(Number(amount) * Number(leverage) * 0.0005).toFixed(2)}</span>
               </div>
             </div>
+
+            {Number(amount) > balance && (
+              <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded flex items-center gap-2">
+                <span>Insufficient balance.</span>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAcceptDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleConfirmAccept} disabled={processing}>
+            <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleConfirmAccept} 
+              disabled={processing || Number(amount) > balance || Number(amount) <= 0}
+              className="bg-primary"
+            >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirm & Open
+              Confirm Trade
             </Button>
           </DialogFooter>
         </DialogContent>
