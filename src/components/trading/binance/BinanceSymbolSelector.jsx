@@ -134,7 +134,7 @@ const BinanceSymbolSelector = React.memo(function BinanceSymbolSelector({ select
   );
 }
 
-});
+);
 
 BinanceSymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string.isRequired,
