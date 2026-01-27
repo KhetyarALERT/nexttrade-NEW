@@ -284,5 +284,3 @@ CopyWalletPanel.propTypes = {
   language: PropTypes.string,
   liveAccount: PropTypes.object,
 };
-
-export default CopyWalletPanel;
