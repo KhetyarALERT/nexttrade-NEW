@@ -34,6 +34,7 @@ function formatCompactNumber(value) {
 
 import { useLocation } from "react-router-dom";
 import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard";
+import CopyWalletPanel from "@/components/copytrading/CopyWalletPanel";
 import SignalsInbox from "@/components/copytrading/SignalsInbox";
 import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
 import NotificationBell from "@/components/notifications/NotificationBell";
@@ -594,7 +595,16 @@ export default function Trading({ language = "en" }) {
               </button>
             </div>
 
-            <div className="w-[100px]" /> {/* Spacer for balance alignment if needed */}
+            <div className="flex items-center gap-2">
+              {isAuthenticated && <NotificationBell />}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -639,7 +649,7 @@ export default function Trading({ language = "en" }) {
 
           {/* Right: Wallet Panel */}
           <div className="w-[280px] border-l border-border/50 bg-background flex flex-col shrink-0">
-             <CopyTradingDashboard language={language} liveAccount={liveAccount} />
+             <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
       </div>
