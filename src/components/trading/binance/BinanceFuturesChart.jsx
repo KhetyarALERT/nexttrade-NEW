@@ -800,124 +800,20 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
 
   return (
     <div className="w-full h-full min-h-[250px] bg-background text-foreground flex flex-col">
-      {/* Chart Header / Toolbar - Compact on mobile */}
-      <div className="flex items-center gap-1 p-1.5 sm:p-2 bg-card border-b border-border">
-        {/* Timeframe buttons - scrollable on mobile */}
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
-          {INTERVALS.map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-2 py-1.5 text-[11px] sm:text-xs rounded-md transition-all duration-200 font-medium whitespace-nowrap flex-shrink-0 ${
-                timeframe === tf
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {tf.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        {/* RESET VIEW BUTTON - Prominent */}
-        <button
-          type="button"
-          onClick={resetView}
-          className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors font-medium text-xs"
-          title={labels.resetTitle}
-        >
-          <Maximize2 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{labels.reset}</span>
-        </button>
-        
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          {/* Quick toggles - hidden on mobile */}
-          <div className="hidden md:flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setChartType(chartType === "candles" ? "line" : "candles")}
-              className={`p-1.5 rounded-md transition-colors ${
-                chartType === "candles" 
-                  ? "bg-primary/10 text-primary" 
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              }`}
-              title={chartType === "candles" ? "Switch to Line" : "Switch to Candles"}
-            >
-              {chartType === "candles" ? <BarChart3 className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowGrid(!showGrid)}
-              className={`p-1.5 rounded-md transition-colors ${
-                showGrid 
-                  ? "bg-primary/10 text-primary" 
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              }`}
-              title={showGrid ? "Hide Grid" : "Show Grid"}
-            >
-              <Grid3X3 className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowVolume(!showVolume)}
-              className={`p-1.5 rounded-md transition-colors ${
-                showVolume 
-                  ? "bg-primary/10 text-primary" 
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              }`}
-              title={showVolume ? "Hide Volume" : "Show Volume"}
-            >
-              <Volume2 className="h-3.5 w-3.5" />
-            </button>
+      {/* Chart Header - Two-row layout to prevent overlap */}
+      <div className="bg-card border-b border-border">
+        {/* Row 1: Symbol Info + Price/Status */}
+        <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-semibold text-foreground truncate">
+              {String(symbol || normalizedSymbol)}
+            </span>
           </div>
-
-          {/* Settings dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="p-1.5 rounded-md bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                title={labels.settings}
-              >
-                <Settings className="h-3.5 w-3.5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground min-w-[180px]">
-              <DropdownMenuLabel className="text-xs font-semibold text-foreground">{labels.chartSettings}</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-border" />
-
-              <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                {labels.chartType}
-              </DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={chartType} onValueChange={setChartType}>
-                <DropdownMenuRadioItem value="candles" className="text-sm text-foreground">
-                  {labels.candles}
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="line" className="text-sm text-foreground">
-                  {labels.line}
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-
-              <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={setShowGrid} className="text-sm text-foreground">
-                {labels.showGrid}
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={showVolume} onCheckedChange={setShowVolume} className="text-sm text-foreground">
-                {labels.showVolume}
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={smoothAnimations} onCheckedChange={setSmoothAnimations} className="text-sm text-foreground">
-                {labels.smoothAnimations}
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={autoScale} onCheckedChange={setAutoScale} className="text-sm text-foreground">
-                {labels.autoScale}
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Status indicators */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Status indicator */}
             {loading ? (
-              <span className="text-[10px] sm:text-xs text-muted-foreground animate-pulse">{labels.loading}</span>
+              <span className="text-[10px] text-muted-foreground animate-pulse">{labels.loading}</span>
             ) : (
               <span className={`text-[9px] sm:text-[10px] uppercase tracking-wider font-medium flex items-center gap-1 ${
                 now - lastTickAt < 3000 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
@@ -929,6 +825,123 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
             <span className="text-xs sm:text-sm font-mono font-semibold text-foreground tabular-nums">
               {formatPrice(lastPrice)}
             </span>
+          </div>
+        </div>
+
+        {/* Row 2: Timeframes + Controls */}
+        <div className="flex items-center gap-1 p-1.5">
+          {/* Timeframe buttons - scrollable on mobile */}
+          <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+            {INTERVALS.map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                className={`px-2 py-1.5 text-[11px] sm:text-xs rounded-md transition-all duration-200 font-medium whitespace-nowrap flex-shrink-0 ${
+                  timeframe === tf
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {tf.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {/* Right-side controls */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* RESET VIEW BUTTON */}
+            <button
+              type="button"
+              onClick={resetView}
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors font-medium text-xs"
+              title={labels.resetTitle}
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{labels.reset}</span>
+            </button>
+            
+            {/* Quick toggles - hidden on mobile */}
+            <div className="hidden md:flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setChartType(chartType === "candles" ? "line" : "candles")}
+                className={`p-1.5 rounded-md transition-colors ${
+                  chartType === "candles" 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                title={chartType === "candles" ? "Switch to Line" : "Switch to Candles"}
+              >
+                {chartType === "candles" ? <BarChart3 className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGrid(!showGrid)}
+                className={`p-1.5 rounded-md transition-colors ${
+                  showGrid 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                title={showGrid ? "Hide Grid" : "Show Grid"}
+              >
+                <Grid3X3 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowVolume(!showVolume)}
+                className={`p-1.5 rounded-md transition-colors ${
+                  showVolume 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+                title={showVolume ? "Hide Volume" : "Show Volume"}
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {/* Settings dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-md bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  title={labels.settings}
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground min-w-[180px]">
+                <DropdownMenuLabel className="text-xs font-semibold text-foreground">{labels.chartSettings}</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-border" />
+
+                <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {labels.chartType}
+                </DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={chartType} onValueChange={setChartType}>
+                  <DropdownMenuRadioItem value="candles" className="text-sm text-foreground">
+                    {labels.candles}
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="line" className="text-sm text-foreground">
+                    {labels.line}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={setShowGrid} className="text-sm text-foreground">
+                  {labels.showGrid}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={showVolume} onCheckedChange={setShowVolume} className="text-sm text-foreground">
+                  {labels.showVolume}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={smoothAnimations} onCheckedChange={setSmoothAnimations} className="text-sm text-foreground">
+                  {labels.smoothAnimations}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={autoScale} onCheckedChange={setAutoScale} className="text-sm text-foreground">
+                  {labels.autoScale}
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
