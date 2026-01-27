@@ -422,6 +422,7 @@ export default function Trading({ language = "en" }) {
                     setSelectedSymbol(symbol);
                     setCopyMobileTab('chart');
                   }}
+                  language={language}
                 />
               </div>
             )}
@@ -524,6 +525,7 @@ export default function Trading({ language = "en" }) {
               liveAccount={liveAccount}
               preSelectedSignalId={urlSignalId}
               onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
+              language={language}
             />
           </div>
 

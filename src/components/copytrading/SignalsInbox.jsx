@@ -12,7 +12,7 @@ import AllocationModal from './AllocationModal';
 
 import { useRef } from 'react';
 
-export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFocus, preSelectedSignalId }) {
+export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFocus, preSelectedSignalId, language = 'en' }) {
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSignal, setSelectedSignal] = useState(null);
@@ -26,6 +26,74 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const [wallet, setWallet] = useState(null);
   const [config, setConfig] = useState(null);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+
+  // Translations
+  const t = {
+    en: {
+      accept: "Accept",
+      openPos: "Open a",
+      posFollow: "position following this signal.",
+      wallet: "Copy Trading Wallet",
+      avail: "Available",
+      allocated: "Allocated",
+      margin: "Margin",
+      enterAmt: "Enter amount",
+      leverage: "Leverage",
+      max: "Max",
+      entryEst: "Entry (Est.)",
+      notional: "Notional",
+      feeEst: "Fee (Est.)",
+      insufficient: "Insufficient balance",
+      need: "Need",
+      missing: "Missing",
+      transfer: "Transfer USDT",
+      cancel: "Cancel",
+      confirm: "Confirm Trade",
+      newSignals: "New Signals",
+      checking: "Checking signals...",
+      noSignals: "No active signals",
+      waiting: "Waiting for experts...",
+      refresh: "Refresh",
+      validAmt: "Please enter a valid amount",
+      success: "Signal accepted! Position opened.",
+      failed: "Failed to accept signal",
+      ignored: "Signal ignored",
+      failReject: "Failed to reject"
+    },
+    ar: {
+      accept: "قبول",
+      openPos: "فتح صفقة",
+      posFollow: "بناءً على هذه الإشارة.",
+      wallet: "محفظة النسخ",
+      avail: "متاح",
+      allocated: "مخصص",
+      margin: "الهامش",
+      enterAmt: "أدخل المبلغ",
+      leverage: "الرافعة المالية",
+      max: "الحد الأقصى",
+      entryEst: "الدخول (تقديري)",
+      notional: "القيمة الاسمية",
+      feeEst: "الرسوم (تقديري)",
+      insufficient: "رصيد غير كافٍ",
+      need: "مطلوب",
+      missing: "ناقص",
+      transfer: "تحويل USDT",
+      cancel: "إلغاء",
+      confirm: "تأكيد الصفقة",
+      newSignals: "إشارات جديدة",
+      checking: "جاري التحقق...",
+      noSignals: "لا توجد إشارات نشطة",
+      waiting: "بانتظار الخبراء...",
+      refresh: "تحديث",
+      validAmt: "يرجى إدخال مبلغ صحيح",
+      success: "تم قبول الإشارة! تم فتح الصفقة.",
+      failed: "فشل قبول الإشارة",
+      ignored: "تم تجاهل الإشارة",
+      failReject: "فشل التجاهل"
+    }
+  };
+  const labels = t[language] || t.en;
+  const isRTL = language === "ar";
 
   const loadSignals = async () => {
     // Silent update if we already have data
@@ -166,10 +234,10 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background" dir={isRTL ? "rtl" : "ltr"}>
       <div className="p-4 border-b border-border/50 shrink-0 bg-background/50 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
         <h3 className="text-sm font-semibold flex items-center gap-2">
-          New Signals
+          {labels.newSignals}
           <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
             {signals.length}
           </span>
@@ -183,16 +251,16 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
         {loading && signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary" />
-            <span className="text-sm">Checking signals...</span>
+            <span className="text-sm">{labels.checking}</span>
           </div>
         ) : signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
             <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl bg-muted/10 w-full max-w-xs">
               <Inbox className="w-10 h-10 text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium text-foreground">No active signals</p>
-              <p className="text-xs text-muted-foreground mt-1">Waiting for experts...</p>
+              <p className="text-sm font-medium text-foreground">{labels.noSignals}</p>
+              <p className="text-xs text-muted-foreground mt-1">{labels.waiting}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={manualRefresh}>
-                Refresh
+                {labels.refresh}
               </Button>
             </div>
           </div>
@@ -204,6 +272,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 signal={signal} 
                 onAccept={handleAcceptClick}
                 onReject={handleRejectClick}
+                language={language}
               />
             ))}
           </div>
@@ -211,11 +280,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       </ScrollArea>
 
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
           <DialogHeader>
-            <DialogTitle>Accept {selectedSignal?.symbol}</DialogTitle>
+            <DialogTitle>{labels.accept} {selectedSignal?.symbol}</DialogTitle>
             <DialogDescription>
-              Open a {selectedSignal?.side} position following this signal.
+              {labels.openPos} {selectedSignal?.side} {labels.posFollow}
             </DialogDescription>
           </DialogHeader>
           
@@ -224,15 +293,15 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             <div className="bg-muted/30 border border-border/50 rounded-lg p-3 space-y-1.5">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <WalletIcon className="w-3.5 h-3.5" />
-                <span>Copy Trading Wallet</span>
+                <span>{labels.wallet}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm">Available</span>
+                <span className="text-sm">{labels.avail}</span>
                 <span className="font-mono font-bold text-lg">{(wallet?.available_balance || 0).toFixed(2)} USDT</span>
               </div>
               {wallet?.locked_balance > 0 && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Allocated</span>
+                  <span className="text-muted-foreground">{labels.allocated}</span>
                   <span className="font-mono">{wallet.locked_balance.toFixed(2)} USDT</span>
                 </div>
               )}
@@ -240,12 +309,12 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
             {/* Amount Input */}
             <div className="space-y-2">
-              <Label>Margin (USDT)</Label>
+              <Label>{labels.margin} (USDT)</Label>
               <Input 
                 type="number" 
                 value={amount} 
                 onChange={e => setAmount(e.target.value)}
-                placeholder="Enter amount"
+                placeholder={labels.enterAmt}
                 className="font-mono text-lg"
                 step="0.01"
                 min="0"
@@ -300,8 +369,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             {/* Leverage */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Leverage</Label>
-                <span className="text-xs text-muted-foreground">Max: {config?.max_leverage || 20}x</span>
+                <Label>{labels.leverage}</Label>
+                <span className="text-xs text-muted-foreground">{labels.max}: {config?.max_leverage || 20}x</span>
               </div>
               <Input 
                 type="number" 
@@ -316,15 +385,15 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             {/* Summary */}
             <div className="bg-muted/30 p-3 rounded-lg text-sm space-y-2 border border-border/50">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Entry (Est.)</span>
+                <span className="text-muted-foreground">{labels.entryEst}</span>
                 <span className="font-mono">{selectedSignal?.entry_price || '--'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Notional</span>
+                <span className="text-muted-foreground">{labels.notional}</span>
                 <span className="font-mono font-medium text-foreground">{(Number(amount || 0) * Number(leverage)).toFixed(2)} USDT</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Fee (Est.)</span>
+                <span className="text-muted-foreground">{labels.feeEst}</span>
                 <span className="font-mono text-orange-500">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)} USDT</span>
               </div>
             </div>
@@ -346,9 +415,9 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                     <div className="flex items-start gap-2 text-xs text-red-600">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="space-y-1">
-                        <p className="font-medium">Insufficient balance</p>
-                        <p>Need {required.toFixed(2)} USDT ({amtNum.toFixed(2)} margin + {comm.toFixed(2)} fee)</p>
-                        <p>Missing: {missing.toFixed(2)} USDT</p>
+                        <p className="font-medium">{labels.insufficient}</p>
+                        <p>{labels.need} {required.toFixed(2)} USDT ({amtNum.toFixed(2)} {labels.margin} + {comm.toFixed(2)} {labels.feeEst})</p>
+                        <p>{labels.missing}: {missing.toFixed(2)} USDT</p>
                       </div>
                     </div>
                     <Button
@@ -361,7 +430,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                       }}
                     >
                       <WalletIcon className="w-3.5 h-3.5 mr-2" />
-                      Transfer USDT
+                      {labels.transfer}
                     </Button>
                   </div>
                 );
@@ -370,8 +439,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             })()}
           </div>
 
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>Cancel</Button>
+          <DialogFooter className={isRTL ? "gap-2" : ""}>
+            <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>{labels.cancel}</Button>
             <Button 
               onClick={handleConfirmAccept} 
               disabled={(() => {
@@ -387,7 +456,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               className="bg-primary"
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirm Trade
+              {labels.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>
