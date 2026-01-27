@@ -362,29 +362,40 @@ export default function Trading({ language = "en" }) {
       return (
         <div className="flex h-screen flex-col bg-background overflow-hidden">
           {/* Mobile Header with Mode Toggle */}
-          <div className="border-b border-border px-3 py-2 shrink-0 bg-background/80 backdrop-blur z-20">
-            <div className="flex items-center justify-between mb-2">
-              <button onClick={() => window.history.back()} className="text-foreground/60">
+          <div className="border-b border-border px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur z-50 sticky top-0">
+            <div className="flex items-center justify-between mb-3 relative">
+              <button 
+                onClick={() => window.history.back()} 
+                className="text-foreground/60 p-2 -ml-2 active:bg-accent rounded-full touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
+              >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div className="flex bg-muted/50 p-1 rounded-lg">
-                <button
-                  onClick={() => toggleMode('trade')}
-                  className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-                >
-                  {isAr ? "تداول" : "Trade"}
-                </button>
-                <button
-                  onClick={() => toggleMode('bots')}
-                  className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
-                >
-                  {isAr ? "نسخ التداول" : "Copy Trading"}
-                </button>
+              
+              {/* Centered Mode Toggle - High Z-Index, Large Touch Targets */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto">
+                <div className="flex bg-muted/50 p-1 rounded-xl">
+                  <button
+                    onClick={() => toggleMode('trade')}
+                    className={`h-9 px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {isAr ? "تداول" : "Trade"}
+                  </button>
+                  <button
+                    onClick={() => toggleMode('bots')}
+                    className={`h-9 px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    {isAr ? "نسخ" : "Copy"}
+                  </button>
+                </div>
               </div>
+
               <div className="flex items-center gap-1">
                 {isAuthenticated && <NotificationBell />}
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setWalletOpen(true)}>
-                  <ShieldIcon className="h-4 w-4" />
+                <Button size="sm" variant="ghost" className="h-10 w-10 p-0 rounded-full" onClick={() => setWalletOpen(true)}>
+                  <ShieldIcon className="h-5 w-5" />
                 </Button>
               </div>
             </div>
@@ -587,15 +598,17 @@ export default function Trading({ language = "en" }) {
             <div className="flex bg-muted/50 p-1 rounded-lg">
               <button
                 onClick={() => toggleMode('trade')}
-                className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                className={`h-8 px-4 rounded-md text-xs font-medium transition-all touch-manipulation ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                style={{ touchAction: 'manipulation' }}
               >
                 {isAr ? "تداول" : "Trade"}
               </button>
               <button
                 onClick={() => toggleMode('bots')}
-                className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                className={`h-8 px-4 rounded-md text-xs font-medium transition-all touch-manipulation ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                style={{ touchAction: 'manipulation' }}
               >
-                {isAr ? "نسخ التداول" : "Copy Trading"}
+                {isAr ? "نسخ" : "Copy"}
               </button>
             </div>
             

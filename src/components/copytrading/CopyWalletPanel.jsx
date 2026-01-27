@@ -31,7 +31,7 @@ const t = {
     active: "Active",
     deposit: "Deposit",
     withdraw: "Withdraw",
-    locked: "Locked",
+    locked: "In Trade",
     unlocked: "Unlocked",
     commission: "Commission",
   },
@@ -47,7 +47,7 @@ const t = {
     active: "نشط",
     deposit: "إيداع",
     withdraw: "سحب",
-    locked: "مقفل",
+    locked: "قيد التداول",
     unlocked: "مفتوح",
     commission: "عمولة",
   }

@@ -97,38 +97,38 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
         <div className="flex justify-between items-center text-sm h-6">
           <span className="text-muted-foreground text-xs">{labels.entry}</span>
           <div className="flex items-center">
-            <span className="font-mono font-medium">{Number(signal.entry_price) || '--'}</span>
-            <span className="text-[10px] text-muted-foreground ml-1 bg-muted px-1 rounded">
+            <span className="font-mono font-medium tabular-nums tracking-tight">{Number(signal.entry_price) || '--'}</span>
+            <span className="text-[10px] text-muted-foreground ml-1 bg-muted px-1 rounded shrink-0">
               {signal.entry_type === 'MARKET' ? 'MKT' : 'LMT'}
             </span>
           </div>
         </div>
 
-        {/* TP / SL Grid */}
+        {/* TP / SL Grid - Stacked on super small screens, grid on normal mobile */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 py-1">
           {/* TP1 */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-1 text-green-600 text-xs">
+          <div className="flex justify-between items-center min-w-0">
+            <div className="flex items-center gap-1 text-green-600 text-xs shrink-0">
               <Target className="w-3 h-3" />
               <span>{labels.tp1}</span>
             </div>
-            <span className="font-mono text-sm">{signal.tp1}</span>
+            <span className="font-mono text-sm tabular-nums text-right truncate ml-2">{signal.tp1}</span>
           </div>
           
           {/* SL */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-1 text-red-600 text-xs">
+          <div className="flex justify-between items-center min-w-0">
+            <div className="flex items-center gap-1 text-red-600 text-xs shrink-0">
               <ShieldAlert className="w-3 h-3" />
               <span>{labels.sl}</span>
             </div>
-            <span className="font-mono text-sm">{signal.stop_loss}</span>
+            <span className="font-mono text-sm tabular-nums text-right truncate ml-2">{signal.stop_loss}</span>
           </div>
 
           {/* TP2 (Optional) */}
           {!!Number(signal.tp2) && (
-            <div className="flex justify-between items-center col-span-2 border-t border-dashed border-border/50 mt-1 pt-1">
-              <span className="text-[10px] text-muted-foreground">{labels.tp2}</span>
-              <span className="font-mono text-sm text-green-600/80">{signal.tp2}</span>
+            <div className="flex justify-between items-center col-span-2 border-t border-dashed border-border/50 mt-1 pt-1 min-w-0">
+              <span className="text-[10px] text-muted-foreground shrink-0">{labels.tp2}</span>
+              <span className="font-mono text-sm text-green-600/80 tabular-nums text-right truncate ml-2">{signal.tp2}</span>
             </div>
           )}
         </div>
