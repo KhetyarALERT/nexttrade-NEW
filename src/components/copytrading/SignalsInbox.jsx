@@ -130,11 +130,15 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   useEffect(() => {
     // Auth guard & Visibility guard
-    const runLoad = () => {
+    const runLoad = async () => {
       if (document.hidden) return;
-      // We can check auth via base44 client or assume parent handles it.
-      // But explicit check is safer if auth state is available.
-      // Assuming component is unmounted if not auth, but double check.
+      
+      // Explicit auth check before fetching
+      try {
+        const user = await base44.auth.me().catch(() => null);
+        if (!user) return; 
+      } catch { return; }
+
       loadSignals();
     };
 
