@@ -10,11 +10,14 @@ import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AllocationModal from './AllocationModal';
 
-export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFocus }) {
+import { useRef } from 'react';
+
+export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFocus, preSelectedSignalId }) {
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSignal, setSelectedSignal] = useState(null);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const autoOpenedRef = useRef(new Set());
   
   // Accept Form
   const [amount, setAmount] = useState('');
@@ -66,6 +69,17 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       onSymbolFocus(signal.symbol);
     }
   };
+
+  // Auto-open dialog if preSelectedSignalId matches
+  useEffect(() => {
+    if (preSelectedSignalId && signals.length > 0) {
+      const target = signals.find(s => s.id === preSelectedSignalId);
+      if (target && !autoOpenedRef.current.has(preSelectedSignalId)) {
+        handleAcceptClick(target);
+        autoOpenedRef.current.add(preSelectedSignalId);
+      }
+    }
+  }, [signals, preSelectedSignalId]);
 
   const handleRejectClick = async (signal) => {
     // Optimistic UI

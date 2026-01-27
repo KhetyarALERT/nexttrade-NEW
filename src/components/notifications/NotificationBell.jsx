@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Bell, Check, CheckCheck, Settings, TrendingUp, AlertTriangle, Wallet, Lock, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,13 @@ export default function NotificationBell({ onSettingsClick }) {
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+    }
+
+    // Handle Signal Notifications
+    if (notification.data?.signalId) {
+      setOpen(false);
+      navigate(`${createPageUrl("Futures")}?tab=bots&signalId=${notification.data.signalId}`);
+      return;
     }
     
     // Navigate if the notification has a link

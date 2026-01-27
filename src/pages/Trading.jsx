@@ -417,6 +417,7 @@ export default function Trading({ language = "en" }) {
                     setCopyMobileTab('positions'); 
                   }} 
                   liveAccount={liveAccount}
+                  preSelectedSignalId={urlSignalId}
                   onSymbolFocus={(symbol) => {
                     setSelectedSymbol(symbol);
                     setCopyMobileTab('chart');
@@ -521,6 +522,7 @@ export default function Trading({ language = "en" }) {
             <SignalsInbox 
               onSignalAccepted={handleRefresh} 
               liveAccount={liveAccount}
+              preSelectedSignalId={urlSignalId}
               onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
             />
           </div>
