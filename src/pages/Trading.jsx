@@ -355,20 +355,28 @@ export default function Trading({ language = "en" }) {
       <div className="flex h-screen flex-col bg-background">
         {/* Mobile Header */}
         <div className="border-b border-border px-3 py-2.5 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
-                <ArrowLeft className="h-5 w-5" />
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            
+            {/* Mode Toggle - Mobile */}
+            <div className="flex bg-muted/50 p-1 rounded-lg">
+              <button
+                onClick={() => toggleMode('trade')}
+                className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+              >
+                Trade
               </button>
-              <BinanceSymbolSelector 
-                selectedSymbol={selectedSymbol} 
-                onSelectSymbol={handleSymbolChange} 
-                language={language}
-                height="compact"
-              />
+              <button
+                onClick={() => toggleMode('bots')}
+                className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+              >
+                Signals
+              </button>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {/* Connection status */}
               <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${
                 wsConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
@@ -388,20 +396,28 @@ export default function Trading({ language = "en" }) {
             </div>
           </div>
           
-          {/* Price stats row */}
-          <div className="flex items-center gap-4 mt-2">
-            {stats.map((stat) => (
-              <div key={stat.label} className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted-foreground">{stat.label}:</span>
-                <span className={`text-xs font-semibold ${
-                  stat.isPositive !== undefined 
-                    ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
-                    : "text-foreground"
-                }`}>
-                  {stat.value}
-                </span>
-              </div>
-            ))}
+          {/* Symbol + Price stats row */}
+          <div className="flex items-center justify-between">
+            <BinanceSymbolSelector 
+              selectedSymbol={selectedSymbol} 
+              onSelectSymbol={handleSymbolChange} 
+              language={language}
+              height="compact"
+            />
+            <div className="flex items-center gap-3">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex items-center gap-1">
+                  <span className="text-[9px] text-muted-foreground">{stat.label}:</span>
+                  <span className={`text-[10px] font-semibold ${
+                    stat.isPositive !== undefined 
+                      ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
+                      : "text-foreground"
+                  }`}>
+                    {stat.value}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
