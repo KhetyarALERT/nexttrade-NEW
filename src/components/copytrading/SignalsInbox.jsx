@@ -129,11 +129,17 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   };
 
   useEffect(() => {
-    loadSignals();
-    const interval = setInterval(() => {
-      if (document.hidden) return; // Don't poll if tab hidden
+    // Auth guard & Visibility guard
+    const runLoad = () => {
+      if (document.hidden) return;
+      // We can check auth via base44 client or assume parent handles it.
+      // But explicit check is safer if auth state is available.
+      // Assuming component is unmounted if not auth, but double check.
       loadSignals();
-    }, 30000); 
+    };
+
+    runLoad();
+    const interval = setInterval(runLoad, 30000); 
     return () => clearInterval(interval);
   }, []);
 

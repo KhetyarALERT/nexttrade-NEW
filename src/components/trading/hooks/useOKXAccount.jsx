@@ -172,7 +172,9 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
     // Account polling (slower - every 60s)
     const pollAccount = async () => {
       if (!mountedRef.current || !enabled) return;
-      await fetchAccount();
+      if (!document.hidden) { // Smart Polling: Only if visible
+        await fetchAccount();
+      }
       if (mountedRef.current && enabled) {
         pollTimeoutRef.current = setTimeout(pollAccount, POLL_INTERVAL);
       }
@@ -181,11 +183,13 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
     // Positions polling - combined with orders (every 45s)
     const pollPositions = async () => {
       if (!mountedRef.current || !enabled) return;
-      // Batch these together in sequence to avoid parallel 429
-      await fetchPositions();
-      // Small delay between calls
-      await new Promise(r => setTimeout(r, 500));
-      await fetchOrders();
+      if (!document.hidden) { // Smart Polling: Only if visible
+        // Batch these together in sequence to avoid parallel 429
+        await fetchPositions();
+        // Small delay between calls
+        await new Promise(r => setTimeout(r, 500));
+        await fetchOrders();
+      }
       if (mountedRef.current && enabled) {
         positionsPollTimeoutRef.current = setTimeout(pollPositions, POSITIONS_POLL_INTERVAL);
       }

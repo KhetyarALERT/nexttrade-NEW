@@ -78,6 +78,14 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
   const lastLoadTime = useRef(0);
 
   const loadData = useCallback(async (force = false) => {
+    // Auth & Visibility Guard
+    if (document.hidden && !force) return;
+    
+    try {
+      const user = await base44.auth.me().catch(() => null);
+      if (!user) return; // Stop if not authenticated
+    } catch { return; }
+
     // Rate limiting: prevent calls within 2 seconds unless forced
     const now = Date.now();
     if (!force && now - lastLoadTime.current < 2000) {

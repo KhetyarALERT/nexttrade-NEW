@@ -20,7 +20,7 @@ function formatCompactPrice(p) {
   return `$${p.toFixed(2)}`;
 }
 
-export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
+const BinanceSymbolSelector = React.memo(function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
   const [open, setOpen] = useState(false);
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
@@ -134,9 +134,13 @@ export default function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, 
   );
 }
 
+});
+
 BinanceSymbolSelector.propTypes = {
   selectedSymbol: PropTypes.string.isRequired,
   onSelectSymbol: PropTypes.func.isRequired,
   height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   language: PropTypes.string,
 };
+
+export default BinanceSymbolSelector;

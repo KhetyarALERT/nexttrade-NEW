@@ -63,7 +63,7 @@ function getChartColors(isDark) {
   };
 }
 
-export default function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
+const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
@@ -957,6 +957,8 @@ export default function BinanceFuturesChart({ symbol, language = "en", onPriceUp
   );
 }
 
+});
+
 BinanceFuturesChart.propTypes = {
   symbol: PropTypes.string.isRequired,
   language: PropTypes.string,
@@ -964,3 +966,5 @@ BinanceFuturesChart.propTypes = {
   positionTrade: PropTypes.object,
   pendingOrders: PropTypes.array,
 };
+
+export default BinanceFuturesChart;
