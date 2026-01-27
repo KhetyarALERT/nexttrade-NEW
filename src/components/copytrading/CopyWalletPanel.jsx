@@ -143,17 +143,8 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Copy Trading</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadData} disabled={loading}>
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-      </div>
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Copy Trading</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadData} disabled={loading}>
+          <h2 className="text-sm font-semibold text-foreground">Balance</h2>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => loadData(true)} disabled={loading}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
