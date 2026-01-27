@@ -147,14 +147,29 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   // Auto-open dialog if preSelectedSignalId matches
   useEffect(() => {
-    if (preSelectedSignalId && signals.length > 0) {
-      const target = signals.find(s => s.id === preSelectedSignalId);
-      if (target && !autoOpenedRef.current.has(preSelectedSignalId)) {
-        handleAcceptClick(target);
-        autoOpenedRef.current.add(preSelectedSignalId);
+    if (preSelectedSignalId) {
+      // If signals loaded but target not found, maybe we need to refresh (rare race condition)
+      if (signals.length > 0) {
+        const target = signals.find(s => s.id === preSelectedSignalId);
+        if (target) {
+          if (!autoOpenedRef.current.has(preSelectedSignalId)) {
+            handleAcceptClick(target);
+            autoOpenedRef.current.add(preSelectedSignalId);
+          }
+        } else if (!loading) {
+          // Signal ID in URL but not in list? Maybe expired or not delivered yet?
+          // We could try force refresh once
+          if (!autoOpenedRef.current.has('refresh_' + preSelectedSignalId)) {
+            autoOpenedRef.current.add('refresh_' + preSelectedSignalId);
+            loadSignals();
+          }
+        }
+      } else if (!loading) {
+        // Signals empty and not loading -> refresh
+        loadSignals();
       }
     }
-  }, [signals, preSelectedSignalId]);
+  }, [signals, preSelectedSignalId, loading]);
 
   const handleRejectClick = async (signal) => {
     // Optimistic UI

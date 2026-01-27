@@ -94,10 +94,10 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
       {/* Body Content */}
       <div className="p-3 pt-2 space-y-2">
         {/* Entry */}
-        <div className="flex justify-between items-center text-sm">
+        <div className="flex justify-between items-center text-sm h-6">
           <span className="text-muted-foreground text-xs">{labels.entry}</span>
           <div className="flex items-center">
-            <span className="font-mono font-medium">{signal.entry_price}</span>
+            <span className="font-mono font-medium">{Number(signal.entry_price) || '--'}</span>
             <span className="text-[10px] text-muted-foreground ml-1 bg-muted px-1 rounded">
               {signal.entry_type === 'MARKET' ? 'MKT' : 'LMT'}
             </span>
@@ -125,7 +125,7 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
           </div>
 
           {/* TP2 (Optional) */}
-          {signal.tp2 && (
+          {!!Number(signal.tp2) && (
             <div className="flex justify-between items-center col-span-2 border-t border-dashed border-border/50 mt-1 pt-1">
               <span className="text-[10px] text-muted-foreground">{labels.tp2}</span>
               <span className="font-mono text-sm text-green-600/80">{signal.tp2}</span>
