@@ -124,16 +124,23 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
     return map[kind] || kind;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full p-6">
-        <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="h-full overflow-hidden flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
+      {loading ? (
+        <div className="flex items-center justify-center h-full p-6">
+          <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border shrink-0">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Copy Trading</h2>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
@@ -276,6 +283,8 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
         config={config}
         language={language}
       />
+        </>
+      )}
     </div>
   );
 }
