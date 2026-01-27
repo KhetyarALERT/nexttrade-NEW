@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AllocationModal from './AllocationModal';
 
-export default function SignalsInbox({ onSignalAccepted, liveAccount }) {
+export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFocus }) {
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSignal, setSelectedSignal] = useState(null);
@@ -60,6 +60,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount }) {
     setSelectedSignal(signal);
     setAmount(''); // Reset amount
     setAcceptDialogOpen(true);
+    
+    // Focus chart on signal symbol
+    if (onSymbolFocus && signal?.symbol) {
+      onSymbolFocus(signal.symbol);
+    }
   };
 
   const handleRejectClick = async (signal) => {

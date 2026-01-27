@@ -507,6 +507,10 @@ export default function Trading({ language = "en" }) {
                     setCopyMobileTab('positions'); 
                   }} 
                   liveAccount={liveAccount}
+                  onSymbolFocus={(symbol) => {
+                    setSelectedSymbol(symbol);
+                    setCopyMobileTab('chart');
+                  }}
                 />
               </div>
             )}
@@ -598,7 +602,11 @@ export default function Trading({ language = "en" }) {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Signals Inbox */}
           <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0">
-            <SignalsInbox onSignalAccepted={handleRefresh} liveAccount={liveAccount} />
+            <SignalsInbox 
+              onSignalAccepted={handleRefresh} 
+              liveAccount={liveAccount}
+              onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
+            />
           </div>
 
           {/* Center: Chart (Top) + Positions (Bottom) */}

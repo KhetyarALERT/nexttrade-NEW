@@ -545,7 +545,13 @@ Deno.serve(async (req) => {
       const wallet = await getOrCreateWallet(base44, user);
       
       // 3. Get Signal & Config
-      const signal = await base44.asServiceRole.entities.Signal.get(signalId);
+      let signal;
+      try {
+        signal = await base44.asServiceRole.entities.Signal.get(signalId);
+      } catch (e) {
+        return Response.json({ ok: false, error: { code: 'SIGNAL_NOT_FOUND', message: 'Signal not found' } });
+      }
+      
       if (!signal || signal.status !== 'ACTIVE') {
         return Response.json({ ok: false, error: { code: 'SIGNAL_INVALID', message: 'Signal not active' } });
       }
