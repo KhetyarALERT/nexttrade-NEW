@@ -955,8 +955,24 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
       </div>
     </div>
   );
-}
+}, (prev, next) => {
+  // Custom comparison to prevent chart rerenders on PnL/MarkPrice updates
+  const posEqual = 
+    prev.positionTrade?.id === next.positionTrade?.id &&
+    Number(prev.positionTrade?.entry_price || 0) === Number(next.positionTrade?.entry_price || 0) &&
+    Number(prev.positionTrade?.avg_entry_price || 0) === Number(next.positionTrade?.avg_entry_price || 0) &&
+    Number(prev.positionTrade?.take_profit || prev.positionTrade?.tp || 0) === Number(next.positionTrade?.take_profit || next.positionTrade?.tp || 0) &&
+    Number(prev.positionTrade?.stop_loss || prev.positionTrade?.sl || 0) === Number(next.positionTrade?.stop_loss || next.positionTrade?.sl || 0) &&
+    Number(prev.positionTrade?.liquidation_price || 0) === Number(next.positionTrade?.liquidation_price || 0);
 
+  return (
+    prev.symbol === next.symbol &&
+    prev.language === next.language &&
+    // Ignore function ref changes if safe, but safer to check ref
+    prev.onPriceUpdate === next.onPriceUpdate && 
+    prev.pendingOrders === next.pendingOrders &&
+    posEqual
+  );
 });
 
 BinanceFuturesChart.propTypes = {
