@@ -116,39 +116,6 @@ async function okxGetJson(url) {
   }
 }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new HttpError(
-      502,
-      "UPSTREAM_NON_JSON",
-      `OKX returned non-JSON (HTTP ${res.status})`,
-      { url, sample: text.slice(0, 200) }
-    );
-  }
-
-  if (!res.ok) {
-    throw new HttpError(
-      502,
-      "UPSTREAM_HTTP",
-      `OKX HTTP error (HTTP ${res.status})`,
-      { url, upstream: parsed }
-    );
-  }
-
-  if (parsed?.code !== "0") {
-    throw new HttpError(
-      502,
-      "OKX_ERROR",
-      parsed?.msg || "OKX error",
-      { url, upstream: parsed }
-    );
-  }
-
-  return parsed;
-}
-
 async function getOrFetch(cacheKey, type, fetcher) {
   const cached = getCached(cacheKey, type);
   if (cached) return { data: cached, cached: true };
