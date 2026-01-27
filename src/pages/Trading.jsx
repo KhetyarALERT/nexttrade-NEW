@@ -372,13 +372,13 @@ export default function Trading({ language = "en" }) {
                   onClick={() => toggleMode('trade')}
                   className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
                 >
-                  Trade
+                  {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
                   className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
                 >
-                  Copy Trading
+                  {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
               </div>
               <div className="flex items-center gap-1">
@@ -391,17 +391,21 @@ export default function Trading({ language = "en" }) {
 
             {/* Segmented Control */}
             <div className="grid grid-cols-3 gap-1 bg-muted/30 p-1 rounded-lg">
-              {['signals', 'chart', 'positions'].map(tab => (
+              {[
+                { id: 'signals', label: isAr ? 'الإشارات' : 'Signals' },
+                { id: 'chart', label: isAr ? 'الرسم البياني' : 'Chart' },
+                { id: 'positions', label: isAr ? 'الصفقات' : 'Positions' }
+              ].map(tab => (
                 <button
-                  key={tab}
-                  onClick={() => setCopyMobileTab(tab)}
+                  key={tab.id}
+                  onClick={() => setCopyMobileTab(tab.id)}
                   className={`py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
-                    copyMobileTab === tab 
+                    copyMobileTab === tab.id 
                       ? 'bg-background text-foreground shadow-sm' 
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {tab}
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -420,7 +424,7 @@ export default function Trading({ language = "en" }) {
                   preSelectedSignalId={urlSignalId}
                   onSymbolFocus={(symbol) => {
                     setSelectedSymbol(symbol);
-                    setCopyMobileTab('chart');
+                    // Do not switch tab on mobile when focusing for accept dialog
                   }}
                   language={language}
                 />
@@ -585,13 +589,13 @@ export default function Trading({ language = "en" }) {
                 onClick={() => toggleMode('trade')}
                 className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
               >
-                Trade
+                {isAr ? "تداول" : "Trade"}
               </button>
               <button
                 onClick={() => toggleMode('bots')}
                 className={`px-3 py-1 rounded text-[10px] font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
               >
-                Copy Trading
+                {isAr ? "نسخ التداول" : "Copy Trading"}
               </button>
             </div>
             
@@ -706,13 +710,13 @@ export default function Trading({ language = "en" }) {
               onClick={() => toggleMode('trade')}
               className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              Trade
+              {isAr ? "تداول" : "Trade"}
             </button>
             <button
               onClick={() => toggleMode('bots')}
               className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             >
-              Copy Trading
+              {isAr ? "نسخ التداول" : "Copy Trading"}
             </button>
           </div>
           
