@@ -22,8 +22,9 @@ export default function SignalCard({ signal, onAccept, onReject }) {
   // Format expiry nicely
   const expiry = new Date(signal.expires_at);
   const isExpired = expiry < new Date();
+  // Shorten date format for mobile
   const timeStr = expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr = expiry.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const dateStr = expiry.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
 
   return (
     <Card className={cn(
@@ -33,12 +34,12 @@ export default function SignalCard({ signal, onAccept, onReject }) {
     )}>
       {/* Header Row */}
       <div className="p-3 pb-2 flex justify-between items-center border-b border-border/50">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <span className="font-bold text-base truncate">{signal.symbol}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-sm sm:text-base truncate">{signal.symbol}</span>
           <Badge 
             variant="outline" 
             className={cn(
-              "px-1.5 py-0 text-[10px] h-5 font-semibold border-0",
+              "px-1.5 py-0 text-[10px] h-5 font-semibold border-0 shrink-0",
               isLong ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
             )}
           >
@@ -46,9 +47,9 @@ export default function SignalCard({ signal, onAccept, onReject }) {
             {signal.side}
           </Badge>
         </div>
-        <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+        <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap shrink-0 ml-2">
           <Clock className="w-3 h-3 mr-1" />
-          {isExpired ? 'Expired' : `Exp: ${timeStr} ${dateStr}`}
+          {isExpired ? 'Exp' : `${timeStr} ${dateStr}`}
         </div>
       </div>
 

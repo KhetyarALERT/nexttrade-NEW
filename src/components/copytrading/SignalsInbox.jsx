@@ -160,47 +160,54 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     }
   };
 
-  if (loading && signals.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-        <Loader2 className="w-6 h-6 animate-spin mb-2" />
-        <span className="text-sm">Checking signals...</span>
-      </div>
-    );
-  }
-
-  if (signals.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-48 border border-dashed rounded-xl m-4 bg-muted/10">
-        <Inbox className="w-8 h-8 text-muted-foreground/50 mb-2" />
-        <p className="text-sm font-medium text-foreground">No active signals</p>
-        <p className="text-xs text-muted-foreground mt-1">Waiting for experts...</p>
-      </div>
-    );
-  }
+  const manualRefresh = () => {
+    setLoading(true);
+    loadSignals();
+  };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-border/50 shrink-0 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+    <div className="h-full flex flex-col bg-background">
+      <div className="p-4 border-b border-border/50 shrink-0 bg-background/50 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           New Signals
           <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
             {signals.length}
           </span>
         </h3>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={manualRefresh}>
+          <Loader2 className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
       
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-3">
-          {signals.map(signal => (
-            <SignalCard 
-              key={signal.id} 
-              signal={signal} 
-              onAccept={handleAcceptClick}
-              onReject={handleRejectClick}
-            />
-          ))}
-        </div>
+      <ScrollArea className="flex-1 h-full">
+        {loading && signals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary" />
+            <span className="text-sm">Checking signals...</span>
+          </div>
+        ) : signals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl bg-muted/10 w-full max-w-xs">
+              <Inbox className="w-10 h-10 text-muted-foreground/50 mb-3" />
+              <p className="text-sm font-medium text-foreground">No active signals</p>
+              <p className="text-xs text-muted-foreground mt-1">Waiting for experts...</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={manualRefresh}>
+                Refresh
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 space-y-3 pb-20">
+            {signals.map(signal => (
+              <SignalCard 
+                key={signal.id} 
+                signal={signal} 
+                onAccept={handleAcceptClick}
+                onReject={handleRejectClick}
+              />
+            ))}
+          </div>
+        )}
       </ScrollArea>
 
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
