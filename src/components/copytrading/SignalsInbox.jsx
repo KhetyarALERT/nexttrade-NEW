@@ -52,7 +52,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   useEffect(() => {
     loadSignals();
-    const interval = setInterval(loadSignals, 15000); // Poll every 15s
+    const interval = setInterval(loadSignals, 30000); // Poll every 30s to prevent rate limits
     return () => clearInterval(interval);
   }, []);
 
