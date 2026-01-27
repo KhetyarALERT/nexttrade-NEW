@@ -60,7 +60,9 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       success: "Signal accepted! Position opened.",
       failed: "Failed to accept signal",
       ignored: "Signal ignored",
-      failReject: "Failed to reject"
+      failReject: "Failed to reject",
+      estimates: "Estimated PnL",
+      roi: "ROI"
     },
     ar: {
       accept: "قبول",
@@ -92,7 +94,9 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       success: "تم قبول الإشارة! تم فتح الصفقة.",
       failed: "فشل قبول الإشارة",
       ignored: "تم تجاهل الإشارة",
-      failReject: "فشل التجاهل"
+      failReject: "فشل التجاهل",
+      estimates: "الأرباح المتوقعة",
+      roi: "العائد"
     }
   };
   const labels = t[language] || t.en;
@@ -374,7 +378,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               <div className="flex items-center justify-between">
                 <Label>{labels.leverage}</Label>
                 {(() => {
-                  const userMax = config?.user_max_leverage || 20;
+                  const userMax = config?.user_max_leverage || 50;
                   const signalMax = selectedSignal?.max_leverage || 20;
                   const allowedMax = Math.min(userMax, signalMax, 100);
                   return <span className="text-xs text-muted-foreground">{labels.max}: {allowedMax}x</span>;
@@ -384,19 +388,77 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 type="number" 
                 value={leverage} 
                 onChange={e => {
-                  setLeverage(e.target.value);
-                  const val = Number(e.target.value);
-                  const userMax = config?.user_max_leverage || 20;
+                  const val = e.target.value;
+                  setLeverage(val);
+                  
+                  const numVal = Number(val);
+                  const userMax = config?.user_max_leverage || 50;
                   const signalMax = selectedSignal?.max_leverage || 20;
                   const allowedMax = Math.min(userMax, signalMax, 100);
-                  if (val > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
+                  
+                  if (numVal > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
                   else setMaxLevError('');
                 }}
                 min="1"
+                max={(() => {
+                  const userMax = config?.user_max_leverage || 50;
+                  const signalMax = selectedSignal?.max_leverage || 20;
+                  return Math.min(userMax, signalMax, 100);
+                })()}
+                inputMode="decimal"
                 className={`font-mono ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
               {maxLevError && <p className="text-xs text-red-500">{maxLevError}</p>}
             </div>
+            
+            {/* PnL Estimates */}
+            {(() => {
+              const entry = Number(selectedSignal?.entry_price) || 0;
+              const side = selectedSignal?.side || 'LONG';
+              const m = Number(amount) || 0;
+              const l = Number(leverage) || 1;
+              const notional = m * l;
+              const qty = entry > 0 ? notional / entry : 0;
+
+              const calcPnL = (targetPrice) => {
+                if (!targetPrice || !qty) return null;
+                const pnl = side === 'LONG' ? (targetPrice - entry) * qty : (entry - targetPrice) * qty;
+                const roi = m > 0 ? (pnl / m) * 100 : 0;
+                return { pnl, roi };
+              };
+
+              const tp1Est = calcPnL(selectedSignal?.tp1);
+              const tp2Est = calcPnL(selectedSignal?.tp2);
+              const slEst = calcPnL(selectedSignal?.stop_loss);
+
+              if (!tp1Est && !slEst) return null;
+
+              return (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">{labels.estimates}</Label>
+                  <div className="bg-muted/30 rounded-lg p-2 text-xs space-y-1 border border-border/50">
+                    {tp1Est && (
+                      <div className="flex justify-between text-green-600">
+                        <span>TP1 ({selectedSignal?.tp1})</span>
+                        <span className="font-mono">+{tp1Est.pnl.toFixed(2)} USDT (+{tp1Est.roi.toFixed(1)}%)</span>
+                      </div>
+                    )}
+                    {tp2Est && (
+                      <div className="flex justify-between text-green-600/80">
+                        <span>TP2 ({selectedSignal?.tp2})</span>
+                        <span className="font-mono">+{tp2Est.pnl.toFixed(2)} USDT (+{tp2Est.roi.toFixed(1)}%)</span>
+                      </div>
+                    )}
+                    {slEst && (
+                      <div className="flex justify-between text-red-600">
+                        <span>SL ({selectedSignal?.stop_loss})</span>
+                        <span className="font-mono">{slEst.pnl.toFixed(2)} USDT ({slEst.roi.toFixed(1)}%)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             
             {/* Summary */}
             <div className="bg-muted/30 p-3 rounded-lg text-sm space-y-2 border border-border/50">
@@ -409,14 +471,14 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 <span className="font-mono font-medium text-foreground">{(Number(amount || 0) * Number(leverage)).toFixed(2)} USDT</span>
               </div>
               
-              {/* Fee Details - Collapsible or subtle */}
+              {/* Fee Details - Collapsible */}
               <div className="border-t border-border/50 pt-2 mt-2">
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-between">
-                    <span>{labels.feeEst}</span>
+                <details className="text-xs group">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-between list-none">
+                    <span className="underline decoration-dotted">{labels.feeEst}</span>
                     <span className="font-mono text-orange-500">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)}</span>
                   </summary>
-                  <div className="pt-1 text-muted-foreground pl-2">
+                  <div className="pt-2 text-muted-foreground pl-2 bg-muted/20 rounded mt-1 p-2">
                     {labels.fee}: {Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(4)} USDT
                   </div>
                 </details>
@@ -464,26 +526,28 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             })()}
           </div>
 
-          <DialogFooter className={isRTL ? "gap-2" : ""}>
-            <Button variant="ghost" onClick={() => setAcceptDialogOpen(false)}>{labels.cancel}</Button>
-            <Button 
-              onClick={handleConfirmAccept} 
-              disabled={(() => {
-                const amtNum = Number(amount || 0);
-                const available = wallet?.available_balance || 0;
-                const levNum = Number(leverage) || 5;
-                const commRate = config?.commission_open_rate || 0.0005;
-                const minComm = config?.min_commission_open || 0.05;
-                const comm = Math.max(minComm, amtNum * levNum * commRate);
-                const required = amtNum + comm;
-                return processing || amtNum <= 0 || required > available || !!maxLevError;
-              })()}
-              className="bg-primary"
-            >
-              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {labels.confirm}
-            </Button>
-          </DialogFooter>
+          <div className="sticky bottom-0 bg-background pt-4 pb-2 mt-auto border-t border-border/50">
+            <div className={`flex gap-3 ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
+              <Button variant="outline" className="flex-1" onClick={() => setAcceptDialogOpen(false)}>{labels.cancel}</Button>
+              <Button 
+                className="flex-1 bg-primary" 
+                onClick={handleConfirmAccept} 
+                disabled={(() => {
+                  const amtNum = Number(amount || 0);
+                  const available = wallet?.available_balance || 0;
+                  const levNum = Number(leverage) || 5;
+                  const commRate = config?.commission_open_rate || 0.0005;
+                  const minComm = config?.min_commission_open || 0.05;
+                  const comm = Math.max(minComm, amtNum * levNum * commRate);
+                  const required = amtNum + comm;
+                  return processing || amtNum <= 0 || required > available || !!maxLevError;
+                })()}
+              >
+                {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {labels.confirm}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

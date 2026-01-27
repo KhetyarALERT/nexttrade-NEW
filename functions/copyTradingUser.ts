@@ -219,7 +219,8 @@ Deno.serve(async (req) => {
 
       // Effective User Max Leverage (Global default vs User override)
       // Default global max leverage is 20 if not set in config (schema default needed or assumed)
-      const globalMaxLev = 20; // Hardcoded default for now or add to config entity
+      // For Copy Trading (Paper), we can be more generous if no entitlement exists
+      const globalMaxLev = 50; 
       const userMaxLev = userEntitlement?.leverage_max || globalMaxLev;
 
       return Response.json({ 
@@ -583,10 +584,10 @@ Deno.serve(async (req) => {
 
       // 3b. Enforce Max Leverage
       // Rule: Allowed = Min(Signal Max, User Entitlement Max, Global Cap 100)
-      let userMaxLev = 20; // Default
+      let userMaxLev = 50; // Default generous for paper
       try {
         const ents = await base44.asServiceRole.entities.UserEntitlement.filter({ user_id: user.id });
-        if (ents?.length) userMaxLev = ents[0].leverage_max || 20;
+        if (ents?.length) userMaxLev = ents[0].leverage_max || 50;
       } catch (e) {}
 
       const signalMaxLev = signal.max_leverage || 20;
