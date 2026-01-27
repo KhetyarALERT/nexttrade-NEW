@@ -28,6 +28,7 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
 
   const t = {
     en: {
+      maxLev: "Max Lev",
       exp: "Exp",
       expired: "Expired",
       entry: "Entry",
@@ -40,6 +41,7 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
       accept: "Accept"
     },
     ar: {
+      maxLev: "أقصى رافعة",
       exp: "انتهاء",
       expired: "منتهي",
       entry: "دخول",
@@ -76,9 +78,16 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
             {signal.side}
           </Badge>
         </div>
-        <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap shrink-0 ml-2">
-          <Clock className="w-3 h-3 mr-1" />
-          {isExpired ? labels.expired : `${labels.exp}: ${timeStr} ${dateStr}`}
+        <div className="flex items-center gap-2">
+          {signal.max_leverage && (
+            <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground whitespace-nowrap">
+              {labels.maxLev}: {signal.max_leverage}x
+            </span>
+          )}
+          <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+            <Clock className="w-3 h-3 mr-1" />
+            {isExpired ? labels.expired : `${labels.exp}: ${timeStr} ${dateStr}`}
+          </div>
         </div>
       </div>
 

@@ -304,6 +304,7 @@ Deno.serve(async (req) => {
         stop_loss: Number(signal.stop_loss) || 0,
         tp1: Number(signal.tp1) || 0,
         tp2: Number(signal.tp2) || 0,
+        max_leverage: Math.min(100, Math.max(1, Number(signal.max_leverage) || 20)),
         timeframe: signal.timeframe || '1h',
         notes: signal.notes || '',
         raw_text: signal.raw_text || 'Manual signal created by admin',
@@ -311,9 +312,219 @@ Deno.serve(async (req) => {
         expires_at: expiresAt
       });
 
-      // TODO: In future, trigger delivery to users here (or via separate processor)
+      // Deliver signal to eligible users
+      try {
+        const configs = await base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' });
+        const config = configs?.[0];
+        
+        // Manual signals are always delivered if signals enabled globally
+        if (config?.signals_enabled) {
+          const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ status: 'ACTIVE' });
+          const deliveries = [];
+          
+          for (const wallet of wallets || []) {
+            deliveries.push({
+              signal_id: newSignal.id,
+              user_id: wallet.user_id,
+              delivered_at: now,
+              status: 'DELIVERED'
+            });
+          }
+
+          if (deliveries.length > 0) {
+            await base44.asServiceRole.entities.SignalDelivery.bulkCreate(deliveries);
+            
+            // Send notifications
+            for (const delivery of deliveries) {
+              try {
+                // Simplified preference check - assume yes for MVP manual signals
+                await base44.asServiceRole.entities.Notification.create({
+                  user_id: delivery.user_id,
+                  type: 'trade_executed',
+                  title: '🚀 New Trading Signal',
+                  message: `${newSignal.symbol} ${newSignal.side} @ ${newSignal.entry_price}`,
+                  data: { 
+                    instId: newSignal.symbol,
+                    signalId: newSignal.id,
+                    link: `/Trading?tab=bots&signalId=${newSignal.id}`
+                  },
+                  read: false,
+                  priority: 'high'
+                });
+              } catch (e) {}
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to deliver manual signal:', err);
+      }
       
       return Response.json({ ok: true, data: newSignal });
+    }
+
+    // ==================== SIGNAL DETAILS & FORCE CLOSE ====================
+    if (action === 'getSignalDetails') {
+      const { signalId } = body;
+      if (!signalId) return Response.json({ ok: false, error: 'Missing signalId' });
+
+      // 1. Get Signal
+      let signal;
+      try { signal = await base44.asServiceRole.entities.Signal.get(signalId); } catch(e) {}
+      if (!signal) return Response.json({ ok: false, error: 'Signal not found' });
+
+      // 2. Get Positions (current status)
+      const positions = await base44.asServiceRole.entities.CopyPosition.filter({ signal_id: signalId }, '-opened_at', 500);
+      
+      // 3. Get User Details
+      const userIds = [...new Set(positions.map(p => p.user_id))];
+      const userMap = {};
+      
+      // Batch fetch users (simulated via parallel promises if $in not supported, or just list all users if small scale)
+      // Since we don't have $in guaranteed, we'll fetch individually in parallel (capped)
+      await Promise.all(userIds.map(async (uid) => {
+        try {
+          const u = await base44.asServiceRole.entities.User.get(uid);
+          if (u) userMap[uid] = u;
+        } catch (e) {}
+      }));
+
+      // 4. Combine
+      const rows = positions.map(p => {
+        const u = userMap[p.user_id] || {};
+        return {
+          positionId: p.id,
+          userId: p.user_id,
+          email: u.email || 'Unknown',
+          name: u.full_name || u.display_name || 'User',
+          status: p.status,
+          leverage: p.leverage,
+          margin: p.notional_usdt / p.leverage,
+          entryPrice: p.entry_price,
+          pnl: p.pnl_usdt,
+          openedAt: p.opened_at
+        };
+      });
+
+      return Response.json({ ok: true, data: { signal, rows } });
+    }
+
+    if (action === 'forceCloseSignalPositions') {
+      const { signalId, userId } = body;
+      if (!signalId) return Response.json({ ok: false, error: 'Missing signalId' });
+
+      // 1. Find Open Positions
+      const query = { signal_id: signalId, status: 'OPEN' };
+      if (userId) query.user_id = userId;
+      
+      const positions = await base44.asServiceRole.entities.CopyPosition.filter(query);
+      if (!positions.length) return Response.json({ ok: true, message: 'No open positions to close', processed: 0 });
+
+      // 2. Get Live Price (Once)
+      const symbol = positions[0].symbol;
+      let closePrice = 0;
+      try {
+        const res = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${symbol}`);
+        const json = await res.json();
+        closePrice = Number(json.data?.[0]?.last);
+      } catch (e) {}
+      
+      if (!closePrice || closePrice <= 0) {
+        // Fallback to entry price if live fetch fails (emergency close)
+        closePrice = positions[0].entry_price; 
+      }
+
+      // 3. Close Loop
+      let processed = 0;
+      const now = new Date().toISOString();
+      const configs = await base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' });
+      const config = configs?.[0];
+      const commRate = config?.commission_close_rate || 0.0005;
+      const minComm = config?.min_commission_close || 0.05;
+
+      for (const pos of positions) {
+        try {
+          const qty = pos.notional_usdt / pos.entry_price;
+          const rawPnl = pos.side === 'LONG' 
+            ? (closePrice - pos.entry_price) * qty
+            : (pos.entry_price - closePrice) * qty;
+          
+          const pnl = Number(rawPnl.toFixed(2));
+          const pnlPct = (rawPnl / (pos.notional_usdt / pos.leverage)) * 100;
+          const commClose = Math.max(minComm, pos.notional_usdt * commRate);
+
+          // Update Position
+          await base44.asServiceRole.entities.CopyPosition.update(pos.id, {
+            status: 'CLOSED',
+            close_price: closePrice,
+            close_reason: 'MANUAL', // Admin force close
+            closed_at: now,
+            pnl_usdt: pnl,
+            pnl_pct: pnlPct,
+            commission_close_usdt: commClose
+          });
+
+          // Ledger PnL
+          await base44.asServiceRole.entities.CopyTradingLedger.create({
+            user_id: pos.user_id,
+            kind: 'PNL',
+            amount: pnl,
+            currency: 'USDT',
+            status: 'POSTED',
+            ref_type: 'POSITION',
+            ref_id: pos.id,
+            description: `PnL for ${pos.symbol} (Admin Force Close)`,
+            created_at: now
+          });
+
+          // Ledger Comm
+          await base44.asServiceRole.entities.CopyTradingLedger.create({
+            user_id: pos.user_id,
+            kind: 'COMMISSION_CLOSE',
+            amount: -commClose,
+            currency: 'USDT',
+            status: 'POSTED',
+            ref_type: 'POSITION',
+            ref_id: pos.id,
+            description: `Close commission for ${pos.symbol}`,
+            created_at: now
+          });
+
+          // Update Wallet
+          const margin = pos.notional_usdt / pos.leverage;
+          const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: pos.user_id });
+          if (walletRes?.[0]) {
+            const w = walletRes[0];
+            await base44.asServiceRole.entities.CopyTradingWallet.update(w.id, {
+              locked_balance: w.locked_balance - margin,
+              available_balance: w.available_balance + margin + pnl - commClose,
+              lifetime_pnl: (w.lifetime_pnl || 0) + pnl - commClose,
+              updated_at: now
+            });
+          }
+
+          // Notify
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: pos.user_id,
+            type: 'trade_closed',
+            title: '⚠️ Position Force Closed',
+            message: `Admin closed ${pos.symbol} @ ${closePrice}. PnL: ${pnl.toFixed(2)} USDT`,
+            data: { 
+              instId: pos.symbol,
+              positionId: pos.id,
+              pnl,
+              link: `/Trading?tab=bots&instId=${pos.symbol}`
+            },
+            read: false,
+            priority: 'high'
+          });
+
+          processed++;
+        } catch (e) {
+          console.error(`Failed to force close position ${pos.id}:`, e);
+        }
+      }
+
+      return Response.json({ ok: true, processed });
     }
 
     if (action === 'expireSignal') {

@@ -209,7 +209,27 @@ Deno.serve(async (req) => {
         deposit_source: 'OKX_TRADING',
         signals_enabled: false
       };
-      return Response.json({ ok: true, data: config });
+
+      // Also fetch user entitlement for max leverage
+      let userEntitlement = null;
+      try {
+        const ents = await base44.asServiceRole.entities.UserEntitlement.filter({ user_id: user.id });
+        if (ents?.length) userEntitlement = ents[0];
+      } catch (e) {}
+
+      // Effective User Max Leverage (Global default vs User override)
+      // Default global max leverage is 20 if not set in config (schema default needed or assumed)
+      const globalMaxLev = 20; // Hardcoded default for now or add to config entity
+      const userMaxLev = userEntitlement?.leverage_max || globalMaxLev;
+
+      return Response.json({ 
+        ok: true, 
+        data: {
+          ...config,
+          // Expose effective max leverage for UI logic
+          user_max_leverage: userMaxLev
+        }
+      });
     }
 
     // ==================== GET WALLET (auto-create if missing) ====================
@@ -560,6 +580,27 @@ Deno.serve(async (req) => {
       const config = configs?.[0];
       const commRate = config?.commission_open_rate || 0.0005;
       const minComm = config?.min_commission_open || 0.05;
+
+      // 3b. Enforce Max Leverage
+      // Rule: Allowed = Min(Signal Max, User Entitlement Max, Global Cap 100)
+      let userMaxLev = 20; // Default
+      try {
+        const ents = await base44.asServiceRole.entities.UserEntitlement.filter({ user_id: user.id });
+        if (ents?.length) userMaxLev = ents[0].leverage_max || 20;
+      } catch (e) {}
+
+      const signalMaxLev = signal.max_leverage || 20;
+      const allowedMaxLev = Math.min(signalMaxLev, userMaxLev, 100);
+
+      if (levNum > allowedMaxLev) {
+        return Response.json({ 
+          ok: false, 
+          error: { 
+            code: 'LEVERAGE_EXCEEDED', 
+            message: `Leverage ${levNum}x exceeds limit. Max allowed: ${allowedMaxLev}x` 
+          } 
+        });
+      }
 
       // 4. Calculate Required Funds (margin + commission)
       // "Amount" from UI = margin allocation (position size in USDT)

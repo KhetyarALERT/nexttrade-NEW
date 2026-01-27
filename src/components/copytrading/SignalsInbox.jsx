@@ -26,6 +26,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const [wallet, setWallet] = useState(null);
   const [config, setConfig] = useState(null);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [maxLevError, setMaxLevError] = useState('');
 
   // Translations
   const t = {
@@ -42,7 +43,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       max: "Max",
       entryEst: "Entry (Est.)",
       notional: "Notional",
-      feeEst: "Fee (Est.)",
+      feeEst: "Fee Details",
+      fee: "Estimated Fee",
       insufficient: "Insufficient balance",
       need: "Need",
       missing: "Missing",
@@ -73,7 +75,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       max: "الحد الأقصى",
       entryEst: "الدخول (تقديري)",
       notional: "القيمة الاسمية",
-      feeEst: "الرسوم (تقديري)",
+      feeEst: "تفاصيل الرسوم",
+      fee: "الرسوم التقديرية",
       insufficient: "رصيد غير كافٍ",
       need: "مطلوب",
       missing: "ناقص",
@@ -370,16 +373,29 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>{labels.leverage}</Label>
-                <span className="text-xs text-muted-foreground">{labels.max}: {config?.max_leverage || 20}x</span>
+                {(() => {
+                  const userMax = config?.user_max_leverage || 20;
+                  const signalMax = selectedSignal?.max_leverage || 20;
+                  const allowedMax = Math.min(userMax, signalMax, 100);
+                  return <span className="text-xs text-muted-foreground">{labels.max}: {allowedMax}x</span>;
+                })()}
               </div>
               <Input 
                 type="number" 
                 value={leverage} 
-                onChange={e => setLeverage(e.target.value)}
-                max={config?.max_leverage || 20}
+                onChange={e => {
+                  setLeverage(e.target.value);
+                  const val = Number(e.target.value);
+                  const userMax = config?.user_max_leverage || 20;
+                  const signalMax = selectedSignal?.max_leverage || 20;
+                  const allowedMax = Math.min(userMax, signalMax, 100);
+                  if (val > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
+                  else setMaxLevError('');
+                }}
                 min="1"
-                className="font-mono"
+                className={`font-mono ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               />
+              {maxLevError && <p className="text-xs text-red-500">{maxLevError}</p>}
             </div>
             
             {/* Summary */}
@@ -392,9 +408,18 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 <span className="text-muted-foreground">{labels.notional}</span>
                 <span className="font-mono font-medium text-foreground">{(Number(amount || 0) * Number(leverage)).toFixed(2)} USDT</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">{labels.feeEst}</span>
-                <span className="font-mono text-orange-500">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)} USDT</span>
+              
+              {/* Fee Details - Collapsible or subtle */}
+              <div className="border-t border-border/50 pt-2 mt-2">
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-between">
+                    <span>{labels.feeEst}</span>
+                    <span className="font-mono text-orange-500">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)}</span>
+                  </summary>
+                  <div className="pt-1 text-muted-foreground pl-2">
+                    {labels.fee}: {Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(4)} USDT
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -416,7 +441,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       <div className="space-y-1">
                         <p className="font-medium">{labels.insufficient}</p>
-                        <p>{labels.need} {required.toFixed(2)} USDT ({amtNum.toFixed(2)} {labels.margin} + {comm.toFixed(2)} {labels.feeEst})</p>
+                        <p>{labels.need} {required.toFixed(2)} USDT ({amtNum.toFixed(2)} {labels.margin})</p>
                         <p>{labels.missing}: {missing.toFixed(2)} USDT</p>
                       </div>
                     </div>
@@ -451,7 +476,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 const minComm = config?.min_commission_open || 0.05;
                 const comm = Math.max(minComm, amtNum * levNum * commRate);
                 const required = amtNum + comm;
-                return processing || amtNum <= 0 || required > available;
+                return processing || amtNum <= 0 || required > available || !!maxLevError;
               })()}
               className="bg-primary"
             >

@@ -27,6 +27,7 @@ export default function SignalsAdminTab({ onRefresh }) {
     stop_loss: '',
     tp1: '',
     tp2: '',
+    max_leverage: '20',
     notes: ''
   });
 
@@ -123,6 +124,7 @@ export default function SignalsAdminTab({ onRefresh }) {
           stop_loss: '',
           tp1: '',
           tp2: '',
+          max_leverage: '20',
           notes: ''
         });
         loadData();
@@ -149,6 +151,53 @@ export default function SignalsAdminTab({ onRefresh }) {
       }
     } catch (err) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedSignalId, setSelectedSignalId] = useState(null);
+  const [signalDetails, setSignalDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const openDetails = async (id) => {
+    setSelectedSignalId(id);
+    setDetailsOpen(true);
+    setLoadingDetails(true);
+    try {
+      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'getSignalDetails', signalId: id });
+      if (res.data?.ok) {
+        setSignalDetails(res.data.data);
+      }
+    } catch (e) {
+      toast.error('Failed to load details');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const forceCloseAll = async () => {
+    if (!confirm('Are you sure you want to force close ALL open positions for this signal? This will realize PnL for all users immediately.')) return;
+    try {
+      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId: selectedSignalId });
+      if (res.data?.ok) {
+        toast.success(`Closed ${res.data.processed} positions`);
+        openDetails(selectedSignalId); // Reload
+      }
+    } catch (e) {
+      toast.error('Failed to force close');
+    }
+  };
+
+  const forceCloseUser = async (userId) => {
+    if (!confirm('Force close position for this user?')) return;
+    try {
+      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId: selectedSignalId, userId });
+      if (res.data?.ok) {
+        toast.success('Position closed');
+        openDetails(selectedSignalId); // Reload
+      }
+    } catch (e) {
+      toast.error('Failed to force close');
     }
   };
 
@@ -226,6 +275,7 @@ export default function SignalsAdminTab({ onRefresh }) {
                 <TableHead>Entry</TableHead>
                 <TableHead>TP/SL</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Max Lev</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -263,22 +313,30 @@ export default function SignalsAdminTab({ onRefresh }) {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <span className="text-xs font-mono">{signal.max_leverage || 20}x</span>
+                    </TableCell>
+                    <TableCell>
                       <Badge className={statusColor(signal.status)}>
                         {signal.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs capitalize">{signal.source}</TableCell>
                     <TableCell className="text-right">
-                      {signal.status === 'ACTIVE' && (
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500" onClick={() => handleStatusUpdate(signal.id, 'EXPIRED')} title="Expire">
-                            <Clock className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleStatusUpdate(signal.id, 'CANCELED')} title="Cancel">
-                            <Ban className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openDetails(signal.id)}>
+                          Details
+                        </Button>
+                        {signal.status === 'ACTIVE' && (
+                          <>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500" onClick={() => handleStatusUpdate(signal.id, 'EXPIRED')} title="Expire">
+                              <Clock className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleStatusUpdate(signal.id, 'CANCELED')} title="Cancel">
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -405,6 +463,20 @@ export default function SignalsAdminTab({ onRefresh }) {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Max Leverage (x)</Label>
+                <Input 
+                  type="number" 
+                  value={newSignal.max_leverage}
+                  onChange={(e) => setNewSignal({...newSignal, max_leverage: e.target.value})}
+                  placeholder="20"
+                  min="1"
+                  max="100"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Notes</Label>
               <Textarea 
@@ -422,6 +494,87 @@ export default function SignalsAdminTab({ onRefresh }) {
               Publish Signal
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Drawer/Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Signal Details</DialogTitle>
+            <DialogDescription>
+              {signalDetails?.signal?.symbol} {signalDetails?.signal?.side} (ID: {selectedSignalId})
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingDetails ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center bg-muted/20 p-4 rounded-lg">
+                <div>
+                  <div className="text-sm font-medium">Accepted Users</div>
+                  <div className="text-2xl font-bold">{signalDetails?.rows?.length || 0}</div>
+                </div>
+                <Button variant="destructive" size="sm" onClick={forceCloseAll}>
+                  Force Close All Positions
+                </Button>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Margin</TableHead>
+                    <TableHead>Lev</TableHead>
+                    <TableHead>Entry</TableHead>
+                    <TableHead>PnL</TableHead>
+                    <TableHead>Opened</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {signalDetails?.rows?.map((row) => (
+                    <TableRow key={row.positionId}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{row.name}</span>
+                          <span className="text-xs text-muted-foreground">{row.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.status === 'OPEN' ? 'default' : 'secondary'}>
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{row.margin?.toFixed(2)}</TableCell>
+                      <TableCell>{row.leverage}x</TableCell>
+                      <TableCell>{row.entryPrice}</TableCell>
+                      <TableCell className={row.pnl >= 0 ? 'text-green-500' : 'text-red-500'}>
+                        {row.pnl !== null ? row.pnl?.toFixed(2) : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs">{new Date(row.openedAt).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        {row.status === 'OPEN' && (
+                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => forceCloseUser(row.userId)}>
+                            Close
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!signalDetails?.rows?.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">No acceptances yet</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
