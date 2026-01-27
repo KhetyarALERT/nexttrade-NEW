@@ -107,11 +107,11 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
           </div>
         </div>
 
-        {/* TP / SL Grid - Stacked on super small screens, grid on normal mobile */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 py-1">
+        {/* TP / SL Vertical Stack - Safer for narrow sidebars */}
+        <div className="flex flex-col gap-1 py-1">
           {/* TP1 */}
-          <div className="flex justify-between items-center min-w-0">
-            <div className="flex items-center gap-1 text-green-600 text-xs shrink-0">
+          <div className="flex justify-between items-center min-w-0 h-6 bg-green-500/5 rounded px-1.5">
+            <div className="flex items-center gap-1.5 text-green-600 text-xs shrink-0 font-medium">
               <Target className="w-3 h-3" />
               <span>{labels.tp1}</span>
             </div>
@@ -119,8 +119,8 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
           </div>
           
           {/* SL */}
-          <div className="flex justify-between items-center min-w-0">
-            <div className="flex items-center gap-1 text-red-600 text-xs shrink-0">
+          <div className="flex justify-between items-center min-w-0 h-6 bg-red-500/5 rounded px-1.5">
+            <div className="flex items-center gap-1.5 text-red-600 text-xs shrink-0 font-medium">
               <ShieldAlert className="w-3 h-3" />
               <span>{labels.sl}</span>
             </div>
@@ -129,9 +129,12 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
 
           {/* TP2 (Optional) */}
           {!!Number(signal.tp2) && (
-            <div className="flex justify-between items-center col-span-2 border-t border-dashed border-border/50 mt-1 pt-1 min-w-0">
-              <span className="text-[10px] text-muted-foreground shrink-0">{labels.tp2}</span>
-              <span className="font-mono text-sm text-green-600/80 tabular-nums text-right truncate ml-2">{signal.tp2}</span>
+            <div className="flex justify-between items-center min-w-0 h-6 bg-green-500/5 rounded px-1.5 border-t border-dashed border-green-500/10">
+              <div className="flex items-center gap-1.5 text-green-600/80 text-xs shrink-0">
+                <Target className="w-3 h-3" />
+                <span>{labels.tp2}</span>
+              </div>
+              <span className="font-mono text-sm tabular-nums text-right truncate ml-2 text-green-600/80">{signal.tp2}</span>
             </div>
           )}
         </div>
