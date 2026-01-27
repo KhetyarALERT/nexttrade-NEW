@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
