@@ -31,71 +31,71 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   // Translations
   const t = {
     en: {
-      accept: "Accept",
-      openPos: "Open a",
-      posFollow: "position following this signal.",
-      wallet: "Copy Trading Wallet",
-      avail: "Available",
+      accept: "Accept Signal",
+      openPos: "Open Position",
+      posFollow: "Configure your trade parameters below.",
+      wallet: "Wallet",
+      avail: "Avail",
       allocated: "Allocated",
-      margin: "Margin",
-      enterAmt: "Enter amount",
-      leverage: "Leverage",
+      margin: "Margin (USDT)",
+      enterAmt: "Amount",
+      leverage: "Leverage (x)",
       max: "Max",
-      entryEst: "Entry (Est.)",
-      notional: "Notional",
-      feeEst: "Fee Details",
-      fee: "Estimated Fee",
-      insufficient: "Insufficient balance",
-      need: "Need",
+      entryEst: "Entry",
+      notional: "Size",
+      feeEst: "Fee",
+      fee: "Est. Fee",
+      insufficient: "Low Balance",
+      need: "Req",
       missing: "Missing",
-      transfer: "Transfer USDT",
+      transfer: "Deposit",
       cancel: "Cancel",
-      confirm: "Confirm Trade",
-      newSignals: "New Signals",
-      checking: "Checking signals...",
-      noSignals: "No active signals",
+      confirm: "Confirm",
+      newSignals: "Signals",
+      checking: "Loading...",
+      noSignals: "No signals",
       waiting: "Waiting for experts...",
       refresh: "Refresh",
-      validAmt: "Please enter a valid amount",
-      success: "Signal accepted! Position opened.",
-      failed: "Failed to accept signal",
-      ignored: "Signal ignored",
-      failReject: "Failed to reject",
-      estimates: "Estimated PnL",
+      validAmt: "Invalid amount",
+      success: "Trade Opened!",
+      failed: "Failed",
+      ignored: "Ignored",
+      failReject: "Error",
+      estimates: "Est. PnL",
       roi: "ROI"
     },
     ar: {
-      accept: "قبول",
+      accept: "قبول الإشارة",
       openPos: "فتح صفقة",
-      posFollow: "بناءً على هذه الإشارة.",
-      wallet: "محفظة النسخ",
+      posFollow: "قم بإعداد تفاصيل الصفقة أدناه.",
+      wallet: "المحفظة",
       avail: "متاح",
       allocated: "مخصص",
-      margin: "الهامش",
-      enterAmt: "أدخل المبلغ",
-      leverage: "الرافعة المالية",
-      max: "الحد الأقصى",
-      entryEst: "الدخول (تقديري)",
-      notional: "القيمة الاسمية",
-      feeEst: "تفاصيل الرسوم",
+      margin: "الهامش (USDT)",
+      enterAmt: "المبلغ",
+      leverage: "الرافعة (x)",
+      max: "أقصى",
+      entryEst: "الدخول",
+      notional: "الحجم",
+      feeEst: "الرسوم",
       fee: "الرسوم التقديرية",
-      insufficient: "رصيد غير كافٍ",
+      insufficient: "رصيد منخفض",
       need: "مطلوب",
       missing: "ناقص",
-      transfer: "تحويل USDT",
+      transfer: "إيداع",
       cancel: "إلغاء",
-      confirm: "تأكيد الصفقة",
-      newSignals: "إشارات جديدة",
-      checking: "جاري التحقق...",
-      noSignals: "لا توجد إشارات نشطة",
-      waiting: "بانتظار الخبراء...",
+      confirm: "تأكيد",
+      newSignals: "الإشارات",
+      checking: "تحميل...",
+      noSignals: "لا توجد إشارات",
+      waiting: "بانتظار الإشارات...",
       refresh: "تحديث",
-      validAmt: "يرجى إدخال مبلغ صحيح",
-      success: "تم قبول الإشارة! تم فتح الصفقة.",
-      failed: "فشل قبول الإشارة",
-      ignored: "تم تجاهل الإشارة",
-      failReject: "فشل التجاهل",
-      estimates: "الأرباح المتوقعة",
+      validAmt: "مبلغ غير صحيح",
+      success: "تم فتح الصفقة!",
+      failed: "فشل",
+      ignored: "تجاهل",
+      failReject: "خطأ",
+      estimates: "الربح المتوقع",
       roi: "العائد"
     }
   };
@@ -287,55 +287,53 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       </ScrollArea>
 
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
-        <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
-          <DialogHeader>
-            <DialogTitle>{labels.accept} {selectedSignal?.symbol}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
+            <DialogTitle className="text-base">{labels.accept} {selectedSignal?.symbol}</DialogTitle>
+            <DialogDescription className="text-xs">
               {labels.openPos} {selectedSignal?.side} {labels.posFollow}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          <div className="flex-1 overflow-y-auto px-5 py-2 space-y-4">
             {/* Wallet Display */}
             <div className="bg-muted/30 border border-border/50 rounded-lg p-3 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <WalletIcon className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                <WalletIcon className="w-3 h-3" />
                 <span>{labels.wallet}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm">{labels.avail}</span>
-                <span className="font-mono font-bold text-lg">{(wallet?.available_balance || 0).toFixed(2)} USDT</span>
+              <div className="flex justify-between items-baseline">
+                <span className="text-xs text-muted-foreground">{labels.avail}</span>
+                <span className="font-mono font-bold text-lg text-foreground">{(wallet?.available_balance || 0).toFixed(2)} <span className="text-xs font-normal text-muted-foreground">USDT</span></span>
               </div>
-              {wallet?.locked_balance > 0 && (
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">{labels.allocated}</span>
-                  <span className="font-mono">{wallet.locked_balance.toFixed(2)} USDT</span>
-                </div>
-              )}
             </div>
 
             {/* Amount Input */}
-            <div className="space-y-2">
-              <Label>{labels.margin} (USDT)</Label>
-              <Input 
-                type="number" 
-                value={amount} 
-                onChange={e => setAmount(e.target.value)}
-                placeholder={labels.enterAmt}
-                className="font-mono text-lg"
-                step="0.01"
-                min="0"
-              />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">{labels.margin}</Label>
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)}
+                  placeholder={labels.enterAmt}
+                  className="font-mono text-lg h-11"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">USDT</div>
+              </div>
               
-              {/* Presets */}
-              <div className="grid grid-cols-5 gap-1.5">
+              {/* Presets - Tappable and nice */}
+              <div className="grid grid-cols-5 gap-2 mt-2">
                 {[25, 50, 75].map(pct => {
                   const val = ((wallet?.available_balance || 0) * pct / 100).toFixed(2);
                   return (
                     <button
                       key={pct}
                       onClick={() => setAmount(val)}
-                      className="py-1 text-xs rounded bg-muted hover:bg-secondary transition-colors font-medium"
+                      className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border"
                     >
                       {pct}%
                     </button>
@@ -347,71 +345,68 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                     const levNum = Number(leverage) || 5;
                     const commRate = config?.commission_open_rate || 0.0005;
                     const minComm = config?.min_commission_open || 0.05;
-                    
-                    // Max calculation: available = margin + commission
-                    // commission = max(minComm, margin * lev * commRate)
-                    // Solve for margin
                     let maxMargin = available;
                     for(let i = 0; i < 10; i++) {
                       const comm = Math.max(minComm, maxMargin * levNum * commRate);
                       const required = maxMargin + comm;
                       if (required <= available) break;
-                      maxMargin = maxMargin * 0.95; // reduce by 5%
+                      maxMargin = maxMargin * 0.95; 
                     }
                     setAmount(Math.max(0, maxMargin).toFixed(2));
                   }}
-                  className="py-1 text-xs rounded bg-primary/90 hover:bg-primary text-primary-foreground transition-colors font-bold"
+                  className="py-1.5 text-[10px] rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-bold transition-colors"
                 >
                   MAX
                 </button>
                 <button
                   onClick={() => setAmount('10')}
-                  className="py-1 text-xs rounded bg-muted hover:bg-secondary transition-colors font-medium"
+                  className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border"
                 >
                   10
                 </button>
               </div>
             </div>
             
-            {/* Leverage */}
-            <div className="space-y-2">
+            {/* Leverage Input */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label>{labels.leverage}</Label>
+                <Label className="text-xs font-medium">{labels.leverage}</Label>
                 {(() => {
                   const userMax = config?.user_max_leverage || 50;
                   const signalMax = selectedSignal?.max_leverage || 20;
                   const allowedMax = Math.min(userMax, signalMax, 100);
-                  return <span className="text-xs text-muted-foreground">{labels.max}: {allowedMax}x</span>;
+                  return <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{labels.max}: {allowedMax}x</span>;
                 })()}
               </div>
-              <Input 
-                type="number" 
-                value={leverage} 
-                onChange={e => {
-                  const val = e.target.value;
-                  setLeverage(val);
-                  
-                  const numVal = Number(val);
-                  const userMax = config?.user_max_leverage || 50;
-                  const signalMax = selectedSignal?.max_leverage || 20;
-                  const allowedMax = Math.min(userMax, signalMax, 100);
-                  
-                  if (numVal > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
-                  else setMaxLevError('');
-                }}
-                min="1"
-                max={(() => {
-                  const userMax = config?.user_max_leverage || 50;
-                  const signalMax = selectedSignal?.max_leverage || 20;
-                  return Math.min(userMax, signalMax, 100);
-                })()}
-                inputMode="decimal"
-                className={`font-mono ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {maxLevError && <p className="text-xs text-red-500">{maxLevError}</p>}
+              <div className="relative">
+                <Input 
+                  type="number" 
+                  value={leverage} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setLeverage(val);
+                    const numVal = Number(val);
+                    const userMax = config?.user_max_leverage || 50;
+                    const signalMax = selectedSignal?.max_leverage || 20;
+                    const allowedMax = Math.min(userMax, signalMax, 100);
+                    if (numVal > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
+                    else setMaxLevError('');
+                  }}
+                  min="1"
+                  max={(() => {
+                    const userMax = config?.user_max_leverage || 50;
+                    const signalMax = selectedSignal?.max_leverage || 20;
+                    return Math.min(userMax, signalMax, 100);
+                  })()}
+                  inputMode="decimal"
+                  className={`font-mono h-9 ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">x</div>
+              </div>
+              {maxLevError && <p className="text-[10px] text-red-500 font-medium animate-pulse">{maxLevError}</p>}
             </div>
             
-            {/* PnL Estimates */}
+            {/* Compact PnL Estimates */}
             {(() => {
               const entry = Number(selectedSignal?.entry_price) || 0;
               const side = selectedSignal?.side || 'LONG';
@@ -434,54 +429,47 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               if (!tp1Est && !slEst) return null;
 
               return (
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">{labels.estimates}</Label>
-                  <div className="bg-muted/30 rounded-lg p-2 text-xs space-y-1 border border-border/50">
-                    {tp1Est && (
-                      <div className="flex justify-between text-green-600">
-                        <span>TP1 ({selectedSignal?.tp1})</span>
-                        <span className="font-mono">+{tp1Est.pnl.toFixed(2)} USDT (+{tp1Est.roi.toFixed(1)}%)</span>
-                      </div>
-                    )}
-                    {tp2Est && (
-                      <div className="flex justify-between text-green-600/80">
-                        <span>TP2 ({selectedSignal?.tp2})</span>
-                        <span className="font-mono">+{tp2Est.pnl.toFixed(2)} USDT (+{tp2Est.roi.toFixed(1)}%)</span>
-                      </div>
-                    )}
-                    {slEst && (
-                      <div className="flex justify-between text-red-600">
-                        <span>SL ({selectedSignal?.stop_loss})</span>
-                        <span className="font-mono">{slEst.pnl.toFixed(2)} USDT ({slEst.roi.toFixed(1)}%)</span>
-                      </div>
-                    )}
-                  </div>
+                <div className="grid grid-cols-3 gap-2 py-1">
+                  {tp1Est && (
+                    <div className="bg-green-500/10 border border-green-500/20 rounded p-1.5 text-center">
+                      <div className="text-[10px] text-green-600/70 mb-0.5">TP1</div>
+                      <div className="text-xs font-mono font-medium text-green-600">+{tp1Est.pnl.toFixed(1)}</div>
+                      <div className="text-[10px] text-green-600/80">+{tp1Est.roi.toFixed(0)}%</div>
+                    </div>
+                  )}
+                  {tp2Est && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-1.5 text-center">
+                      <div className="text-[10px] text-emerald-600/70 mb-0.5">TP2</div>
+                      <div className="text-xs font-mono font-medium text-emerald-600">+{tp2Est.pnl.toFixed(1)}</div>
+                      <div className="text-[10px] text-emerald-600/80">+{tp2Est.roi.toFixed(0)}%</div>
+                    </div>
+                  )}
+                  {slEst && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded p-1.5 text-center">
+                      <div className="text-[10px] text-red-600/70 mb-0.5">SL</div>
+                      <div className="text-xs font-mono font-medium text-red-600">{slEst.pnl.toFixed(1)}</div>
+                      <div className="text-[10px] text-red-600/80">{slEst.roi.toFixed(0)}%</div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
             
-            {/* Summary */}
-            <div className="bg-muted/30 p-3 rounded-lg text-sm space-y-2 border border-border/50">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">{labels.entryEst}</span>
-                <span className="font-mono">{selectedSignal?.entry_price || '--'}</span>
+            {/* Info Row (Entry, Size, Fee) */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border/50 pt-2">
+              <div className="flex gap-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] opacity-70">{labels.entryEst}</span>
+                  <span className="font-mono">{selectedSignal?.entry_price}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] opacity-70">{labels.notional}</span>
+                  <span className="font-mono">{(Number(amount || 0) * Number(leverage)).toFixed(0)}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">{labels.notional}</span>
-                <span className="font-mono font-medium text-foreground">{(Number(amount || 0) * Number(leverage)).toFixed(2)} USDT</span>
-              </div>
-              
-              {/* Fee Details - Collapsible */}
-              <div className="border-t border-border/50 pt-2 mt-2">
-                <details className="text-xs group">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-between list-none">
-                    <span className="underline decoration-dotted">{labels.feeEst}</span>
-                    <span className="font-mono text-orange-500">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)}</span>
-                  </summary>
-                  <div className="pt-2 text-muted-foreground pl-2 bg-muted/20 rounded mt-1 p-2">
-                    {labels.fee}: {Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(4)} USDT
-                  </div>
-                </details>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] opacity-70">{labels.fee}</span>
+                <span className="font-mono text-orange-500/80">~{Math.max(config?.min_commission_open || 0.05, Number(amount || 0) * Number(leverage) * (config?.commission_open_rate || 0.0005)).toFixed(2)}</span>
               </div>
             </div>
 
@@ -526,11 +514,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             })()}
           </div>
 
-          <div className="sticky bottom-0 bg-background pt-4 pb-2 mt-auto border-t border-border/50">
+          <div className="p-5 border-t border-border/50 mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className={`flex gap-3 ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
               <Button variant="outline" className="flex-1" onClick={() => setAcceptDialogOpen(false)}>{labels.cancel}</Button>
               <Button 
-                className="flex-1 bg-primary" 
+                className="flex-[2] bg-primary" 
                 onClick={handleConfirmAccept} 
                 disabled={(() => {
                   const amtNum = Number(amount || 0);
