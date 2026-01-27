@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -75,8 +75,16 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
+  const lastLoadTime = useRef(0);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
+    // Rate limiting: prevent calls within 2 seconds unless forced
+    const now = Date.now();
+    if (!force && now - lastLoadTime.current < 2000) {
+      return;
+    }
+    lastLoadTime.current = now;
+
     setLoading(true);
     try {
       const [configRes, walletRes, ledgerRes, allocationsRes] = await Promise.all([
@@ -98,11 +106,11 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
   }, []);
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, [loadData]);
 
   const handleAllocationSuccess = () => {
-    loadData();
+    setTimeout(() => loadData(true), 1000);
   };
 
   const availableBalance = wallet?.available_balance || 0;
