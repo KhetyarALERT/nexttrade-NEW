@@ -495,16 +495,16 @@ export default function Trading({ language = "en" }) {
                   onClick={() => toggleMode('trade')}
                   className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
-                  Trade
+                  {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
                   className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
-                  Copy Trading
+                  {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
               </div>
-              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">PAPER MODE</span>
+              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">{isAr ? "وضع تجريبي" : "PAPER MODE"}</span>
             </div>
 
             <div className="flex items-center gap-2">
