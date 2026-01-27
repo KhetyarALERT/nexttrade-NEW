@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
         stop_loss: Number(signal.stop_loss) || 0,
         tp1: Number(signal.tp1) || 0,
         tp2: Number(signal.tp2) || 0,
+        max_leverage: Number(signal.max_leverage) || 20,
         timeframe: signal.timeframe || '15m',
         notes: signal.notes || '',
         published_at: now,

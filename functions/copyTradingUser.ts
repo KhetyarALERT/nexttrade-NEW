@@ -682,7 +682,7 @@ Deno.serve(async (req) => {
       // Debit commission
       await base44.asServiceRole.entities.CopyTradingLedger.create({
         user_id: user.id,
-        kind: 'COMMISSION_OPEN',
+        kind: 'COMMISSION',
         amount: -commOpen,
         currency: 'USDT',
         status: 'POSTED',
@@ -697,7 +697,7 @@ Deno.serve(async (req) => {
       // Lock margin
       await base44.asServiceRole.entities.CopyTradingLedger.create({
         user_id: user.id,
-        kind: 'ALLOCATION_LOCK',
+        kind: 'MARGIN_LOCK',
         amount: -margin,
         currency: 'USDT',
         status: 'POSTED',

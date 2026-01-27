@@ -56,9 +56,11 @@ const t = {
 const ledgerKindColors = {
   CREDIT: "bg-green-500/10 text-green-500 border-green-500/20",
   DEBIT: "bg-red-500/10 text-red-500 border-red-500/20",
-  ALLOCATION_LOCK: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  MARGIN_LOCK: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  ALLOCATION_LOCK: "bg-blue-500/10 text-blue-500 border-blue-500/20", // Legacy support
   ALLOCATION_UNLOCK: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  COMMISSION_OPEN: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  COMMISSION: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  COMMISSION_OPEN: "bg-amber-500/10 text-amber-500 border-amber-500/20", // Legacy support
   COMMISSION_CLOSE: "bg-amber-500/10 text-amber-500 border-amber-500/20",
   PNL: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   TOPUP_OKX: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -129,8 +131,10 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
     const map = {
       CREDIT: labels.deposit,
       DEBIT: labels.withdraw,
+      MARGIN_LOCK: labels.locked,
       ALLOCATION_LOCK: labels.locked,
       ALLOCATION_UNLOCK: labels.unlocked,
+      COMMISSION: labels.commission,
       COMMISSION_OPEN: labels.commission,
       COMMISSION_CLOSE: labels.commission,
       PNL: "P&L",
@@ -177,7 +181,7 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
             <CardContent className="p-2">
               <div className="flex items-center gap-1.5 mb-1">
                 <Lock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[9px] text-muted-foreground">{labels.allocated}</span>
+                <span className="text-[9px] text-muted-foreground">{labels.locked}</span>
               </div>
               <p className="text-sm font-bold text-foreground font-mono">
                 {formatUsdt(lockedBalance)}
