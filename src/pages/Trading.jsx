@@ -535,8 +535,8 @@ export default function Trading({ language = "en" }) {
 
         {/* Desktop Grid Layout */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: Signals Inbox */}
-          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0">
+          {/* Left: Signals Inbox - Explicit min-width and scroll handling */}
+          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0 overflow-hidden">
             <SignalsInbox 
               onSignalAccepted={handleRefresh} 
               liveAccount={liveAccount}

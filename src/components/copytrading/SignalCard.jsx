@@ -63,30 +63,33 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
       isLong ? "border-l-green-500" : "border-l-red-500",
       "bg-card text-card-foreground"
     )}>
-      {/* Header Row */}
-      <div className="p-3 pb-2 flex justify-between items-center border-b border-border/50">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-bold text-sm sm:text-base truncate">{signal.symbol}</span>
-          <Badge 
-            variant="outline" 
-            className={cn(
-              "px-1.5 py-0 text-[10px] h-5 font-semibold border-0 shrink-0",
-              isLong ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
-            )}
-          >
-            {isLong ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
-            {signal.side}
-          </Badge>
+      {/* Header Row - Stacked on right side to prevent overflow */}
+      <div className="p-3 pb-2 flex justify-between items-start border-b border-border/50">
+        <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold text-sm truncate">{signal.symbol}</span>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "px-1.5 py-0 text-[10px] h-5 font-semibold border-0 shrink-0",
+                isLong ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"
+              )}
+            >
+              {isLong ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+              {signal.side}
+            </Badge>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        
+        <div className="flex flex-col items-end gap-1 shrink-0">
           {signal.max_leverage && (
             <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground whitespace-nowrap">
               {labels.maxLev}: {signal.max_leverage}x
             </span>
           )}
-          <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+          <div className="flex items-center text-[10px] text-muted-foreground whitespace-nowrap">
             <Clock className="w-3 h-3 mr-1" />
-            {isExpired ? labels.expired : `${labels.exp}: ${timeStr} ${dateStr}`}
+            {isExpired ? labels.expired : `${timeStr} ${dateStr}`}
           </div>
         </div>
       </div>
