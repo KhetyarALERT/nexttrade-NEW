@@ -611,14 +611,17 @@ export default function Trading({ language = "en" }) {
 
           {/* Center: Chart (Top) + Positions (Bottom) */}
           <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex-1 border-b border-border/50 relative">
-              <div className="absolute top-2 left-2 z-10">
-                <BinanceSymbolSelector 
-                  selectedSymbol={selectedSymbol} 
-                  onSelectSymbol={handleSymbolChange} 
-                  language={language} 
-                />
-              </div>
+            {/* Symbol Selector Bar - Fixed row above chart */}
+            <div className="border-b border-border/50 px-3 py-2 bg-card shrink-0">
+              <BinanceSymbolSelector 
+                selectedSymbol={selectedSymbol} 
+                onSelectSymbol={handleSymbolChange} 
+                language={language} 
+              />
+            </div>
+            
+            {/* Chart Area - No overlay conflicts */}
+            <div className="flex-1 border-b border-border/50">
               {chartComponent}
             </div>
             <div className="h-[250px] shrink-0 bg-background">
