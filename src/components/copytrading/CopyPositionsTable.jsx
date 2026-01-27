@@ -6,10 +6,21 @@ import { RefreshCw, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick }) {
+export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, language = "en" }) {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [livePrices, setLivePrices] = useState({});
+  const isAr = language === "ar";
+
+  const t = {
+    size: isAr ? "الحجم" : "Size",
+    entry: isAr ? "الدخول" : "Entry",
+    tp: "TP",
+    sl: "SL",
+    noPositions: isAr ? "لا توجد مراكز مفتوحة" : "No open positions",
+    pnl: isAr ? "الربح" : "PnL",
+    loading: isAr ? "جار التحميل..." : "Loading positions...",
+  };
 
   const loadPositions = async () => {
     setLoading(true);
@@ -81,7 +92,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   };
 
   if (loading && positions.length === 0) {
-    return <div className="p-4 text-center text-muted-foreground text-xs">Loading positions...</div>;
+    return <div className="p-4 text-center text-muted-foreground text-xs">{t.loading}</div>;
   }
 
   // Mobile List View
@@ -89,13 +100,13 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
     if (positions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/5 rounded-lg border border-dashed border-border/50 mx-4">
-          <p className="text-sm">No open positions</p>
+          <p className="text-sm">{t.noPositions}</p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-3 pb-20 p-4">
+      <div className="space-y-3 pb-20 p-4" dir={isAr ? "rtl" : "ltr"}>
         {positions.map(pos => {
           const { pnl, pnlPct } = calculatePnL(pos);
           return (
@@ -104,37 +115,39 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
               className="p-3 border-l-4 border-l-primary/50 cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => onPositionClick?.(pos)}
             >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold">{pos.symbol}</span>
-                  <Badge variant="outline" className={pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}>
-                    {pos.side} {pos.leverage}x
-                  </Badge>
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-sm truncate">{pos.symbol}</span>
+                    <Badge variant="outline" className={`shrink-0 ${pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}`}>
+                      {pos.side} {pos.leverage}x
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className={pnl >= 0 ? 'text-green-500 font-mono font-medium' : 'text-red-500 font-mono font-medium'}>
+                <div className="text-right shrink-0">
+                  <div className={`font-mono font-medium text-sm whitespace-nowrap ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)
                   </div>
-                  <div className="text-[10px] text-muted-foreground">USDT PnL</div>
+                  <div className="text-[10px] text-muted-foreground">USDT {t.pnl}</div>
                 </div>
               </div>
             
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-muted-foreground block">Size</span>
-                <span className="font-mono">{pos.notional_usdt.toFixed(0)} USDT</span>
+              <div className="min-w-0">
+                <span className="text-muted-foreground block text-[10px]">{t.size}</span>
+                <span className="font-mono truncate block" title={`${pos.notional_usdt.toFixed(0)} USDT`}>{pos.notional_usdt.toFixed(0)} USDT</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block">Entry</span>
-                <span className="font-mono">{pos.entry_price}</span>
+              <div className="min-w-0">
+                <span className="text-muted-foreground block text-[10px]">{t.entry}</span>
+                <span className="font-mono truncate block" title={pos.entry_price}>{pos.entry_price}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-green-600/80">TP</span>
-                <span className="font-mono">{pos.tp1}</span>
+              <div className="min-w-0">
+                <span className="text-muted-foreground block text-green-600/80 text-[10px]">{t.tp}</span>
+                <span className="font-mono truncate block" title={pos.tp1}>{pos.tp1}</span>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-red-600/80">SL</span>
-                <span className="font-mono">{pos.stop_loss}</span>
+              <div className="min-w-0">
+                <span className="text-muted-foreground block text-red-600/80 text-[10px]">{t.sl}</span>
+                <span className="font-mono truncate block" title={pos.stop_loss}>{pos.stop_loss}</span>
               </div>
             </div>
           </Card>

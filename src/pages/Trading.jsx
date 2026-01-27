@@ -379,14 +379,14 @@ export default function Trading({ language = "en" }) {
                 <div className="flex bg-muted/50 p-1 rounded-xl">
                   <button
                     onClick={() => toggleMode('trade')}
-                    className={`h-9 px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                    className={`h-11 min-w-[80px] px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
                     style={{ touchAction: 'manipulation' }}
                   >
                     {isAr ? "تداول" : "Trade"}
                   </button>
                   <button
                     onClick={() => toggleMode('bots')}
-                    className={`h-9 px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                    className={`h-11 min-w-[80px] px-5 rounded-lg text-xs font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
                     style={{ touchAction: 'manipulation' }}
                   >
                     {isAr ? "نسخ" : "Copy"}
@@ -462,6 +462,7 @@ export default function Trading({ language = "en" }) {
                 <CopyPositionsTable 
                   refreshTrigger={isRefreshing} 
                   isMobile={true}
+                  language={language}
                   onPositionClick={(pos) => {
                     if (pos?.symbol) {
                       setSelectedSymbol(pos.symbol);
@@ -562,9 +563,10 @@ export default function Trading({ language = "en" }) {
               {chartComponent}
             </div>
             <div className="h-[250px] shrink-0 bg-background">
-              <CopyPositionsTable 
-                refreshTrigger={isRefreshing}
-                onPositionClick={(pos) => {
+            <CopyPositionsTable 
+              refreshTrigger={isRefreshing}
+              language={language}
+              onPositionClick={(pos) => {
                   // When clicking position, switch chart to that symbol
                   if (pos?.symbol) {
                     setSelectedSymbol(pos.symbol);
