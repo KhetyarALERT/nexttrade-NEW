@@ -567,32 +567,29 @@ export default function Trading({ language = "en" }) {
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden">
         {/* Header */}
-        <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel bg-blue-500/5">
+        <div className="border-b border-border/50 px-4 py-2.5 shrink-0 glass-panel bg-blue-500/5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-foreground">Copy Trading</h1>
-                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">PAPER MODE</span>
-              </div>
-            </div>
+            <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
 
-            {/* Mode Switcher */}
-            <div className="flex bg-muted/50 p-1 rounded-lg mx-4">
-              <button
-                onClick={() => toggleMode('trade')}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Trade
-              </button>
-              <button
-                onClick={() => toggleMode('bots')}
-                className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Copy Trading
-              </button>
+            {/* Mode Switcher - Centered */}
+            <div className="flex items-center gap-3 flex-1 justify-center">
+              <div className="flex bg-muted/50 p-1 rounded-lg">
+                <button
+                  onClick={() => toggleMode('trade')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Trade
+                </button>
+                <button
+                  onClick={() => toggleMode('bots')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Copy Trading
+                </button>
+              </div>
+              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">PAPER MODE</span>
             </div>
 
             <div className="flex items-center gap-2">
