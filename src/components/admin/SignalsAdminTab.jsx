@@ -32,30 +32,8 @@ export default function SignalsAdminTab({ onRefresh }) {
 
   const [livePrice, setLivePrice] = useState(null);
   const [fetchingPrice, setFetchingPrice] = useState(false);
-
-  // Popular OKX Perpetual Swaps
-  const POPULAR_SYMBOLS = [
-    "BTC-USDT-SWAP",
-    "ETH-USDT-SWAP",
-    "SOL-USDT-SWAP",
-    "XRP-USDT-SWAP",
-    "DOGE-USDT-SWAP",
-    "ADA-USDT-SWAP",
-    "AVAX-USDT-SWAP",
-    "DOT-USDT-SWAP",
-    "MATIC-USDT-SWAP",
-    "LINK-USDT-SWAP",
-    "LTC-USDT-SWAP",
-    "SHIB-USDT-SWAP",
-    "TRX-USDT-SWAP",
-    "UNI-USDT-SWAP",
-    "ATOM-USDT-SWAP",
-    "ETC-USDT-SWAP",
-    "FIL-USDT-SWAP",
-    "NEAR-USDT-SWAP",
-    "ALGO-USDT-SWAP",
-    "APE-USDT-SWAP"
-  ];
+  const [allSymbols, setAllSymbols] = useState([]);
+  const [symbolsLoading, setSymbolsLoading] = useState(false);
 
   const fetchLivePrice = async (instId) => {
     setFetchingPrice(true);
@@ -103,7 +81,23 @@ export default function SignalsAdminTab({ onRefresh }) {
 
   useEffect(() => {
     loadData();
+    loadSymbols();
   }, []);
+  
+  const loadSymbols = async () => {
+    setSymbolsLoading(true);
+    try {
+      const res = await base44.functions.invoke('okxMarketData', { action: 'listInstrumentsSwap' });
+      if (res.data?.ok) {
+        const instruments = res.data.data || [];
+        setAllSymbols(instruments.filter(i => i.state === 'live').map(i => i.instId).sort());
+      }
+    } catch (e) {
+      console.error('Failed to load instruments:', e);
+    } finally {
+      setSymbolsLoading(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!newSignal.symbol || !newSignal.entry_price || !newSignal.stop_loss) {
@@ -314,19 +308,34 @@ export default function SignalsAdminTab({ onRefresh }) {
                     <SelectTrigger>
                       <SelectValue placeholder="Select Symbol" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {POPULAR_SYMBOLS.map(sym => (
-                        <SelectItem key={sym} value={sym}>{sym}</SelectItem>
-                      ))}
+                    <SelectContent className="max-h-[300px]">
+                      {allSymbols.length > 0 ? (
+                        allSymbols.map(sym => (
+                          <SelectItem key={sym} value={sym}>{sym}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="BTC-USDT-SWAP">BTC-USDT-SWAP</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
-                {livePrice && (
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    Live Mark: <span className="font-mono text-emerald-500">${livePrice}</span>
-                    {fetchingPrice && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
-                  </p>
-                )}
+                <div className="flex items-center justify-between mt-1">
+                  {livePrice && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Live: <span className="font-mono text-emerald-500">{livePrice.toFixed(2)}</span>
+                    </p>
+                  )}
+                  {livePrice && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => setNewSignal({...newSignal, entry_price: String(livePrice)})}
+                    >
+                      Use Current
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Side</Label>
