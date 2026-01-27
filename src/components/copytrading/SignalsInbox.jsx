@@ -130,7 +130,10 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   useEffect(() => {
     loadSignals();
-    const interval = setInterval(loadSignals, 30000); // Poll every 30s to prevent rate limits
+    const interval = setInterval(() => {
+      if (document.hidden) return; // Don't poll if tab hidden
+      loadSignals();
+    }, 30000); 
     return () => clearInterval(interval);
   }, []);
 

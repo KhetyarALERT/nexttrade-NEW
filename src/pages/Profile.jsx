@@ -261,6 +261,7 @@ export default function Profile({ language = "en" }) {
   const [copyTradingWallet, setCopyTradingWallet] = useState(null);
   const [wallets, setWallets] = useState([]);
   const [trades, setTrades] = useState([]);
+  const [referralStats, setReferralStats] = useState({ signups: 0 });
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [existingVerification, setExistingVerification] = useState(null);
@@ -273,15 +274,20 @@ export default function Profile({ language = "en" }) {
       const data = await base44.auth.me();
       let profile = normalizeUserProfile(data);
       
-      // If no referral code, fetch/generate one
-      if (!profile.referralCode) {
-        try {
-          const refRes = await base44.functions.invoke("referral", { action: "getMyReferralInfo" });
-          if (refRes.data?.success && refRes.data.data?.code) {
+      // Fetch referral info (code + stats)
+      try {
+        const refRes = await base44.functions.invoke("referral", { action: "getMyReferralInfo" });
+        if (refRes.data?.success) {
+          if (refRes.data.data?.code) {
             profile.referralCode = refRes.data.data.code;
             profile.referralLink = refRes.data.data.link;
           }
-        } catch {}
+          if (refRes.data.data?.stats) {
+            setReferralStats(refRes.data.data.stats);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load referral info", err);
       }
       
       setFormState(profile);
@@ -709,7 +715,7 @@ export default function Profile({ language = "en" }) {
                   },
                   { 
                     label: language === "en" ? "Referrals" : "الإحالات", 
-                    value: "12",
+                    value: (referralStats?.signups || 0).toString(),
                     icon: Users,
                     gradient: "from-orange-500 to-red-600",
                     bgGradient: "from-orange-50 to-red-50"

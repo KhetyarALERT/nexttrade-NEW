@@ -128,8 +128,10 @@ export default function Trading({ language = "en" }) {
         } catch (e) { console.error(e); }
       };
       loadPaperPositions();
-      // Poll every 10s
-      const interval = setInterval(loadPaperPositions, 10000);
+      // Poll every 20s (reduced from 10s), skip if hidden
+      const interval = setInterval(() => {
+        if (!document.hidden) loadPaperPositions();
+      }, 20000);
       return () => clearInterval(interval);
     }
   }, [isCopyMode, isAuthenticated, isRefreshing]);
