@@ -155,15 +155,15 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   useEffect(() => {
     if (typeof document === "undefined") return;
     const isRtl = language === "ar";
-    
+
     // Set lang and dir on <html> element to prevent Chrome auto-translate
     document.documentElement.lang = language;
     document.documentElement.dir = isRtl ? "rtl" : "ltr";
-    
+
     // Ensure notranslate class on body
     document.body.classList.add("notranslate");
     document.body.setAttribute("translate", "no");
-    
+
     // Add notranslate meta if not present
     if (!document.querySelector('meta[name="google"][content="notranslate"]')) {
       const meta = document.createElement("meta");
@@ -171,13 +171,36 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       meta.content = "notranslate";
       document.head.appendChild(meta);
     }
-    
+
     try {
       localStorage.setItem(STORAGE_KEYS.language, language);
+
+      // Sync language to backend UserPreferences if authenticated
+      if (isAuthenticated && user?.id) {
+        (async () => {
+          try {
+            const prefs = await base44.entities.UserPreferences.filter({ user_id: user.id });
+            if (prefs && prefs.length > 0) {
+              if (prefs[0].language !== language) {
+                await base44.entities.UserPreferences.update(prefs[0].id, { language });
+              }
+            } else {
+              await base44.entities.UserPreferences.create({
+                user_id: user.id,
+                language,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+              });
+            }
+          } catch (e) {
+            // Silent fail for preferences sync
+            console.warn("Failed to sync language preference", e);
+          }
+        })();
+      }
     } catch {
       // ignore storage access issues
     }
-  }, [language]);
+  }, [language, isAuthenticated, user?.id]);
 
 
 

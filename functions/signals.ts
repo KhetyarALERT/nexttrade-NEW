@@ -98,18 +98,33 @@ Deno.serve(async (req) => {
             
             // Check UserPreferences for notifications
             let shouldNotify = true;
+            let userLang = 'en';
             try {
               const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: userId });
-              if (prefs?.[0] && prefs[0].notifications_enabled === false) shouldNotify = false;
-              if (prefs?.[0] && prefs[0].notify_signals === false) shouldNotify = false;
+              if (prefs?.[0]) {
+                if (prefs[0].notifications_enabled === false) shouldNotify = false;
+                if (prefs[0].notify_signals === false) shouldNotify = false;
+                if (prefs[0].language) userLang = prefs[0].language;
+              }
             } catch (e) {}
 
             if (shouldNotify) {
+              let title, message;
+              if (userLang === 'ar') {
+                const sideAr = newSignal.side === 'LONG' ? 'شراء' : 'بيع';
+                const entryStr = newSignal.entry_price || 'سعر السوق';
+                title = `إشارة جديدة: ${newSignal.symbol} ${sideAr}`;
+                message = `دخول: ${entryStr} | هدف: ${newSignal.tp1} | وقف: ${newSignal.stop_loss}`;
+              } else {
+                title = `New Signal: ${newSignal.symbol} ${newSignal.side}`;
+                message = `Entry: ${newSignal.entry_price || 'Market'} | TP: ${newSignal.tp1} | SL: ${newSignal.stop_loss}`;
+              }
+
               await base44.asServiceRole.entities.Notification.create({
                 user_id: userId,
                 type: 'system', // or specific 'signal' type if added to enum
-                title: `New Signal: ${newSignal.symbol} ${newSignal.side}`,
-                message: `Entry: ${newSignal.entry_price || 'Market'} | TP: ${newSignal.tp1} | SL: ${newSignal.stop_loss}`,
+                title: title,
+                message: message,
                 data: { signalId: newSignal.id, action: 'new_signal' },
                 read: false,
                 priority: 'normal',

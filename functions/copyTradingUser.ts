@@ -446,11 +446,23 @@ Deno.serve(async (req) => {
 
       // Create notification for user
       try {
+        // Get user language
+        let userLang = 'en';
+        try {
+          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: user.id });
+          if (prefs?.[0]?.language) userLang = prefs[0].language;
+        } catch (e) {}
+
+        const title = userLang === 'ar' ? 'إيداع نسخ التداول قيد المعالجة' : 'Copy Trading Deposit Pending';
+        const message = userLang === 'ar' 
+          ? `جاري معالجة إيداعك بقيمة ${amountNum} USDT. سيتم إضافته إلى رصيد نسخ التداول قريباً.`
+          : `Your deposit of ${amountNum} USDT is being processed. It will be credited to your Copy Trading balance shortly.`;
+
         await base44.asServiceRole.entities.Notification.create({
           user_id: user.id,
           type: 'system',
-          title: 'Copy Trading Deposit Pending',
-          message: `Your deposit of ${amountNum} USDT is being processed. It will be credited to your Copy Trading balance shortly.`,
+          title: title,
+          message: message,
           data: { amount: amountNum, allocationId: allocation.id },
           read: false,
           priority: 'normal'
@@ -721,11 +733,29 @@ Deno.serve(async (req) => {
 
       // 11. Send notification
       try {
+        // Get user language
+        let userLang = 'en';
+        try {
+          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: user.id });
+          if (prefs?.[0]?.language) userLang = prefs[0].language;
+        } catch (e) {}
+
+        const isAr = userLang === 'ar';
+        const title = isAr ? 'تم قبول الإشارة' : 'Signal Accepted';
+        
+        let message;
+        if (isAr) {
+          const sideAr = signal.side === 'LONG' ? 'شراء' : 'بيع';
+          message = `تم فتح صفقة ${sideAr} على ${signal.symbol} بسعر ${entryPrice.toFixed(2)}. الهامش: ${margin} USDT، الرافعة: ${levNum}x`;
+        } else {
+          message = `Opened ${signal.side} position on ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT, Leverage: ${levNum}x`;
+        }
+
         await base44.asServiceRole.entities.Notification.create({
           user_id: user.id,
           type: 'trade_executed',
-          title: 'Signal Accepted',
-          message: `Opened ${signal.side} position on ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT, Leverage: ${levNum}x`,
+          title: title,
+          message: message,
           data: { 
             instId: signal.symbol,
             signalId: signalId,
