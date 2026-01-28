@@ -254,7 +254,7 @@ export default function AdminAssistant() {
                 ].map((q, i) => (
                   <button
                     key={i}
-                    onClick={() => { setInput(q); handleSend(); }}
+                    onClick={() => handleSend(null, q)}
                     className="text-xs font-medium py-2.5 px-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/5 transition-all text-left flex items-center group"
                   >
                     <span className="flex-1">{q}</span>
