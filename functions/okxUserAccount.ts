@@ -194,21 +194,17 @@ Deno.serve(async (req) => {
       const marginUsed = positions.reduce((sum, pos) => sum + parseFloat(pos.margin || '0'), 0);
       const unrealizedPnl = positions.reduce((sum, pos) => sum + parseFloat(pos.upl || '0'), 0);
 
-      // OVERRIDE: Fetch Internal Ledger for Trading Balance
-      const tradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
-      const ledger = tradingAccounts[0];
-      const ledgerBalance = ledger ? (ledger.balance || 0) : 0;
-      const ledgerEquity = ledger ? (ledger.equity || ledger.balance || 0) : 0;
-
-      const tradingUsdt = ledgerBalance;
+      const tradingUsdt = parseFloat(tradingDetails.find(d => d.ccy === 'USDT')?.cashBal || '0');
       const fundingUsdt = parseFloat(fundingDetails.find(d => d.ccy === 'USDT')?.bal || '0');
-      const totalEquity = ledgerEquity; 
-      const availableBalance = ledgerBalance - marginUsed; // Simplified
+      const totalEquity = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
+      
+      // Available balance = total equity - margin used (what user can actually use for new trades)
+      const availableBalance = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
 
       // Build perCcy object for all currencies (funding + trading combined)
       const perCcy = {};
       
-      // Add funding balances (Real from OKX)
+      // Add funding balances
       for (const f of fundingDetails) {
         const ccy = f.ccy;
         if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
@@ -216,12 +212,13 @@ Deno.serve(async (req) => {
         perCcy[ccy].availFunding = parseFloat(f.availBal || f.bal || '0');
       }
       
-      // Add trading balances (Virtual from Ledger for USDT)
-      // For other currencies, we might still want OKX balances if they exist? 
-      // User requirement implies "Trading Account" is virtual.
-      if (!perCcy['USDT']) perCcy['USDT'] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
-      perCcy['USDT'].trading = ledgerBalance;
-      perCcy['USDT'].availTrading = availableBalance;
+      // Add trading balances
+      for (const t of tradingDetails) {
+        const ccy = t.ccy;
+        if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
+        perCcy[ccy].trading = parseFloat(t.cashBal || '0');
+        perCcy[ccy].availTrading = parseFloat(t.availBal || '0');
+      }
       
       // Calculate totals
       for (const ccy of Object.keys(perCcy)) {
@@ -274,18 +271,23 @@ Deno.serve(async (req) => {
 
       const { account, credential } = credResult.data;
 
-      // Fetch internal ledger balance for Trading
-      const tradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
-      const ledger = tradingAccounts[0];
-      const tradingUsdt = ledger ? (ledger.balance || 0) : 0;
-      const totalEquity = ledger ? (ledger.equity || ledger.balance || 0) : 0;
+      // Fetch trading balance only for speed
+      const tradingRes = await okxRequest({
+        credential,
+        method: 'GET',
+        path: '/api/v5/account/balance',
+        isTradingEndpoint: true
+      });
+
+      const tradingUsdt = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.cashBal || '0');
+      const totalEquity = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
 
       return Response.json({
         ok: true,
         data: {
           hasAccount: true,
           accountId: account.id,
-          balance: totalEquity,
+          balance: totalEquity || tradingUsdt,
           tradingUsdt,
           totalEquity
         }
