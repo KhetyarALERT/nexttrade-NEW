@@ -271,23 +271,18 @@ Deno.serve(async (req) => {
 
       const { account, credential } = credResult.data;
 
-      // Fetch trading balance only for speed
-      const tradingRes = await okxRequest({
-        credential,
-        method: 'GET',
-        path: '/api/v5/account/balance',
-        isTradingEndpoint: true
-      });
-
-      const tradingUsdt = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.cashBal || '0');
-      const totalEquity = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
+      // Fetch internal ledger balance for Trading
+      const tradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+      const ledger = tradingAccounts[0];
+      const tradingUsdt = ledger ? (ledger.balance || 0) : 0;
+      const totalEquity = ledger ? (ledger.equity || ledger.balance || 0) : 0;
 
       return Response.json({
         ok: true,
         data: {
           hasAccount: true,
           accountId: account.id,
-          balance: totalEquity || tradingUsdt,
+          balance: totalEquity,
           tradingUsdt,
           totalEquity
         }
