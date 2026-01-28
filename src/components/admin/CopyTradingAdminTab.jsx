@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,20 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, Lock, FileText, Plus, Loader2 } from "lucide-react";
+import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, FileText, Plus, Loader2, Search } from "lucide-react";
 
-// Format with English digits always
 function formatUsdt(val) {
   if (val === null || val === undefined) return "-";
-  if (!Number.isFinite(val)) return "-";
   return new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
-  // Always use English locale for consistent digits
   return new Date(dateStr).toLocaleString("en-US", {
-    year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -36,38 +32,47 @@ function formatDate(dateStr) {
 const statusColors = {
   ACTIVE: "bg-green-500/10 text-green-500 border-green-500/20",
   SUSPENDED: "bg-orange-500/10 text-orange-500 border-orange-500/20",
-  CLOSED: "bg-gray-500/10 text-gray-500 border-gray-500/20",
   PENDING: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  FAILED: "bg-red-500/10 text-red-500 border-red-500/20",
-  CANCELED: "bg-gray-500/10 text-gray-500 border-gray-500/20"
+  FAILED: "bg-red-500/10 text-red-500 border-red-500/20"
 };
+
+function StatCard({ title, value, icon: Icon, color }) {
+  const colors = {
+    blue: "bg-blue-500/5 border-blue-500/20 text-blue-600",
+    green: "bg-green-500/5 border-green-500/20 text-green-600",
+    purple: "bg-purple-500/5 border-purple-500/20 text-purple-600",
+    orange: "bg-orange-500/5 border-orange-500/20 text-orange-600"
+  };
+  
+  return (
+    <Card className={`border ${colors[color]} transition-all`}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase">{title}</p>
+            <p className="text-2xl font-bold mt-1">{value}</p>
+          </div>
+          {Icon && <Icon className="h-6 w-6 opacity-60" />}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CopyTradingAdminTab({ onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
-  const [configForm, setConfigForm] = useState({
-    enabled: false,
-    min_deposit_usdt: 50,
-    require_kyc: true,
-    deposit_source: "OKX_FUNDING",
-    auto_approve_enabled: true,
-    auto_approve_max_amount: 1000,
-    auto_approve_min_age_minutes: 5,
-    signals_enabled: false,
-    pool_wallet_name: "Main Copy Trading Pool"
-  });
+  const [configForm, setConfigForm] = useState({});
   const [wallets, setWallets] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [stats, setStats] = useState({ totalWallets: 0, totalBalance: 0, totalAllocated: 0, totalLifetimeDeposited: 0, postedDeposits: 0, failedDeposits: 0 });
+  const [stats, setStats] = useState({});
   const [savingConfig, setSavingConfig] = useState(false);
   const [runningProcessor, setRunningProcessor] = useState(false);
   
-  // Manual top-up state
   const [topUpDialogOpen, setTopUpDialogOpen] = useState(false);
   const [topUpForm, setTopUpForm] = useState({ userEmail: "", amount: "", note: "" });
   const [topUpLoading, setTopUpLoading] = useState(false);
-  const [userSearchResults, setUserSearchResults] = useState([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -81,47 +86,21 @@ export default function CopyTradingAdminTab({ onRefresh }) {
       ]);
 
       if (configRes.data?.ok) {
-        const cfg = configRes.data.data;
-        setConfig(cfg);
-        setConfigForm({
-          enabled: cfg?.enabled || false,
-          min_deposit_usdt: cfg?.min_deposit_usdt || 50,
-          require_kyc: cfg?.require_kyc !== false,
-          deposit_source: cfg?.deposit_source || "OKX_FUNDING",
-          auto_approve_enabled: cfg?.auto_approve_enabled !== false,
-          auto_approve_max_amount: cfg?.auto_approve_max_amount || 1000,
-          auto_approve_min_age_minutes: cfg?.auto_approve_min_age_minutes || 5,
-          signals_enabled: cfg?.signals_enabled || false,
-          pool_wallet_name: cfg?.pool_wallet_name || "Main Copy Trading Pool"
-        });
+        setConfig(configRes.data.data);
+        setConfigForm(configRes.data.data || {});
       }
-
-      if (statsRes.data?.ok) {
-        setStats(statsRes.data.data);
-      }
-
-      if (walletsRes.data?.ok) {
-        setWallets(walletsRes.data.data || []);
-      }
-
-      if (allocationsRes.data?.ok) {
-        setAllocations(allocationsRes.data.data || []);
-      }
-
-      if (ledgerRes.data?.ok) {
-        setLedgerEntries(ledgerRes.data.data || []);
-      }
+      if (statsRes.data?.ok) setStats(statsRes.data.data || {});
+      if (walletsRes.data?.ok) setWallets(walletsRes.data.data || []);
+      if (allocationsRes.data?.ok) setAllocations(allocationsRes.data.data || []);
+      if (ledgerRes.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
     } catch (err) {
-      console.error("Failed to load copy trading admin data:", err);
       toast.error("Failed to load data");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleSaveConfig = async () => {
     setSavingConfig(true);
@@ -130,15 +109,14 @@ export default function CopyTradingAdminTab({ onRefresh }) {
         action: "saveConfig",
         configData: configForm
       });
-
       if (res.data?.ok) {
         toast.success("Configuration saved");
         loadData();
       } else {
-        toast.error(res.data?.error?.message || "Failed to save config");
+        toast.error(res.data?.error?.message || "Failed");
       }
     } catch (err) {
-      toast.error("Failed to save config: " + err.message);
+      toast.error(err.message);
     } finally {
       setSavingConfig(false);
     }
@@ -148,309 +126,159 @@ export default function CopyTradingAdminTab({ onRefresh }) {
     setRunningProcessor(true);
     try {
       const res = await base44.functions.invoke("copyTradingAdmin", { action: "runProcessorNow" });
-      
       if (res.data?.ok) {
-        const data = res.data.data;
-        toast.success(`Processed ${data.processedCount || 0} allocations: ${data.approvedCount || 0} approved, ${data.skippedCount || 0} skipped, ${data.failedCount || 0} failed`);
+        toast.success(`Processed: ${res.data.data?.processedCount || 0}`);
         loadData();
       } else {
-        toast.error(res.data?.error?.message || "Processor failed");
+        toast.error("Processor failed");
       }
     } catch (err) {
-      toast.error("Failed to run processor: " + err.message);
+      toast.error(err.message);
     } finally {
       setRunningProcessor(false);
     }
   };
 
   const handleManualTopUp = async () => {
-    if (!topUpForm.userEmail || !topUpForm.amount || parseFloat(topUpForm.amount) <= 0) {
-      toast.error("Please enter a valid user email and amount");
-      return;
-    }
-
+    if (!topUpForm.userEmail || !topUpForm.amount) return;
     setTopUpLoading(true);
     try {
-      console.log("[ADMIN_TOPUP] Starting manual top-up:", { userEmail: topUpForm.userEmail, amount: topUpForm.amount });
-      
       const res = await base44.functions.invoke("copyTradingAdmin", {
         action: "manualTopUp",
         userEmail: topUpForm.userEmail.trim(),
         amount: parseFloat(topUpForm.amount),
-        note: topUpForm.note || "Admin manual top-up"
+        note: topUpForm.note
       });
-
       if (res.data?.ok) {
-        console.log("[ADMIN_TOPUP] Success:", res.data.data);
-        toast.success(`Successfully topped up ${topUpForm.amount} USDT for ${topUpForm.userEmail}`);
+        toast.success("Top-up successful");
         setTopUpDialogOpen(false);
         setTopUpForm({ userEmail: "", amount: "", note: "" });
         loadData();
       } else {
-        console.error("[ADMIN_TOPUP] Failed:", res.data?.error);
-        toast.error(res.data?.error?.message || "Failed to process top-up");
+        toast.error(res.data?.error?.message || "Failed");
       }
     } catch (err) {
-      console.error("[ADMIN_TOPUP] Error:", err);
-      toast.error("Top-up failed: " + err.message);
+      toast.error(err.message);
     } finally {
       setTopUpLoading(false);
     }
   };
 
-  const handleSearchUser = async (email) => {
-    if (!email || email.length < 3) {
-      setUserSearchResults([]);
-      return;
-    }
-    try {
-      // Search wallets by user_email
-      const existing = wallets.filter(w => w.user_email?.toLowerCase().includes(email.toLowerCase()));
-      setUserSearchResults(existing.slice(0, 5));
-    } catch {
-      setUserSearchResults([]);
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Wallets</p>
-                <p className="text-2xl font-bold">{stats.totalWallets}</p>
-              </div>
-              <Users className="h-8 w-8 opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="text-2xl font-bold">${formatUsdt(stats.totalBalance)}</p>
-              </div>
-              <Wallet className="h-8 w-8 opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Deposited</p>
-                <p className="text-2xl font-bold">${formatUsdt(stats.totalLifetimeDeposited)}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border-orange-500/30">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Deposits (OK / Fail)</p>
-                <p className="text-2xl font-bold">
-                  <span className="text-green-600">{stats.postedDeposits}</span>
-                  <span className="text-muted-foreground mx-1">/</span>
-                  <span className="text-red-500">{stats.failedDeposits}</span>
-                </p>
-              </div>
-              <FileText className="h-8 w-8 opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Wallets" value={stats.totalWallets || 0} icon={Users} color="blue" />
+        <StatCard title="Balance" value={`$${formatUsdt(stats.totalBalance)}`} icon={Wallet} color="green" />
+        <StatCard title="Deposited" value={`$${formatUsdt(stats.totalLifetimeDeposited)}`} icon={TrendingUp} color="purple" />
+        <StatCard title="Deposits (OK/Fail)" value={`${stats.postedDeposits || 0} / ${stats.failedDeposits || 0}`} icon={FileText} color="orange" />
       </div>
 
       <Tabs defaultValue="config" className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-3xl">
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="wallets">User Wallets</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger</TabsTrigger>
-          <TabsTrigger value="allocations">Allocations (Phase 2)</TabsTrigger>
+        <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="config" className="px-4">Configuration</TabsTrigger>
+          <TabsTrigger value="wallets" className="px-4">Wallets</TabsTrigger>
+          <TabsTrigger value="ledger" className="px-4">Ledger</TabsTrigger>
+          <TabsTrigger value="allocations" className="px-4">Allocations</TabsTrigger>
         </TabsList>
 
-        {/* Configuration Tab */}
         <TabsContent value="config" className="space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Copy Trading Configuration
-                  </CardTitle>
-                  <CardDescription>Global settings for copy trading feature</CardDescription>
-                </div>
-                <Button onClick={handleRunProcessor} disabled={runningProcessor} variant="outline">
-                  <Play className={`h-4 w-4 mr-2 ${runningProcessor ? "animate-spin" : ""}`} />
-                  Run Processor Now
-                </Button>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="space-y-1">
+                <CardTitle>Global Settings</CardTitle>
+                <CardDescription>Configure copy trading rules</CardDescription>
               </div>
+              <Button variant="outline" onClick={handleRunProcessor} disabled={runningProcessor}>
+                {runningProcessor ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                Run Processor
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="pt-6 grid gap-6">
+              {/* Toggles */}
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <Label>Enable Copy Trading</Label>
-                  <Switch
-                    checked={configForm.enabled}
-                    onCheckedChange={(v) => setConfigForm({ ...configForm, enabled: v })}
-                  />
+                <div className="flex items-center justify-between p-4 border rounded-xl bg-card">
+                  <div className="space-y-0.5">
+                    <Label>Enable Copy Trading</Label>
+                    <p className="text-xs text-muted-foreground">Master switch</p>
+                  </div>
+                  <Switch checked={configForm.enabled} onCheckedChange={v => setConfigForm({...configForm, enabled: v})} />
                 </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <Label>Require KYC</Label>
-                  <Switch
-                    checked={configForm.require_kyc}
-                    onCheckedChange={(v) => setConfigForm({ ...configForm, require_kyc: v })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <Label>Auto-Approve Enabled</Label>
-                  <Switch
-                    checked={configForm.auto_approve_enabled}
-                    onCheckedChange={(v) => setConfigForm({ ...configForm, auto_approve_enabled: v })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <Label>Signals Enabled (Phase 2)</Label>
-                  <Switch
-                    checked={configForm.signals_enabled}
-                    onCheckedChange={(v) => setConfigForm({ ...configForm, signals_enabled: v })}
-                  />
+                <div className="flex items-center justify-between p-4 border rounded-xl bg-card">
+                  <div className="space-y-0.5">
+                    <Label>Auto-Approve</Label>
+                    <p className="text-xs text-muted-foreground">Automatically process deposits</p>
+                  </div>
+                  <Switch checked={configForm.auto_approve_enabled} onCheckedChange={v => setConfigForm({...configForm, auto_approve_enabled: v})} />
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
+              {/* Inputs */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
                   <Label>Min Deposit (USDT)</Label>
-                  <Input
-                    type="number"
-                    value={configForm.min_deposit_usdt}
-                    onChange={(e) => setConfigForm({ ...configForm, min_deposit_usdt: Number(e.target.value) })}
-                    className="mt-1"
-                  />
+                  <Input type="number" value={configForm.min_deposit_usdt} onChange={e => setConfigForm({...configForm, min_deposit_usdt: Number(e.target.value)})} />
                 </div>
-
-                <div>
+                <div className="space-y-2">
+                  <Label>Max Auto-Approve (USDT)</Label>
+                  <Input type="number" value={configForm.auto_approve_max_amount} onChange={e => setConfigForm({...configForm, auto_approve_max_amount: Number(e.target.value)})} />
+                </div>
+                <div className="space-y-2">
                   <Label>Deposit Source</Label>
-                  <Select
-                    value={configForm.deposit_source}
-                    onValueChange={(v) => setConfigForm({ ...configForm, deposit_source: v })}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select value={configForm.deposit_source} onValueChange={v => setConfigForm({...configForm, deposit_source: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="OKX_FUNDING">OKX Funding</SelectItem>
-                      <SelectItem value="OKX_TRADING">OKX Trading</SelectItem>
-                      <SelectItem value="TOTAL_OKX">Total OKX</SelectItem>
                       <SelectItem value="INTERNAL_WALLET">Internal Wallet</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div>
-                  <Label>Auto-Approve Max Amount (USDT)</Label>
-                  <Input
-                    type="number"
-                    value={configForm.auto_approve_max_amount}
-                    onChange={(e) => setConfigForm({ ...configForm, auto_approve_max_amount: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>Auto-Approve Min Age (minutes)</Label>
-                  <Input
-                    type="number"
-                    value={configForm.auto_approve_min_age_minutes}
-                    onChange={(e) => setConfigForm({ ...configForm, auto_approve_min_age_minutes: Number(e.target.value) })}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>Pool Wallet Name</Label>
-                  <Input
-                    value={configForm.pool_wallet_name}
-                    onChange={(e) => setConfigForm({ ...configForm, pool_wallet_name: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
               </div>
 
-              <Button onClick={handleSaveConfig} disabled={savingConfig} className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                {savingConfig ? "Saving..." : "Save Configuration"}
-              </Button>
+              <div className="flex justify-end">
+                <Button onClick={handleSaveConfig} disabled={savingConfig} className="min-w-[140px]">
+                  {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Configuration'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Wallets Tab */}
-        <TabsContent value="wallets" className="space-y-4">
+        <TabsContent value="wallets">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>User Copy Trading Wallets</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="default" onClick={() => setTopUpDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Manual Top-Up
-                  </Button>
-                  <Button variant="outline" onClick={loadData} disabled={loading}>
-                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                    Refresh
-                  </Button>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle>User Wallets</CardTitle>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => setTopUpDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> Top Up
+                </Button>
+                <Button size="sm" variant="outline" onClick={loadData}>
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Available</TableHead>
                     <TableHead>Locked</TableHead>
-                    <TableHead>Lifetime Deposited</TableHead>
-                    <TableHead>Lifetime P&L</TableHead>
+                    <TableHead>Total Deposited</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Last Activity</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {wallets.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        No wallets yet
-                      </TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No wallets</TableCell></TableRow>
                   ) : (
-                    wallets.map((w) => (
+                    wallets.map(w => (
                       <TableRow key={w.id}>
                         <TableCell className="font-medium">{w.user_email}</TableCell>
-                        <TableCell className="font-mono">{formatUsdt(w.available_balance)} USDT</TableCell>
-                        <TableCell className="font-mono">{formatUsdt(w.locked_balance)} USDT</TableCell>
-                        <TableCell className="font-mono">{formatUsdt(w.lifetime_deposited)} USDT</TableCell>
-                        <TableCell className={`font-mono ${(w.lifetime_pnl || 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
-                          {(w.lifetime_pnl || 0) >= 0 ? "+" : ""}{formatUsdt(w.lifetime_pnl)} USDT
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[w.status] || ""} variant="outline">
-                            {w.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(w.last_activity_at)}</TableCell>
+                        <TableCell className="font-mono">{formatUsdt(w.available_balance)}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground">{formatUsdt(w.locked_balance)}</TableCell>
+                        <TableCell className="font-mono">{formatUsdt(w.lifetime_deposited)}</TableCell>
+                        <TableCell><Badge variant="outline" className={statusColors[w.status] || ''}>{w.status}</Badge></TableCell>
                       </TableRow>
                     ))
                   )}
@@ -460,85 +288,40 @@ export default function CopyTradingAdminTab({ onRefresh }) {
           </Card>
         </TabsContent>
 
-        {/* Ledger Tab */}
-        <TabsContent value="ledger" className="space-y-4">
+        <TabsContent value="ledger">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Copy Trading Ledger
-                </CardTitle>
-                <Button variant="outline" onClick={loadData} disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Time</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Balance Before</TableHead>
-                    <TableHead>Balance After</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ledgerEntries.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        No ledger entries yet
+                  {ledgerEntries.map(e => (
+                    <TableRow key={e.id}>
+                      <TableCell className="text-xs text-muted-foreground">{formatDate(e.created_at)}</TableCell>
+                      <TableCell className="text-sm">{e.user_id?.slice(0, 8)}</TableCell>
+                      <TableCell><Badge variant="outline">{e.kind}</Badge></TableCell>
+                      <TableCell className={`font-mono ${e.kind === 'CREDIT' ? 'text-green-500' : 'text-red-500'}`}>
+                        {e.kind === 'CREDIT' ? '+' : '-'}{formatUsdt(e.amount)}
                       </TableCell>
+                      <TableCell><Badge variant="secondary" className="text-[10px]">{e.status}</Badge></TableCell>
                     </TableRow>
-                  ) : (
-                    ledgerEntries.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium text-xs">{entry.user_id?.slice(-8)}</TableCell>
-                        <TableCell>
-                          <Badge className={entry.kind === 'CREDIT' ? 'bg-green-500/10 text-green-500' : entry.kind === 'DEBIT' ? 'bg-red-500/10 text-red-500' : 'bg-gray-500/10 text-gray-500'} variant="outline">
-                            {entry.kind}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className={`font-mono ${entry.kind === 'CREDIT' ? 'text-green-500' : entry.kind === 'DEBIT' ? 'text-red-500' : ''}`}>
-                          {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))} USDT
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={entry.status === 'POSTED' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'} variant="outline">
-                            {entry.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{formatUsdt(entry.balance_before)}</TableCell>
-                        <TableCell className="font-mono text-sm">{formatUsdt(entry.balance_after)}</TableCell>
-                        <TableCell className="text-xs max-w-[150px] truncate">{entry.description || '-'}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(entry.created_at || entry.created_date)}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Allocations Tab */}
-        <TabsContent value="allocations" className="space-y-4">
+        <TabsContent value="allocations">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>All Allocation Requests</CardTitle>
-                <Button variant="outline" onClick={loadData} disabled={loading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -546,39 +329,19 @@ export default function CopyTradingAdminTab({ onRefresh }) {
                     <TableHead>Amount</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Retry Count</TableHead>
-                    <TableHead>Last Error</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Approved</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allocations.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        No allocations yet
-                      </TableCell>
+                  {allocations.map(a => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{a.user_email}</TableCell>
+                      <TableCell className="font-mono">{formatUsdt(a.amount)}</TableCell>
+                      <TableCell className="text-xs">{a.deposit_source}</TableCell>
+                      <TableCell><Badge className={statusColors[a.status] || ''}>{a.status}</Badge></TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatDate(a.created_at)}</TableCell>
                     </TableRow>
-                  ) : (
-                    allocations.map((a) => (
-                      <TableRow key={a.id}>
-                        <TableCell className="font-medium">{a.user_email}</TableCell>
-                        <TableCell className="font-mono">{formatUsdt(a.amount)} USDT</TableCell>
-                        <TableCell className="text-sm">{a.deposit_source}</TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[a.status] || ""} variant="outline">
-                            {a.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">{a.retry_count || 0}</TableCell>
-                        <TableCell className="text-xs text-red-500 max-w-[200px] truncate">
-                          {a.last_error || "-"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(a.created_at || a.created_date)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(a.approved_at)}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
@@ -586,100 +349,32 @@ export default function CopyTradingAdminTab({ onRefresh }) {
         </TabsContent>
       </Tabs>
 
-      {/* Manual Top-Up Dialog */}
       <Dialog open={topUpDialogOpen} onOpenChange={setTopUpDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              Manual Copy Trading Top-Up
-            </DialogTitle>
-            <DialogDescription>
-              Add USDT to a user's copy trading wallet. This creates a ledger entry and updates their balance.
-            </DialogDescription>
+            <DialogTitle>Manual Top-Up</DialogTitle>
+            <DialogDescription>Credit a user's copy trading wallet</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>User Email *</Label>
-              <Input
-                type="email"
-                placeholder="user@example.com"
-                value={topUpForm.userEmail}
-                onChange={(e) => {
-                  setTopUpForm({ ...topUpForm, userEmail: e.target.value });
-                  handleSearchUser(e.target.value);
-                }}
-                className="mt-1"
-              />
-              {userSearchResults.length > 0 && (
-                <div className="mt-1 border rounded-md max-h-32 overflow-auto">
-                  {userSearchResults.map((w) => (
-                    <button
-                      key={w.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between"
-                      onClick={() => {
-                        setTopUpForm({ ...topUpForm, userEmail: w.user_email });
-                        setUserSearchResults([]);
-                      }}
-                    >
-                      <span>{w.user_email}</span>
-                      <span className="text-muted-foreground">{formatUsdt(w.available_balance)} USDT</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label>User Email</Label>
+              <Input value={topUpForm.userEmail} onChange={e => setTopUpForm({...topUpForm, userEmail: e.target.value})} placeholder="user@example.com" />
             </div>
-            <div>
-              <Label>Amount (USDT) *</Label>
-              <Input
-                type="number"
-                placeholder="100.00"
-                min="0.01"
-                step="0.01"
-                value={topUpForm.amount}
-                onChange={(e) => setTopUpForm({ ...topUpForm, amount: e.target.value })}
-                className="mt-1"
-              />
+            <div className="space-y-2">
+              <Label>Amount (USDT)</Label>
+              <Input type="number" value={topUpForm.amount} onChange={e => setTopUpForm({...topUpForm, amount: e.target.value})} placeholder="0.00" />
             </div>
-            <div>
-              <Label>Admin Note (optional)</Label>
-              <Textarea
-                placeholder="Reason for this top-up..."
-                value={topUpForm.note}
-                onChange={(e) => setTopUpForm({ ...topUpForm, note: e.target.value })}
-                className="mt-1"
-                rows={2}
-              />
+            <div className="space-y-2">
+              <Label>Note</Label>
+              <Input value={topUpForm.note} onChange={e => setTopUpForm({...topUpForm, note: e.target.value})} placeholder="Admin reason..." />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTopUpDialogOpen(false)} disabled={topUpLoading}>
-              Cancel
-            </Button>
-            <Button onClick={handleManualTopUp} disabled={topUpLoading || !topUpForm.userEmail || !topUpForm.amount}>
-              {topUpLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Top Up
-                </>
-              )}
-            </Button>
+            <Button variant="outline" onClick={() => setTopUpDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleManualTopUp} disabled={topUpLoading}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
-CopyTradingAdminTab.propTypes = {
-  onRefresh: () => {}
-};
-
-// Manual Top-Up Dialog is rendered at the end of the component
-// Adding it inside the main component return
