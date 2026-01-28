@@ -213,6 +213,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const isTradingPage = location.pathname === futuresPath || location.pathname === tradingPath;
   const memeCoinsPath = String(createPageUrl('MemeCoins')).split('?')[0];
   const isMemeCoinsPage = location.pathname === memeCoinsPath;
+  const isAdminHub = location.pathname.includes("OKXAdminHub") || location.pathname.includes("admin");
 
   const SolanaNavWalletButton = () => {
     if (solWallet?.connected && solWallet?.publicKey) {
