@@ -56,6 +56,35 @@ Deno.serve(async (req) => {
       });
 
       audit('VOUCHER_CLAIMED', user.id, { voucherId, claimId: record.id });
+
+      // === NOTIFICATION ===
+      try {
+        let userLang = 'en';
+        try {
+          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: user.id });
+          if (prefs?.[0]?.language) userLang = prefs[0].language;
+        } catch (e) {}
+
+        const isAr = userLang === 'ar';
+        const title = isAr ? 'تم استلام القسيمة!' : 'Voucher Claimed!';
+        const message = isAr
+          ? `لقد قمت باستلام القسيمة بنجاح: ${voucherId}`
+          : `You have successfully claimed voucher: ${voucherId}`;
+
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'system',
+          title: title,
+          message: message,
+          data: { voucherId, claimId: record.id },
+          read: false,
+          priority: 'normal',
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error('Failed to send voucher notification:', e);
+      }
+
       return Response.json({ success: true, data: record });
     }
 

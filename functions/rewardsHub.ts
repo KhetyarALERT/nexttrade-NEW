@@ -355,6 +355,34 @@ Deno.serve(async (req) => {
         description: `Daily check-in day ${dayIndex + 1}`
       });
 
+      // === NOTIFICATION ===
+      try {
+        let userLang = 'en';
+        try {
+          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: user.id });
+          if (prefs?.[0]?.language) userLang = prefs[0].language;
+        } catch (e) {}
+
+        const isAr = userLang === 'ar';
+        const title = isAr ? 'تسجيل دخول يومي ناجح!' : 'Daily Check-in Complete!';
+        const message = isAr
+          ? `لقد ربحت ${pointsToAward} نقطة. تتابع الأيام: ${streak + 1}`
+          : `You earned ${pointsToAward} points. Streak: ${streak + 1} days.`;
+
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'system',
+          title: title,
+          message: message,
+          data: { points: pointsToAward, streak: streak + 1 },
+          read: false,
+          priority: 'normal',
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error('Failed to send checkin notification:', e);
+      }
+
       return Response.json({ success: true, data: reward, pointsEarned: pointsToAward, streak: streak + 1 });
     }
 
@@ -407,6 +435,35 @@ Deno.serve(async (req) => {
         trigger_event_key: triggerKey,
         description: `Milestone: ${mission.title.en}`
       });
+
+      // === NOTIFICATION ===
+      try {
+        let userLang = 'en';
+        try {
+          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: user.id });
+          if (prefs?.[0]?.language) userLang = prefs[0].language;
+        } catch (e) {}
+
+        const isAr = userLang === 'ar';
+        const missionTitle = isAr ? (mission.title.ar || mission.title.en) : mission.title.en;
+        const title = isAr ? 'تم استلام مكافأة المهمة!' : 'Mission Reward Claimed!';
+        const message = isAr
+          ? `تهانينا! لقد ربحت ${mission.points} نقطة لإكمال: ${missionTitle}`
+          : `Congrats! You earned ${mission.points} points for completing: ${missionTitle}`;
+
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: user.id,
+          type: 'system',
+          title: title,
+          message: message,
+          data: { milestoneId, points: mission.points },
+          read: false,
+          priority: 'high',
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error('Failed to send milestone notification:', e);
+      }
 
       return Response.json({ success: true, data: reward, pointsEarned: mission.points });
     }
@@ -568,6 +625,34 @@ Deno.serve(async (req) => {
         });
 
         rewards.push(reward);
+
+        // === NOTIFICATION ===
+        try {
+          let userLang = 'en';
+          try {
+            const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: attr.referrer_user_id });
+            if (prefs?.[0]?.language) userLang = prefs[0].language;
+          } catch (e) {}
+
+          const isAr = userLang === 'ar';
+          const title = isAr ? 'مكافأة إحالة جديدة!' : 'New Referral Reward!';
+          const message = isAr
+            ? `لقد ربحت ${amount} USDT من مكافأة إحالة (المستوى ${depth}).`
+            : `You earned ${amount} USDT referral reward (Level ${depth}).`;
+
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: attr.referrer_user_id,
+            type: 'staking_reward',
+            title: title,
+            message: message,
+            data: { rewardId: reward.id, amount, currency: 'USDT' },
+            read: false,
+            priority: 'high',
+            created_at: new Date().toISOString()
+          });
+        } catch (e) {
+          console.error('Failed to send referral notification:', e);
+        }
       }
 
       return Response.json({ success: true, rewards });

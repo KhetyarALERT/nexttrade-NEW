@@ -420,6 +420,34 @@ Deno.serve(async (req) => {
             });
 
             rewards.push(reward);
+
+            // === NOTIFICATION ===
+            try {
+              let userLang = 'en';
+              try {
+                const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: attr.referrer_user_id });
+                if (prefs?.[0]?.language) userLang = prefs[0].language;
+              } catch (e) {}
+
+              const isAr = userLang === 'ar';
+              const title = isAr ? 'مكافأة إحالة جديدة!' : 'New Referral Reward!';
+              const message = isAr 
+                ? `لقد ربحت ${rewardAmount} USDT لأن مستخدم قمت بإحالته قام بإيداعه الأول.`
+                : `You earned ${rewardAmount} USDT because a referred user made their first deposit.`;
+
+              await base44.asServiceRole.entities.Notification.create({
+                user_id: attr.referrer_user_id,
+                type: 'staking_reward', // Close enough to a financial reward
+                title: title,
+                message: message,
+                data: { rewardId: reward.id, amount: rewardAmount, currency: 'USDT' },
+                read: false,
+                priority: 'high',
+                created_at: new Date().toISOString()
+              });
+            } catch (e) {
+              console.error('Failed to send referral notification:', e);
+            }
           }
         }
       }
