@@ -1,12 +1,91 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { getMasterCredentials, okxRequest, decryptSecret } from './okxCore.js';
+
+// --- INLINED OKX CORE UTILS (to avoid import issues) ---
+const DEFAULT_OKX_BASE_URL = 'https://www.okx.com';
+
+function getEnv(key) { return Deno.env.get(key); }
+function getOkxBaseUrl() { return getEnv('OKX_BASE_URL') || DEFAULT_OKX_BASE_URL; }
+function base64Encode(bytes) { return btoa(String.fromCharCode(...bytes)); }
+function base64Decode(text) { return Uint8Array.from(atob(text), c => c.charCodeAt(0)); }
+
+async function importAesKey() {
+  const raw = getEnv('APP_ENCRYPTION_KEY');
+  if (!raw) throw new Error('Missing APP_ENCRYPTION_KEY');
+  const encoder = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', encoder.encode(raw));
+  return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['decrypt']);
+}
+
+async function decryptSecret(payload) {
+  if (!payload) return '';
+  try {
+    const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    const iv = base64Decode(parsed.iv);
+    const tag = base64Decode(parsed.tag);
+    const ciphertext = base64Decode(parsed.ciphertext);
+    const combined = new Uint8Array(ciphertext.length + tag.length);
+    combined.set(ciphertext, 0);
+    combined.set(tag, ciphertext.length);
+    const key = await importAesKey();
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, combined);
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    console.error("Decrypt failed:", e);
+    return '';
+  }
+}
+
+async function generateOkxSignature(timestamp, method, requestPath, body, secretKey) {
+  const prehash = timestamp + method.toUpperCase() + requestPath + body;
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secretKey);
+  const msgData = encoder.encode(prehash);
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  return base64Encode(new Uint8Array(signature));
+}
+
+async function okxRequest({ credential, method, path, body }) {
+  const timestamp = new Date().toISOString();
+  const bodyStr = body ? JSON.stringify(body) : '';
+  const signature = await generateOkxSignature(timestamp, method, path, bodyStr, credential.secretKey);
+
+  const headers = {
+    'OK-ACCESS-KEY': credential.apiKey,
+    'OK-ACCESS-SIGN': signature,
+    'OK-ACCESS-TIMESTAMP': timestamp,
+    'OK-ACCESS-PASSPHRASE': credential.passphrase,
+    'Content-Type': 'application/json',
+  };
+
+  const url = `${getOkxBaseUrl()}${path}`;
+  try {
+    const res = await fetch(url, { method, headers, body: bodyStr || undefined });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || (data?.code && data.code !== '0')) {
+      return { ok: false, error: data };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+function getMasterCredentials() {
+  return {
+    apiKey: getEnv('OKX_MAIN_API_KEY'),
+    secretKey: getEnv('OKX_MAIN_SECRET'),
+    passphrase: getEnv('OKX_MAIN_PASSPHRASE')
+  };
+}
+// -------------------------------------------------------
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   
-  // 1. Identify User from the specific 500 USDT transfer
+  // 1. Identify User
   const transfers = await base44.asServiceRole.entities.ExchangeTransfer.filter({
     amount: 500,
     from_account_type: 'funding',
@@ -14,29 +93,20 @@ Deno.serve(async (req) => {
     status: 'COMPLETED'
   });
   
-  // Find the one matching the ID prefix from screenshot
   const targetTransfer = transfers.find(t => t.user_id.startsWith('6969f269'));
-  
-  if (!targetTransfer) {
-    return Response.json({ error: "Could not find the 500 USDT transfer for user 6969f269..." });
-  }
+  if (!targetTransfer) return Response.json({ error: "Target transfer not found." });
   
   const userId = targetTransfer.user_id;
-  console.log(`[SWEEP] Target User: ${userId}`);
+  console.log(`[SWEEP] User: ${userId}`);
 
-  // 2. Get User's OKX Account & Credentials
-  const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ 
-    user_id: userId, 
-    provider: 'OKX' 
-  });
+  // 2. Get Credentials
+  const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ user_id: userId, provider: 'OKX' });
   const account = accounts[0];
-  if (!account) return Response.json({ error: "No OKX account found" });
+  if (!account) return Response.json({ error: "No OKX account" });
 
-  const creds = await base44.asServiceRole.entities.ExchangeCredential.filter({ 
-    user_exchange_account_id: account.id 
-  });
+  const creds = await base44.asServiceRole.entities.ExchangeCredential.filter({ user_exchange_account_id: account.id });
   const cred = creds[0];
-  if (!cred) return Response.json({ error: "No credentials found" });
+  if (!cred) return Response.json({ error: "No credentials" });
 
   const userCredential = {
     apiKey: cred.api_key,
@@ -44,79 +114,33 @@ Deno.serve(async (req) => {
     passphrase: await decryptSecret(cred.passphrase_enc)
   };
 
-  // 3. Check Sub-Trading Balance
-  const balRes = await okxRequest({
-    credential: userCredential,
-    method: 'GET',
-    path: '/api/v5/account/balance',
-    isTradingEndpoint: true
-  });
-
-  if (!balRes.ok) return Response.json({ error: "Failed to fetch balance", details: balRes.error });
-
-  const usdtDetails = balRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT');
-  const available = parseFloat(usdtDetails?.availBal || '0');
-  
-  console.log(`[SWEEP] Sub-Trading Balance: ${available} USDT`);
-
-  if (available < 500) {
-    return Response.json({ 
-      error: "Insufficient balance in Sub-Trading", 
-      currentBalance: available,
-      note: "Funds might have been moved or used?"
-    });
-  }
-
-  // 4. Sweep: Sub-Trading -> Master-Funding
-  // Path: Sub-Trading (18) -> Sub-Funding (6) -> Master-Funding (6)
-  // Step A: Sub-Trading -> Sub-Funding
-  console.log('[SWEEP] Executing Step A: Sub-Trading -> Sub-Funding');
+  // 3. Sweep Logic
+  // A: Sub-Trading -> Sub-Funding
   const stepARes = await okxRequest({
     credential: userCredential,
     method: 'POST',
     path: '/api/v5/asset/transfer',
-    body: {
-      ccy: 'USDT',
-      amt: '500',
-      from: '18', // Trading
-      to: '6',    // Funding
-      type: '0'   // Internal
-    }
+    body: { ccy: 'USDT', amt: '500', from: '18', to: '6', type: '0' }
   });
 
-  if (!stepARes.ok) {
-    return Response.json({ error: "Step A Failed", details: stepARes.error });
-  }
+  if (!stepARes.ok) return Response.json({ error: "Step A (Trading->Funding) Failed", details: stepARes.error });
 
-  // Step B: Sub-Funding -> Master-Funding
-  console.log('[SWEEP] Executing Step B: Sub-Funding -> Master-Funding');
-  const masterCredsResult = getMasterCredentials();
-  if (!masterCredsResult.ok) return Response.json(masterCredsResult);
+  // B: Sub-Funding -> Master-Funding
+  const masterCreds = getMasterCredentials();
+  if (!masterCreds.apiKey) return Response.json({ error: "Master credentials missing" });
 
   const stepBRes = await okxRequest({
-    credential: masterCredsResult.data,
+    credential: masterCreds,
     method: 'POST',
     path: '/api/v5/asset/transfer',
-    body: {
-      ccy: 'USDT',
-      amt: '500',
-      from: '6', // Funding
-      to: '6',   // Funding
-      type: '2', // Sub to Master
-      subAcct: account.external_account_id
-    }
+    body: { ccy: 'USDT', amt: '500', from: '6', to: '6', type: '2', subAcct: account.external_account_id }
   });
 
-  if (!stepBRes.ok) {
-    return Response.json({ error: "Step B Failed", details: stepBRes.error });
-  }
+  if (!stepBRes.ok) return Response.json({ error: "Step B (Sub->Master) Failed", details: stepBRes.error });
 
   const transId = stepBRes.data?.data?.[0]?.transId;
 
-  // 5. Credit Internal Ledger
-  console.log('[SWEEP] Crediting Internal Ledger');
-  
-  // Find/Create TradingAccount
+  // 4. Credit Ledger
   let tradingAccount = (await base44.entities.TradingAccount.filter({ user_id: userId }))[0];
   if (!tradingAccount) {
     tradingAccount = await base44.asServiceRole.entities.TradingAccount.create({
@@ -130,13 +154,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Update Balance
   await base44.asServiceRole.entities.TradingAccount.update(tradingAccount.id, {
     balance: (tradingAccount.balance || 0) + 500,
     equity: (tradingAccount.equity || 0) + 500
   });
 
-  // Find/Create Wallet
   let wallet = (await base44.entities.Wallet.filter({ trading_account_id: tradingAccount.id, currency: 'USDT' }))[0];
   if (!wallet) {
     wallet = await base44.asServiceRole.entities.Wallet.create({
@@ -153,7 +175,6 @@ Deno.serve(async (req) => {
     balance: (wallet.balance || 0) + 500
   });
 
-  // Log Transaction
   await base44.asServiceRole.entities.WalletTransaction.create({
     wallet_id: wallet.id,
     user_id: userId,
@@ -164,9 +185,5 @@ Deno.serve(async (req) => {
     notes: `SWEEP FIX: Deposit from Funding (TransId: ${transId})`
   });
 
-  return Response.json({
-    success: true,
-    message: "Swept 500 USDT from Sub-Trading to Master-Funding and credited Internal Ledger.",
-    transId
-  });
+  return Response.json({ success: true, transId });
 });
