@@ -127,11 +127,48 @@ export default function AdminAssistant() {
     }
   }, [messages, isTyping]);
 
-  const handleSend = async (e) => {
+  const handleSend = async (e, contentOverride = null) => {
     e?.preventDefault();
-    if (!input.trim() || !conversation) return;
+    const content = contentOverride || input;
+    
+    if (!content.trim()) return;
+    
+    if (!conversation?.id) {
+      setError("Connection lost. Refreshing...");
+      // Try to re-init
+      try {
+        const existing = await base44.agents.listConversations({ agent_name: "admin_assistant" });
+        const list = Array.isArray(existing) ? existing : (existing.data || []);
+        let activeConv = list[0];
+        
+        if (!activeConv) {
+          const res = await base44.agents.createConversation({
+            agent_name: "admin_assistant",
+            metadata: { name: "Admin Session" }
+          });
+          activeConv = res.data || res;
+        }
+        
+        if (activeConv?.id) {
+          setConversation(activeConv);
+          // Retry send with new conversation
+          await base44.agents.addMessage(activeConv.id, {
+            role: "user",
+            content
+          });
+          setInput("");
+          setError(null);
+          return;
+        } else {
+          throw new Error("Could not restore session");
+        }
+      } catch (err) {
+        console.error("Re-init failed:", err);
+        setError("Chat disconnected. Please refresh the page.");
+        return;
+      }
+    }
 
-    const content = input;
     setInput("");
     setError(null);
     
@@ -142,7 +179,13 @@ export default function AdminAssistant() {
       });
     } catch (err) {
       console.error("Failed to send:", err);
-      setError("Failed to send message. Try again.");
+      // Check if error is due to invalid ID (404/500)
+      if (err.message?.includes("Invalid id") || err.message?.includes("Object not found")) {
+         setConversation(null); // Force re-init next time
+         setError("Session expired. Please try again.");
+      } else {
+         setError("Failed to send message. Try again.");
+      }
       setInput(content); // Restore input
     }
   };
