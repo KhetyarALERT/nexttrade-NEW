@@ -69,6 +69,32 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
     }
   };
 
+  // Helper to translate notification content on the fly if needed
+  const getTranslatedContent = (n) => {
+    if (!isAr) return { title: n.title, message: n.message };
+
+    let title = n.title;
+    let message = n.message;
+
+    // Common backend strings fallback translation
+    if (title.startsWith("New Signal:")) {
+      title = title.replace("New Signal:", "إشارة جديدة:");
+    } else if (title === "Order Filled") {
+      title = "تم تنفيذ الأمر";
+    } else if (title === "Price Alert:") {
+      title = "تنبيه سعر:";
+    } else if (title === "Signal Accepted") {
+      title = "تم قبول الإشارة";
+    }
+
+    // Message translations (simple replacements)
+    if (message.includes("Entry:")) {
+      message = message.replace("Entry:", "دخول:").replace("TP:", "هدف:").replace("SL:", "وقف:");
+    }
+
+    return { title, message };
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -110,6 +136,7 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
               {notifications.slice(0, 20).map((notification) => {
                 const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
                 const colorClass = NOTIFICATION_COLORS[notification.type] || "bg-slate-500/10 text-slate-500";
+                const { title, message } = getTranslatedContent(notification);
                 
                 return (
                   <div
@@ -125,9 +152,9 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${!notification.read ? 'text-slate-900' : 'text-slate-700'}`}>
-                          {notification.title}
+                          {title}
                         </p>
-                        <p className="text-xs text-slate-500 line-clamp-2">{notification.message}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{message}</p>
                         <p className="text-[10px] text-slate-400 mt-1">
                           {formatDate(notification.created_date, { 
                             month: 'short', 
