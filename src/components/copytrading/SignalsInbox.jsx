@@ -345,12 +345,12 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                   value={amount} 
                   onChange={e => setAmount(e.target.value)}
                   placeholder={labels.enterAmt}
-                  className="font-mono text-lg h-11"
+                  className="font-mono text-lg h-11 pr-12 rtl:pr-3 rtl:pl-12"
                   step="0.01"
                   min="0"
                   inputMode="decimal"
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">USDT</div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none rtl:right-auto rtl:left-3">USDT</div>
               </div>
               
               {/* Presets - Tappable and nice */}

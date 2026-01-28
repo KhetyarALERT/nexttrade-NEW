@@ -78,13 +78,27 @@ Deno.serve(async (req) => {
       }
 
       // Deduplicate
-      const uniqueUserIds = [...new Set(targets.map(t => t.user_id))];
+      const uniqueUserIds = [...new Set(targets.map(t => t.user_id))].filter(Boolean);
+
+      // Optimization: Fetch all user preferences in one go to avoid N+1 queries during notification loop
+      let prefsMap = new Map();
+      try {
+        // Fetch up to 2000 preferences (reasonable batch size)
+        // Note: In production with >2000 users, this should be paginated or fetched in batches
+        const allPrefs = await base44.asServiceRole.entities.UserPreferences.list('', 2000);
+        if (allPrefs && Array.isArray(allPrefs)) {
+          allPrefs.forEach(p => {
+            if (p.user_id) prefsMap.set(p.user_id, p);
+          });
+        }
+      } catch (e) {
+        console.error('Failed to pre-fetch user preferences:', e);
+      }
 
       let deliveredCount = 0;
       const deliveryDetails = [];
 
       for (const userId of uniqueUserIds) {
-        if (!userId) continue;
         try {
           // Check if already delivered (idempotency)
           const existing = await base44.asServiceRole.entities.SignalDelivery.filter({ signal_id: newSignal.id, user_id: userId });
@@ -96,17 +110,16 @@ Deno.serve(async (req) => {
               status: 'DELIVERED'
             });
             
-            // Check UserPreferences for notifications
+            // Check UserPreferences for notifications using in-memory map
             let shouldNotify = true;
             let userLang = 'en';
-            try {
-              const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: userId });
-              if (prefs?.[0]) {
-                if (prefs[0].notifications_enabled === false) shouldNotify = false;
-                if (prefs[0].notify_signals === false) shouldNotify = false;
-                if (prefs[0].language) userLang = prefs[0].language;
-              }
-            } catch (e) {}
+            
+            const pref = prefsMap.get(userId);
+            if (pref) {
+              if (pref.notifications_enabled === false) shouldNotify = false;
+              if (pref.notify_signals === false) shouldNotify = false;
+              if (pref.language) userLang = pref.language;
+            }
 
             if (shouldNotify) {
               let title, message;

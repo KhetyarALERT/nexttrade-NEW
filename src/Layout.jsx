@@ -176,15 +176,18 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       localStorage.setItem(STORAGE_KEYS.language, language);
 
       // Sync language to backend UserPreferences if authenticated
+      // Optimization: Debounce or check before call to avoid excessive writes
       if (isAuthenticated && user?.id) {
         (async () => {
           try {
             const prefs = await base44.entities.UserPreferences.filter({ user_id: user.id });
             if (prefs && prefs.length > 0) {
+              // Only update if actually different to save DB writes
               if (prefs[0].language !== language) {
                 await base44.entities.UserPreferences.update(prefs[0].id, { language });
               }
             } else {
+              // Create only if missing
               await base44.entities.UserPreferences.create({
                 user_id: user.id,
                 language,
@@ -192,7 +195,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               });
             }
           } catch (e) {
-            // Silent fail for preferences sync
             console.warn("Failed to sync language preference", e);
           }
         })();
