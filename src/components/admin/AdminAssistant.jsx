@@ -85,18 +85,25 @@ export default function AdminAssistant() {
     const initChat = async () => {
       try {
         const existing = await base44.agents.listConversations({ agent_name: "admin_assistant" });
-        let activeConv = existing.data?.[0];
+        const list = Array.isArray(existing) ? existing : (existing.data || []);
+        let activeConv = list[0];
         
         if (!activeConv) {
-          activeConv = await base44.agents.createConversation({
+          const res = await base44.agents.createConversation({
             agent_name: "admin_assistant",
             metadata: { name: "Admin Session" }
           });
+          activeConv = res.data || res;
         }
         
         if (mounted) {
-          setConversation(activeConv);
-          setMessages(activeConv.messages || []);
+          if (activeConv?.id) {
+            setConversation(activeConv);
+            setMessages(activeConv.messages || []);
+          } else {
+            console.error("Invalid conversation format:", activeConv);
+            setError("Failed to initialize chat session");
+          }
         }
       } catch (err) {
         console.error("Failed to init admin chat:", err);
