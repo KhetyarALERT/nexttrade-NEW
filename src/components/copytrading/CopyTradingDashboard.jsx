@@ -107,6 +107,7 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
 
   const availableBalance = wallet?.available_balance || 0;
   const lockedBalance = wallet?.locked_balance || 0;
+  const totalEquity = availableBalance + lockedBalance;
   const lifetimePnl = wallet?.lifetime_pnl || 0;
 
   const ledgerKindColors = {
@@ -147,15 +148,24 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 gap-3">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        {/* Total Equity Card (Primary) */}
+        <Card className="bg-gradient-to-br from-primary/15 to-primary/5 border-primary/20 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">{labels.available}</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-foreground/80">{language === "ar" ? "إجمالي الحقوق" : "Total Equity"}</span>
+              </div>
+              <Badge variant="outline" className="bg-background/50 text-[10px] font-normal">USDT</Badge>
             </div>
-            <p className="text-2xl font-bold text-foreground font-mono">
-              {formatUsdt(availableBalance)} <span className="text-xs text-muted-foreground">USDT</span>
+            <p className="text-3xl font-bold text-foreground font-mono tracking-tight">
+              ${formatUsdt(totalEquity)}
             </p>
+            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+              <span>{labels.available}: <span className="font-mono text-foreground">{formatUsdt(availableBalance)}</span></span>
+              <span>•</span>
+              <span>{language === "ar" ? "إيداع" : "Dep"}: <span className="font-mono text-foreground">{formatUsdt(wallet?.lifetime_deposited || 0)}</span></span>
+            </div>
           </CardContent>
         </Card>
 

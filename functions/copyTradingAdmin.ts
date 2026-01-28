@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
       const ledger = ledgerEntries || [];
 
       // Compute totals from wallet records
-      const totalBalance = walls.reduce((sum, w) => sum + (w.available_balance || 0), 0);
+      // Total Balance should represent Total Equity (Available + Locked)
+      const totalBalance = walls.reduce((sum, w) => sum + (w.available_balance || 0) + (w.locked_balance || 0), 0);
       const totalAllocated = walls.reduce((sum, w) => sum + (w.locked_balance || 0), 0);
       const totalLifetimeDeposited = walls.reduce((sum, w) => sum + (w.lifetime_deposited || 0), 0);
       
