@@ -83,8 +83,122 @@ Deno.serve(async (req) => {
       
       const nowISO = new Date().toISOString();
       auditLog('TRANSFER_FUNDS', user.id, { fromAccount, toAccount, currency, amount });
+
+      // MASTER AUTOMATION: Funding -> Trading (Sweep to Master + Credit Ledger)
+      if (fromType === 'funding' && toType === 'trading' && fromAccount !== 'main') {
+        const sourceAccount = accounts.find(a => a.id === fromAccount);
+        if (!sourceAccount) {
+          return Response.json({ ok: false, error: { code: 'ACCOUNT_NOT_FOUND', message: 'Source account not found' } }, { status: 400 });
+        }
+
+        const masterCredsResult = getMasterCredentials();
+        if (!masterCredsResult.ok) {
+          return Response.json({ ok: false, error: masterCredsResult.error }, { status: 500 });
+        }
+
+        // 1. Sweep Real Assets: Sub-Funding -> Master-Funding
+        const sweepResult = await okxRequest({
+          credential: masterCredsResult.data,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            type: '2', // Sub to Master
+            ccy: currency,
+            amt: String(amount),
+            from: '6', // Funding
+            to: '6',   // Funding (Master)
+            subAcct: sourceAccount.external_account_id
+          }
+        });
+
+        if (!sweepResult.ok) {
+          return Response.json(sweepResult, { status: 502 });
+        }
+
+        // 2. Credit Internal Ledger (TradingAccount + Wallet)
+        // Find or create TradingAccount
+        const tradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+        let tradingAccount = tradingAccounts[0];
+        
+        if (!tradingAccount) {
+          tradingAccount = await base44.asServiceRole.entities.TradingAccount.create({
+            account_id: `TA_${Date.now()}`,
+            user_id: user.id,
+            nickname: 'Primary Trading',
+            account_type: 'demo', // Acts as ledger
+            balance: 0,
+            equity: 0,
+            status: 'active'
+          });
+        }
+
+        // Find or create Ledger Wallet
+        const wallets = await base44.entities.Wallet.filter({ 
+          trading_account_id: tradingAccount.id, 
+          currency: currency 
+        });
+        let wallet = wallets[0];
+
+        if (!wallet) {
+          wallet = await base44.asServiceRole.entities.Wallet.create({
+            trading_account_id: tradingAccount.id,
+            user_id: user.id,
+            currency: currency,
+            network: 'INTERNAL',
+            balance: 0,
+            status: 'active',
+            is_primary: true
+          });
+        }
+
+        // Update Balances
+        await base44.asServiceRole.entities.TradingAccount.update(tradingAccount.id, {
+          balance: (tradingAccount.balance || 0) + Number(amount),
+          equity: (tradingAccount.equity || 0) + Number(amount)
+        });
+
+        await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+          balance: (wallet.balance || 0) + Number(amount)
+        });
+
+        // Log Transaction
+        await base44.asServiceRole.entities.WalletTransaction.create({
+          wallet_id: wallet.id,
+          user_id: user.id,
+          type: 'internal_transfer_in',
+          amount: Number(amount),
+          currency: currency,
+          status: 'completed',
+          notes: `Auto-deposit from Funding (Sweep): ${sweepResult.data?.data?.[0]?.transId}`
+        });
+
+        // Create ExchangeTransfer record (history)
+        const transfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+          user_id: user.id,
+          provider: 'OKX',
+          from_account: fromAccount,
+          from_account_type: fromType,
+          to_account: toAccount,
+          to_account_type: toType,
+          currency,
+          amount,
+          status: 'COMPLETED',
+          external_transfer_id: sweepResult.data?.data?.[0]?.transId,
+          completed_at: nowISO,
+          created_at: nowISO
+        });
+
+        return Response.json({
+          ok: true,
+          data: {
+            transferId: transfer.id,
+            status: 'COMPLETED',
+            message: 'Funds swept to Master and credited to Ledger'
+          }
+        });
+      }
       
-      // Create transfer record
+      // Standard flow (Simulated or other types)
       const transfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
         user_id: user.id,
         provider: 'OKX',
