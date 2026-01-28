@@ -258,11 +258,12 @@ export default function Dashboard({ language = "en" }) {
     
     try {
       // Fetch data in parallel - use .catch() for each to prevent one failure from blocking others
-      const [walletsRes, tradesRes, stakingRes, okxRes] = await Promise.all([
+      const [walletsRes, tradesRes, stakingRes, okxRes, copyTradingRes] = await Promise.all([
         base44.functions.invoke('wallet', { action: 'list' }).catch(() => ({ data: { success: false } })),
         base44.functions.invoke('tradingAccount', { action: 'getTrades' }).catch(() => ({ data: { success: false } })),
         base44.functions.invoke('wallet', { action: 'getStakingPositions' }).catch(() => ({ data: { success: false } })),
-        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } }))
+        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } })),
+        base44.functions.invoke('copyTradingUser', { action: 'getWallet' }).catch(() => ({ data: { ok: false } }))
       ]);
 
       const nextWallets = walletsRes.data?.success ? (walletsRes.data.data || []) : [];
@@ -276,15 +277,21 @@ export default function Dashboard({ language = "en" }) {
         setLiveAccount({ hasAccount: true, ...okxData });
       }
 
+      // Copy Trading balance
+      const copyTradingData = copyTradingRes.data?.ok ? copyTradingRes.data.data : null;
+      const copyTradingAvailable = copyTradingData?.available_balance || 0;
+      const copyTradingLocked = copyTradingData?.locked_balance || 0;
+      const copyTradingTotal = copyTradingAvailable + copyTradingLocked;
+
       const usdtWallets = nextWallets.filter((w) => (w.currency || '').toUpperCase() === 'USDT');
       const spot = sum(usdtWallets.map((w) => w.balance));
       const locked = sum(usdtWallets.map((w) => w.locked_balance || 0));
       const staked = sum(usdtWallets.map((w) => w.staked_balance || 0));
 
       setBalanceData({
-        total: spot + locked + staked + okxBalance,
-        available: Math.max(0, spot - locked) + okxBalance,
-        inPositions: locked + staked
+        total: spot + locked + staked + okxBalance + copyTradingTotal,
+        available: Math.max(0, spot - locked) + okxBalance, // Copy Trading funds are specific to that wallet, not general available
+        inPositions: locked + staked + copyTradingLocked
       });
 
       const allTrades = tradesRes.data?.success ? (tradesRes.data.data || []) : [];

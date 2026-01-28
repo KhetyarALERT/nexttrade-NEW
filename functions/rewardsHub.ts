@@ -35,12 +35,25 @@ const MISSIONS = {
     desc: { en: "Make your first deposit", ar: "قم بأول إيداع" },
     action: { label: { en: "Deposit", ar: "إيداع" }, route: "/Wallet?page=deposit" },
     checkCompletion: async (user, base44) => {
+      // Check 1: Standard Wallet Deposits
       const deposits = await base44.asServiceRole.entities.WalletTransaction.filter({
         user_id: user.id,
         type: 'deposit',
         status: 'completed'
       });
-      return deposits?.length > 0;
+      if (deposits?.length > 0) return true;
+
+      // Check 2: Copy Trading Deposits
+      const copyWallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
+      if (copyWallets?.length > 0 && (copyWallets[0].lifetime_deposited > 0 || copyWallets[0].available_balance > 0 || copyWallets[0].locked_balance > 0)) {
+        return true;
+      }
+
+      // Check 3: Staking Activity (Implies deposit)
+      const stakes = await base44.asServiceRole.entities.StakingPosition.filter({ user_id: user.id });
+      if (stakes?.length > 0) return true;
+
+      return false;
     }
   },
   first_trade: {
