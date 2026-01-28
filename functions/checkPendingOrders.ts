@@ -47,13 +47,29 @@ async function executeOrder(base44, trade, price) {
     });
     
     // Send notification
-    await base44.asServiceRole.entities.Notification.create({
-      user_id: trade.user_id,
-      type: 'trade_executed',
-      title: 'Order Filled',
-      message: `Your ${trade.order_type} order for ${trade.symbol} was filled at ${price}`,
-      data: { tradeId: trade.id, price }
-    });
+    try {
+      let userLang = 'en';
+      try {
+        const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: trade.user_id });
+        if (prefs?.[0]?.language) userLang = prefs[0].language;
+      } catch (e) {}
+
+      const isAr = userLang === 'ar';
+      const title = isAr ? 'تم تنفيذ الأمر' : 'Order Filled';
+      const message = isAr 
+        ? `تم تنفيذ أمر ${trade.order_type} لزوج ${trade.symbol} بسعر ${price}`
+        : `Your ${trade.order_type} order for ${trade.symbol} was filled at ${price}`;
+
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: trade.user_id,
+        type: 'trade_executed',
+        title: title,
+        message: message,
+        data: { tradeId: trade.id, price }
+      });
+    } catch (e) {
+      console.error('Failed to send notification:', e);
+    }
     
     console.log(`[CHECK_ORDERS] Executed order ${trade.id} at ${price}`);
   } catch (e) {

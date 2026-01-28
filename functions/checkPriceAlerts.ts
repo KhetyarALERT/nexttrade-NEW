@@ -81,11 +81,23 @@ Deno.serve(async (req) => {
           alertsTriggered++;
           
           // Create notification
+          const isAr = prefs.language === 'ar';
+          let title, message;
+
+          if (isAr) {
+            const condText = alert.condition === 'above' ? 'أعلى من' : 'أقل من';
+            title = `تنبيه سعر: ${alert.symbol}`;
+            message = `${alert.symbol} وصل الآن ${condText} $${alert.targetPrice.toLocaleString()}. السعر الحالي: $${currentPrice.toLocaleString()}`;
+          } else {
+            title = `Price Alert: ${alert.symbol}`;
+            message = `${alert.symbol} is now ${alert.condition === 'above' ? 'above' : 'below'} $${alert.targetPrice.toLocaleString()}. Current price: $${currentPrice.toLocaleString()}`;
+          }
+
           await base44.asServiceRole.entities.Notification.create({
             user_id: prefs.user_id,
             type: 'price_alert',
-            title: `Price Alert: ${alert.symbol}`,
-            message: `${alert.symbol} is now ${alert.condition === 'above' ? 'above' : 'below'} $${alert.targetPrice.toLocaleString()}. Current price: $${currentPrice.toLocaleString()}`,
+            title: title,
+            message: message,
             data: {
               symbol: alert.symbol,
               targetPrice: alert.targetPrice,

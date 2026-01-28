@@ -37,8 +37,46 @@ const COMMON_TIMEZONES = [
   { value: "Australia/Sydney", label: "Sydney" }
 ];
 
-export default function NotificationSettings({ open, onOpenChange }) {
+export default function NotificationSettings({ open, onOpenChange, language = "en" }) {
   const { preferences, timezone, updatePreferences } = useNotifications();
+  const isAr = language === "ar";
+
+  const t = {
+    settings: isAr ? "إعدادات الإشعارات" : "Notification Settings",
+    timezone: isAr ? "المنطقة الزمنية" : "Timezone",
+    auto: isAr ? "تلقائي" : "Auto",
+    enable: isAr ? "تفعيل الإشعارات" : "Enable Notifications",
+    enableDesc: isAr ? "تلقي تنبيهات للأحداث المهمة" : "Receive alerts for important events",
+    save: isAr ? "حفظ الإعدادات" : "Save Settings",
+    saving: isAr ? "جاري الحفظ..." : "Saving...",
+    cancel: isAr ? "إلغاء" : "Cancel",
+    types: {
+      notify_price_alerts: { 
+        label: isAr ? "تنبيهات الأسعار" : "Price Alerts", 
+        desc: isAr ? "عند الوصول إلى الأسعار المستهدفة" : "When target prices are reached" 
+      },
+      notify_trade_executions: { 
+        label: isAr ? "تنفيذ الصفقات" : "Trade Executions", 
+        desc: isAr ? "عند فتح أو إغلاق الصفقات" : "When trades are opened or closed" 
+      },
+      notify_margin_warnings: { 
+        label: isAr ? "تحذيرات الهامش" : "Margin Warnings", 
+        desc: isAr ? "تنبيهات انخفاض الهامش والتصفية" : "Low margin and liquidation alerts" 
+      },
+      notify_deposits: { 
+        label: isAr ? "الإيداعات" : "Deposits", 
+        desc: isAr ? "عند تأكيد الإيداعات" : "When deposits are confirmed" 
+      },
+      notify_withdrawals: { 
+        label: isAr ? "السحوبات" : "Withdrawals", 
+        desc: isAr ? "تحديثات حالة السحب" : "Withdrawal status updates" 
+      },
+      notify_staking: { 
+        label: isAr ? "الاستثمار" : "Staking", 
+        desc: isAr ? "مكافآت الاستثمار والتحديثات" : "Staking rewards and updates" 
+      }
+    }
+  };
 
   /**
    * @typedef {Object} NotificationPrefs
@@ -103,30 +141,30 @@ export default function NotificationSettings({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" dir={isAr ? "rtl" : "ltr"}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            Notification Settings
+            {t.settings}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4" dir={isAr ? "rtl" : "ltr"}>
           {/* Timezone */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-slate-500" />
-              <Label className="font-medium">Timezone</Label>
+              <Label className="font-medium">{t.timezone}</Label>
             </div>
             <div className="flex gap-2">
               <Select
                 value={localPrefs.timezone || timezone}
                 onValueChange={(v) => setLocalPrefs(prev => ({ ...prev, timezone: v }))}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 text-right">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent dir={isAr ? "rtl" : "ltr"}>
                   {COMMON_TIMEZONES.map(tz => (
                     <SelectItem key={tz.value} value={tz.value}>
                       {tz.label}
@@ -135,8 +173,8 @@ export default function NotificationSettings({ open, onOpenChange }) {
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" onClick={handleAutoDetect}>
-                <Clock className="h-4 w-4 mr-1" />
-                Auto
+                <Clock className={`h-4 w-4 ${isAr ? "ml-1" : "mr-1"}`} />
+                {t.auto}
               </Button>
             </div>
           </div>
@@ -144,8 +182,8 @@ export default function NotificationSettings({ open, onOpenChange }) {
           {/* Master Toggle */}
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <div>
-              <Label className="font-medium">Enable Notifications</Label>
-              <p className="text-xs text-slate-500">Receive alerts for important events</p>
+              <Label className="font-medium">{t.enable}</Label>
+              <p className="text-xs text-slate-500">{t.enableDesc}</p>
             </div>
             <Switch
               checked={localPrefs.notifications_enabled}
@@ -155,22 +193,15 @@ export default function NotificationSettings({ open, onOpenChange }) {
 
           {/* Individual Toggles */}
           <div className="space-y-3">
-            {[
-              { key: "notify_price_alerts", label: "Price Alerts", desc: "When target prices are reached" },
-              { key: "notify_trade_executions", label: "Trade Executions", desc: "When trades are opened or closed" },
-              { key: "notify_margin_warnings", label: "Margin Warnings", desc: "Low margin and liquidation alerts" },
-              { key: "notify_deposits", label: "Deposits", desc: "When deposits are confirmed" },
-              { key: "notify_withdrawals", label: "Withdrawals", desc: "Withdrawal status updates" },
-              { key: "notify_staking", label: "Staking", desc: "Staking rewards and updates" }
-            ].map(item => (
-              <div key={item.key} className="flex items-center justify-between">
+            {Object.entries(t.types).map(([key, info]) => (
+              <div key={key} className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm">{item.label}</Label>
-                  <p className="text-[10px] text-slate-500">{item.desc}</p>
+                  <Label className="text-sm">{info.label}</Label>
+                  <p className="text-[10px] text-slate-500">{info.desc}</p>
                 </div>
                 <Switch
-                  checked={localPrefs[item.key]}
-                  onCheckedChange={(v) => setLocalPrefs(prev => ({ ...prev, [item.key]: v }))}
+                  checked={localPrefs[key]}
+                  onCheckedChange={(v) => setLocalPrefs(prev => ({ ...prev, [key]: v }))}
                   disabled={!localPrefs.notifications_enabled}
                 />
               </div>
@@ -178,12 +209,12 @@ export default function NotificationSettings({ open, onOpenChange }) {
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className={`flex gap-2 ${isAr ? "justify-start" : "justify-end"}`}>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t.cancel}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Settings"}
+            {saving ? t.saving : t.save}
           </Button>
         </div>
       </DialogContent>
@@ -193,5 +224,6 @@ export default function NotificationSettings({ open, onOpenChange }) {
 
 NotificationSettings.propTypes = {
   open: PropTypes.bool.isRequired,
-  onOpenChange: PropTypes.func.isRequired
+  onOpenChange: PropTypes.func.isRequired,
+  language: PropTypes.string
 };

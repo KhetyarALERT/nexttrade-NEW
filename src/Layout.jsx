@@ -1063,6 +1063,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       <NotificationSettings 
         open={notificationSettingsOpen} 
         onOpenChange={setNotificationSettingsOpen} 
+        language={language}
       />
       <AssistantModal language={language} />
     </div>
