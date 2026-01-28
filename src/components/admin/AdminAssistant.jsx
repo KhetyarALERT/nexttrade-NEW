@@ -3,55 +3,62 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, RefreshCw, Sparkles, Loader2, StopCircle } from "lucide-react";
+import { Send, Bot, User, RefreshCw, Sparkles, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-// Message Bubble Component (Internal)
+// Premium Message Bubble
 const AdminMessageBubble = ({ message }) => {
   const isUser = message.role === 'user';
   
   return (
-    <div className={cn("flex gap-3 mb-4", isUser ? "justify-end" : "justify-start")}>
-      {!isUser && (
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
-          <Bot className="h-4 w-4 text-primary" />
-        </div>
-      )}
-      
+    <div className={cn(
+      "flex gap-3 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-300",
+      isUser ? "flex-row-reverse" : "flex-row"
+    )}>
+      {/* Avatar */}
       <div className={cn(
-        "max-w-[85%] rounded-2xl px-4 py-3 shadow-sm",
+        "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
         isUser 
-          ? "bg-primary text-primary-foreground rounded-tr-none" 
-          : "bg-card border border-border rounded-tl-none"
+          ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" 
+          : "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-indigo-500/20"
+      )}>
+        {isUser ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+      </div>
+      
+      {/* Bubble */}
+      <div className={cn(
+        "max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed",
+        isUser 
+          ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tr-sm" 
+          : "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-tl-sm"
       )}>
         {isUser ? (
-          <p className="text-sm">{message.content}</p>
+          <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
         
-        {/* Tool Calls Display */}
+        {/* Tool Status */}
         {message.tool_calls?.length > 0 && (
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
             {message.tool_calls.map((call, i) => (
-              <div key={i} className="text-xs bg-black/5 dark:bg-white/5 rounded p-2 font-mono border border-border/50">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-muted-foreground">Running:</span>
-                  <span className="font-semibold text-primary">{call.name}</span>
-                </div>
-                {call.status === 'success' && (
-                  <span className="text-green-500 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                    Completed
+              <div key={i} className="flex items-center gap-2 text-xs bg-muted/50 rounded-md px-2 py-1.5 font-mono">
+                <span className="text-muted-foreground">Exec:</span>
+                <span className="font-medium text-foreground">{call.name}</span>
+                <span className="flex-1" />
+                {call.status === 'success' ? (
+                  <span className="text-emerald-500 flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Success
                   </span>
-                )}
-                {call.status === 'error' && (
+                ) : (
                   <span className="text-red-500 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
-                    Failed
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Error
                   </span>
                 )}
               </div>
@@ -59,12 +66,6 @@ const AdminMessageBubble = ({ message }) => {
           </div>
         )}
       </div>
-
-      {isUser && (
-        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center border border-border shrink-0">
-          <User className="h-4 w-4 text-muted-foreground" />
-        </div>
-      )}
     </div>
   );
 };
@@ -74,13 +75,15 @@ export default function AdminAssistant() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState(null);
   const scrollRef = useRef(null);
+  const navigate = useNavigate();
 
-  // Initialize or fetch conversation
+  // Initialize
   useEffect(() => {
+    let mounted = true;
     const initChat = async () => {
       try {
-        // List existing to see if we can resume, or create new
         const existing = await base44.agents.listConversations({ agent_name: "admin_assistant" });
         let activeConv = existing.data?.[0];
         
@@ -91,16 +94,20 @@ export default function AdminAssistant() {
           });
         }
         
-        setConversation(activeConv);
-        setMessages(activeConv.messages || []);
+        if (mounted) {
+          setConversation(activeConv);
+          setMessages(activeConv.messages || []);
+        }
       } catch (err) {
         console.error("Failed to init admin chat:", err);
+        if (mounted) setError("Could not connect to Admin Agent");
       }
     };
     initChat();
+    return () => { mounted = false; };
   }, []);
 
-  // Subscribe to real-time updates
+  // Subscribe
   useEffect(() => {
     if (!conversation?.id) return;
 
@@ -115,7 +122,8 @@ export default function AdminAssistant() {
   // Auto-scroll
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scroll = scrollRef.current;
+      scroll.scrollTo({ top: scroll.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isTyping]);
 
@@ -125,6 +133,7 @@ export default function AdminAssistant() {
 
     const content = input;
     setInput("");
+    setError(null);
     
     try {
       await base44.agents.addMessage(conversation.id, {
@@ -132,68 +141,95 @@ export default function AdminAssistant() {
         content
       });
     } catch (err) {
-      console.error("Failed to send message:", err);
+      console.error("Failed to send:", err);
+      setError("Failed to send message. Try again.");
+      setInput(content); // Restore input
     }
   };
 
+  const handleClear = async () => {
+    if (!conversation) return;
+    setMessages([]);
+    // Optionally archive conversation logic here
+    toast.success("Chat history cleared");
+  };
+
   return (
-    <div className="flex flex-col h-full bg-background/50 backdrop-blur-xl">
+    <div className="flex flex-col h-full bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-xl border-r border-border shadow-2xl relative z-50">
       {/* Header */}
-      <div className="p-4 border-b border-border/50 bg-background/80 backdrop-blur-md flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Bot className="h-5 w-5 text-white" />
+      <div className="px-4 py-3 border-b border-border/60 bg-background/80 backdrop-blur-md flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Admin AI</h3>
+            <h3 className="font-bold text-sm tracking-tight">Admin Assistant</h3>
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-[10px] text-muted-foreground">Active & Ready</span>
+              <span className="text-[10px] font-medium text-muted-foreground/80">Online</span>
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setMessages([])}>
-          <RefreshCw className="h-4 w-4 text-muted-foreground" />
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800/50" onClick={handleClear} title="Clear Chat">
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-800/50" onClick={() => navigate(createPageUrl("Dashboard"))} title="Exit Admin">
+            <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea className="h-full px-4 pt-4" ref={scrollRef}>
+      <div className="flex-1 overflow-hidden relative bg-gradient-to-b from-transparent to-white/5 dark:to-black/5">
+        <ScrollArea className="h-full px-4 pt-6" ref={scrollRef}>
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-60">
-              <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                <Sparkles className="h-8 w-8 text-primary" />
+            <div className="h-full flex flex-col items-center justify-center text-center px-6 opacity-70">
+              <div className="h-20 w-20 rounded-3xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center mb-6 animate-pulse">
+                <Bot className="h-10 w-10 text-indigo-500" />
               </div>
-              <h4 className="font-semibold text-foreground mb-1">How can I help?</h4>
-              <p className="text-sm text-muted-foreground max-w-[240px]">
-                I can check verification queues, analyze staking rewards, or lookup user details for you.
+              <h4 className="font-semibold text-lg mb-2">Welcome Back, Admin</h4>
+              <p className="text-sm text-muted-foreground mb-8 max-w-[260px] leading-relaxed">
+                I can help verify users, analyze trading data, or manage system configuration.
               </p>
               
-              <div className="mt-6 grid gap-2 w-full max-w-[260px]">
-                {["Pending Verifications?", "Check Pool Balance", "Show failed withdrawals"].map(q => (
+              <div className="grid gap-2.5 w-full max-w-[280px]">
+                {[
+                  "Show pending verifications", 
+                  "Check platform balance", 
+                  "Analyze copy trading stats"
+                ].map((q, i) => (
                   <button
-                    key={q}
+                    key={i}
                     onClick={() => { setInput(q); handleSend(); }}
-                    className="text-xs py-2 px-3 rounded-lg bg-card border border-border/60 hover:bg-accent/50 hover:border-primary/30 transition-all text-left truncate"
+                    className="text-xs font-medium py-2.5 px-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-md hover:shadow-indigo-500/5 transition-all text-left flex items-center group"
                   >
-                    {q}
+                    <span className="flex-1">{q}</span>
+                    <Send className="h-3 w-3 text-muted-foreground group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="pb-4">
+            <div className="pb-6">
               {messages.map((m, i) => (
                 <AdminMessageBubble key={i} message={m} />
               ))}
               {isTyping && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground ml-12 animate-pulse">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  AI is analyzing...
+                <div className="flex items-center gap-2 mb-4 animate-pulse ml-1">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">Thinking...</span>
+                </div>
+              )}
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-600 text-xs mb-4 border border-red-500/20">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
                 </div>
               )}
             </div>
@@ -203,29 +239,23 @@ export default function AdminAssistant() {
 
       {/* Input */}
       <div className="p-4 bg-background border-t border-border/50 shrink-0">
-        <form onSubmit={handleSend} className="relative">
+        <form onSubmit={handleSend} className="relative group">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about users, stats, or actions..."
-            className="pr-12 h-11 bg-muted/30 border-border/60 focus:bg-background transition-all"
-            disabled={!conversation}
+            placeholder="Ask AI Assistant..."
+            className="pr-12 h-12 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:bg-background focus:ring-2 focus:ring-indigo-500/20 transition-all rounded-xl shadow-sm text-sm"
+            disabled={!conversation || isTyping}
           />
           <Button 
             type="submit" 
             size="icon" 
-            className="absolute right-1 top-1 h-9 w-9 rounded-lg"
-            disabled={!input.trim() || !conversation}
+            className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:shadow-none"
+            disabled={!input.trim() || !conversation || isTyping}
           >
             <Send className="h-4 w-4" />
           </Button>
         </form>
-        <div className="mt-2 flex justify-center">
-          <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            AI can make mistakes. Verify critical actions.
-          </p>
-        </div>
       </div>
     </div>
   );
