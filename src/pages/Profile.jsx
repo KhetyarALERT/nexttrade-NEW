@@ -994,11 +994,7 @@ export default function Profile({ language = "en" }) {
                         <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 animate-pulse" />
                         {language === "en" ? "Trading Account" : "حساب تداول"}
                       </h3>
-                      {okxAccount && (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-0">
-                          {language === "en" ? "Real Money" : "مال حقيقي"}
-                        </Badge>
-                      )}
+                      {/* Real Money badge removed */}
                     </div>
                     <OKXLiveAccountCard language={language} onRefresh={loadTradingAccounts} />
                   </div>
