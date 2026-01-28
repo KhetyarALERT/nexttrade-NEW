@@ -539,7 +539,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
             {/* Actions */}
             <div className="hidden md:flex items-center gap-3">
-              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />}
+              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} language={language} />}
 
               {isMemeCoinsPage && <SolanaNavWalletButton />}
 
@@ -781,7 +781,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} />}
+              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} language={language} />}
 
               {isMemeCoinsPage && <SolanaNavWalletButton />}
 

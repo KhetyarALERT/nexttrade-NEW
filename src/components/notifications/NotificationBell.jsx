@@ -38,10 +38,17 @@ const NOTIFICATION_COLORS = {
   system: "bg-slate-500/10 text-slate-500"
 };
 
-export default function NotificationBell({ onSettingsClick }) {
+export default function NotificationBell({ onSettingsClick, language = "en" }) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, formatDate } = useNotifications();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const isAr = language === "ar";
+
+  const t = {
+    notifications: isAr ? "الإشعارات" : "Notifications",
+    markAllRead: isAr ? "تحديد الكل كمقروء" : "Mark all read",
+    noNotifications: isAr ? "لا توجد إشعارات بعد" : "No notifications yet",
+  };
 
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
@@ -74,14 +81,14 @@ export default function NotificationBell({ onSettingsClick }) {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0" align="end" dir={isAr ? "rtl" : "ltr"}>
         <div className="flex items-center justify-between p-3 border-b">
-          <h4 className="font-semibold text-sm">Notifications</h4>
+          <h4 className="font-semibold text-sm">{t.notifications}</h4>
           <div className="flex items-center gap-1">
             {unreadCount > 0 && (
               <Button variant="ghost" size="sm" onClick={markAllAsRead} className="h-7 text-xs">
-                <CheckCheck className="h-3 w-3 mr-1" />
-                Mark all read
+                <CheckCheck className={`h-3 w-3 ${isAr ? "ml-1" : "mr-1"}`} />
+                {t.markAllRead}
               </Button>
             )}
             {onSettingsClick && (
@@ -96,7 +103,7 @@ export default function NotificationBell({ onSettingsClick }) {
           {notifications.length === 0 ? (
             <div className="p-8 text-center text-slate-500 text-sm">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              No notifications yet
+              {t.noNotifications}
             </div>
           ) : (
             <div className="divide-y">
@@ -146,5 +153,6 @@ export default function NotificationBell({ onSettingsClick }) {
 }
 
 NotificationBell.propTypes = {
-  onSettingsClick: PropTypes.func
+  onSettingsClick: PropTypes.func,
+  language: PropTypes.string
 };
