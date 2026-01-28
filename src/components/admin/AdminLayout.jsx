@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export default function AdminLayout({ children }) {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden" dir="ltr">
-      {/* Left Panel - AI Admin Assistant - Always on Left */}
+      {/* Left Panel - AI Admin Assistant - Always on Left due to dir="ltr" */}
       <aside className="w-[380px] h-full border-r border-border bg-card/30 hidden md:flex flex-col shrink-0 relative z-20">
         <AdminAssistant />
       </aside>
