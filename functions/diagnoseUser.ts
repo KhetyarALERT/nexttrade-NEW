@@ -2,7 +2,7 @@
 /// <reference lib="deno.ns" />
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// --- INLINED OKX CORE UTILS ---
+// --- INLINED OKX CORE UTILS (DIAGNOSTIC) ---
 const DEFAULT_OKX_BASE_URL = 'https://www.okx.com';
 function getEnv(key) { return Deno.env.get(key); }
 function getOkxBaseUrl() { return getEnv('OKX_BASE_URL') || DEFAULT_OKX_BASE_URL; }
@@ -62,23 +62,19 @@ async function okxRequest({ credential, method, path, body }) {
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   
-  // Hardcoded target user prefix from previous context
-  const targetPrefix = '6969f269'; 
-  
-  // 1. Find User ID
-  const users = await base44.asServiceRole.entities.User.list({limit: 100}); // Listing all to find match, or use filter if possible
-  // SDK doesn't support 'startsWith' filter easily, so let's try to find via Transfer or Account like before
+  // Target: 6969f269
   const accounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({ provider: 'OKX' });
-  const targetAccount = accounts.find(a => a.user_id.startsWith(targetPrefix));
+  const targetAccount = accounts.find(a => a.user_id.startsWith('6969f269'));
   
   if (!targetAccount) return Response.json({ error: "User not found" });
   const userId = targetAccount.user_id;
   
-  // 2. Internal Ledger Balance
-  const tradingAccount = (await base44.asServiceRole.entities.TradingAccount.filter({ user_id: userId }))[0];
+  // 2. Ledger
+  const tradingAccounts = await base44.asServiceRole.entities.TradingAccount.filter({ user_id: userId });
+  const tradingAccount = tradingAccounts[0];
   const ledgerBal = tradingAccount ? tradingAccount.balance : 0;
   
-  // 3. Real OKX Balances
+  // 3. Real
   const creds = await base44.asServiceRole.entities.ExchangeCredential.filter({ user_exchange_account_id: targetAccount.id });
   const cred = creds[0];
   const userCredential = { apiKey: cred.api_key, secretKey: await decryptSecret(cred.secret_enc), passphrase: await decryptSecret(cred.passphrase_enc) };
