@@ -194,17 +194,21 @@ Deno.serve(async (req) => {
       const marginUsed = positions.reduce((sum, pos) => sum + parseFloat(pos.margin || '0'), 0);
       const unrealizedPnl = positions.reduce((sum, pos) => sum + parseFloat(pos.upl || '0'), 0);
 
-      const tradingUsdt = parseFloat(tradingDetails.find(d => d.ccy === 'USDT')?.cashBal || '0');
+      // OVERRIDE: Fetch Internal Ledger for Trading Balance
+      const tradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+      const ledger = tradingAccounts[0];
+      const ledgerBalance = ledger ? (ledger.balance || 0) : 0;
+      const ledgerEquity = ledger ? (ledger.equity || ledger.balance || 0) : 0;
+
+      const tradingUsdt = ledgerBalance;
       const fundingUsdt = parseFloat(fundingDetails.find(d => d.ccy === 'USDT')?.bal || '0');
-      const totalEquity = parseFloat(tradingRes.data?.data?.[0]?.totalEq || '0');
-      
-      // Available balance = total equity - margin used (what user can actually use for new trades)
-      const availableBalance = parseFloat(tradingRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
+      const totalEquity = ledgerEquity; 
+      const availableBalance = ledgerBalance - marginUsed; // Simplified
 
       // Build perCcy object for all currencies (funding + trading combined)
       const perCcy = {};
       
-      // Add funding balances
+      // Add funding balances (Real from OKX)
       for (const f of fundingDetails) {
         const ccy = f.ccy;
         if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
@@ -212,13 +216,12 @@ Deno.serve(async (req) => {
         perCcy[ccy].availFunding = parseFloat(f.availBal || f.bal || '0');
       }
       
-      // Add trading balances
-      for (const t of tradingDetails) {
-        const ccy = t.ccy;
-        if (!perCcy[ccy]) perCcy[ccy] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
-        perCcy[ccy].trading = parseFloat(t.cashBal || '0');
-        perCcy[ccy].availTrading = parseFloat(t.availBal || '0');
-      }
+      // Add trading balances (Virtual from Ledger for USDT)
+      // For other currencies, we might still want OKX balances if they exist? 
+      // User requirement implies "Trading Account" is virtual.
+      if (!perCcy['USDT']) perCcy['USDT'] = { funding: 0, trading: 0, total: 0, availFunding: 0, availTrading: 0 };
+      perCcy['USDT'].trading = ledgerBalance;
+      perCcy['USDT'].availTrading = availableBalance;
       
       // Calculate totals
       for (const ccy of Object.keys(perCcy)) {
