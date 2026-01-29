@@ -275,6 +275,7 @@ export default function SignalsAdminTab({ onRefresh }) {
                 <TableHead>Entry</TableHead>
                 <TableHead>TP/SL</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Accepted</TableHead>
                 <TableHead>Max Lev</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -318,6 +319,11 @@ export default function SignalsAdminTab({ onRefresh }) {
                     <TableCell>
                       <Badge className={statusColor(signal.status)}>
                         {signal.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-mono">
+                        {signal.accepted_count || 0}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs capitalize">{signal.source}</TableCell>

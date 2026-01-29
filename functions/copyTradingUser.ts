@@ -292,6 +292,18 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
     created_at: now
   });
 
+  // 8.1 Increment accepted_count on Signal (fire and forget for performance)
+  try {
+    const sig = await base44.asServiceRole.entities.Signal.get(signalId);
+    if (sig) {
+      await base44.asServiceRole.entities.Signal.update(signalId, {
+        accepted_count: (sig.accepted_count || 0) + 1
+      });
+    }
+  } catch (err) {
+    console.error('Failed to update signal accepted_count:', err);
+  }
+
   // 9. Ledger
   const balBefore = wallet.available_balance;
   

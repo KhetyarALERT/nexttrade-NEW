@@ -141,9 +141,22 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
           <h2 className="text-xl font-bold text-foreground">{labels.title}</h2>
           <p className="text-xs text-muted-foreground">{labels.subtitle}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-2">
+                <Settings className="w-4 h-4" />
+                {language === "ar" ? "الإعدادات" : "Settings"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+              <CopyTradingSettingsForm language={language} />
+            </DialogContent>
+          </Dialog>
+          <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Balance Cards */}
