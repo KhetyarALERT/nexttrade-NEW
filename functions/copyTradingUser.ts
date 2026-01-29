@@ -180,6 +180,195 @@ async function getOkxTradingBalance(base44, userId) {
   }
 }
 
+async function processSignalAcceptance({ base44, targetUserId, signalId, amount, leverage, source }) {
+  const amtNum = Number(amount);
+  const levNum = Number(leverage) || 5;
+
+  if (!targetUserId) return Response.json({ ok: false, error: { code: 'NO_USER', message: 'User not identified' } });
+  if (!signalId || !amtNum || amtNum <= 0) {
+    return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Invalid input' } });
+  }
+
+  // 1. Check idempotency
+  const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: targetUserId, signal_id: signalId });
+  if (existingAction.length > 0) {
+    const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: targetUserId });
+    const wallet = walletRes?.[0];
+    return Response.json({ 
+      ok: true, 
+      success: true,
+      wallet: wallet ? { available: wallet.available_balance, locked: wallet.locked_balance } : null,
+      message: 'Already processed'
+    });
+  }
+
+  // 2. Get wallet (need target user object)
+  let targetUserObj;
+  try {
+    targetUserObj = await base44.asServiceRole.entities.User.get(targetUserId);
+  } catch(e) {}
+  
+  if (!targetUserObj) return Response.json({ ok: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } });
+  
+  const wallet = await getOrCreateWallet(base44, targetUserObj);
+
+  // 3. Get Signal
+  let signal;
+  try { signal = await base44.asServiceRole.entities.Signal.get(signalId); } catch (e) {}
+  if (!signal || signal.status !== 'ACTIVE') {
+    return Response.json({ ok: false, error: { code: 'SIGNAL_INVALID', message: 'Signal not active' } });
+  }
+
+  const configs = await base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' });
+  const config = configs?.[0];
+  const commRate = config?.commission_open_rate || 0.0005;
+  const minComm = config?.min_commission_open || 0.05;
+
+  // 3b. Max Leverage Cap
+  let userMaxLev = 50; 
+  try {
+    const ents = await base44.asServiceRole.entities.UserEntitlement.filter({ user_id: targetUserId });
+    if (ents?.length) {
+      userMaxLev = ents[0].leverage_max || 50;
+      if (userMaxLev < 20) userMaxLev = 20; 
+    }
+  } catch (e) {}
+
+  const signalMaxLev = signal.max_leverage || 20;
+  const allowedMaxLev = Math.min(signalMaxLev, userMaxLev, 100);
+
+  if (levNum > allowedMaxLev) {
+    return Response.json({ ok: false, error: { code: 'LEVERAGE_EXCEEDED', message: `Leverage ${levNum}x exceeds limit. Max: ${allowedMaxLev}x` } });
+  }
+
+  // 4. Calc Funds
+  const margin = amtNum;
+  const notional = margin * levNum;
+  const commOpen = Math.max(minComm, notional * commRate);
+  const required = margin + commOpen;
+
+  // 5. Validate Balance
+  if (wallet.available_balance < required) {
+    const missing = required - wallet.available_balance;
+    return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient balance`, required, available: wallet.available_balance } });
+  }
+
+  const now = new Date().toISOString();
+
+  // 6. Live Price
+  let entryPrice = signal.entry_price || 0;
+  try {
+    const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const pJson = await pRes.json();
+    if (pJson.data?.[0]?.last) entryPrice = Number(pJson.data[0].last);
+  } catch (e) {}
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) entryPrice = signal.entry_price || 0;
+
+  // 7. Create Position
+  const position = await base44.asServiceRole.entities.CopyPosition.create({
+    user_id: targetUserId,
+    signal_id: signalId,
+    status: 'OPEN',
+    symbol: signal.symbol,
+    side: signal.side,
+    entry_price: entryPrice,
+    notional_usdt: notional,
+    leverage: levNum,
+    stop_loss: signal.stop_loss,
+    tp1: signal.tp1,
+    tp2: signal.tp2,
+    opened_at: now
+  });
+
+  // 8. Signal Action
+  await base44.asServiceRole.entities.SignalAction.create({
+    signal_id: signalId,
+    user_id: targetUserId,
+    action: source === 'AUTO' ? 'AUTO_ACCEPTED' : 'ACCEPTED',
+    accepted_at: now,
+    user_amount_usdt: margin,
+    user_leverage: levNum,
+    commission_open_usdt: commOpen,
+    created_at: now
+  });
+
+  // 9. Ledger
+  const balBefore = wallet.available_balance;
+  
+  // Debit commission
+  await base44.asServiceRole.entities.CopyTradingLedger.create({
+    user_id: targetUserId,
+    kind: 'COMMISSION',
+    amount: -commOpen,
+    currency: 'USDT',
+    status: 'POSTED',
+    ref_type: 'SIGNAL_ACCEPTANCE',
+    ref_id: signalId,
+    balance_before: balBefore,
+    balance_after: balBefore - commOpen,
+    description: `Open commission for ${signal.symbol}`,
+    created_at: now
+  });
+
+  // Lock margin
+  await base44.asServiceRole.entities.CopyTradingLedger.create({
+    user_id: targetUserId,
+    kind: 'MARGIN_LOCK',
+    amount: -margin,
+    currency: 'USDT',
+    status: 'POSTED',
+    ref_type: 'POSITION',
+    ref_id: position.id,
+    balance_before: balBefore - commOpen,
+    balance_after: balBefore - commOpen - margin,
+    description: `Locked margin for ${signal.symbol} position`,
+    created_at: now
+  });
+
+  // 10. Update Wallet
+  const newAvailable = wallet.available_balance - required;
+  const newLocked = wallet.locked_balance + margin;
+  await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+    available_balance: Math.max(0, newAvailable),
+    locked_balance: newLocked,
+    updated_at: now
+  });
+
+  // 11. Notification
+  try {
+    let userLang = 'en';
+    try {
+      const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: targetUserId });
+      if (prefs?.[0]?.language) userLang = prefs[0].language;
+    } catch (e) {}
+
+    const isAr = userLang === 'ar';
+    const title = isAr 
+      ? (source === 'AUTO' ? 'تم قبول الإشارة تلقائياً' : 'تم قبول الإشارة')
+      : (source === 'AUTO' ? 'Signal Auto-Accepted' : 'Signal Accepted');
+    
+    let message;
+    if (isAr) {
+      const sideAr = signal.side === 'LONG' ? 'شراء' : 'بيع';
+      message = `تم فتح صفقة ${sideAr} على ${signal.symbol} بسعر ${entryPrice.toFixed(2)}. الهامش: ${margin} USDT`;
+    } else {
+      message = `Opened ${signal.side} position on ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT`;
+    }
+
+    await base44.asServiceRole.entities.Notification.create({
+      user_id: targetUserId,
+      type: 'trade_executed',
+      title: title,
+      message: message,
+      data: { instId: signal.symbol, signalId, positionId: position.id, link: `/Trading?tab=bots&instId=${signal.symbol}&positionId=${position.id}` },
+      read: false,
+      priority: 'normal'
+    });
+  } catch (e) {}
+
+  return Response.json({ ok: true, success: true, wallet: { available: newAvailable, locked: newLocked } });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -552,222 +741,22 @@ Deno.serve(async (req) => {
 
     // ==================== INTERNAL ACCEPT LOGIC (EXPOSED FOR AUTO) ====================
     if (action === 'acceptSignalInternal') {
-      // Internal system call only (protected by function logic or assume caller has validated)
-      // BUT for safety, we allow it to be called via invoke() from other functions.
-      // We rely on caller to pass userId in body OR use auth.me() if manual.
-      
-      // If called internally by auto-process, user might not be in auth header
       let targetUserId = user?.id;
       if (!targetUserId && body.targetUserId) {
-        // Only allow overriding userId if caller is admin or service role (how to check? internal calls usually bypass this or have admin token)
-        // For now, we assume this action is only reachable if you are admin or self.
-        // Actually, let's keep it safe: this block is inside Deno.serve where we already did auth check.
-        // If user is admin, allow targetUserId.
         if (user?.role === 'admin') {
           targetUserId = body.targetUserId;
         }
       }
 
       const { signalId, amount, leverage, source = 'MANUAL' } = body;
-      const amtNum = Number(amount);
-      const levNum = Number(leverage) || 5;
-
-      if (!targetUserId) return Response.json({ ok: false, error: { code: 'NO_USER', message: 'User not identified' } });
-      if (!signalId || !amtNum || amtNum <= 0) {
-        return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Invalid input' } });
-      }
-
-      // 1. Check idempotency
-      const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: targetUserId, signal_id: signalId });
-      if (existingAction.length > 0) {
-        const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: targetUserId });
-        const wallet = walletRes?.[0];
-        return Response.json({ 
-          ok: true, 
-          success: true,
-          wallet: wallet ? { available: wallet.available_balance, locked: wallet.locked_balance } : null,
-          message: 'Already processed'
-        });
-      }
-
-      // 2. Get wallet
-      // We need to fetch the target user object to pass to getOrCreateWallet
-      // getOrCreateWallet takes (base44, userObject)
-      let targetUserObj = user;
-      if (user.id !== targetUserId) {
-        targetUserObj = await base44.asServiceRole.entities.User.get(targetUserId);
-      }
-      const wallet = await getOrCreateWallet(base44, targetUserObj);
-
-      // 3. Get Signal
-      let signal;
-      try { signal = await base44.asServiceRole.entities.Signal.get(signalId); } catch (e) {}
-      if (!signal || signal.status !== 'ACTIVE') {
-        return Response.json({ ok: false, error: { code: 'SIGNAL_INVALID', message: 'Signal not active' } });
-      }
-
-      const configs = await base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' });
-      const config = configs?.[0];
-      const commRate = config?.commission_open_rate || 0.0005;
-      const minComm = config?.min_commission_open || 0.05;
-
-      // 3b. Max Leverage Cap
-      let userMaxLev = 50; 
-      try {
-        const ents = await base44.asServiceRole.entities.UserEntitlement.filter({ user_id: targetUserId });
-        if (ents?.length) {
-          userMaxLev = ents[0].leverage_max || 50;
-          if (userMaxLev < 20) userMaxLev = 20; 
-        }
-      } catch (e) {}
-
-      const signalMaxLev = signal.max_leverage || 20;
-      const allowedMaxLev = Math.min(signalMaxLev, userMaxLev, 100);
-
-      if (levNum > allowedMaxLev) {
-        return Response.json({ ok: false, error: { code: 'LEVERAGE_EXCEEDED', message: `Leverage ${levNum}x exceeds limit. Max: ${allowedMaxLev}x` } });
-      }
-
-      // 4. Calc Funds
-      const margin = amtNum;
-      const notional = margin * levNum;
-      const commOpen = Math.max(minComm, notional * commRate);
-      const required = margin + commOpen;
-
-      // 5. Validate Balance
-      if (wallet.available_balance < required) {
-        const missing = required - wallet.available_balance;
-        return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient balance`, required, available: wallet.available_balance } });
-      }
-
-      const now = new Date().toISOString();
-
-      // 6. Live Price
-      let entryPrice = signal.entry_price || 0;
-      try {
-        const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`, { headers: { "User-Agent": "Mozilla/5.0" } });
-        const pJson = await pRes.json();
-        if (pJson.data?.[0]?.last) entryPrice = Number(pJson.data[0].last);
-      } catch (e) {}
-      if (!Number.isFinite(entryPrice) || entryPrice <= 0) entryPrice = signal.entry_price || 0;
-
-      // 7. Create Position
-      const position = await base44.asServiceRole.entities.CopyPosition.create({
-        user_id: targetUserId,
-        signal_id: signalId,
-        status: 'OPEN',
-        symbol: signal.symbol,
-        side: signal.side,
-        entry_price: entryPrice,
-        notional_usdt: notional,
-        leverage: levNum,
-        stop_loss: signal.stop_loss,
-        tp1: signal.tp1,
-        tp2: signal.tp2,
-        opened_at: now
-      });
-
-      // 8. Signal Action
-      await base44.asServiceRole.entities.SignalAction.create({
-        signal_id: signalId,
-        user_id: targetUserId,
-        action: source === 'AUTO' ? 'AUTO_ACCEPTED' : 'ACCEPTED',
-        accepted_at: now,
-        user_amount_usdt: margin,
-        user_leverage: levNum,
-        commission_open_usdt: commOpen,
-        created_at: now
-      });
-
-      // 9. Ledger
-      const balBefore = wallet.available_balance;
-      
-      // Debit commission
-      await base44.asServiceRole.entities.CopyTradingLedger.create({
-        user_id: targetUserId,
-        kind: 'COMMISSION',
-        amount: -commOpen,
-        currency: 'USDT',
-        status: 'POSTED',
-        ref_type: 'SIGNAL_ACCEPTANCE',
-        ref_id: signalId,
-        balance_before: balBefore,
-        balance_after: balBefore - commOpen,
-        description: `Open commission for ${signal.symbol}`,
-        created_at: now
-      });
-
-      // Lock margin
-      await base44.asServiceRole.entities.CopyTradingLedger.create({
-        user_id: targetUserId,
-        kind: 'MARGIN_LOCK',
-        amount: -margin,
-        currency: 'USDT',
-        status: 'POSTED',
-        ref_type: 'POSITION',
-        ref_id: position.id,
-        balance_before: balBefore - commOpen,
-        balance_after: balBefore - commOpen - margin,
-        description: `Locked margin for ${signal.symbol} position`,
-        created_at: now
-      });
-
-      // 10. Update Wallet
-      const newAvailable = wallet.available_balance - required;
-      const newLocked = wallet.locked_balance + margin;
-      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
-        available_balance: Math.max(0, newAvailable),
-        locked_balance: newLocked,
-        updated_at: now
-      });
-
-      // 11. Notification
-      try {
-        let userLang = 'en';
-        try {
-          const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: targetUserId });
-          if (prefs?.[0]?.language) userLang = prefs[0].language;
-        } catch (e) {}
-
-        const isAr = userLang === 'ar';
-        const title = isAr 
-          ? (source === 'AUTO' ? 'تم قبول الإشارة تلقائياً' : 'تم قبول الإشارة')
-          : (source === 'AUTO' ? 'Signal Auto-Accepted' : 'Signal Accepted');
-        
-        let message;
-        if (isAr) {
-          const sideAr = signal.side === 'LONG' ? 'شراء' : 'بيع';
-          message = `تم فتح صفقة ${sideAr} على ${signal.symbol} بسعر ${entryPrice.toFixed(2)}. الهامش: ${margin} USDT`;
-        } else {
-          message = `Opened ${signal.side} position on ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT`;
-        }
-
-        await base44.asServiceRole.entities.Notification.create({
-          user_id: targetUserId,
-          type: 'trade_executed',
-          title: title,
-          message: message,
-          data: { instId: signal.symbol, signalId, positionId: position.id, link: `/Trading?tab=bots&instId=${signal.symbol}&positionId=${position.id}` },
-          read: false,
-          priority: 'normal'
-        });
-      } catch (e) {}
-
-      return Response.json({ ok: true, success: true, wallet: { available: newAvailable, locked: newLocked } });
+      return await processSignalAcceptance({ base44, targetUserId, signalId, amount, leverage, source });
     }
 
-    // ==================== ACCEPT SIGNAL (MANUAL WRAPPER) ====================
+    // ==================== ACCEPT SIGNAL (MANUAL) ====================
     if (action === 'acceptSignal') {
-      // Wrapper for manual call, simply delegates to internal
       const { signalId, amount, leverage } = body;
-      return await (await fetch(req.url, {
-        method: 'POST',
-        headers: req.headers, // propagate auth
-        body: JSON.stringify({
-          action: 'acceptSignalInternal',
-          signalId, amount, leverage, source: 'MANUAL'
-        })
-      })).json();
+      // Manual accept always targets self
+      return await processSignalAcceptance({ base44, targetUserId: user.id, signalId, amount, leverage, source: 'MANUAL' });
     }
 
     // ==================== REJECT SIGNAL ====================
