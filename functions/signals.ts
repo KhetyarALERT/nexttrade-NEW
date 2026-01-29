@@ -167,8 +167,33 @@ Deno.serve(async (req) => {
         '-published_at',
         Math.min(100, Number(limit) || 50)
       );
+
+      // Populate accepted_count dynamically for signals where it might be missing or stale (especially existing ones)
+      // This ensures the dashboard always shows accurate counts without requiring a database migration
+      const signalsWithCounts = await Promise.all(signals.map(async (signal) => {
+        // If count exists, use it? Or verify? 
+        // User reported seeing 0, so we must assume it's unreliable for now.
+        // Let's count SignalActions for this signal.
+        try {
+          // Count 'ACCEPTED' and 'AUTO_ACCEPTED'
+          // SDK filter returns array, we take length. Optimized would be .count() if available, but filter is robust.
+          const actions = await base44.asServiceRole.entities.SignalAction.filter({ signal_id: signal.id });
+          const count = actions.filter(a => a.action === 'ACCEPTED' || a.action === 'AUTO_ACCEPTED').length;
+          
+          // Optionally self-heal the entity in background if mismatch
+          if (signal.accepted_count !== count) {
+            // Don't await this to keep response fast
+            base44.asServiceRole.entities.Signal.update(signal.id, { accepted_count: count }).catch(() => {});
+          }
+
+          return { ...signal, accepted_count: count };
+        } catch (e) {
+          console.error(`Failed to count actions for signal ${signal.id}:`, e);
+          return signal;
+        }
+      }));
       
-      return Response.json({ ok: true, data: signals || [] });
+      return Response.json({ ok: true, data: signalsWithCounts || [] });
     }
 
     // ==================== UPDATE STATUS ====================
