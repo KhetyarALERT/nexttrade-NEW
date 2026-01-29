@@ -68,6 +68,7 @@ import AuthRequiredState from "@/components/AuthRequiredState";
 import VerificationModal from "@/components/profile/VerificationModal";
 import AllocationModal from "@/components/copytrading/AllocationModal";
 import CopyTradingDepositHistory from "@/components/copytrading/CopyTradingDepositHistory.jsx";
+import CopyTradingSettingsForm from "@/components/copytrading/CopyTradingSettingsForm.jsx";
 
 const translations = {
   en: {
@@ -758,7 +759,8 @@ export default function Profile({ language = "en" }) {
                 { value: "notifications", label: language === "en" ? "Notifications" : "الإشعارات", icon: Bell },
                 { value: "security", label: t.security, icon: Shield },
                 { value: "referrals", label: t.referrals, icon: Users },
-                { value: "trades", label: t.trades, icon: BarChart3 }
+                { value: "trades", label: t.trades, icon: BarChart3 },
+                { value: "copy_settings", label: language === "en" ? "Copy Settings" : "إعدادات النسخ", icon: TrendingUp }
               ].map((tab) => (
                 <TabsTrigger 
                   key={tab.value}
@@ -773,7 +775,8 @@ export default function Profile({ language = "en" }) {
                      tab.value === "notifications" ? (language === "en" ? "Notif" : "إشعار") :
                      tab.value === "security" ? (language === "en" ? "Sec" : "أمان") :
                      tab.value === "referrals" ? (language === "en" ? "Ref" : "إحالة") :
-                     tab.value === "trades" ? (language === "en" ? "Trade" : "تداول") : tab.label}
+                     tab.value === "trades" ? (language === "en" ? "Trade" : "تداول") : 
+                     tab.value === "copy_settings" ? (language === "en" ? "Copy" : "نسخ") : tab.label}
                   </span>
                 </TabsTrigger>
               ))}
@@ -1300,6 +1303,11 @@ export default function Profile({ language = "en" }) {
               </CardContent>
             </Card>
 
+          </TabsContent>
+
+          {/* Copy Settings Tab */}
+          <TabsContent value="copy_settings" className="space-y-6">
+            <CopyTradingSettingsForm language={language} />
           </TabsContent>
 
           {/* Trades Tab */}
