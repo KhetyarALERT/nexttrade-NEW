@@ -42,6 +42,8 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { 
       mint, symbol, name, score, marketCap, liquidityUsd, 
+      imageUrl, websiteUrl, twitterUrl, telegramUrl,
+      priceUsd, priceChange24h, volume24h,
       dexUrl, rugcheckUrl, solscanUrl, source, createdAtMs, raw, status 
     } = body;
 
@@ -57,16 +59,20 @@ Deno.serve(async (req) => {
       const id = existing[0].id;
       await base44.asServiceRole.entities.MemeScoutAlert.update(id, {
         symbol, name, score, marketCap, liquidityUsd,
+        imageUrl, websiteUrl, twitterUrl, telegramUrl,
+        priceUsd, priceChange24h, volume24h,
         dexUrl, rugcheckUrl, solscanUrl, source,
         // Only update status if provided, else keep existing
         ...(status ? { status } : {}),
         raw: raw || existing[0].raw,
-        updated_date: new Date().toISOString() // Explicitly track update if needed, though system does it
+        updated_date: new Date().toISOString()
       });
     } else {
       // Create
       await base44.asServiceRole.entities.MemeScoutAlert.create({
         mint, symbol, name, score, marketCap, liquidityUsd,
+        imageUrl, websiteUrl, twitterUrl, telegramUrl,
+        priceUsd, priceChange24h, volume24h,
         dexUrl, rugcheckUrl, solscanUrl, source,
         createdAtMs: createdAtMs || Date.now(),
         status: status || 'candidate',
