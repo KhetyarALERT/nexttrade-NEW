@@ -1,65 +1,48 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// Jupiter Swap Functions - Quotes and transaction building for POST_DEX tokens
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { checkRateLimit, getSolanaRpcUrl, okResponse } from './okxCore.ts';
 
 const JUPITER_QUOTE_BASE = 'https://quote-api.jup.ag/v6';
 
 function json(data, init = {}) {
-  return Response.json(data, init);
-}
-
-function auditLog(action, userId, details) {
-  console.log(`[JUPITER] [${new Date().toISOString()}] [${action}] User: ${userId || 'anon'}`, JSON.stringify(details));
+  return Response.json(data, {
+    ...init,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      ...(init.headers || {})
+    }
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
-      headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }
+      headers: { 
+        'Access-Control-Allow-Origin': '*', 
+        'Access-Control-Allow-Methods': 'POST, OPTIONS', 
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization' 
+      }
     });
   }
   
-  let base44 = null;
-  let user = null;
+  let base44;
+  let user;
   
   try {
     base44 = createClientFromRequest(req);
+    // Optional auth check - strictly strictly for logging/tracking if needed
     user = await base44.auth.me().catch(() => null);
   } catch {
-    // Allow some actions without auth
+    // Continue without auth
   }
   
   try {
     const body = await req.json().catch(() => ({}));
     const { action, ...params } = body;
 
-    // ==================== SOLANA RPC PROXY ====================
-    if (!action && body?.jsonrpc && body?.method) {
-      const clientKey = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'anon';
-      if (!checkRateLimit(`solana_rpc_${clientKey}`)) {
-        return json(okResponse(false, null, { code: 'RATE_LIMITED', message: 'Too many requests' }), { status: 429 });
-      }
-
-      const rpcUrl = getSolanaRpcUrl();
-      const proxyRes = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const proxyData = await proxyRes.text();
-
-      return new Response(proxyData, {
-        status: proxyRes.status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      });
-    }
-    
     // ==================== GET QUOTE ====================
     if (action === 'getQuote') {
       const { inMint, outMint, amountIn, slippageBps = 50 } = params;
@@ -76,25 +59,23 @@ Deno.serve(async (req) => {
       });
       
       const res = await fetch(`${JUPITER_QUOTE_BASE}/quote?${queryParams.toString()}`);
+      const data = await res.json();
       
       if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({}));
-        return json({ ok: false, error: { code: 'QUOTE_FAILED', message: errorBody.error || 'Quote failed', status: res.status } }, { status: res.status });
+        return json({ ok: false, error: { code: 'QUOTE_FAILED', message: data.error || 'Quote failed' } }, { status: res.status });
       }
-      
-      const quoteData = await res.json();
       
       return json({
         ok: true,
         data: {
           inMint,
           outMint,
-          inAmount: quoteData.inAmount,
-          outAmount: quoteData.outAmount,
-          priceImpactPct: quoteData.priceImpactPct,
-          slippageBps: quoteData.slippageBps,
-          routePlan: quoteData.routePlan,
-          quoteResponse: quoteData // Full response for buildSwapTx
+          inAmount: data.inAmount,
+          outAmount: data.outAmount,
+          priceImpactPct: data.priceImpactPct,
+          slippageBps: data.slippageBps,
+          routePlan: data.routePlan,
+          quoteResponse: data
         }
       });
     }
@@ -107,20 +88,11 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: { code: 'MISSING_PARAMS', message: 'userPubkey and quoteResponse required' } }, { status: 400 });
       }
       
-      auditLog('BUILD_SWAP_TX', user?.id, { 
-        userPubkey, 
-        inMint: quoteResponse.inputMint, 
-        outMint: quoteResponse.outputMint,
-        inAmount: quoteResponse.inAmount,
-        outAmount: quoteResponse.outAmount
-      });
-      
       const swapPayload = {
         quoteResponse,
         userPublicKey: String(userPubkey),
         wrapAndUnwrapSol: wrapUnwrapSOL,
-        computeUnitPriceMicroLamports: 'auto',
-        dynamicComputeUnitLimit: true
+        prioritizationFeeLamports: 'auto'
       };
       
       const res = await fetch(`${JUPITER_QUOTE_BASE}/swap`, {
@@ -129,74 +101,35 @@ Deno.serve(async (req) => {
         body: JSON.stringify(swapPayload)
       });
       
+      const data = await res.json();
+      
       if (!res.ok) {
-        const errorBody = await res.json().catch(() => ({}));
-        return json({ ok: false, error: { code: 'SWAP_BUILD_FAILED', message: errorBody.error || 'Swap build failed', status: res.status } }, { status: res.status });
+        return json({ ok: false, error: { code: 'SWAP_BUILD_FAILED', message: data.error || 'Swap build failed' } }, { status: res.status });
       }
       
-      const swapData = await res.json();
-      
-      // Log trade if user is authenticated
+      // Log trade if user exists (fire and forget)
       if (user && base44) {
-        const nowISO = new Date().toISOString();
-        await base44.asServiceRole.entities.MemeTradeLog.create({
-          user_id: user.id,
-          trade_type: 'JUPITER_SWAP',
-          mint_in: quoteResponse.inputMint,
-          mint_out: quoteResponse.outputMint,
-          amount_in: parseFloat(quoteResponse.inAmount) / 1e9, // Assuming SOL decimals
-          expected_amount_out: parseFloat(quoteResponse.outAmount) / 1e9,
-          slippage_bps: quoteResponse.slippageBps,
-          price_impact: parseFloat(quoteResponse.priceImpactPct),
-          status: 'PENDING',
-          wallet_address: userPubkey,
-          route_info: quoteResponse.routePlan,
-          created_at: nowISO
-        });
-      }
-      
-      return json({
-        ok: true,
-        data: {
-          swapTransaction: swapData.swapTransaction, // Base64 encoded transaction
-          lastValidBlockHeight: swapData.lastValidBlockHeight
+        try {
+          await base44.asServiceRole.entities.MemeTradeLog.create({
+            user_id: user.id,
+            trade_type: 'JUPITER_SWAP',
+            mint_in: quoteResponse.inputMint,
+            mint_out: quoteResponse.outputMint,
+            amount_in: Number(quoteResponse.inAmount),
+            status: 'PENDING',
+            wallet_address: userPubkey,
+            created_at: new Date().toISOString()
+          });
+        } catch (e) {
+          console.error("Failed to log trade", e);
         }
-      });
-    }
-    
-    // ==================== TRACK TX ====================
-    if (action === 'trackTx') {
-      if (!user) return json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Login required' } }, { status: 401 });
-      
-      const { signature, tradeLogId } = params;
-      if (!signature) return json({ ok: false, error: { code: 'MISSING_SIGNATURE', message: 'Signature required' } }, { status: 400 });
-      
-      const nowISO = new Date().toISOString();
-      
-      // Create transaction log
-      await base44.asServiceRole.entities.SolanaTxLog.create({
-        user_id: user.id,
-        signature,
-        tx_type: 'SWAP',
-        status: 'CONFIRMING',
-        created_at: nowISO
-      });
-      
-      // Update trade log if provided
-      if (tradeLogId) {
-        await base44.asServiceRole.entities.MemeTradeLog.update(tradeLogId, {
-          signature,
-          status: 'SUBMITTED',
-          submitted_at: nowISO
-        });
       }
       
       return json({
         ok: true,
         data: {
-          signature,
-          status: 'CONFIRMING',
-          message: 'Transaction submitted. Check explorer for confirmation.'
+          swapTransaction: data.swapTransaction,
+          lastValidBlockHeight: data.lastValidBlockHeight
         }
       });
     }
@@ -204,7 +137,6 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: { code: 'INVALID_ACTION', message: 'Invalid action' } }, { status: 400 });
     
   } catch (error) {
-    console.error('[JUPITER_ERROR]', error.message);
     return json({ ok: false, error: { code: 'INTERNAL_ERROR', message: error.message } }, { status: 500 });
   }
 });
