@@ -2,53 +2,67 @@ import React, { useState, useEffect, useRef } from 'react';
 import { formatNumber, formatPrice } from './MemeList';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Copy, ExternalLink, ShieldCheck, AlertTriangle, XCircle, Zap } from 'lucide-react';
+import { Copy, ExternalLink, ShieldCheck, AlertTriangle, XCircle, Zap, Loader2 } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import JupiterSwapEmbed from './JupiterSwapEmbed';
+import { requestQueue } from '@/components/utils/requestQueue';
 
 export default function MemeDetailPanel({ token, onClose }) {
   const [safety, setSafety] = useState(null);
   const [loadingSafety, setLoadingSafety] = useState(false);
-  const [buyAmount, setBuyAmount] = useState(null); // Triggers swap input
   
-  // Cache safety results to prevent spam
-  const safetyCache = useRef(new Map());
+  // Quick Trade UI State
+  const [amountSol, setAmountSol] = useState(0.1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Safety Check with Dedupe + Cache
   useEffect(() => {
     if (!token?.mint) return;
     
     const mint = token.mint;
-    
-    // Check cache first
-    if (safetyCache.current.has(mint)) {
-      setSafety(safetyCache.current.get(mint));
-      setBuyAmount(null);
-      return;
-    }
+    const cacheKey = `tokenSafety:${mint}`;
+    let mounted = true;
 
-    // Fetch safety info
     const getSafety = async () => {
       setLoadingSafety(true);
       try {
-        // In a real app, this calls the backend function. 
-        // For now simulating or calling if configured
-        const res = await base44.functions.invoke('tokenSafety', { mint });
-        if (res.data) {
-          setSafety(res.data);
-          safetyCache.current.set(mint, res.data); // Cache result
-        }
+        const data = await requestQueue.fetch(cacheKey, async () => {
+          console.count("tokenSafety call");
+          const res = await base44.functions.invoke('tokenSafety', { mint });
+          return res.data;
+        }, { ttl: 60000 }); // 60s TTL
+
+        if (mounted && data) setSafety(data);
       } catch (e) {
         console.error("Safety check failed", e);
       } finally {
-        setLoadingSafety(false);
+        if (mounted) setLoadingSafety(false);
       }
     };
     
     getSafety();
-    setBuyAmount(null);
+    return () => { mounted = false; };
   }, [token?.mint]);
+
+  // Handle Quick Buy
+  const handleQuickBuy = async () => {
+    if (!token?.mint || !amountSol) return;
+    setIsSubmitting(true);
+    try {
+      // For now, just simulate or log as backend trading is disabled
+      // In future: await base44.functions.invoke('pumpfunTrading', { action: 'buildBuyTx', ... })
+      console.log(`Quick Buy: ${amountSol} SOL for ${token.symbol}`);
+      await new Promise(r => setTimeout(r, 1000)); // Fake delay
+      // toast.success("Order submitted (simulation)");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!token) return (
     <div className="h-full flex items-center justify-center text-gray-500 border-l border-gray-800 bg-[#0f172a]/50">
@@ -164,25 +178,54 @@ export default function MemeDetailPanel({ token, onClose }) {
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            {/* Amount Presets */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
               {[0.1, 0.5, 1.0].map((amt) => (
                 <Button 
                   key={amt} 
                   variant="outline" 
-                  className={`h-10 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500 ${buyAmount === amt ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : ''}`}
-                  onClick={() => setBuyAmount(amt)}
+                  className={`h-9 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500 ${amountSol === amt ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : ''}`}
+                  onClick={() => setAmountSol(amt)}
+                  disabled={isSubmitting}
                 >
                   {amt} SOL
                 </Button>
               ))}
             </div>
 
-            {/* Jupiter Embed - Always rendered but updated via props */}
+            {/* Manual Input + Buy Button */}
+            <div className="flex gap-2 mb-6">
+              <div className="relative w-1/3">
+                <Input 
+                  type="number" 
+                  value={amountSol} 
+                  onChange={(e) => setAmountSol(parseFloat(e.target.value))}
+                  className="bg-gray-900 border-gray-700 h-10 pr-8"
+                  min={0.01}
+                  step={0.1}
+                  disabled={isSubmitting}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500">SOL</div>
+              </div>
+              <Button 
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 shadow-lg shadow-emerald-900/20"
+                onClick={handleQuickBuy}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing</>
+                ) : (
+                  <><Zap className="w-4 h-4 mr-2 fill-current" /> Quick Buy</>
+                )}
+              </Button>
+            </div>
+
+            {/* Jupiter Embed (Fallback) */}
             <div className="min-h-[400px]">
                <JupiterSwapEmbed 
                  open={true} 
                  outputMint={token.mint} 
-                 initialAmount={buyAmount} // We'll add this prop to embed
+                 initialAmount={null} // Don't push amount to avoid flashing
                />
             </div>
           </div>

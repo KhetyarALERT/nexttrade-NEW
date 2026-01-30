@@ -546,6 +546,7 @@ class OKXFuturesStore {
         this.lastRestCall = Date.now();
         
         console.log(`[OKX Store] REST: Fetching candles for ${normalized} ${bar}`);
+        console.count("okxMarketData call (candles)");
         
         const res = await base44.functions.invoke("okxMarketData", {
           action: "getCandles",
@@ -604,6 +605,7 @@ class OKXFuturesStore {
         this.lastRestCall = Date.now();
         
         console.log(`[OKX Store] REST: Fetching premium for ${normalized}`);
+        console.count("okxMarketData call (premium)");
         
         const res = await base44.functions.invoke("okxMarketData", {
           action: "getPremiumIndex",
