@@ -350,60 +350,7 @@ export default function MemeCoins() {
     loadTokens();
   }, []);
 
-  // Update balances when wallet/connection/selectedToken changes
-  useEffect(() => {
-    if (!wallet.publicKey || !connection) {
-      setBalance(null);
-      return;
-    }
-
-    const fetchBalance = async () => {
-      try {
-        // Try with default connection first, then fallback
-        const getConnection = () => {
-           // If default connection is mainnet-beta (likely blocked), prefer fallback
-           if (connection.rpcEndpoint.includes('mainnet-beta.solana.com')) {
-             return new Connection('https://rpc.ankr.com/solana');
-           }
-           return connection;
-        };
-        
-        const conn = getConnection();
-
-        if (swapMode === 'buy') {
-          // Buy mode: Input is SOL
-          const bal = await conn.getBalance(wallet.publicKey);
-          setBalance(bal / 1e9);
-        } else if (swapMode === 'sell' && selectedToken) {
-          // Sell mode: Input is Token
-          const accounts = await conn.getParsedTokenAccountsByOwner(wallet.publicKey, {
-            mint: new PublicKey(selectedToken.address)
-          });
-          
-          if (accounts.value.length > 0) {
-            const amount = accounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
-            setBalance(amount);
-          } else {
-            setBalance(0);
-          }
-        }
-      } catch (e) {
-        // Suppress 403 errors from console
-        if (e?.message?.includes('403') || e?.toString().includes('403')) {
-           console.warn("Balance fetch limited (403)");
-        } else {
-           console.error("Failed to fetch balance", e);
-        }
-        setBalance(null);
-      }
-    };
-
-    fetchBalance();
-    // Poll balance occasionally? or just on change
-    const interval = setInterval(fetchBalance, 10000);
-    return () => clearInterval(interval);
-
-  }, [wallet.publicKey, connection, swapMode, selectedToken]);
+  // Balance fetching removed - managed by JupiterSwapEmbed
 
   useEffect(() => {
     if (!searchQuery.trim()) {
