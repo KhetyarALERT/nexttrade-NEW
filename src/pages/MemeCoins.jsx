@@ -340,18 +340,7 @@ export default function MemeCoins() {
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'volume24h', direction: 'desc' });
   
-  const [swapMode, setSwapMode] = useState('buy');
-  const [inputAmount, setInputAmount] = useState('');
-  const [outputAmount, setOutputAmount] = useState('');
-  const [slippage, setSlippage] = useState(1);
-  const [customSlippage, setCustomSlippage] = useState('');
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [swapping, setSwapping] = useState(false);
-  const [currentQuote, setCurrentQuote] = useState(null);
-  const [balance, setBalance] = useState(null);
-
-  // Token decimals are required for correct quote parsing. Default to 6 for memes if unknown.
-  const tokenDecimals = selectedToken?.decimals ?? 6;
+  // Swap state removed - managed by JupiterSwapEmbed
   
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
