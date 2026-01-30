@@ -5,8 +5,9 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import { createPageUrl } from '@/utils';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { useLocation } from 'react-router-dom';
@@ -25,7 +26,20 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
   const location = useLocation();
 
+  // Public routes (should remain accessible even when auth is required).
+  // Include both canonical + legacy paths to avoid breaking existing links.
+  const legacyPageUrl = (pageName) => '/' + String(pageName ?? '').toLowerCase().replace(/ /g, '-');
+
   const PUBLIC_ROUTES = new Set([
+    // Canonical
+    createPageUrl('PrivacyPolicy'),
+    createPageUrl('TermsOfService'),
+
+    // Legacy (pre-kebab-case)
+    legacyPageUrl('PrivacyPolicy'),
+    legacyPageUrl('TermsOfService'),
+
+    // Explicit (in case external links hardcode these)
     '/privacy-policy',
     '/terms-of-service',
   ]);
@@ -58,22 +72,52 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
+      <Route
+        path="/"
+        element={
+          <LayoutWrapper currentPageName={mainPageKey}>
+            <MainPage />
+          </LayoutWrapper>
+        }
+      />
+
+      {Object.entries(Pages).flatMap(([pageKey, Page]) => {
+        const canonical = createPageUrl(pageKey);
+        const legacy = '/' + String(pageKey ?? '').toLowerCase().replace(/ /g, '-');
+        const original = `/${pageKey}`;
+
+        return [
+          // Canonical route
+          <Route
+            key={`page:${pageKey}:canonical`}
+            path={canonical}
+            element={
+              <LayoutWrapper currentPageName={pageKey}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />,
+
+          // Back-compat: old createPageUrl behavior (e.g. /privacypolicy)
+          legacy !== canonical ? (
+            <Route
+              key={`page:${pageKey}:legacy`}
+              path={legacy}
+              element={<Navigate to={canonical} replace />}
+            />
+          ) : null,
+
+          // Back-compat: original generated path (e.g. /PrivacyPolicy)
+          original !== canonical ? (
+            <Route
+              key={`page:${pageKey}:original`}
+              path={original}
+              element={<Navigate to={canonical} replace />}
+            />
+          ) : null,
+        ].filter(Boolean);
+      })}
+
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
