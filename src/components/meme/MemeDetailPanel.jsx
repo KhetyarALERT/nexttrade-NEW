@@ -18,7 +18,7 @@ export default function MemeDetailPanel({ token, onClose }) {
   const [amountSol, setAmountSol] = useState(0.1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Safety Check with Dedupe + Cache
+  // Safety Check with Dedupe + Cache + Debounce
   useEffect(() => {
     if (!token?.mint) return;
     
@@ -26,25 +26,31 @@ export default function MemeDetailPanel({ token, onClose }) {
     const cacheKey = `tokenSafety:${mint}`;
     let mounted = true;
 
-    const getSafety = async () => {
-      setLoadingSafety(true);
-      try {
-        const data = await requestQueue.fetch(cacheKey, async () => {
-          console.count("tokenSafety call");
-          const res = await base44.functions.invoke('tokenSafety', { mint });
-          return res.data;
-        }, { ttl: 60000 }); // 60s TTL
+    // Debounce 200ms to prevent spam on rapid selection changes
+    const timer = setTimeout(() => {
+      const getSafety = async () => {
+        setLoadingSafety(true);
+        try {
+          const data = await requestQueue.fetch(cacheKey, async () => {
+            console.count("tokenSafety call");
+            const res = await base44.functions.invoke('tokenSafety', { mint });
+            return res.data;
+          }, { ttl: 60000 }); // 60s TTL
 
-        if (mounted && data) setSafety(data);
-      } catch (e) {
-        console.error("Safety check failed", e);
-      } finally {
-        if (mounted) setLoadingSafety(false);
-      }
-    };
+          if (mounted && data) setSafety(data);
+        } catch (e) {
+          console.error("Safety check failed", e);
+        } finally {
+          if (mounted) setLoadingSafety(false);
+        }
+      };
+      getSafety();
+    }, 200);
     
-    getSafety();
-    return () => { mounted = false; };
+    return () => { 
+      mounted = false; 
+      clearTimeout(timer); // Abort fetch if token changes before 200ms
+    };
   }, [token?.mint]);
 
   // Handle Quick Buy
