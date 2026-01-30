@@ -510,53 +510,7 @@ export default function MemeCoins() {
     };
   }, [selectedToken, chartData]);
 
-  useEffect(() => {
-    // Debounce quote fetching
-    if (!selectedToken || !inputAmount || parseFloat(inputAmount) <= 0) {
-      setOutputAmount('');
-      setCurrentQuote(null);
-      return;
-    }
-    
-    const fetchQuote = async () => {
-      if (!selectedToken || !inputAmount) return;
-      try {
-        setQuoteLoading(true);
-        // Use SOL as input for Buy, Token as input for Sell
-        const inputMint = swapMode === 'buy' ? jupiterApi.TOKENS.SOL : selectedToken.address;
-        const outputMint = swapMode === 'buy' ? selectedToken.address : jupiterApi.TOKENS.SOL;
-        
-        // Use fetched decimals
-        const inputDecimals = swapMode === 'buy' ? 9 : tokenDecimals;
-        const outputDecimals = swapMode === 'buy' ? tokenDecimals : 9;
-        
-        const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
-        const slippageBps = slippage * 100;
-        
-        const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
-        if (quote) {
-          // Jupiter returns outAmount in raw units
-          const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount), outputDecimals);
-          setOutputAmount(output.toFixed(6));
-          setCurrentQuote(quote);
-        } else {
-          setOutputAmount('');
-          setCurrentQuote(null);
-          toast.error("No route found");
-        }
-      } catch (error) {
-        console.error('Error fetching quote:', error);
-        toast.error('Failed to get quote');
-        setOutputAmount('');
-        setCurrentQuote(null);
-      } finally {
-        setQuoteLoading(false);
-      }
-    };
-
-    const delayDebounce = setTimeout(() => fetchQuote(), 600); // 600ms debounce
-    return () => clearTimeout(delayDebounce);
-  }, [inputAmount, selectedToken, swapMode, slippage]);
+  // Quote fetching removed - managed by JupiterSwapEmbed
 
   async function handleSwap() {
     if (!wallet.connected) {
