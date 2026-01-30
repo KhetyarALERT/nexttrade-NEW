@@ -377,7 +377,14 @@ export default function MemeCoins() {
       change24h: token.change24h || token.priceChange24h,
       volume24h: token.volume24h,
       liquidity: token.liquidity || token.liquidityUsd,
-      imageUrl: token.imageUrl
+      imageUrl: token.imageUrl,
+      // URLs for details view
+      twitterUrl: token.twitterUrl || token.info?.socials?.find(s => s.type === 'twitter')?.url,
+      telegramUrl: token.telegramUrl || token.info?.socials?.find(s => s.type === 'telegram')?.url,
+      websiteUrl: token.websiteUrl || token.info?.websites?.[0]?.url,
+      rugcheckUrl: token.rugcheckUrl,
+      solscanUrl: token.solscanUrl || `https://solscan.io/token/${token.address || token.mint}`,
+      dexUrl: token.dexUrl
     };
 
     setSelectedToken(normalized);
@@ -721,6 +728,45 @@ export default function MemeCoins() {
                       {Math.abs(selectedToken.change24h || 0).toFixed(2)}%
                     </div>
                   </div>
+                </div>
+
+                {/* Socials & External Links */}
+                <div className="flex flex-wrap gap-2">
+                  {selectedToken.twitterUrl && (
+                    <a href={selectedToken.twitterUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-8 border-gray-700 bg-gray-900/50 hover:bg-gray-800 text-gray-400 hover:text-white">
+                        <Twitter className="w-3.5 h-3.5 mr-1.5" /> Twitter
+                      </Button>
+                    </a>
+                  )}
+                  {selectedToken.telegramUrl && (
+                    <a href={selectedToken.telegramUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-8 border-gray-700 bg-gray-900/50 hover:bg-gray-800 text-gray-400 hover:text-white">
+                        <Send className="w-3.5 h-3.5 mr-1.5" /> Telegram
+                      </Button>
+                    </a>
+                  )}
+                  {selectedToken.websiteUrl && (
+                    <a href={selectedToken.websiteUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-8 border-gray-700 bg-gray-900/50 hover:bg-gray-800 text-gray-400 hover:text-white">
+                        <Globe className="w-3.5 h-3.5 mr-1.5" /> Web
+                      </Button>
+                    </a>
+                  )}
+                  {selectedToken.solscanUrl && (
+                    <a href={selectedToken.solscanUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-8 border-gray-700 bg-gray-900/50 hover:bg-gray-800 text-gray-400 hover:text-white">
+                        <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Solscan
+                      </Button>
+                    </a>
+                  )}
+                  {selectedToken.rugcheckUrl && (
+                    <a href={selectedToken.rugcheckUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline" className="h-8 border-gray-700 bg-gray-900/50 hover:bg-gray-800 text-gray-400 hover:text-white">
+                        <Shield className="w-3.5 h-3.5 mr-1.5" /> RugCheck
+                      </Button>
+                    </a>
+                  )}
                 </div>
 
                 <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-800">
