@@ -25,28 +25,18 @@ export default function JupiterSwapEmbed({ isOpen, tokenMint }) {
       try {
         setIsLoaded(false);
         
-        // Try dynamic import from NPM package first
-        let jupiter = null;
-        try {
-          const mod = await import('@jup-ag/plugin');
-          jupiter = mod;
-        } catch (e) {
-          console.warn("Jupiter NPM import failed, falling back to script tag", e);
+        // Load Jupiter via script tag (avoiding npm dependency issues)
+        if (!window.Jupiter) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = JUPITER_SCRIPT_URL;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
         }
-
-        // Fallback to window object if import failed
-        if (!jupiter) {
-          if (!window.Jupiter) {
-            await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = JUPITER_SCRIPT_URL;
-              script.onload = resolve;
-              script.onerror = reject;
-              document.head.appendChild(script);
-            });
-          }
-          jupiter = window.Jupiter;
-        }
+        
+        const jupiter = window.Jupiter;
 
         if (!jupiter) throw new Error("Jupiter plugin could not be loaded");
 
