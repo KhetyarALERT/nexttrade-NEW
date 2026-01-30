@@ -22,7 +22,7 @@ import {
 import * as jupiterApi from '@/components/api/jupiter';
 import { fetchTrendingSolanaTokens } from '@/components/api/dexscreener';
 import { base44 } from '@/api/base44Client';
-import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
+import { Copy, ExternalLink, RefreshCw, Shield } from 'lucide-react';
 
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
 
