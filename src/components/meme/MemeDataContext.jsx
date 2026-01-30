@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
+import { base44 } from "@/api/base44Client";
 
 const MemeDataContext = createContext(null);
 
@@ -73,18 +74,25 @@ export const MemeDataProvider = ({ children }) => {
 
     connect();
 
-    // Polling for initial "Trending" snapshot from our backend function
-    // This populates the list with rich data (volume, etc)
-    const fetchTrending = async () => {
+    // Initial Fetch of Trending Data
+    const fetchInitialData = async () => {
         try {
-            // Using a mock fetch or actual backend call
-            // Since we can't easily call internal function HTTP without SDK in some contexts,
-            // We'll rely on a known public API or the SDK if available.
-            // For this demo, we'll simulate an initial load or use DexScreener fallback if backend empty.
-        } catch (e) {}
+             const res = await base44.functions.invoke('memeTrending', { limit: 100 });
+             if (res.data?.ok && Array.isArray(res.data.data)) {
+                 const initialTokens = res.data.data;
+                 initialTokens.forEach(t => {
+                     // Normalize for UI
+                     tokensMapRef.current.set(t.mint, {
+                         ...t,
+                         createdAt: new Date(t.last_trade_at || Date.now()).getTime()
+                     });
+                 });
+             }
+        } catch (e) {
+             console.warn("Initial fetch failed, relying on live feed", e);
+        }
     };
-    
-    // Mock Data for UI Dev (Remove in prod if backend ready)
+    fetchInitialData();
     // Throttled State Update (Interval)
     const interval = setInterval(() => {
         if (tokensMapRef.current.size > 0) {
