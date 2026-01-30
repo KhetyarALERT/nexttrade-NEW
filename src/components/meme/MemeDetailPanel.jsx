@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatNumber, formatPrice } from './MemeList';
-import { resolveIpfsUrl } from '@/components/utils/ipfs';
+import { resolveIpfsUrl } from '@/utils/ipfs';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';

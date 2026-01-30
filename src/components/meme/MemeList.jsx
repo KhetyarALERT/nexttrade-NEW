@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Activity, AlertCircle } from 'lucide-react';
-import { resolveIpfsUrl } from '@/components/utils/ipfs';
+import { resolveIpfsUrl } from '@/utils/ipfs';
 import { Badge } from '@/components/ui/badge';
 
 export const formatNumber = (num) => {
