@@ -4,17 +4,27 @@ css
 @tailwind utilities;
 
 :root {
-  /* Jupiter Plugin Dark Theme Variables */
-  --jupiter-plugin-bg-v2: #0f172a; /* slate-900 */
-  --jupiter-plugin-text-v2: #f8fafc; /* slate-50 */
-  --jupiter-plugin-primary-v2: #9333ea; /* purple-600 */
-  --jupiter-plugin-secondary-v2: #1e293b; /* slate-800 */
+  /* Jupiter Plugin Dark Theme Variables - NextTrade Integrated */
+  --jupiter-bg: #0f172a; /* slate-900 */
+  --jupiter-text: #f8fafc; /* slate-50 */
+  --jupiter-primary: #10b981; /* emerald-500 matching NextTrade primary */
+  --jupiter-secondary: #1e293b; /* slate-800 */
+
+  /* V2/V3 Plugin Overrides */
+  --jupiter-plugin-bg-v2: var(--jupiter-bg);
+  --jupiter-plugin-text-v2: var(--jupiter-text);
+  --jupiter-plugin-primary-v2: var(--jupiter-primary);
+  --jupiter-plugin-secondary-v2: var(--jupiter-secondary);
   --jupiter-plugin-action-btn-text: #ffffff;
-  --jupiter-plugin-action-btn-bg: #9333ea;
-  --jupiter-plugin-action-active-bg: #7e22ce;
-  --jupiter-plugin-success: #22c55e;
+  --jupiter-plugin-action-btn-bg: var(--jupiter-primary);
+  --jupiter-plugin-action-active-bg: #059669; /* emerald-600 */
+  --jupiter-plugin-success: #10b981;
   --jupiter-plugin-error: #ef4444;
   --jupiter-plugin-border-radius: 16px;
+
+  /* Input Fields */
+  --jupiter-input-bg: #1e293b;
+  --jupiter-input-text: #f8fafc;
 }
 
 #jupiter-terminal {
