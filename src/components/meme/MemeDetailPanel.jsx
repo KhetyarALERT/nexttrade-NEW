@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatNumber, formatPrice } from './MemeList';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ export default function MemeDetailPanel({ token, onClose }) {
   const [safety, setSafety] = useState(null);
   const [loadingSafety, setLoadingSafety] = useState(false);
   const [buyAmount, setBuyAmount] = useState(null); // Triggers swap input
-
+  
   // Cache safety results to prevent spam
   const safetyCache = useRef(new Map());
 
@@ -32,6 +32,8 @@ export default function MemeDetailPanel({ token, onClose }) {
     const getSafety = async () => {
       setLoadingSafety(true);
       try {
+        // In a real app, this calls the backend function. 
+        // For now simulating or calling if configured
         const res = await base44.functions.invoke('tokenSafety', { mint });
         if (res.data) {
           setSafety(res.data);
