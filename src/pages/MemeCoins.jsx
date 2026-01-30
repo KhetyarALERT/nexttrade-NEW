@@ -512,63 +512,7 @@ export default function MemeCoins() {
 
   // Quote fetching removed - managed by JupiterSwapEmbed
 
-  async function handleSwap() {
-    if (!wallet.connected) {
-      setWalletModalVisible(true);
-      return;
-    }
-    if (!currentQuote) {
-      toast.error('No quote available');
-      return;
-    }
-    try {
-      setSwapping(true);
-      const swapTransaction = await jupiterApi.getSwapTransaction(currentQuote, wallet.publicKey.toString());
-      if (!swapTransaction) throw new Error("Failed to build transaction");
-
-      // Sign and Send
-      const signature = await jupiterApi.executeSwap(swapTransaction, wallet, connection);
-      
-      // Notify
-      toast.success(
-        <div className="flex flex-col gap-1">
-          <span className="font-bold">Transaction Sent!</span>
-          <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noopener noreferrer" className="text-xs underline text-purple-200 hover:text-white">
-            View on Solscan
-          </a>
-        </div>,
-        { duration: 5000 }
-      );
-
-      setInputAmount('');
-      setOutputAmount('');
-      setCurrentQuote(null);
-      
-      // Update balance after a moment
-      setTimeout(() => {
-        // Trigger balance refresh logic (it's handled by effect, but maybe force it?)
-        // The effect depends on wallet/connection which don't change, but we can rely on polling or just wait.
-      }, 2000);
-
-    } catch (error) {
-      console.error('Error executing swap:', error);
-      toast.error(`Swap failed: ${error.message}`);
-    } finally {
-      setSwapping(false);
-    }
-  }
-
-  const handleMax = () => {
-    if (balance === null) return;
-    
-    let amount = balance;
-    if (swapMode === 'buy') {
-      // Leave dust for gas (e.g. 0.01 SOL)
-      amount = Math.max(0, balance - 0.01);
-    }
-    
-    setInputAmount(amount.toFixed(6)); // Precision
-  };
+  // handleSwap and handleMax removed - managed by JupiterSwapEmbed
 
   const formatPrice = (price) => {
     if (price === undefined || price === null || isNaN(price)) return '-';
