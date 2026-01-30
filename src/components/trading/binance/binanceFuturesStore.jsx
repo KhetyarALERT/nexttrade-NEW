@@ -546,6 +546,12 @@ class OKXFuturesStore {
         this.lastRestCall = Date.now();
         
         console.log(`[OKX Store] REST: Fetching candles for ${normalized} ${bar}`);
+        
+        // --- SPAM FIX: Use requestQueue for dedupe/cache logic if available ---
+        // Since this is a class method, we can't easily hook into React state, 
+        // but we can ensure we don't spam the network.
+        // The class already has `pendingFetches` map which acts as a flight guard.
+        // We will strengthen it by ensuring we don't clear it too early.
         console.count("okxMarketData call (candles)");
         
         const res = await base44.functions.invoke("okxMarketData", {
@@ -558,7 +564,7 @@ class OKXFuturesStore {
         if (res?.data?.ok && Array.isArray(res.data.data)) {
           const candles = res.data.data;
           this.candles[dataKey] = candles;
-          this.snapshotLoaded.add(cacheKey);
+          this.snapshotLoaded.add(cacheKey); // Cache flag
           console.log(`[OKX Store] REST: Loaded ${candles.length} candles for ${cacheKey}`);
           return candles;
         }
@@ -569,8 +575,9 @@ class OKXFuturesStore {
         console.error("[OKX Store] REST: fetchCandles error:", err);
         return this.candles[dataKey] || [];
       } finally {
-        // Clear pending after delay
-        setTimeout(() => this.pendingFetches.delete(cacheKey), 500);
+        // Clear pending after delay - KEEP THIS TO ALLOW RETRIES BUT NOT SPAM
+        // Increased delay to 5s to prevent rapid refetching on error loops
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 5000);
       }
     })();
     
