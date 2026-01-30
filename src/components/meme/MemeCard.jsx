@@ -64,17 +64,17 @@ const MemeCard = memo(({ token, onTrade }) => {
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="bg-gray-900/50 rounded p-2 text-center">
-          <div className="text-[10px] text-gray-500 uppercase">Vol 24h</div>
-          <div className="text-xs font-medium">{formatNumber(token.volume_sol_24h || 0)}</div>
+        <div className="bg-gray-900/50 rounded p-2 text-center border border-gray-800">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wide">Vol 5m</div>
+          <div className="text-xs font-mono font-medium text-gray-300">{formatNumber(token.volume_5m || 0)}</div>
         </div>
-        <div className="bg-gray-900/50 rounded p-2 text-center">
-          <div className="text-[10px] text-gray-500 uppercase">Cap</div>
-          <div className="text-xs font-medium">{formatNumber(token.market_cap || 0)}</div>
+        <div className="bg-gray-900/50 rounded p-2 text-center border border-gray-800">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wide">M.Cap</div>
+          <div className="text-xs font-mono font-medium text-gray-300">{formatNumber(token.market_cap || 0)}</div>
         </div>
-        <div className="bg-gray-900/50 rounded p-2 text-center">
-          <div className="text-[10px] text-gray-500 uppercase">Age</div>
-          <div className="text-xs font-medium">{token.age || 'New'}</div>
+        <div className="bg-gray-900/50 rounded p-2 text-center border border-gray-800">
+          <div className="text-[10px] text-gray-500 uppercase tracking-wide">Age</div>
+          <div className="text-xs font-mono font-medium text-gray-300">{token.createdAt ? Math.floor((Date.now() - token.createdAt) / 60000) + 'm' : 'New'}</div>
         </div>
       </div>
 
