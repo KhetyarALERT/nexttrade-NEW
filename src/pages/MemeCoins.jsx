@@ -35,6 +35,7 @@ function SolidPicksFeed({ onTrade }) {
   const [picks, setPicks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [solPriceUsd, setSolPriceUsd] = useState(null);
 
   const fetchPicks = async () => {
     setLoading(true);
@@ -56,8 +57,19 @@ function SolidPicksFeed({ onTrade }) {
     }
   };
 
+  const fetchSolPrice = async () => {
+    try {
+      const res = await base44.functions.invoke('memeCoins', { action: 'getTokenPrice', mint: jupiterApi.TOKENS.SOL });
+      const price = res?.data?.data?.data?.[jupiterApi.TOKENS.SOL]?.price;
+      if (typeof price === 'number' && !Number.isNaN(price) && price > 0) setSolPriceUsd(price);
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     fetchPicks();
+    fetchSolPrice();
   }, []);
 
   const formatNumber = (num, isCurrency = true) => {
@@ -129,8 +141,22 @@ function SolidPicksFeed({ onTrade }) {
             // Metrics extraction
             const metrics = pick.raw?.metrics || {};
             const trades = metrics.trades || 0;
-            const buyPct = metrics.buyPct ? (metrics.buyPct * 100).toFixed(0) : '-';
-            const mcSol = metrics.marketCapSol ? `${metrics.marketCapSol.toFixed(0)} SOL` : null;
+
+            const buyPctNum = typeof metrics.buyPct === 'number'
+              ? (metrics.buyPct <= 1 ? metrics.buyPct * 100 : metrics.buyPct)
+              : null;
+            const buyPct = buyPctNum != null ? buyPctNum.toFixed(0) : '-';
+
+            const marketCapUsd =
+              typeof metrics.marketCapUsd === 'number' ? metrics.marketCapUsd :
+              (typeof metrics.marketCapSol === 'number' && typeof solPriceUsd === 'number' ? metrics.marketCapSol * solPriceUsd : null);
+
+            const volumeUsd =
+              typeof metrics.volumeUsd === 'number' ? metrics.volumeUsd :
+              (typeof metrics.solAmountSum === 'number' && typeof solPriceUsd === 'number' ? metrics.solAmountSum * solPriceUsd : null);
+
+            const mcDisplay = marketCapUsd != null ? formatNumber(marketCapUsd) : (metrics.marketCapSol ? `${Number(metrics.marketCapSol).toFixed(0)} SOL` : '-');
+            const volDisplay = volumeUsd != null ? formatNumber(volumeUsd) : (metrics.solAmountSum ? `${Number(metrics.solAmountSum).toFixed(1)} SOL` : '-');
 
             return (
               <div 
@@ -155,9 +181,11 @@ function SolidPicksFeed({ onTrade }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-white text-sm truncate">{displaySymbol}</span>
-                      <span className={`text-[9px] px-1 rounded border ${getScoreColor(pick.score)}`}>
-                        {pick.score}
-                      </span>
+                      {pick.score !== undefined && pick.score !== null ? (
+                        <span className={`text-[9px] px-1 rounded border ${getScoreColor(pick.score)}`}>
+                          {pick.score}
+                        </span>
+                      ) : null}
                       <Badge variant="outline" className={`text-[9px] h-4 px-1 ${isWatchlist ? 'border-blue-500/30 text-blue-400' : 'border-purple-500/30 text-purple-400'}`}>
                         {isWatchlist ? 'WATCH' : 'SOLID'}
                       </Badge>
@@ -169,7 +197,9 @@ function SolidPicksFeed({ onTrade }) {
                         <>
                           <span>Tx: {trades}</span>
                           <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
-                          <span>MC: {mcSol || '-'}</span>
+                          <span>MC: {mcDisplay}</span>
+                          <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                          <span>Vol: {volDisplay}</span>
                         </>
                       ) : (
                         <>
@@ -250,6 +280,9 @@ export default function MemeCoins() {
   const [swapping, setSwapping] = useState(false);
   const [currentQuote, setCurrentQuote] = useState(null);
   const [balance, setBalance] = useState(null);
+
+  // Token decimals are required for correct quote parsing. Default to 6 for memes if unknown.
+  const tokenDecimals = selectedToken?.decimals ?? 6;
   
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
