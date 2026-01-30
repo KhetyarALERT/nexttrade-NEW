@@ -1,6 +1,6 @@
 import React from 'react';
 import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
-import '@jup-ag/wallet-adapter/dist/index.css';
+// import '@jup-ag/wallet-adapter/dist/index.css';
 
 export const WalletProvider = ({ children }) => {
   return (
