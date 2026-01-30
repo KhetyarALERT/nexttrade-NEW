@@ -59,11 +59,7 @@ export const MemeDataProvider = ({ children }) => {
                    };
                    
                    tokensMapRef.current.set(data.mint, newToken);
-                   // Throttle state updates
                 }
-
-                // Handle Trades (if we subscribed)
-                // PumpPortal sends trade events.
             } catch (e) {
                 console.error("WSS Error", e);
             }
@@ -89,25 +85,28 @@ export const MemeDataProvider = ({ children }) => {
     };
     
     // Mock Data for UI Dev (Remove in prod if backend ready)
-    const loadMock = () => {
-        const mockTokens = Array.from({length: 50}).map((_, i) => ({
-            mint: `So1111111111111111111111111111111111111111${i}`,
-            symbol: `MEME${i}`,
-            name: `Meme Token ${i}`,
-            price_usd: Math.random() * 0.01,
-            priceChange24h: (Math.random() * 200) - 100,
-            volume_sol_24h: Math.random() * 1000,
-            liquidity: Math.random() * 50000,
-            bonding_curve_status: Math.random() > 0.5 ? 'migrated' : 'bonding_curve'
-        }));
-        setTokens(mockTokens);
-        setLoading(false);
-    };
-    loadMock();
+    // Throttled State Update (Interval)
+    const interval = setInterval(() => {
+        if (tokensMapRef.current.size > 0) {
+             // Convert map to array and sort by latest/volume
+             // Optimization: Only update if size changed or significant updates? 
+             // For now, simple conversion.
+             const arr = Array.from(tokensMapRef.current.values());
+             // Sort by creation or volume (trending)
+             arr.sort((a, b) => b.createdAt - a.createdAt);
+             
+             setTokens(prev => {
+                 // Simple ref check to avoid rerenders if length is same? 
+                 // No, data inside might change.
+                 return arr.slice(0, 1000); // Limit to 1000 tokens to prevent memory issues
+             });
+        }
+    }, 1000); // Update UI every 1 second max
 
     return () => {
         if (ws) ws.close();
         clearTimeout(reconnectTimer);
+        clearInterval(interval);
     };
   }, []);
 
