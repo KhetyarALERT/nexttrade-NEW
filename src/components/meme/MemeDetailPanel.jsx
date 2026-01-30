@@ -13,17 +13,30 @@ export default function MemeDetailPanel({ token, onClose }) {
   const [loadingSafety, setLoadingSafety] = useState(false);
   const [buyAmount, setBuyAmount] = useState(null); // Triggers swap input
 
+  // Cache safety results to prevent spam
+  const safetyCache = useRef(new Map());
+
   useEffect(() => {
-    if (!token) return;
+    if (!token?.mint) return;
     
+    const mint = token.mint;
+    
+    // Check cache first
+    if (safetyCache.current.has(mint)) {
+      setSafety(safetyCache.current.get(mint));
+      setBuyAmount(null);
+      return;
+    }
+
     // Fetch safety info
     const getSafety = async () => {
       setLoadingSafety(true);
       try {
-        // In a real app, this calls the backend function. 
-        // For now simulating or calling if configured
-        const res = await base44.functions.invoke('tokenSafety', { mint: token.mint });
-        if (res.data) setSafety(res.data);
+        const res = await base44.functions.invoke('tokenSafety', { mint });
+        if (res.data) {
+          setSafety(res.data);
+          safetyCache.current.set(mint, res.data); // Cache result
+        }
       } catch (e) {
         console.error("Safety check failed", e);
       } finally {

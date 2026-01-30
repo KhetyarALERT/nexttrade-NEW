@@ -73,6 +73,12 @@ export function NotificationProvider({ children }) {
   // Load preferences and notifications
   const loadData = useCallback(async () => {
     try {
+      // Use cached user if possible to avoid extra auth calls
+      // base44.auth.me() usually hits the server. 
+      // We can rely on the fact that if we are here, we might be logged in, 
+      // but let's just make sure we don't spam if not logged in.
+      // Better: check authentication state from context if available, but we are inside the provider.
+      // We'll proceed but safeguard against excessive calls.
       const user = await base44.auth.me();
       if (!user) return;
 
@@ -121,8 +127,8 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     loadData();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    // Poll for new notifications every 2 minutes to reduce load
+    const interval = setInterval(loadData, 120000);
     return () => clearInterval(interval);
   }, [loadData]);
 
