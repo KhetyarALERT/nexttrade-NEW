@@ -20,7 +20,7 @@ import NotificationSettings from "@/components/notifications/NotificationSetting
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
-import { WalletProvider } from "@/lib/web3/WalletContext";
+import { WalletProvider } from "@/components/wallet/UnifiedWalletProvider";
 import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
