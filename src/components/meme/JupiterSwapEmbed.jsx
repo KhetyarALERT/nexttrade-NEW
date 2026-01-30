@@ -4,8 +4,8 @@ import { Loader2 } from 'lucide-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 const JUPITER_SCRIPT_URL = "https://terminal.jup.ag/main-v3.js";
-// Using public mainnet endpoint - in production this should be a paid RPC
-const RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";
+// Use a more CORS-friendly public RPC for the frontend widget
+const RPC_ENDPOINT = "https://solana-mainnet.rpc.extrnode.com";
 
 export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount }) {
   const wallet = useWallet();
