@@ -97,9 +97,23 @@ Deno.serve(async (req) => {
         return json({ success: false, error: 'Missing mint' }, { status: 400 });
       }
 
-      const res = await fetch(`${JUPITER_PRICE_BASE}/price?ids=${encodeURIComponent(String(mint))}`);
+      const apiKey = Deno.env.get("JUPITER_API_KEY");
+      // Use v2 price API if key is present, otherwise fallback to v1/v2 without key (which might 401)
+      const baseUrl = 'https://api.jup.ag/price/v2'; 
+      const url = `${baseUrl}?ids=${encodeURIComponent(String(mint))}`;
+      
+      const headers = {};
+      if (apiKey) {
+        headers['x-api-key'] = apiKey; // Try header auth
+      }
+
+      // If no key, maybe try another endpoint or just fetch
+      const res = await fetch(url, { headers });
+      
       if (!res.ok) {
         const body = await safeJson(res);
+        // Fallback to CoinGecko or other free API if Jupiter fails? 
+        // For now just return error but with better logging
         return json(
           { success: false, error: 'Jupiter price failed', status: res.status, details: body },
           { status: res.status }
