@@ -44,7 +44,10 @@ Deno.serve(async (req) => {
       mint, symbol, name, score, marketCap, liquidityUsd, 
       imageUrl, websiteUrl, twitterUrl, telegramUrl,
       priceUsd, priceChange24h, volume24h,
-      dexUrl, rugcheckUrl, solscanUrl, source, createdAtMs, raw, status 
+      dexUrl, rugcheckUrl, solscanUrl, source, createdAtMs, raw, status,
+      // New safety fields
+      stage, rugScore, rugged, mintAuthorityRevoked, freezeAuthorityDisabled,
+      riskFlags, riskLevel, lpStatus, lpLocked, lpBurned
     } = body;
 
     if (!mint) {
@@ -62,6 +65,9 @@ Deno.serve(async (req) => {
         imageUrl, websiteUrl, twitterUrl, telegramUrl,
         priceUsd, priceChange24h, volume24h,
         dexUrl, rugcheckUrl, solscanUrl, source,
+        // Safety fields
+        stage, rugScore, rugged, mintAuthorityRevoked, freezeAuthorityDisabled,
+        riskFlags, riskLevel, lpStatus, lpLocked, lpBurned,
         // Only update status if provided, else keep existing
         ...(status ? { status } : {}),
         raw: raw || existing[0].raw,
@@ -74,6 +80,9 @@ Deno.serve(async (req) => {
         imageUrl, websiteUrl, twitterUrl, telegramUrl,
         priceUsd, priceChange24h, volume24h,
         dexUrl, rugcheckUrl, solscanUrl, source,
+        // Safety fields
+        stage, rugScore, rugged, mintAuthorityRevoked, freezeAuthorityDisabled,
+        riskFlags, riskLevel, lpStatus, lpLocked, lpBurned,
         createdAtMs: createdAtMs || Date.now(),
         status: status || 'candidate',
         raw

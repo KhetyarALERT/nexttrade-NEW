@@ -91,6 +91,67 @@ function SolidPicksFeed({ onTrade }) {
     return "text-red-400 bg-red-400/10 border-red-400/20";
   };
 
+  const SafetyBadges = ({ pick }) => {
+    const { 
+      rugScore, riskLevel, mintAuthorityRevoked, freezeAuthorityDisabled, 
+      lpStatus, stage 
+    } = pick;
+
+    // Helper for check/x marks
+    const StatusIcon = ({ ok }) => (
+      ok ? <div className="text-green-400">✅</div> : <div className="text-red-400">❌</div>
+    );
+
+    // Rug Score Badge
+    const scoreColor = 
+      riskLevel === 'good' ? 'text-green-400 border-green-500/30 bg-green-500/10' :
+      riskLevel === 'warn' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10' :
+      'text-red-400 border-red-500/30 bg-red-500/10';
+    
+    // LP Badge
+    let lpBadge = null;
+    if (stage === 'watchlist') {
+      lpBadge = (
+        <Badge variant="outline" className="h-5 px-1.5 text-[9px] border-gray-700 text-gray-500 bg-gray-800/50">
+          LP: N/A
+        </Badge>
+      );
+    } else {
+      const isLpSafe = lpStatus === 'locked' || lpStatus === 'burned';
+      const lpColor = isLpSafe 
+        ? 'text-green-400 border-green-500/30 bg-green-500/10' 
+        : 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10';
+      
+      lpBadge = (
+        <Badge variant="outline" className={`h-5 px-1.5 text-[9px] gap-1 ${lpColor}`}>
+          LP: {lpStatus?.toUpperCase() || 'UNK'} {isLpSafe ? '🔒' : '⚠️'}
+        </Badge>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+        {/* RugCheck Score */}
+        {rugScore !== undefined && (
+          <Badge variant="outline" className={`h-5 px-1.5 text-[9px] gap-1 ${scoreColor}`}>
+            Risk: {rugScore}
+          </Badge>
+        )}
+
+        {/* Authorities */}
+        <Badge variant="outline" className="h-5 px-1.5 text-[9px] gap-1 border-gray-700 bg-gray-800/50 text-gray-300">
+          Mint <StatusIcon ok={mintAuthorityRevoked} />
+        </Badge>
+        <Badge variant="outline" className="h-5 px-1.5 text-[9px] gap-1 border-gray-700 bg-gray-800/50 text-gray-300">
+          Freeze <StatusIcon ok={freezeAuthorityDisabled} />
+        </Badge>
+
+        {/* LP Status */}
+        {lpBadge}
+      </div>
+    );
+  };
+
   if (loading && picks.length === 0) {
     return (
       <div className="space-y-2">
@@ -209,6 +270,8 @@ function SolidPicksFeed({ onTrade }) {
                         </>
                       )}
                     </div>
+                    {/* Safety Badges */}
+                    <SafetyBadges pick={pick} />
                   </div>
                 </div>
 
