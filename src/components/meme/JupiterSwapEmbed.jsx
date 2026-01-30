@@ -1,126 +1,119 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Loader2 } from 'lucide-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-
-const JUPITER_SCRIPT_URL = "https://terminal.jup.ag/main-v3.js";
-// Use a more CORS-friendly public RPC for the frontend widget
-const RPC_ENDPOINT = "https://solana-mainnet.rpc.extrnode.com";
+import { Loader2 } from 'lucide-react';
+import { init } from '@jup-ag/terminal';
+import '@jup-ag/terminal/css';
 
 export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount }) {
   const wallet = useWallet();
-  // Safe destructuring in case context is missing
-  let setVisible = () => console.warn("Wallet modal context missing");
-  try {
-    const modal = useWalletModal();
-    if (modal) setVisible = modal.setVisible;
-  } catch (e) {
-    // Ignore context error if using custom adapter without modal context
-  }
-
+  const { setVisible } = useWalletModal();
+  
   const [isLoaded, setIsLoaded] = useState(false);
-  const initializedRef = useRef(false);
+  const containerRef = useRef(null);
+  const instanceRef = useRef(null);
+  const lastMintRef = useRef(null);
 
   // Main Init Effect
   useEffect(() => {
-    if (!open) return;
-
-    const initJupiter = async () => {
-      try {
-        const el = document.getElementById("jupiter-swap-container");
-        if (!el) return;
-
-        // Cleanup previous instance if exists
+    // 1. Cleanup if not open or if mint changed (we'll re-init)
+    if (!open || !outputMint) {
+      if (instanceRef.current) {
+        // Attempt to close standard way if API supports it, otherwise just null ref
+        // The library typically handles cleanup via close() or by overwriting if target ID reused
+        // But explicit close is safer if available globally or on instance
         if (window.Jupiter && window.Jupiter.close) {
-          try { window.Jupiter.close(); } catch (e) { console.warn("Jup close error", e); }
+            try { window.Jupiter.close(); } catch (e) { console.warn(e); }
         }
-        
-        // Reset container and state
-        el.innerHTML = ""; 
-        initializedRef.current = false;
+        instanceRef.current = null;
+      }
+      return;
+    }
+
+    // Avoid re-init if same mint (unless needed)
+    if (instanceRef.current && lastMintRef.current === outputMint) {
+      return;
+    }
+
+    const launchJupiter = async () => {
+      try {
         setIsLoaded(false);
+        
+        // Clear container manually to be safe
+        const el = document.getElementById("integrated-terminal");
+        if (el) el.innerHTML = "";
 
-        // Load script if not present
-        if (!window.Jupiter) {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = JUPITER_SCRIPT_URL;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-        }
-
-        const jupiter = window.Jupiter;
-        if (!jupiter) throw new Error("Jupiter plugin failed to load");
-
-        // Initialize with robust settings
-        jupiter.init({
+        // Initialize Jupiter Terminal (RPC-less mode via Plugin/Ultra)
+        await init({
           displayMode: "integrated",
-          integratedTargetId: "jupiter-swap-container",
-          endpoint: RPC_ENDPOINT,
+          integratedTargetId: "integrated-terminal",
+          // RPC-less: Do NOT pass endpoint
+          
           formProps: {
             initialInputMint: inputMint,
             initialOutputMint: outputMint,
-            fixedOutputMint: true, // Lock output token
+            fixedOutputMint: true, // Lock output token (safety for specific meme coin)
             swapMode: "ExactIn",
             ...(referralAccount ? {
               referralAccount,
               referralFee: 255,
             } : {}),
           },
+          strictTokenList: false, // Essential for pump.fun / new meme coins
+          defaultExplorer: "SolanaFM",
+          
+          // Wallet Passthrough
           enableWalletPassthrough: true,
           passthroughWalletContextState: wallet,
           onRequestConnectWallet: () => setVisible(true),
-          containerStyles: { 
-            width: "100%", 
-            height: "520px", 
-            borderRadius: "16px", 
-            overflow: "hidden",
-            background: "#0f172a",
-            minHeight: "520px",
-          },
+          
+          // Branding
           branding: {
             name: "NextTrade",
             logoUri: "https://i.postimg.cc/QxX1dBnR/nexttrade-logo2.png",
           },
         });
 
-        initializedRef.current = true;
+        instanceRef.current = true;
+        lastMintRef.current = outputMint;
         setIsLoaded(true);
 
       } catch (err) {
-        console.error("Jupiter Init Error:", err);
+        console.error("Jupiter Plugin Init Error:", err);
       }
     };
 
-    initJupiter();
+    launchJupiter();
 
-    // Cleanup on unmount or prop change
+    // Cleanup on unmount
     return () => {
-      const el = document.getElementById("jupiter-swap-container");
       if (window.Jupiter && window.Jupiter.close) {
         try { window.Jupiter.close(); } catch (e) {}
       }
-      if (el) el.innerHTML = "";
-      initializedRef.current = false;
+      instanceRef.current = null;
     };
-  }, [open, outputMint, inputMint, referralAccount]);
+  }, [open, outputMint, inputMint, referralAccount, setVisible]);
 
-  // Sync Props Effect (Separate)
+  // Sync Props Effect - To prevent spam/lag, only run on meaningful changes
   useEffect(() => {
-    if (!open || !initializedRef.current || !window.Jupiter?.syncProps) return;
+    if (!open || !instanceRef.current || !window.Jupiter?.syncProps) return;
+    
+    // Sync wallet state
     window.Jupiter.syncProps({ passthroughWalletContextState: wallet });
-  }, [open, wallet, wallet.connected]);
+    
+  }, [open, wallet.connected, wallet.publicKey?.toBase58()]);
+
+  if (!open) return null;
 
   return (
-    <div className="w-full relative min-h-[520px] bg-gray-900/50 rounded-2xl border border-gray-800">
+    <div className="w-full relative min-h-[520px] bg-[#0f172a] rounded-2xl border border-gray-800 overflow-hidden">
       {!isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-[#0f172a]">
           <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
         </div>
       )}
-      <div id="jupiter-swap-container" className="w-full h-full min-h-[520px]" />
+      {/* Explicit ID for the integrated target */}
+      <div id="integrated-terminal" className="w-full h-full min-h-[520px]" />
     </div>
   );
 }
