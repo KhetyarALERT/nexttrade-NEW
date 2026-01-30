@@ -708,7 +708,7 @@ export default function MemeCoins() {
                 </div>
 
                 <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-800 min-h-[550px]">
-                  <JupiterSwapEmbed isOpen={!!selectedToken} tokenMint={selectedToken.address} />
+                  <JupiterSwapEmbed open={!!selectedToken} outputMint={selectedToken.address} />
                 </div>
               </div>
             </div>

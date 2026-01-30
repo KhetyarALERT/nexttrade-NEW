@@ -6,6 +6,7 @@ export const WalletProvider = ({ children }) => {
   return (
     <UnifiedWalletProvider
       wallets={[]}
+      endpoint="https://api.mainnet-beta.solana.com"
       config={{
         autoConnect: false,
         env: "mainnet-beta",
