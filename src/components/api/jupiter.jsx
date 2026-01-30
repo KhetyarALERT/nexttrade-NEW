@@ -1,11 +1,5 @@
 import { base44 } from '@/api/base44Client';
 import { VersionedTransaction } from '@solana/web3.js';
-import { Buffer } from 'buffer';
-
-// Ensure Buffer is available in browser environment
-if (typeof window !== 'undefined' && !window.Buffer) {
-  window.Buffer = Buffer;
-}
 
 export const TOKENS = {
   USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -18,6 +12,17 @@ export const toRawAmount = (amount, decimals) => {
 
 export const fromRawAmount = (rawAmount, decimals) => {
   return rawAmount / Math.pow(10, decimals);
+};
+
+// Browser-compatible base64 to Uint8Array conversion
+const base64ToUint8Array = (base64) => {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 };
 
 export const getQuote = async (inputMint, outputMint, amount, slippageBps) => {
@@ -43,9 +48,9 @@ export const getSwapTransaction = async (quoteResponse, userPublicKey) => {
 export const executeSwap = async (swapTransactionBase64, wallet, connection) => {
   if (!swapTransactionBase64) throw new Error('Invalid swap transaction');
   
-  const transaction = VersionedTransaction.deserialize(
-    Buffer.from(swapTransactionBase64, 'base64')
-  );
+  // Use browser-native decoding instead of Buffer
+  const transactionBytes = base64ToUint8Array(swapTransactionBase64);
+  const transaction = VersionedTransaction.deserialize(transactionBytes);
   
   const signature = await wallet.sendTransaction(transaction, connection);
   return signature;

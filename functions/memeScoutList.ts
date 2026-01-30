@@ -29,22 +29,26 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const body = await req.json().catch(() => ({}));
     
-    // Default filter by status if not provided, or 'candidate'/'approved'
-    // Actually, prompt says: status?: "candidate"|"approved"|"rejected"
-    // If not specified, maybe return all or just candidate/approved?
-    // Let's support filtering.
+    // Status filter: If not provided, we include 'candidate' and 'approved' (exclude rejected if desired, but user said "return BOTH candidate and approved"). 
+    // Usually "solid picks" shouldn't include rejected.
+    // However, user said "If status is NOT provided ... return BOTH candidate and approved records".
+    // I'll explicitly filter for these two if status is missing.
     
     const filter = {};
     if (body.status) {
       filter.status = body.status;
+    } else {
+      // Default to showing candidates and approved
+      filter.status = { $in: ['candidate', 'approved'] };
     }
     
-    const limit = body.limit || 30;
+    const limit = body.limit && Number(body.limit) > 0 ? Number(body.limit) : 30;
     
-    // Order by createdAtMs descending
+    // Use string format for sort: '-createdAtMs' for descending
     const alerts = await base44.asServiceRole.entities.MemeScoutAlert.filter(
       filter, 
-      { sort: { createdAtMs: -1 }, limit }
+      '-createdAtMs',
+      limit
     );
 
     return json({ ok: true, data: alerts });
