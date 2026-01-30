@@ -97,6 +97,11 @@ function SolidPicksFeed({ onTrade }) {
       lpStatus, stage 
     } = pick;
 
+    // Don't render badges if safety data is completely missing
+    if (rugScore === undefined && mintAuthorityRevoked === undefined && lpStatus === undefined) {
+      return null;
+    }
+
     // Helper for check/x marks
     const StatusIcon = ({ ok }) => (
       ok ? <div className="text-green-400">✅</div> : <div className="text-red-400">❌</div>
