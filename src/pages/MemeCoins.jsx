@@ -25,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 import * as jupiterApi from '@/components/api/jupiter';
+import JupiterSwapEmbed from '@/components/meme/JupiterSwapEmbed';
 import { fetchTrendingSolanaTokens } from '@/components/api/dexscreener';
 import { base44 } from '@/api/base44Client';
 
