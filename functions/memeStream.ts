@@ -1,92 +1,49 @@
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// This function handles WebSocket connections from the frontend
-// It acts as a proxy to PumpPortal, managing subscriptions efficiently
+// This backend function acts as a WSS proxy to PumpPortal.
+// It allows the frontend to connect to ONE endpoint and share the connection logic.
 Deno.serve(async (req) => {
-  try {
-    const base44 = createClientFromRequest(req);
-    
-    // Check auth (optional - maybe public?)
-    // const user = await base44.auth.me();
-
-    const url = new URL(req.url);
-    if (req.method === 'GET' && !req.headers.get("upgrade")) {
-         // Handle simple poll stats request
-         const stats = {
-             active_tokens: 1420,
-             volume_5m: 420.69,
-             top_gainer: "PEPE"
-         };
-         return Response.json(stats);
-    }
-
-    const upgrade = req.headers.get("upgrade") || "";
-    if (upgrade.toLowerCase() != "websocket") {
-      return new Response("Expected WebSocket", { status: 400 });
-    }
-
-    const { socket: clientSocket, response } = Deno.upgradeWebSocket(req);
-
-    // PumpPortal WebSocket connection
-    const pumpWs = new WebSocket("wss://pumpportal.fun/api/data");
-    
-    // Subscription tracking
-    const subscriptions = new Set(); // This variable is declared but not actively used in the simplified clientSocket.onmessage
-    let isPumpOpen = false;
-
-    clientSocket.onopen = () => {
-      console.log("Client connected");
-    };
-
-    pumpWs.onopen = () => {
-      console.log("Connected to PumpPortal");
-      isPumpOpen = true;
-      
-      // Default subscriptions
-      pumpWs.send(JSON.stringify({ method: "subscribeNewToken" })); 
-      // We can filter this? No, PumpPortal sends all.
-    };
-
-    pumpWs.onmessage = (event) => {
-      try {
-        // Forward to client
-        if (clientSocket.readyState === WebSocket.OPEN) {
-          clientSocket.send(event.data);
-        }
+    try {
+        const upgrade = req.headers.get("upgrade") || "";
         
-        // TODO: Here we would parse and update Trending Stats in DB
-        // But doing high-frequency DB writes in a WS handler is risky for quotas.
-        // Better to use an aggregator or buffered write.
-      } catch (e) {
-        console.error("Error forwarding message:", e);
-      }
-    };
+        // Handle standard HTTP GET for trending stats (REST fallback)
+        if (req.method === 'GET' && !upgrade) {
+             const base44 = createClientFromRequest(req);
+             const { limit = 50 } = Object.fromEntries(new URL(req.url).searchParams);
+             const tokens = await base44.entities.MemeTokenCache.list('-trend_score', parseInt(limit));
+             return Response.json({ ok: true, data: tokens });
+        }
 
-    pumpWs.onclose = () => {
-      console.log("PumpPortal closed");
-      isPumpOpen = false; // Preserve original functionality of tracking pump state
-      clientSocket.close();
-    };
+        if (upgrade.toLowerCase() != "websocket") {
+             return new Response("Expected WebSocket", { status: 400 });
+        }
 
-    clientSocket.onmessage = (event) => {
-      // Handle client subs if needed
-      // Current implementation does not process client messages for subscriptions,
-      // focusing on forwarding PumpPortal data and initial default subscriptions.
-      try {
-        console.log("Client sent message:", event.data);
-      } catch (e) {
-        console.error("Client message error:", e);
-      }
-    };
+        const { socket: clientSocket, response } = Deno.upgradeWebSocket(req);
 
-    clientSocket.onclose = () => {
-      console.log("Client disconnected");
-      pumpWs.close();
-    };
+        // Connect to PumpPortal
+        const pumpWs = new WebSocket("wss://pumpportal.fun/api/data");
 
-    return response;
-  } catch (error) {
-    return new Response(error.message, { status: 500 });
-  }
+        clientSocket.onopen = () => console.log("Client connected to stream");
+        
+        pumpWs.onopen = () => {
+             console.log("Upstream connected");
+             // Subscribe to everything needed
+             pumpWs.send(JSON.stringify({ method: "subscribeNewToken" }));
+             pumpWs.send(JSON.stringify({ method: "subscribeMigration" }));
+        };
+
+        pumpWs.onmessage = (event) => {
+             if (clientSocket.readyState === WebSocket.OPEN) {
+                 clientSocket.send(event.data);
+             }
+        };
+
+        pumpWs.onclose = () => clientSocket.close();
+        clientSocket.onclose = () => pumpWs.close();
+
+        return response;
+    } catch (e) {
+        return new Response(e.message, { status: 500 });
+    }
 });
