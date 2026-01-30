@@ -18,8 +18,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 
-import * as jupiterApi from '@/api/jupiter';
-import { fetchTrendingSolanaTokens } from '@/api/dexscreener';
+import * as jupiterApi from '@/components/api/jupiter';
+import { fetchTrendingSolanaTokens } from '@/components/api/dexscreener';
 
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
 
