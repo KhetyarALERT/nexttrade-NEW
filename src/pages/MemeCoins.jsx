@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMemeData } from '@/components/meme/MemeDataContext';
+import { useMemeData, MemeDataProvider } from '@/components/meme/MemeDataContext';
 import MemeList from '@/components/meme/MemeList';
 import MemeCard from '@/components/meme/MemeCard';
 import MemeDetailPanel from '@/components/meme/MemeDetailPanel';
@@ -152,8 +152,6 @@ const MemeCoinsContent = () => {
     </div>
   );
 };
-
-import { MemeDataProvider } from '@/components/meme/MemeDataContext';
 
 export default function MemeCoins() {
   return (
