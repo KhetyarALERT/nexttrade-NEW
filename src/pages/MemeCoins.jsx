@@ -153,8 +153,12 @@ const MemeCoinsContent = () => {
   );
 };
 
+import { MemeDataProvider } from '@/components/meme/MemeDataContext';
+
 export default function MemeCoins() {
-  // MemeDataProvider is already wrapping in the parent page export or Layout if moved higher
-  // But strictly per file:
-  return <MemeCoinsContent />;
+  return (
+    <MemeDataProvider>
+      <MemeCoinsContent />
+    </MemeDataProvider>
+  );
 }
