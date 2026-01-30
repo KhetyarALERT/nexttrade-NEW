@@ -15,7 +15,11 @@ export const WalletProvider = ({ children }) => {
           url: "https://jup.ag",
           iconUrls: ["https://jup.ag/favicon.ico"],
         },
-        notificationCallback: {},
+        notificationCallback: {
+          onConnect: () => console.log("Wallet connected"),
+          onDisconnect: () => console.log("Wallet disconnected"),
+          onNotInstalled: (wallet) => console.log("Wallet not installed", wallet),
+        },
         walletPrecedence: ["OKX Wallet", "WalletConnect"],
         hardcodedWallets: [
           {
