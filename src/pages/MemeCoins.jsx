@@ -30,7 +30,7 @@ import { base44 } from '@/api/base44Client';
 
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
 
-// --- Sub-component for Solid Picks Feed ---
+// --- Sub-component for Solid Picks Feed (Optimized for Speed/Mobile) ---
 function SolidPicksFeed({ onTrade }) {
   const [picks, setPicks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,21 +60,6 @@ function SolidPicksFeed({ onTrade }) {
     fetchPicks();
   }, []);
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Mint address copied");
-  };
-
-  const formatTimeAgo = (ms) => {
-    if (!ms) return '';
-    const diff = Date.now() - ms;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  };
-
   const formatNumber = (num, isCurrency = true) => {
     if (num === undefined || num === null) return '-';
     if (num >= 1000000) return `${isCurrency ? '$' : ''}${(num / 1000000).toFixed(2)}M`;
@@ -83,181 +68,107 @@ function SolidPicksFeed({ onTrade }) {
   };
 
   const formatPrice = (price) => {
-    if (!price) return '-';
+    if (price === undefined || price === null || isNaN(price)) return '-';
+    if (price < 0.000001) return `$${price.toExponential(4)}`;
     return price < 0.01 ? `$${price.toFixed(8)}` : `$${price.toFixed(4)}`;
   };
 
   const getScoreColor = (score) => {
-    if (score >= 90) return "bg-green-500/20 text-green-400 border-green-500/30";
-    if (score >= 70) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-    return "bg-red-500/20 text-red-400 border-red-500/30";
+    if (score >= 90) return "text-green-400 bg-green-400/10 border-green-400/20";
+    if (score >= 70) return "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+    return "text-red-400 bg-red-400/10 border-red-400/20";
   };
 
   if (loading && picks.length === 0) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-gray-900/50 border-gray-800 p-4 h-64">
-            <div className="flex items-center gap-3 mb-4">
-              <Skeleton className="w-10 h-10 rounded-full bg-gray-800" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24 bg-gray-800" />
-                <Skeleton className="h-3 w-16 bg-gray-800" />
-              </div>
+      <div className="space-y-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-3 bg-gray-900/50 border border-gray-800 rounded-xl">
+            <Skeleton className="w-10 h-10 rounded-full bg-gray-800" />
+            <div className="space-y-1 flex-1">
+              <Skeleton className="h-4 w-24 bg-gray-800" />
+              <Skeleton className="h-3 w-16 bg-gray-800" />
             </div>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full bg-gray-800" />
-              <Skeleton className="h-8 w-full bg-gray-800" />
-              <Skeleton className="h-8 w-full bg-gray-800" />
-            </div>
-          </Card>
+            <Skeleton className="h-8 w-20 bg-gray-800 rounded-lg" />
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 pb-20">
       <div className="flex justify-between items-center px-1">
-        <h3 className="text-lg font-semibold text-white">NextTrade Solid Picks</h3>
-        <Button variant="ghost" size="sm" onClick={fetchPicks} className="text-gray-400 hover:text-white">
-          <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Scout Picks</h3>
+        <Button variant="ghost" size="sm" onClick={fetchPicks} className="h-7 text-xs text-gray-500 hover:text-white">
+          <RefreshCw className="w-3 h-3 mr-1.5" /> Refresh
         </Button>
       </div>
       
       {error ? (
-        <div className="text-center py-12 text-red-400 bg-red-900/10 rounded-xl border border-red-900/30">
+        <div className="text-center py-8 text-red-400 bg-red-900/10 rounded-xl border border-red-900/30 text-sm">
           <p>{error}</p>
-          <Button variant="outline" size="sm" onClick={fetchPicks} className="mt-4 border-red-800 text-red-400 hover:bg-red-900/20">
-            Try Again
+          <Button variant="outline" size="sm" onClick={fetchPicks} className="mt-3 h-7 text-xs border-red-800 text-red-400 hover:bg-red-900/20">
+            Retry
           </Button>
         </div>
       ) : picks.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 bg-gray-900/30 rounded-xl border border-gray-800">
-          No picks available yet. Waiting for scout bot...
+        <div className="text-center py-12 text-gray-500 bg-gray-900/30 rounded-xl border border-gray-800 text-sm">
+          Waiting for new signals...
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-2">
           {picks.map((pick) => (
-            <Card key={pick.id} className="bg-gray-900/50 border-gray-800 hover:border-purple-500/30 transition-all duration-200 flex flex-col">
-              {/* Header */}
-              <div className="p-4 border-b border-gray-800/50">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    {pick.imageUrl ? (
-                      <img src={pick.imageUrl} alt={pick.symbol} className="w-12 h-12 rounded-full border border-gray-700 object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center text-white font-bold text-lg border border-gray-700">
-                        {pick.symbol?.[0]}
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-bold text-white text-lg flex items-center gap-2">
-                        {pick.symbol}
-                        <Badge variant="outline" className={`text-[10px] h-5 px-1.5 border ${getScoreColor(pick.score)}`}>
-                          {pick.score}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-gray-400 truncate max-w-[140px]" title={pick.name}>{pick.name}</div>
-                    </div>
+            <div 
+              key={pick.id} 
+              onClick={() => onTrade(pick)}
+              className="group relative flex items-center justify-between p-3 bg-gray-900/40 border border-gray-800 rounded-xl hover:bg-gray-800/40 hover:border-purple-500/30 transition-all cursor-pointer active:scale-[0.99]"
+            >
+              {/* Left: Token Info */}
+              <div className="flex items-center gap-3 min-w-0">
+                {pick.imageUrl ? (
+                  <img src={pick.imageUrl} alt={pick.symbol} className="w-10 h-10 rounded-full border border-gray-700/50 object-cover bg-gray-800" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center text-xs font-bold text-gray-300 border border-gray-700/50">
+                    {pick.symbol?.[0]}
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500 font-mono mb-1">
-                      {formatTimeAgo(pick.createdAtMs)}
-                    </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-white text-sm truncate">{pick.symbol}</span>
+                    <span className={`text-[9px] px-1 rounded border ${getScoreColor(pick.score)}`}>
+                      {pick.score}
+                    </span>
                   </div>
-                </div>
-
-                {/* Socials */}
-                <div className="flex gap-2 mt-3">
-                  {pick.twitterUrl && (
-                    <a href={pick.twitterUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors">
-                      <Twitter className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                  {pick.telegramUrl && (
-                    <a href={pick.telegramUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors">
-                      <Send className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                  {pick.websiteUrl && (
-                    <a href={pick.websiteUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors">
-                      <Globe className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                  <div className="flex-1"></div>
-                  <button onClick={() => copyToClipboard(pick.mint)} className="flex items-center gap-1.5 px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs text-gray-400 hover:text-white transition-colors">
-                    <Copy className="w-3 h-3" />
-                    <span className="font-mono">{pick.mint.slice(0, 4)}...{pick.mint.slice(-4)}</span>
-                  </button>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
+                    <span>MC: {formatNumber(pick.marketCap)}</span>
+                    <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                    <span>Liq: {formatNumber(pick.liquidityUsd)}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="p-4 grid grid-cols-2 gap-y-3 gap-x-2 text-sm flex-1">
-                <div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Price</div>
-                  <div className="font-mono text-white font-medium">{formatPrice(pick.priceUsd)}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">24h Change</div>
-                  <div className={`font-mono font-medium flex items-center justify-end gap-1 ${pick.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {pick.priceChange24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {Math.abs(pick.priceChange24h || 0).toFixed(2)}%
+              {/* Right: Price & Trade */}
+              <div className="flex items-center gap-3 pl-2">
+                <div className="text-right hidden xs:block">
+                  <div className="font-mono text-sm text-white font-medium">{formatPrice(pick.priceUsd)}</div>
+                  <div className={`text-xs font-medium ${pick.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {pick.priceChange24h >= 0 ? '+' : ''}{pick.priceChange24h?.toFixed(1)}%
                   </div>
                 </div>
                 
-                <div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Market Cap</div>
-                  <div className="font-mono text-gray-300">{formatNumber(pick.marketCap)}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wider">Liquidity</div>
-                  <div className="font-mono text-gray-300">{formatNumber(pick.liquidityUsd)}</div>
-                </div>
-
-                <div className="col-span-2 border-t border-gray-800/50 mt-1 pt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Volume (24h)</span>
-                    <span className="font-mono text-gray-300">{formatNumber(pick.volume24h)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="p-4 pt-0 mt-auto space-y-2">
-                 <Button 
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold"
-                  onClick={() => onTrade(pick)}
+                <Button 
+                  size="sm" 
+                  className="h-8 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-lg shadow-sm shadow-purple-900/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTrade(pick);
+                  }}
                 >
-                  Trade {pick.symbol}
+                  Trade
                 </Button>
-
-                <div className="flex gap-2">
-                  {pick.dexUrl && (
-                    <a href={pick.dexUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button size="sm" variant="outline" className="w-full text-xs border-gray-700 bg-transparent hover:bg-gray-800 h-8">
-                        Dex <ExternalLink className="w-3 h-3 ml-1.5" />
-                      </Button>
-                    </a>
-                  )}
-                  {pick.solscanUrl && (
-                    <a href={pick.solscanUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
-                      <Button size="sm" variant="outline" className="w-full text-xs border-gray-700 bg-transparent hover:bg-gray-800 h-8">
-                        Scan <ExternalLink className="w-3 h-3 ml-1.5" />
-                      </Button>
-                    </a>
-                  )}
-                  {pick.rugcheckUrl && (
-                    <a href={pick.rugcheckUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="icon" variant="outline" className="w-8 h-8 border-gray-700 bg-transparent hover:bg-gray-800" title="RugCheck">
-                        <Shield className="w-3.5 h-3.5" />
-                      </Button>
-                    </a>
-                  )}
-                </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
@@ -518,16 +429,16 @@ export default function MemeCoins() {
         const inputMint = swapMode === 'buy' ? jupiterApi.TOKENS.SOL : selectedToken.address;
         const outputMint = swapMode === 'buy' ? selectedToken.address : jupiterApi.TOKENS.SOL;
         
-        // Decimals: SOL is 9, most tokens are 6 or 9. 
-        // Assuming 9 for SOL. For output, we can get decimals from quote later or assume 6.
-        const inputDecimals = swapMode === 'buy' ? 9 : 6; 
-        const outputDecimals = swapMode === 'buy' ? 6 : 9;
+        // Use fetched decimals
+        const inputDecimals = swapMode === 'buy' ? 9 : tokenDecimals;
+        const outputDecimals = swapMode === 'buy' ? tokenDecimals : 9;
         
         const rawAmount = jupiterApi.toRawAmount(parseFloat(inputAmount), inputDecimals);
         const slippageBps = slippage * 100;
         
         const quote = await jupiterApi.getQuote(inputMint, outputMint, rawAmount, slippageBps);
         if (quote) {
+          // Jupiter returns outAmount in raw units
           const output = jupiterApi.fromRawAmount(parseInt(quote.outAmount), outputDecimals);
           setOutputAmount(output.toFixed(6));
           setCurrentQuote(quote);
@@ -794,6 +705,7 @@ export default function MemeCoins() {
                         onMax={handleMax}
                         balance={balance}
                         balanceLabel="SOL"
+                        isBuy={true}
                       />
                     </TabsContent>
                     
@@ -818,6 +730,7 @@ export default function MemeCoins() {
                         onMax={handleMax}
                         balance={balance}
                         balanceLabel={selectedToken.symbol}
+                        isBuy={false}
                       />
                     </TabsContent>
                   </Tabs>
@@ -850,11 +763,29 @@ function SwapForm({
   actionColor,
   onMax,
   balance,
-  balanceLabel
+  balanceLabel,
+  isBuy
 }) {
+  const PRESETS = [0.1, 0.5, 1.0, 5.0];
+
   return (
     <>
       <div className="space-y-3">
+        {/* Preset Buttons for Buy Mode */}
+        {isBuy && (
+          <div className="grid grid-cols-4 gap-2 mb-1">
+            {PRESETS.map((amt) => (
+              <button
+                key={amt}
+                onClick={() => onInputChange(amt.toString())}
+                className="py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 hover:text-white transition-colors border border-gray-700 hover:border-gray-600"
+              >
+                {amt} SOL
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-1.5">
           <div className="flex justify-between">
             <Label className="text-xs text-gray-400 font-medium ml-1">{inputLabel}</Label>
