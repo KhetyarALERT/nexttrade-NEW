@@ -44,7 +44,12 @@ export const MemeDataProvider = ({ children }) => {
                        symbol: data.symbol,
                        name: data.name,
                        image_url: data.uri, 
+                       price: 0,
                        price_usd: 0,
+                       market_cap: 0,
+                       liquidity: 0,
+                       volume24h: 0,
+                       holders: 0,
                        volume_sol_24h: 0,
                        bonding_curve_status: 'bonding_curve',
                        priceChange24h: 0,
@@ -62,14 +67,27 @@ export const MemeDataProvider = ({ children }) => {
                     if (token) {
                         const isBuy = data.isBuy;
                         const solAmount = data.solAmount;
+                        const SOL_PRICE = 200; // Approx
                         
                         // Simple rolling update (in prod this should be windowed)
                         if (isBuy) token.buys_5m = (token.buys_5m || 0) + 1;
                         else token.sells_5m = (token.sells_5m || 0) + 1;
                         
                         token.volume_5m = (token.volume_5m || 0) + solAmount;
-                        token.price_usd = data.marketCapSol * 200 / 1000000000; // Rough approx if solPrice 200
                         
+                        // Update price and market cap
+                        const priceUsd = data.marketCapSol * SOL_PRICE / 1000000000;
+                        token.price_usd = priceUsd;
+                        token.price = priceUsd; // Map to 'price' for UI
+                        token.market_cap = data.marketCapSol * SOL_PRICE;
+                        
+                        // Estimate liquidity (virtual bonding curve liquidity ~15% of mcap)
+                        token.liquidity = token.market_cap * 0.15; 
+                        
+                        // Update 24h volume (accumulate)
+                        token.volume_sol_24h = (token.volume_sol_24h || 0) + solAmount;
+                        token.volume24h = token.volume_sol_24h * SOL_PRICE;
+
                         // Ping update
                         token.lastTrade = Date.now();
                         tokensMapRef.current.set(data.mint, { ...token });
@@ -98,8 +116,19 @@ export const MemeDataProvider = ({ children }) => {
                  const initialTokens = res.data.data;
                  const mintsToSub = [];
                  initialTokens.forEach(t => {
+                     const SOL_PRICE = 200;
+                     const price = t.price_usd || 0;
+                     const volume24h = (t.volume_sol_24h || 0) * SOL_PRICE;
+                     
                      tokensMapRef.current.set(t.mint, {
                          ...t,
+                         // Normalize fields for UI
+                         price: price,
+                         market_cap: price * 1000000000, // 1B supply assumption
+                         liquidity: (price * 1000000000) * 0.15, // Est liquidity
+                         volume24h: volume24h,
+                         holders: t.holders || 0,
+                         
                          createdAt: new Date(t.last_trade_at || Date.now()).getTime(),
                          buys_5m: t.buys_5m || 0,
                          sells_5m: t.sells_5m || 0,
