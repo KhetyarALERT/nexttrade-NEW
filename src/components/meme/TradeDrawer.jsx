@@ -3,7 +3,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExternalLink, Copy, AlertTriangle } from 'lucide-react';
-import { resolveIpfsUrl } from '@/utils/ipfs';
+import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { formatNumber, formatPrice } from './MemeList';
 import JupiterSwapEmbed from './JupiterSwapEmbed';
 import { Badge } from '@/components/ui/badge';
