@@ -1,69 +1,92 @@
 import React, { memo } from 'react';
-import { TrendingUp, TrendingDown, Droplets, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { resolveIpfsUrl } from '@/utils/ipfs';
 import { Badge } from '@/components/ui/badge';
-
-const formatNumber = (num) => {
-  if (!num) return '-';
-  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
-  return `$${num.toFixed(2)}`;
-};
-
-const formatPrice = (price) => {
-  if (!price) return '-';
-  if (price < 0.000001) return `$${price.toExponential(4)}`;
-  if (price < 0.01) return `$${price.toFixed(8)}`;
-  return `$${price.toFixed(4)}`;
-};
+import { Button } from '@/components/ui/button';
+import { TrendingUp, Users, AlertTriangle } from 'lucide-react';
+import { formatNumber, formatPrice } from '@/components/meme/MemeList';
 
 const MemeCard = memo(({ token, onTrade }) => {
-  const isPositive = token.priceChange24h >= 0;
+  const isBondingCurve = token.bonding_curve_status === 'bonding_curve';
+  const riskLevel = token.safety?.riskLevel || 'unknown';
   
+  const getRiskColor = (level) => {
+    switch(level) {
+      case 'good': return 'text-emerald-500 bg-emerald-500/10';
+      case 'medium': return 'text-yellow-500 bg-yellow-500/10';
+      case 'high': return 'text-red-500 bg-red-500/10';
+      default: return 'text-gray-500 bg-gray-500/10';
+    }
+  };
+
   return (
-    <div className="bg-[#1e293b]/50 border border-gray-800 rounded-xl p-4 flex flex-col gap-4 active:scale-[0.98] transition-transform">
-      <div className="flex items-center justify-between">
+    <div 
+      className="bg-[#111] border border-gray-800 rounded-xl p-4 active:scale-[0.98] transition-transform cursor-pointer"
+      onClick={() => onTrade(token)}
+    >
+      <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <img 
-            src={token.image_url || `https://ui-avatars.com/api/?name=${token.symbol}&background=random`} 
-            alt={token.symbol} 
-            className="w-10 h-10 rounded-full bg-gray-800 object-cover"
-            loading="lazy"
-          />
+          <div className="relative">
+            <img 
+              src={resolveIpfsUrl(token.image_url)} 
+              alt={token.symbol}
+              className="w-12 h-12 rounded-lg object-cover bg-gray-800"
+              loading="lazy"
+              onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=" + token.symbol}
+            />
+            {token.isNew && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+            )}
+          </div>
           <div>
-            <div className="font-bold text-white">{token.symbol}</div>
-            <div className="text-xs text-gray-400 max-w-[100px] truncate">{token.name}</div>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-bold text-base text-white">{token.symbol}</h3>
+              {riskLevel !== 'unknown' && (
+                <Badge variant="outline" className={`text-[10px] h-5 px-1.5 border-0 ${getRiskColor(riskLevel)}`}>
+                  {token.safety?.score ? `Score: ${token.safety.score}` : riskLevel.toUpperCase()}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 truncate max-w-[120px]">{token.name}</p>
           </div>
         </div>
+        
         <div className="text-right">
-          <div className="font-mono font-medium text-white">{formatPrice(token.price_usd)}</div>
-          <Badge 
-            variant="outline" 
-            className={`text-[10px] px-1.5 h-5 ${isPositive ? 'text-green-400 border-green-500/20 bg-green-500/10' : 'text-red-400 border-red-500/20 bg-red-500/10'}`}
-          >
-            {isPositive ? '+' : ''}{token.priceChange24h?.toFixed(2)}%
-          </Badge>
+          <div className="text-base font-mono font-medium text-emerald-400">
+            {formatPrice(token.price_usd || 0)}
+          </div>
+          <div className={`text-xs ${token.priceChange24h >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {token.priceChange24h > 0 ? '+' : ''}{token.priceChange24h?.toFixed(1)}%
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 bg-[#0f172a]/50 p-2 rounded-lg">
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase opacity-70">Vol 24h</span>
-          <span className="font-mono text-white">{formatNumber(token.volume_sol_24h * 180)}</span> {/* Approx SOL price */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="bg-gray-900/50 rounded p-2 text-center">
+          <div className="text-[10px] text-gray-500 uppercase">Vol 24h</div>
+          <div className="text-xs font-medium">{formatNumber(token.volume_sol_24h || 0)}</div>
         </div>
-        <div className="flex flex-col text-right">
-          <span className="text-[10px] uppercase opacity-70">Liquidity</span>
-          <span className="font-mono text-white">
-            {token.bonding_curve_status === 'bonding_curve' ? 'Bonding' : formatNumber(token.liquidity)}
-          </span>
+        <div className="bg-gray-900/50 rounded p-2 text-center">
+          <div className="text-[10px] text-gray-500 uppercase">Cap</div>
+          <div className="text-xs font-medium">{formatNumber(token.market_cap || 0)}</div>
+        </div>
+        <div className="bg-gray-900/50 rounded p-2 text-center">
+          <div className="text-[10px] text-gray-500 uppercase">Age</div>
+          <div className="text-xs font-medium">{token.age || 'New'}</div>
         </div>
       </div>
 
       <Button 
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/20 shadow-lg"
-        onClick={() => onTrade(token)}
+        size="sm" 
+        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium h-9"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTrade(token);
+        }}
       >
-        Trade
+        Quick Buy
       </Button>
     </div>
   );

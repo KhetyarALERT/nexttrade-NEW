@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { init } from '@jup-ag/plugin';
 import '@jup-ag/plugin/css';
 
-export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount }) {
+export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount, initialAmount }) {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
   
@@ -55,6 +55,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
           formProps: {
             initialInputMint: inputMint,
             initialOutputMint: outputMint,
+            initialAmount: initialAmount ? (initialAmount * 1000000000).toString() : undefined,
             fixedMint: true, // As per Plugin docs for locking output
             swapMode: "ExactIn",
             ...(activeReferralAccount ? {

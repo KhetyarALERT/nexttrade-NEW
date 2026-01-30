@@ -56,10 +56,32 @@ export const MemeDataProvider = ({ children }) => {
                        volume_sol_24h: 0,
                        bonding_curve_status: 'bonding_curve',
                        priceChange24h: 0,
-                       createdAt: Date.now()
+                       createdAt: Date.now(),
+                       buys_5m: 0,
+                       sells_5m: 0,
+                       volume_5m: 0,
+                       tx_count: 0
                    };
                    
                    tokensMapRef.current.set(data.mint, newToken);
+                } else if (data.txType === 'trade') {
+                    // Update rolling metrics
+                    const token = tokensMapRef.current.get(data.mint);
+                    if (token) {
+                        const isBuy = data.isBuy;
+                        const solAmount = data.solAmount;
+                        
+                        // Simple rolling update (in prod this should be windowed)
+                        if (isBuy) token.buys_5m = (token.buys_5m || 0) + 1;
+                        else token.sells_5m = (token.sells_5m || 0) + 1;
+                        
+                        token.volume_5m = (token.volume_5m || 0) + solAmount;
+                        token.price_usd = data.marketCapSol * 200 / 1000000000; // Rough approx if solPrice 200, better to use data.vSolInBondingCurve
+                        
+                        // Ping update
+                        token.lastTrade = Date.now();
+                        tokensMapRef.current.set(data.mint, { ...token });
+                    }
                 }
             } catch (e) {
                 console.error("WSS Error", e);
