@@ -89,7 +89,8 @@
     "viem": "^2.21.4",
     "wagmi": "^2.12.9",
     "zod": "^3.24.2",
-    "@jup-ag/wallet-adapter": "^0.1.0"
+    "@jup-ag/wallet-adapter": "^0.1.0",
+    "@jup-ag/terminal": "^3.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
