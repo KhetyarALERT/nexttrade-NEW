@@ -70,20 +70,19 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
             } : {}),
           },
           enableWalletPassthrough: true,
-          passthroughWalletContextState: wallet.connected ? wallet : undefined,
+          passthroughWalletContextState: wallet,
           onRequestConnectWallet: () => setVisible(true),
           containerStyles: { 
             width: "100%", 
             height: "520px", 
             borderRadius: "16px", 
             overflow: "hidden",
-            background: "#0f172a", // Set explicit background to avoid transparency issues with branding
+            background: "#0f172a",
             minHeight: "520px",
           },
           branding: {
-            logo: "https://i.postimg.cc/QxX1dBnR/nexttrade-logo2.png", // Correct key might be 'logo' in some versions, keeping both
+            name: "NextTrade",
             logoUri: "https://i.postimg.cc/QxX1dBnR/nexttrade-logo2.png",
-            originalLogo: true,
           },
         });
 
@@ -110,10 +109,9 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
 
   // Sync Props Effect (Separate)
   useEffect(() => {
-    if (open && initializedRef.current && window.Jupiter && window.Jupiter.syncProps) {
-      window.Jupiter.syncProps({ passthroughWalletContextState: wallet });
-    }
-  }, [open, wallet.connected, wallet.publicKey]);
+    if (!open || !initializedRef.current || !window.Jupiter?.syncProps) return;
+    window.Jupiter.syncProps({ passthroughWalletContextState: wallet });
+  }, [open, wallet, wallet.connected]);
 
   return (
     <div className="w-full relative min-h-[520px] bg-gray-900/50 rounded-2xl border border-gray-800">
