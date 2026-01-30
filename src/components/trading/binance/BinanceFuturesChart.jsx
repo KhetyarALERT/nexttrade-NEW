@@ -505,6 +505,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
   }, [chartType, showGrid, showVolume, autoScale, chartColors]);
 
   // Seed + WS lifecycle - ONE REST call for snapshot, then WebSocket PUSH
+  // Removed style dependencies to prevent re-fetching on theme change
   useEffect(() => {
     let unsubCandle;
     let unsubPrice;
@@ -513,7 +514,8 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
     let mounted = true;
 
     const run = async () => {
-      if (!normalizedSymbol || !candleSeriesRef.current || !volumeSeriesRef.current || !lineSeriesRef.current) return;
+      // Ensure we have refs but don't depend on them changing (they shouldn't)
+      if (!normalizedSymbol || !candleSeriesRef.current) return;
       setLoading(true);
 
       try {
@@ -521,6 +523,9 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
         const candles = await binanceFuturesStore.fetchCandles(normalizedSymbol, timeframe, 500);
         if (cancelled || !mounted) return;
 
+        // Use CURRENT colors, not from closure
+        const currentIsDark = document.documentElement.classList.contains("dark");
+        
         const chartCandles = candles.map((c) => ({
           time: c.time,
           open: Number(c.open),
@@ -532,12 +537,12 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
         const volumes = candles.map((c) => ({
           time: c.time,
           value: Number(c.volume || 0),
-          color: volumeColor(c, isDark),
+          color: volumeColor(c, currentIsDark),
         }));
 
-        candleSeriesRef.current.setData(chartCandles);
-        volumeSeriesRef.current.setData(volumes);
-        lineSeriesRef.current.setData(chartCandles.map((c) => ({ time: c.time, value: c.close })));
+        if (candleSeriesRef.current) candleSeriesRef.current.setData(chartCandles);
+        if (volumeSeriesRef.current) volumeSeriesRef.current.setData(volumes);
+        if (lineSeriesRef.current) lineSeriesRef.current.setData(chartCandles.map((c) => ({ time: c.time, value: c.close })));
 
         // Reset view after seeding
         setTimeout(() => resetView(), 100);
@@ -555,7 +560,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
         // Candle updates from WS
         unsubCandle = binanceFuturesStore.subscribe(`candle:${key}`, (c) => {
           if (cancelled || disposedRef.current || !mounted) return;
-          if (!c || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+          if (!c || !candleSeriesRef.current) return;
 
           const candleData = {
             time: c.time,
@@ -572,12 +577,17 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
             lastCandleRef.current = candleData;
           }
 
-          lineSeriesRef.current?.update?.({ time: c.time, value: Number(c.close) });
-          volumeSeriesRef.current.update({
-            time: c.time,
-            value: Number(c.volume || 0),
-            color: volumeColor(c, isDark),
-          });
+          try { lineSeriesRef.current?.update?.({ time: c.time, value: Number(c.close) }); } catch {}
+          
+          try {
+            // Recalculate color dynamically
+            const isDarkNow = document.documentElement.classList.contains("dark");
+            volumeSeriesRef.current?.update({
+              time: c.time,
+              value: Number(c.volume || 0),
+              color: volumeColor(c, isDarkNow),
+            });
+          } catch {}
 
           if (c.close) {
             setLastPrice(Number(c.close));
@@ -600,7 +610,11 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
 
           // Update price line
           try {
-            const priceLineColor = chartColors.priceLineColor;
+            // Get colors dynamically
+            const isDarkNow = document.documentElement.classList.contains("dark");
+            const colors = getChartColors(isDarkNow);
+            const priceLineColor = colors.priceLineColor;
+            
             if (!priceLineRef.current) {
               priceLineRef.current = candleSeriesRef.current.createPriceLine({
                 price,
@@ -677,7 +691,8 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
       try { unsubTicker?.(); } catch {}
       // NOTE: Don't close WS on unmount - store manages lifecycle
     };
-  }, [normalizedSymbol, timeframe, key, smoothAnimations, chartColors.priceLineColor, isDark, animateCandle, resetView]);
+    // Removed isDark, chartColors, smoothAnimations from deps to prevent data refetch on UI changes
+  }, [normalizedSymbol, timeframe, key, animateCandle, resetView]);
 
   // Position trade overlay - NATIVE PRICE LINES ONLY (no HTML labels)
   useEffect(() => {

@@ -69,7 +69,7 @@ class OKXFuturesStore {
     this.pendingFetches = new Map();   // cacheKey -> Promise
     this.snapshotLoaded = new Set();   // Track which snapshots we've loaded
     this.lastRestCall = 0;
-    this.REST_MIN_INTERVAL = 5000;     // 5s between REST calls (reduced spam)
+    this.REST_MIN_INTERVAL = 15000;     // 15s between REST calls (greatly reduced spam)
     
     // ========== CONNECTION GUARDS ==========
     this.connectingPublic = false;
