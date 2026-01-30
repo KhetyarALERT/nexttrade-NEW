@@ -21,8 +21,143 @@ import {
 
 import * as jupiterApi from '@/components/api/jupiter';
 import { fetchTrendingSolanaTokens } from '@/components/api/dexscreener';
+import { base44 } from '@/api/base44Client';
+import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
 
 const SLIPPAGE_OPTIONS = [0.5, 1, 2, 5];
+
+function SolidPicksFeed() {
+  const [picks, setPicks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPicks = async () => {
+    setLoading(true);
+    try {
+      const { data } = await base44.functions.invoke('memeScoutList', { limit: 50 });
+      if (data?.ok) {
+        setPicks(data.data || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch picks", e);
+      toast.error("Failed to load Solid Picks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPicks();
+  }, []);
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Mint address copied");
+  };
+
+  const formatTimeAgo = (ms) => {
+    if (!ms) return '';
+    const diff = Date.now() - ms;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  const formatNumber = (num) => {
+    if (!num) return '0';
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  if (loading && picks.length === 0) {
+    return (
+      <div className="flex justify-center items-center py-20 text-gray-500">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center px-1">
+        <h3 className="text-lg font-semibold text-white">NextTrade Solid Picks</h3>
+        <Button variant="ghost" size="sm" onClick={fetchPicks} className="text-gray-400 hover:text-white">
+          <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+        </Button>
+      </div>
+      
+      {picks.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 bg-gray-900/30 rounded-xl border border-gray-800">
+          No picks available yet. Waiting for scout bot...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {picks.map((pick) => (
+            <Card key={pick.id} className="bg-gray-900/50 border-gray-800 p-4 hover:border-purple-500/30 transition-colors">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                    {pick.symbol?.[0]}
+                  </div>
+                  <div>
+                    <div className="font-bold text-white flex items-center gap-2">
+                      {pick.symbol}
+                      <Badge className="bg-green-500/20 text-green-400 hover:bg-green-500/30 border-0 text-[10px] h-5">
+                        Score: {pick.score}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-gray-400 truncate max-w-[120px]" title={pick.name}>{pick.name}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 font-mono">
+                  {formatTimeAgo(pick.createdAtMs)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="bg-gray-950/50 rounded p-2 border border-gray-800">
+                  <div className="text-[10px] text-gray-500 uppercase">Market Cap</div>
+                  <div className="text-sm font-mono text-gray-200">{formatNumber(pick.marketCap)}</div>
+                </div>
+                <div className="bg-gray-950/50 rounded p-2 border border-gray-800">
+                  <div className="text-[10px] text-gray-500 uppercase">Liquidity</div>
+                  <div className="text-sm font-mono text-gray-200">{formatNumber(pick.liquidityUsd)}</div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-auto">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1 text-xs border-gray-700 bg-gray-800/50 hover:bg-gray-800"
+                  onClick={() => copyToClipboard(pick.mint)}
+                >
+                  <Copy className="w-3 h-3 mr-1.5" /> Mint
+                </Button>
+                {pick.dexUrl && (
+                  <a href={pick.dexUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                    <Button size="sm" variant="outline" className="w-full text-xs border-gray-700 bg-gray-800/50 hover:bg-gray-800">
+                      Dex <ExternalLink className="w-3 h-3 ml-1.5" />
+                    </Button>
+                  </a>
+                )}
+                {pick.rugcheckUrl && (
+                  <a href={pick.rugcheckUrl} target="_blank" rel="noopener noreferrer">
+                    <Button size="icon" variant="outline" className="w-8 h-8 border-gray-700 bg-gray-800/50 hover:bg-gray-800" title="RugCheck">
+                      <Shield className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MemeCoins() {
   const wallet = useWallet();
@@ -291,75 +426,88 @@ export default function MemeCoins() {
           </div>
         </div>
 
-        <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">
-                    <button onClick={() => handleSort('symbol')} className="flex items-center gap-1 hover:text-white transition-colors">Token <ArrowUpDown className="w-3 h-3" /></button>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
-                    <button onClick={() => handleSort('price')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Price <ArrowUpDown className="w-3 h-3" /></button>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
-                    <button onClick={() => handleSort('change24h')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">24h % <ArrowUpDown className="w-3 h-3" /></button>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
-                    <button onClick={() => handleSort('volume24h')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Volume <ArrowUpDown className="w-3 h-3" /></button>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
-                    <button onClick={() => handleSort('liquidity')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Liquidity <ArrowUpDown className="w-3 h-3" /></button>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400"><div className="flex flex-col items-center justify-center gap-2"><Loader2 className="w-6 h-6 animate-spin text-purple-500" /><span>Loading meme coins...</span></div></td></tr>
-                ) : filteredTokens.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No tokens found</td></tr>
-                ) : (
-                  filteredTokens.map((token) => (
-                    <tr key={token.address} className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors group" onClick={() => selectToken(token)}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {token.imageUrl ? (
-                            <img src={token.imageUrl} alt={token.symbol} className="w-8 h-8 rounded-full object-cover bg-gray-800" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400">{token.symbol?.charAt(0)}</div>
-                          )}
-                          <div>
-                            <div className="font-medium group-hover:text-purple-400 transition-colors">{token.symbol}</div>
-                            <div className="text-xs text-gray-500">{token.name}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-300">{formatPrice(token.price)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`inline-flex items-center justify-end gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${token.change24h >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
-                          {token.change24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                          {Math.abs(token.change24h).toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-400">{formatVolume(token.volume24h)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-gray-400">{formatVolume(token.liquidity)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <Button 
-                          size="sm" 
-                          className="bg-purple-600 hover:bg-purple-700 text-white" 
-                          onClick={(e) => { e.stopPropagation(); selectToken(token); }}
-                        >
-                          Trade
-                        </Button>
-                      </td>
+        <Tabs defaultValue="trending" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 bg-gray-900/80 p-1">
+            <TabsTrigger value="trending" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white text-gray-400">Trending</TabsTrigger>
+            <TabsTrigger value="picks" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 text-gray-400 border border-transparent data-[state=active]:border-purple-500/30">NextTrade Solid Picks</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="trending" className="mt-0">
+            <Card className="bg-gray-900/50 border-gray-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-800">
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">
+                        <button onClick={() => handleSort('symbol')} className="flex items-center gap-1 hover:text-white transition-colors">Token <ArrowUpDown className="w-3 h-3" /></button>
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                        <button onClick={() => handleSort('price')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Price <ArrowUpDown className="w-3 h-3" /></button>
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                        <button onClick={() => handleSort('change24h')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">24h % <ArrowUpDown className="w-3 h-3" /></button>
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                        <button onClick={() => handleSort('volume24h')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Volume <ArrowUpDown className="w-3 h-3" /></button>
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">
+                        <button onClick={() => handleSort('liquidity')} className="flex items-center gap-1 ml-auto hover:text-white transition-colors">Liquidity <ArrowUpDown className="w-3 h-3" /></button>
+                      </th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-gray-400">Action</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400"><div className="flex flex-col items-center justify-center gap-2"><Loader2 className="w-6 h-6 animate-spin text-purple-500" /><span>Loading meme coins...</span></div></td></tr>
+                    ) : filteredTokens.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No tokens found</td></tr>
+                    ) : (
+                      filteredTokens.map((token) => (
+                        <tr key={token.address} className="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors group" onClick={() => selectToken(token)}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {token.imageUrl ? (
+                                <img src={token.imageUrl} alt={token.symbol} className="w-8 h-8 rounded-full object-cover bg-gray-800" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400">{token.symbol?.charAt(0)}</div>
+                              )}
+                              <div>
+                                <div className="font-medium group-hover:text-purple-400 transition-colors">{token.symbol}</div>
+                                <div className="text-xs text-gray-500">{token.name}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-gray-300">{formatPrice(token.price)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`inline-flex items-center justify-end gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${token.change24h >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
+                              {token.change24h >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                              {Math.abs(token.change24h).toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-gray-400">{formatVolume(token.volume24h)}</td>
+                          <td className="px-4 py-3 text-right font-mono text-gray-400">{formatVolume(token.liquidity)}</td>
+                          <td className="px-4 py-3 text-right">
+                            <Button 
+                              size="sm" 
+                              className="bg-purple-600 hover:bg-purple-700 text-white" 
+                              onClick={(e) => { e.stopPropagation(); selectToken(token); }}
+                            >
+                              Trade
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="picks" className="mt-0">
+            <SolidPicksFeed />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Sheet open={!!selectedToken} onOpenChange={(open) => !open && setSelectedToken(null)}>
