@@ -426,10 +426,6 @@ export default function MemeCoins() {
     };
 
     setSelectedToken(normalized);
-    setInputAmount('');
-    setOutputAmount('');
-    setCurrentQuote(null);
-    setSwapMode('buy'); // Default to buy
     generateMockChartData(normalized);
   }
 
