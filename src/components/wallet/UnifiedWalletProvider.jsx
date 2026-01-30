@@ -6,7 +6,8 @@ export const WalletProvider = ({ children }) => {
   return (
     <UnifiedWalletProvider
       wallets={[]}
-      endpoint="https://api.mainnet-beta.solana.com"
+      // Using a fallback RPC that supports CORS better than the default
+      endpoint="https://solana-mainnet.rpc.extrnode.com"
       config={{
         autoConnect: false,
         env: "mainnet-beta",
