@@ -593,8 +593,14 @@ export default function MemeCoins() {
     setInputAmount(amount.toFixed(6)); // Precision
   };
 
-  const formatPrice = (price) => price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(4)}`;
-  const formatVolume = (vol) => vol >= 1e9 ? `$${(vol/1e9).toFixed(2)}B` : vol >= 1e6 ? `$${(vol/1e6).toFixed(2)}M` : vol >= 1e3 ? `$${(vol/1e3).toFixed(2)}K` : `$${vol.toFixed(2)}`;
+  const formatPrice = (price) => {
+    if (price === undefined || price === null || isNaN(price)) return '-';
+    return price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(4)}`;
+  };
+  const formatVolume = (vol) => {
+    if (vol === undefined || vol === null || isNaN(vol)) return '-';
+    return vol >= 1e9 ? `$${(vol/1e9).toFixed(2)}B` : vol >= 1e6 ? `$${(vol/1e6).toFixed(2)}M` : vol >= 1e3 ? `$${(vol/1e3).toFixed(2)}K` : `$${vol.toFixed(2)}`;
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
