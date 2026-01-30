@@ -24,10 +24,10 @@ import MemeDetailPanel from '@/components/meme/MemeDetailPanel';
 
 const formatPrice = (num) => {
   if (!num || num === 0) return '$0.00';
-  if (num < 0.00001) return num.toExponential(2);
-  if (num < 0.01) return num.toFixed(6);
-  if (num < 1) return num.toFixed(4);
-  return num.toFixed(2);
+  if (num < 0.00001) return '$' + num.toExponential(2);
+  if (num < 0.01) return '$' + num.toFixed(6);
+  if (num < 1) return '$' + num.toFixed(4);
+  return '$' + num.toFixed(2);
 };
 
 const formatMarketCap = (num) => {
@@ -39,9 +39,9 @@ const formatMarketCap = (num) => {
 
 const formatVolume = (num) => {
   if (!num) return '--';
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toFixed(0);
+  if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+  return `$${num.toFixed(0)}`;
 };
 
 // ============================================================================
