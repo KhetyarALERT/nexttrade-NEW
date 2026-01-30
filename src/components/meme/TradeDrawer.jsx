@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { X, ExternalLink, Twitter, Globe, Info } from 'lucide-react';
 import JupiterSwapEmbed from '@/components/meme/JupiterSwapEmbed';
-import { useMediaQuery } from '@/components/hooks/useUserReadiness'; // Or custom hook
+import { useMediaQuery } from '@/components/hooks/useMediaQuery';
 
 const TradeDrawer = ({ open, onOpenChange, token }) => {
   const [activeTab, setActiveTab] = useState('swap');
