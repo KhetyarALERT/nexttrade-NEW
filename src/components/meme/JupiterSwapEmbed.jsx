@@ -77,12 +77,13 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
             height: "520px", 
             borderRadius: "16px", 
             overflow: "hidden",
-            background: "transparent",
+            background: "#0f172a", // Set explicit background to avoid transparency issues with branding
             minHeight: "520px",
           },
           branding: {
-            name: "NextTrade",
+            logo: "https://i.postimg.cc/QxX1dBnR/nexttrade-logo2.png", // Correct key might be 'logo' in some versions, keeping both
             logoUri: "https://i.postimg.cc/QxX1dBnR/nexttrade-logo2.png",
+            originalLogo: true,
           },
         });
 
