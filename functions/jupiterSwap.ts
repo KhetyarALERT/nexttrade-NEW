@@ -58,11 +58,22 @@ Deno.serve(async (req) => {
         slippageBps: String(slippageBps)
       });
       
-      const res = await fetch(`${JUPITER_QUOTE_BASE}/quote?${queryParams.toString()}`);
-      const data = await res.json();
-      
-      if (!res.ok) {
-        return json({ ok: false, error: { code: 'QUOTE_FAILED', message: data.error || 'Quote failed' } }, { status: res.status });
+      let res, data;
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          res = await fetch(`${JUPITER_QUOTE_BASE}/quote?${queryParams.toString()}`);
+          data = await res.json();
+          if (res.ok) break;
+          throw new Error(data.error || 'Quote failed');
+        } catch (e) {
+          retries--;
+          if (retries === 0) {
+             console.error('Jupiter Quote Error:', e);
+             return json({ ok: false, error: { code: 'QUOTE_FAILED', message: e.message } }, { status: 500 });
+          }
+          await new Promise(r => setTimeout(r, 500)); // Wait 500ms
+        }
       }
       
       return json({

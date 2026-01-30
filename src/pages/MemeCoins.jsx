@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, Connection } from '@solana/web3.js';
 import { createChart } from 'lightweight-charts';
 import { 
   ArrowUpDown, TrendingUp, TrendingDown, Search, Loader2, 
@@ -305,14 +305,24 @@ export default function MemeCoins() {
 
     const fetchBalance = async () => {
       try {
+        // Try with default connection first, then fallback
+        const getConnection = () => {
+           // If default connection is mainnet-beta (likely blocked), prefer fallback
+           if (connection.rpcEndpoint.includes('mainnet-beta.solana.com')) {
+             return new Connection('https://rpc.ankr.com/solana');
+           }
+           return connection;
+        };
+        
+        const conn = getConnection();
+
         if (swapMode === 'buy') {
           // Buy mode: Input is SOL
-          const bal = await connection.getBalance(wallet.publicKey);
+          const bal = await conn.getBalance(wallet.publicKey);
           setBalance(bal / 1e9);
         } else if (swapMode === 'sell' && selectedToken) {
           // Sell mode: Input is Token
-          // Find token account
-          const accounts = await connection.getParsedTokenAccountsByOwner(wallet.publicKey, {
+          const accounts = await conn.getParsedTokenAccountsByOwner(wallet.publicKey, {
             mint: new PublicKey(selectedToken.address)
           });
           
@@ -324,7 +334,12 @@ export default function MemeCoins() {
           }
         }
       } catch (e) {
-        console.error("Failed to fetch balance", e);
+        // Suppress 403 errors from console
+        if (e?.message?.includes('403') || e?.toString().includes('403')) {
+           console.warn("Balance fetch limited (403)");
+        } else {
+           console.error("Failed to fetch balance", e);
+        }
         setBalance(null);
       }
     };
