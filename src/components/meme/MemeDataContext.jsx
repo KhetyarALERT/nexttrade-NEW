@@ -80,13 +80,22 @@ export const MemeDataProvider = ({ children }) => {
              const res = await base44.functions.invoke('memeTrending', { limit: 100 });
              if (res.data?.ok && Array.isArray(res.data.data)) {
                  const initialTokens = res.data.data;
+                 const mintsToSub = [];
                  initialTokens.forEach(t => {
-                     // Normalize for UI
                      tokensMapRef.current.set(t.mint, {
                          ...t,
                          createdAt: new Date(t.last_trade_at || Date.now()).getTime()
                      });
+                     mintsToSub.push(t.mint);
                  });
+                 
+                 // Subscribe to trades for initial tokens if connected
+                 if (ws && ws.readyState === WebSocket.OPEN && mintsToSub.length > 0) {
+                     ws.send(JSON.stringify({
+                         method: "subscribeTokenTrade",
+                         keys: mintsToSub
+                     }));
+                 }
              }
         } catch (e) {
              console.warn("Initial fetch failed, relying on live feed", e);
