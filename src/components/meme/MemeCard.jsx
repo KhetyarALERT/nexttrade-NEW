@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { resolveIpfsUrl } from '@/utils/ipfs';
+import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, Users, AlertTriangle } from 'lucide-react';

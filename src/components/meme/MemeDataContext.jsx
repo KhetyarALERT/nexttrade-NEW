@@ -19,10 +19,6 @@ export const MemeDataProvider = ({ children }) => {
     let ws;
     let reconnectTimer;
     
-    // Connect to PumpPortal (Directly from client as per architecture decision)
-    // Or use the backend function `functions/memeStream.js` if we can determine URL.
-    // For reliability in this implementation, we'll use direct PumpPortal WSS 
-    // but process data to match the backend structure logic.
     const connect = () => {
         setConnectionStatus('connecting');
         ws = new WebSocket('wss://pumpportal.fun/api/data');
@@ -35,9 +31,6 @@ export const MemeDataProvider = ({ children }) => {
             // Subscribe
             ws.send(JSON.stringify({ method: "subscribeNewToken" }));
             ws.send(JSON.stringify({ method: "subscribeMigration" }));
-            // We can subscribe to specific trades if we want, but for "Trending", 
-            // new tokens are the most exciting part for this feed.
-            // For general trending, we might fetch a snapshot first.
         };
 
         ws.onmessage = (event) => {
@@ -50,9 +43,8 @@ export const MemeDataProvider = ({ children }) => {
                        mint: data.mint,
                        symbol: data.symbol,
                        name: data.name,
-                       image_url: data.uri, // URI often contains metadata json, but sometimes direct image. PumpPortal sends metadata URI. 
-                       // Need to fetch metadata if uri is json. But for speed, we'll use placeholder or try to infer.
-                       price_usd: 0, // Initial
+                       image_url: data.uri, 
+                       price_usd: 0,
                        volume_sol_24h: 0,
                        bonding_curve_status: 'bonding_curve',
                        priceChange24h: 0,
@@ -76,7 +68,7 @@ export const MemeDataProvider = ({ children }) => {
                         else token.sells_5m = (token.sells_5m || 0) + 1;
                         
                         token.volume_5m = (token.volume_5m || 0) + solAmount;
-                        token.price_usd = data.marketCapSol * 200 / 1000000000; // Rough approx if solPrice 200, better to use data.vSolInBondingCurve
+                        token.price_usd = data.marketCapSol * 200 / 1000000000; // Rough approx if solPrice 200
                         
                         // Ping update
                         token.lastTrade = Date.now();
@@ -99,6 +91,8 @@ export const MemeDataProvider = ({ children }) => {
     // Initial Fetch of Trending Data
     const fetchInitialData = async () => {
         try {
+             // In dev/demo mode, we might not have backend data populated yet, 
+             // so this gracefully handles empty responses.
              const res = await base44.functions.invoke('memeTrending', { limit: 100 });
              if (res.data?.ok && Array.isArray(res.data.data)) {
                  const initialTokens = res.data.data;
@@ -106,7 +100,10 @@ export const MemeDataProvider = ({ children }) => {
                  initialTokens.forEach(t => {
                      tokensMapRef.current.set(t.mint, {
                          ...t,
-                         createdAt: new Date(t.last_trade_at || Date.now()).getTime()
+                         createdAt: new Date(t.last_trade_at || Date.now()).getTime(),
+                         buys_5m: t.buys_5m || 0,
+                         sells_5m: t.sells_5m || 0,
+                         volume_5m: t.volume_sol_5m || 0
                      });
                      mintsToSub.push(t.mint);
                  });
@@ -124,23 +121,20 @@ export const MemeDataProvider = ({ children }) => {
         }
     };
     fetchInitialData();
+
     // Throttled State Update (Interval)
     const interval = setInterval(() => {
         if (tokensMapRef.current.size > 0) {
-             // Convert map to array and sort by latest/volume
-             // Optimization: Only update if size changed or significant updates? 
-             // For now, simple conversion.
              const arr = Array.from(tokensMapRef.current.values());
              // Sort by creation or volume (trending)
-             arr.sort((a, b) => b.createdAt - a.createdAt);
+             // Prioritize recent volume + creation
+             arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
              
              setTokens(prev => {
-                 // Simple ref check to avoid rerenders if length is same? 
-                 // No, data inside might change.
-                 return arr.slice(0, 1000); // Limit to 1000 tokens to prevent memory issues
+                 return arr.slice(0, 1000); 
              });
         }
-    }, 1000); // Update UI every 1 second max
+    }, 1000); 
 
     return () => {
         if (ws) ws.close();
