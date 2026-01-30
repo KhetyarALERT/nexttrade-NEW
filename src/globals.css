@@ -3,6 +3,25 @@ css
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Jupiter Plugin Dark Theme Variables */
+  --jupiter-plugin-bg-v2: #0f172a; /* slate-900 */
+  --jupiter-plugin-text-v2: #f8fafc; /* slate-50 */
+  --jupiter-plugin-primary-v2: #9333ea; /* purple-600 */
+  --jupiter-plugin-secondary-v2: #1e293b; /* slate-800 */
+  --jupiter-plugin-action-btn-text: #ffffff;
+  --jupiter-plugin-action-btn-bg: #9333ea;
+  --jupiter-plugin-action-active-bg: #7e22ce;
+  --jupiter-plugin-success: #22c55e;
+  --jupiter-plugin-error: #ef4444;
+  --jupiter-plugin-border-radius: 16px;
+}
+
+#jupiter-terminal {
+  width: 100%;
+  height: 100%;
+}
+
 /* Import JetBrains Mono for numerical data */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
