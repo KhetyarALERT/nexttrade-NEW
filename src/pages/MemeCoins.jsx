@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
-  Zap, Eye, EyeOff, Settings, Menu, BarChart3, Flame, Star, Clock, Volume2, DollarSign
+  Zap, Star, BarChart3, Flame, DollarSign, Eye, EyeOff
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -45,211 +45,93 @@ const formatVolume = (num) => {
 };
 
 // ============================================================================
-// MOBILE TOKEN CARD (Compact, High-Density)
+// ULTRA-COMPACT TOKEN ROW (Terminal Style)
 // ============================================================================
 
-const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
+const TokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
   const priceChange = token.priceChange24h || 0;
   const isPositive = priceChange >= 0;
 
   return (
     <div 
-      className="bg-gradient-to-br from-gray-900 to-gray-950 border border-gray-800 rounded-lg p-3 mb-2 cursor-pointer hover:border-emerald-500/50 transition-all"
+      className="flex items-center h-7 px-2 border-b border-gray-900 hover:bg-gray-900/40 transition-colors cursor-pointer group text-xs"
       onClick={() => onDetail(token)}
     >
-      {/* Header: Token Info + Favorite */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            {token.symbol.charAt(0)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-sm text-white truncate">{token.symbol}</h3>
-            <p className="text-xs text-gray-500 truncate">{token.name}</p>
-          </div>
-        </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(token.mint);
-          }}
-          className="text-gray-400 hover:text-yellow-400 transition-colors"
-        >
-          <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-        </button>
+      {/* Favorite Toggle */}
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFavorite(token.mint);
+        }}
+        className="w-5 text-gray-600 hover:text-yellow-400 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+      >
+        <Star className={`w-3 h-3 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+      </button>
+
+      {/* Token Symbol */}
+      <div className="w-16 flex-shrink-0 font-bold text-white">
+        {token.symbol}
       </div>
 
-      {/* Price Row */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-lg font-bold text-white">{formatPrice(token.price)}</span>
-        <span className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {priceChange.toFixed(2)}%
-        </span>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-2 mb-3 text-xs">
-        <div className="bg-gray-800/50 rounded p-1.5">
-          <p className="text-gray-500">MCap</p>
-          <p className="font-semibold text-white">{formatMarketCap(token.market_cap)}</p>
-        </div>
-        <div className="bg-gray-800/50 rounded p-1.5">
-          <p className="text-gray-500">Liq</p>
-          <p className="font-semibold text-white">{formatMarketCap(token.liquidity)}</p>
-        </div>
-        <div className="bg-gray-800/50 rounded p-1.5">
-          <p className="text-gray-500">Vol</p>
-          <p className="font-semibold text-white">{formatVolume(token.volume24h)}</p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="flex gap-2">
-        <Button 
-          size="sm" 
-          className="flex-1 h-8 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTrade(token);
-          }}
-        >
-          <Zap className="w-3 h-3 mr-1" /> Buy
-        </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="flex-1 h-8 border-gray-700 text-xs font-bold"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDetail(token);
-          }}
-        >
-          <BarChart3 className="w-3 h-3 mr-1" /> Chart
-        </Button>
-      </div>
-    </div>
-  );
-});
-
-// ============================================================================
-// DESKTOP TOKEN ROW (High-Density List)
-// ============================================================================
-
-const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
-  const priceChange = token.priceChange24h || 0;
-  const isPositive = priceChange >= 0;
-
-  return (
-    <div 
-      className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 hover:bg-gray-800/30 transition-colors cursor-pointer group"
-      onClick={() => onDetail(token)}
-    >
-      {/* Favorite + Token Name */}
-      <div className="flex items-center gap-3 min-w-[200px]">
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(token.mint);
-          }}
-          className="text-gray-500 hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100"
-        >
-          <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-        </button>
-        <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-          {token.symbol.charAt(0)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-white truncate">{token.symbol}</h3>
-          <p className="text-xs text-gray-500 truncate">{token.name}</p>
-        </div>
+      {/* Token Name (Hidden on Mobile) */}
+      <div className="hidden sm:block w-32 text-gray-500 truncate flex-shrink-0">
+        {token.name}
       </div>
 
       {/* Price */}
-      <div className="min-w-[100px] text-right">
-        <p className="font-semibold text-white">{formatPrice(token.price)}</p>
+      <div className="w-20 text-right font-semibold text-white flex-shrink-0">
+        {formatPrice(token.price)}
       </div>
 
       {/* 24h Change */}
-      <div className="min-w-[90px] text-right">
-        <span className={`font-bold flex items-center justify-end gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {priceChange.toFixed(2)}%
-        </span>
+      <div className={`w-16 text-right font-bold flex-shrink-0 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+        {priceChange.toFixed(2)}%
       </div>
 
       {/* Market Cap */}
-      <div className="min-w-[110px] text-right">
-        <p className="text-sm text-gray-300">{formatMarketCap(token.market_cap)}</p>
+      <div className="w-20 text-right text-gray-400 flex-shrink-0">
+        {formatMarketCap(token.market_cap)}
       </div>
 
       {/* Liquidity */}
-      <div className="min-w-[110px] text-right">
-        <p className="text-sm text-gray-300">{formatMarketCap(token.liquidity)}</p>
+      <div className="w-20 text-right text-gray-400 flex-shrink-0">
+        {formatMarketCap(token.liquidity)}
       </div>
 
-      {/* Volume */}
-      <div className="min-w-[100px] text-right">
-        <p className="text-sm text-gray-300">{formatVolume(token.volume24h)}</p>
+      {/* Volume (Hidden on Mobile) */}
+      <div className="hidden sm:block w-20 text-right text-gray-400 flex-shrink-0">
+        {formatVolume(token.volume24h)}
       </div>
 
-      {/* Holders/Buys */}
-      <div className="min-w-[80px] text-right">
-        <p className="text-sm text-gray-300">{token.holders || '--'}</p>
+      {/* Holders */}
+      <div className="hidden md:block w-16 text-right text-gray-400 flex-shrink-0">
+        {token.holders || '--'}
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex gap-2 ml-4">
-        <Button 
-          size="sm" 
-          className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTrade(token);
-          }}
-        >
-          <Zap className="w-3 h-3" />
-        </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="h-7 px-2 border-gray-700 text-xs"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDetail(token);
-          }}
-        >
-          <BarChart3 className="w-3 h-3" />
-        </Button>
-      </div>
+      {/* Quick Buy Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onTrade(token);
+        }}
+        className="ml-auto flex-shrink-0 px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-xs transition-colors"
+      >
+        Buy
+      </button>
+
+      {/* Chart Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDetail(token);
+        }}
+        className="ml-1 flex-shrink-0 px-2 py-1 border border-gray-700 hover:border-emerald-500 text-gray-400 hover:text-emerald-400 rounded text-xs transition-colors"
+      >
+        📊
+      </button>
     </div>
   );
 });
-
-// ============================================================================
-// SORT BUTTON COMPONENT
-// ============================================================================
-
-const SortButton = ({ label, sortKey, currentSort, onSort }) => {
-  const isActive = currentSort.key === sortKey;
-  const isAsc = currentSort.direction === 'asc';
-
-  return (
-    <button
-      onClick={() => onSort(sortKey)}
-      className={`flex items-center gap-1 text-xs font-semibold transition-colors ${
-        isActive 
-          ? 'text-emerald-400' 
-          : 'text-gray-500 hover:text-gray-300'
-      }`}
-    >
-      {label}
-      {isActive && (
-        <span>{isAsc ? '↑' : '↓'}</span>
-      )}
-    </button>
-  );
-};
 
 // ============================================================================
 // MAIN COMPONENT
@@ -362,48 +244,41 @@ const MemeCoinsContent = () => {
   return (
     <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
       
-      {/* ===== TOP NAVIGATION BAR ===== */}
-      <div className="bg-gradient-to-r from-[#0f172a] to-[#1a1f3a] border-b border-gray-800 px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-lg flex items-center justify-center font-bold text-sm">
-            ⚡
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">
-              NextTrade
-            </h1>
-            <p className="text-xs text-gray-500">Meme Terminal</p>
-          </div>
+      {/* ===== COMPACT TOP BAR ===== */}
+      <div className="bg-[#0f172a] border-b border-gray-800 px-3 py-2 flex items-center justify-between shrink-0 h-10">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-500">
+            ⚡ NextTrade Terminal
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900/50 rounded-lg border border-gray-800">
+        <div className="flex items-center gap-2 text-xs">
+          <span className={`flex items-center gap-1 ${connectionStatus === 'connected' ? 'text-emerald-400' : 'text-red-400'}`}>
             {connectionStatus === 'connected' ? (
               <>
-                <Wifi className="w-3 h-3 text-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-semibold">Live</span>
+                <Wifi className="w-2.5 h-2.5 animate-pulse" />
+                Live
               </>
             ) : (
               <>
-                <WifiOff className="w-3 h-3 text-red-500" />
-                <span className="text-xs text-red-400 font-semibold">Offline</span>
+                <WifiOff className="w-2.5 h-2.5" />
+                Offline
               </>
             )}
-          </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-900/50 rounded-lg border border-gray-800">
-            <span className="text-xs text-gray-400">{tokens.length} Tokens</span>
-          </div>
+          </span>
+          <span className="text-gray-600">•</span>
+          <span className="text-gray-500">{tokens.length} tokens</span>
         </div>
       </div>
 
       {/* ===== SEARCH & FILTER BAR ===== */}
-      <div className="bg-[#0f172a] border-b border-gray-800 px-4 py-3 shrink-0">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="bg-[#0f172a] border-b border-gray-800 px-3 py-2 shrink-0">
+        <div className="flex items-center gap-2 mb-1.5">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-600" />
             <Input 
               placeholder="Search token, symbol, or contract..." 
-              className="pl-9 h-9 text-sm bg-gray-900 border-gray-700 focus:border-emerald-500 rounded-lg"
+              className="pl-7 h-7 text-xs bg-gray-900 border-gray-700 focus:border-emerald-500 rounded"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -411,54 +286,54 @@ const MemeCoinsContent = () => {
           <Button 
             variant="outline" 
             size="icon" 
-            className={`h-9 w-9 border-gray-700 flex-shrink-0 ${showFilters || activeFiltersCount > 0 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/50' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
+            className={`h-7 w-7 border-gray-700 flex-shrink-0 ${showFilters || activeFiltersCount > 0 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/50' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             onClick={() => setShowFilters(!showFilters)}
           >
-            <Filter className="w-4 h-4" />
+            <Filter className="w-3 h-3" />
           </Button>
           <Button 
             variant="outline" 
             size="icon" 
-            className={`h-9 w-9 border-gray-700 flex-shrink-0 ${showOnlyFavorites ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/50' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
+            className={`h-7 w-7 border-gray-700 flex-shrink-0 ${showOnlyFavorites ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/50' : 'bg-gray-900 text-gray-400 hover:text-white'}`}
             onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
           >
-            <Star className="w-4 h-4" />
+            <Star className="w-3 h-3" />
           </Button>
         </div>
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="space-y-3 pt-3 border-t border-gray-800 animate-in fade-in slide-in-from-top-2">
+          <div className="space-y-1.5 pt-1.5 border-t border-gray-800 text-xs">
             
             {/* Source Filter */}
-            <div className="flex gap-2">
-              <span className="text-xs text-gray-500 font-semibold pt-1.5">Source:</span>
-              <div className="flex gap-1 bg-gray-900 p-1 rounded-lg border border-gray-800">
+            <div className="flex gap-1">
+              <span className="text-gray-600 w-12">Source:</span>
+              <div className="flex gap-0.5 bg-gray-900 p-0.5 rounded border border-gray-800">
                 {['all', 'pump', 'ray'].map(f => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-3 py-1 text-xs rounded-md capitalize transition-colors font-medium ${filter === f ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
+                    className={`px-2 py-0.5 rounded text-xs transition-colors font-medium ${filter === f ? 'bg-emerald-600 text-white' : 'text-gray-400 hover:bg-gray-800'}`}
                   >
-                    {f === 'ray' ? 'Raydium' : f === 'pump' ? 'Pump.fun' : 'All'}
+                    {f === 'ray' ? 'Ray' : f === 'pump' ? 'Pump' : 'All'}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Numeric Filters */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs border-gray-700 ${minLiquidity > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
-                    <DollarSign className="w-3 h-3 mr-1" /> Liquidity {minLiquidity > 0 ? `> $${minLiquidity}k` : ''}
+                  <Button variant="outline" size="sm" className={`h-6 px-2 text-xs border-gray-700 ${minLiquidity > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
+                    Liq {minLiquidity > 0 ? `$${minLiquidity}k` : ''}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-gray-900 border-gray-700">
+                <DropdownMenuContent className="bg-gray-900 border-gray-700 text-xs">
                   <DropdownMenuLabel>Min Liquidity</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-gray-700" />
                   {[0, 5, 10, 50, 100].map(val => (
-                    <DropdownMenuItem key={val} onClick={() => setMinLiquidity(val)} className="hover:bg-gray-800">
+                    <DropdownMenuItem key={val} onClick={() => setMinLiquidity(val)} className="hover:bg-gray-800 text-xs">
                       {val === 0 ? 'Any' : `$${val}k+`}
                     </DropdownMenuItem>
                   ))}
@@ -467,15 +342,15 @@ const MemeCoinsContent = () => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs border-gray-700 ${minMarketCap > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
-                    <BarChart3 className="w-3 h-3 mr-1" /> MCap {minMarketCap > 0 ? `> $${minMarketCap}k` : ''}
+                  <Button variant="outline" size="sm" className={`h-6 px-2 text-xs border-gray-700 ${minMarketCap > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
+                    MCap {minMarketCap > 0 ? `$${minMarketCap}k` : ''}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-gray-900 border-gray-700">
+                <DropdownMenuContent className="bg-gray-900 border-gray-700 text-xs">
                   <DropdownMenuLabel>Min Market Cap</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-gray-700" />
                   {[0, 50, 100, 500, 1000].map(val => (
-                    <DropdownMenuItem key={val} onClick={() => setMinMarketCap(val)} className="hover:bg-gray-800">
+                    <DropdownMenuItem key={val} onClick={() => setMinMarketCap(val)} className="hover:bg-gray-800 text-xs">
                       {val === 0 ? 'Any' : `$${val}k+`}
                     </DropdownMenuItem>
                   ))}
@@ -484,15 +359,15 @@ const MemeCoinsContent = () => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs border-gray-700 ${minChange24h > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
-                    <Flame className="w-3 h-3 mr-1" /> 24h {minChange24h > 0 ? `> ${minChange24h}%` : ''}
+                  <Button variant="outline" size="sm" className={`h-6 px-2 text-xs border-gray-700 ${minChange24h > 0 ? 'text-emerald-400 border-emerald-500/50' : 'text-gray-400'}`}>
+                    24h {minChange24h > 0 ? `${minChange24h}%` : ''}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-gray-900 border-gray-700">
+                <DropdownMenuContent className="bg-gray-900 border-gray-700 text-xs">
                   <DropdownMenuLabel>Min 24h Change</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-gray-700" />
                   {[0, 10, 50, 100, 500].map(val => (
-                    <DropdownMenuItem key={val} onClick={() => setMinChange24h(val)} className="hover:bg-gray-800">
+                    <DropdownMenuItem key={val} onClick={() => setMinChange24h(val)} className="hover:bg-gray-800 text-xs">
                       {val === 0 ? 'Any' : `${val}%+`}
                     </DropdownMenuItem>
                   ))}
@@ -500,8 +375,8 @@ const MemeCoinsContent = () => {
               </DropdownMenu>
 
               {activeFiltersCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10">
-                  <X className="w-3 h-3 mr-1" /> Clear All
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-6 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                  Clear
                 </Button>
               )}
             </div>
@@ -515,66 +390,44 @@ const MemeCoinsContent = () => {
         {/* LEFT: Token List */}
         <div className={`flex-1 flex flex-col overflow-hidden ${selectedToken && !isMobile ? 'max-w-[65%] border-r border-gray-800' : 'w-full'}`}>
           
-          {/* Desktop: Column Headers */}
-          {!isMobile && (
-            <div className="bg-[#0f172a] border-b border-gray-800 px-4 py-2 flex items-center justify-between text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">
-              <div className="min-w-[200px]">Token</div>
-              <SortButton label="Price" sortKey="price" currentSort={sortConfig} onSort={handleSort} />
-              <SortButton label="24h %" sortKey="priceChange24h" currentSort={sortConfig} onSort={handleSort} />
-              <SortButton label="MCap" sortKey="market_cap" currentSort={sortConfig} onSort={handleSort} />
-              <SortButton label="Liq" sortKey="liquidity" currentSort={sortConfig} onSort={handleSort} />
-              <SortButton label="Vol" sortKey="volume24h" currentSort={sortConfig} onSort={handleSort} />
-              <div className="min-w-[80px] text-right">Holders</div>
-              <div className="min-w-[80px] text-right">Action</div>
-            </div>
-          )}
+          {/* Column Headers */}
+          <div className="bg-[#0f172a] border-b border-gray-800 px-2 h-6 flex items-center text-xs font-bold text-gray-600 uppercase tracking-wider shrink-0">
+            <div className="w-5"></div>
+            <div className="w-16">Token</div>
+            <div className="hidden sm:block w-32">Name</div>
+            <div className="w-20 text-right">Price</div>
+            <div className="w-16 text-right">24h %</div>
+            <div className="w-20 text-right">MCap</div>
+            <div className="w-20 text-right">Liq</div>
+            <div className="hidden sm:block w-20 text-right">Vol</div>
+            <div className="hidden md:block w-16 text-right">Holders</div>
+            <div className="ml-auto">Action</div>
+          </div>
 
           {/* Content */}
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 p-8">
-              <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mb-3" />
-              <p className="text-sm text-gray-400">Connecting to Pump.fun & Jupiter...</p>
-              <p className="text-xs text-gray-600 mt-2">Fetching real-time data</p>
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-2" />
+              <p className="text-xs text-gray-400">Connecting to Pump.fun & Jupiter...</p>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
               {filteredTokens.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <Search className="w-12 h-12 text-gray-700 mb-3" />
-                  <p className="text-gray-400 font-semibold">No tokens found</p>
-                  <p className="text-xs text-gray-600 mt-1">Try adjusting your filters</p>
+                  <p className="text-xs text-gray-500">No tokens found</p>
                 </div>
               ) : (
                 <div>
-                  {isMobile ? (
-                    // Mobile: Card Grid
-                    <div className="p-3 space-y-2">
-                      {filteredTokens.map(token => (
-                        <MobileTokenCard 
-                          key={token.mint} 
-                          token={token} 
-                          onTrade={handleSelectTokenForTrade} 
-                          onDetail={handleSelectTokenForDetail}
-                          isFavorite={favorites.has(token.mint)}
-                          onToggleFavorite={handleToggleFavorite}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    // Desktop: High-Density List
-                    <div>
-                      {filteredTokens.map(token => (
-                        <DesktopTokenRow 
-                          key={token.mint} 
-                          token={token} 
-                          onTrade={handleSelectTokenForTrade} 
-                          onDetail={handleSelectTokenForDetail}
-                          isFavorite={favorites.has(token.mint)}
-                          onToggleFavorite={handleToggleFavorite}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {filteredTokens.map(token => (
+                    <TokenRow 
+                      key={token.mint} 
+                      token={token} 
+                      onTrade={handleSelectTokenForTrade} 
+                      onDetail={handleSelectTokenForDetail}
+                      isFavorite={favorites.has(token.mint)}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -595,22 +448,17 @@ const MemeCoinsContent = () => {
         )}
       </div>
 
-      {/* ===== MOBILE: Detail Sheet (Chart View) ===== */}
+      {/* ===== MOBILE: Detail Sheet ===== */}
       {isMobile && selectedToken && (
         <Sheet open={isDetailSheetOpen} onOpenChange={(open) => {
           setIsDetailSheetOpen(open);
           if (!open) setSelectedToken(null);
         }}>
           <SheetContent side="bottom" className="h-[90vh] p-0 bg-[#0f172a] border-t border-gray-800">
-            <SheetHeader className="p-4 border-b border-gray-800">
-              <SheetTitle className="text-white flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-xs font-bold">
-                  {selectedToken.symbol.charAt(0)}
-                </div>
-                {selectedToken.symbol} / {selectedToken.name}
-              </SheetTitle>
+            <SheetHeader className="p-3 border-b border-gray-800">
+              <SheetTitle className="text-white text-sm">{selectedToken.symbol} - {selectedToken.name}</SheetTitle>
             </SheetHeader>
-            <div className="h-[calc(100%-60px)] overflow-y-auto">
+            <div className="h-[calc(100%-50px)] overflow-y-auto">
               <MemeDetailPanel 
                 token={selectedToken} 
                 onClose={() => setIsDetailSheetOpen(false)} 
