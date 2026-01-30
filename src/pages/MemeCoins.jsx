@@ -118,58 +118,110 @@ function SolidPicksFeed({ onTrade }) {
         </div>
       ) : (
         <div className="grid gap-2">
-          {picks.map((pick) => (
-            <div 
-              key={pick.id} 
-              onClick={() => onTrade(pick)}
-              className="group relative flex items-center justify-between p-3 bg-gray-900/40 border border-gray-800 rounded-xl hover:bg-gray-800/40 hover:border-purple-500/30 transition-all cursor-pointer active:scale-[0.99]"
-            >
-              {/* Left: Token Info */}
-              <div className="flex items-center gap-3 min-w-0">
-                {pick.imageUrl ? (
-                  <img src={pick.imageUrl} alt={pick.symbol} className="w-10 h-10 rounded-full border border-gray-700/50 object-cover bg-gray-800" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center text-xs font-bold text-gray-300 border border-gray-700/50">
-                    {pick.symbol?.[0]}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-white text-sm truncate">{pick.symbol}</span>
-                    <span className={`text-[9px] px-1 rounded border ${getScoreColor(pick.score)}`}>
-                      {pick.score}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
-                    <span>MC: {formatNumber(pick.marketCap)}</span>
-                    <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
-                    <span>Liq: {formatNumber(pick.liquidityUsd)}</span>
-                  </div>
-                </div>
-              </div>
+          {picks.map((pick) => {
+            const tier = pick.raw?.tier === 'watchlist' ? 'watchlist' : 'solid';
+            const isWatchlist = tier === 'watchlist';
+            
+            // Fallback display values
+            const displaySymbol = pick.symbol || (isWatchlist ? "PUMP" : "UNKNOWN");
+            const displayImage = pick.imageUrl;
+            
+            // Metrics extraction
+            const metrics = pick.raw?.metrics || {};
+            const trades = metrics.trades || 0;
+            const buyPct = metrics.buyPct ? (metrics.buyPct * 100).toFixed(0) : '-';
+            const mcSol = metrics.marketCapSol ? `${metrics.marketCapSol.toFixed(0)} SOL` : null;
 
-              {/* Right: Price & Trade */}
-              <div className="flex items-center gap-3 pl-2">
-                <div className="text-right hidden xs:block">
-                  <div className="font-mono text-sm text-white font-medium">{formatPrice(pick.priceUsd)}</div>
-                  <div className={`text-xs font-medium ${pick.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {pick.priceChange24h >= 0 ? '+' : ''}{pick.priceChange24h?.toFixed(1)}%
+            return (
+              <div 
+                key={pick.id} 
+                onClick={() => onTrade({
+                  ...pick,
+                  // Ensure fallbacks are passed to trade/details view
+                  symbol: displaySymbol,
+                  name: pick.name || (isWatchlist ? "Pump.fun token" : "Unknown Token")
+                })}
+                className="group relative flex items-center justify-between p-3 bg-gray-900/40 border border-gray-800 rounded-xl hover:bg-gray-800/40 hover:border-purple-500/30 transition-all cursor-pointer active:scale-[0.99]"
+              >
+                {/* Left: Token Info */}
+                <div className="flex items-center gap-3 min-w-0">
+                  {displayImage ? (
+                    <img src={displayImage} alt={displaySymbol} className="w-10 h-10 rounded-full border border-gray-700/50 object-cover bg-gray-800" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center text-xs font-bold text-gray-300 border border-gray-700/50">
+                      {displaySymbol.slice(0, 2)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-white text-sm truncate">{displaySymbol}</span>
+                      <span className={`text-[9px] px-1 rounded border ${getScoreColor(pick.score)}`}>
+                        {pick.score}
+                      </span>
+                      <Badge variant="outline" className={`text-[9px] h-4 px-1 ${isWatchlist ? 'border-blue-500/30 text-blue-400' : 'border-purple-500/30 text-purple-400'}`}>
+                        {isWatchlist ? 'WATCH' : 'SOLID'}
+                      </Badge>
+                    </div>
+                    
+                    {/* Stats Row */}
+                    <div className="flex items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
+                      {isWatchlist ? (
+                        <>
+                          <span>Tx: {trades}</span>
+                          <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                          <span>MC: {mcSol || '-'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>MC: {formatNumber(pick.marketCap)}</span>
+                          <span className="w-0.5 h-0.5 bg-gray-600 rounded-full"></span>
+                          <span>Liq: {formatNumber(pick.liquidityUsd)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                
-                <Button 
-                  size="sm" 
-                  className="h-8 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-lg shadow-sm shadow-purple-900/20"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTrade(pick);
-                  }}
-                >
-                  Trade
-                </Button>
+
+                {/* Right: Metrics & Trade */}
+                <div className="flex items-center gap-3 pl-2">
+                  <div className="text-right hidden xs:block">
+                    {isWatchlist ? (
+                      <>
+                        <div className="font-mono text-sm text-white font-medium">Buy {buyPct}%</div>
+                        <div className="text-xs text-blue-400 font-medium">Pre-DEX</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-mono text-sm text-white font-medium">{formatPrice(pick.priceUsd)}</div>
+                        <div className={`text-xs font-medium ${pick.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {pick.priceChange24h >= 0 ? '+' : ''}{pick.priceChange24h?.toFixed(1)}%
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    size="sm" 
+                    className={`h-8 px-3 font-semibold text-xs rounded-lg shadow-sm ${
+                      isWatchlist 
+                        ? 'bg-blue-600/80 hover:bg-blue-600 text-white shadow-blue-900/20' 
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-900/20'
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrade({
+                        ...pick,
+                        symbol: displaySymbol,
+                        name: pick.name || (isWatchlist ? "Pump.fun token" : "Unknown Token")
+                      });
+                    }}
+                  >
+                    {isWatchlist ? 'Trade (Try)' : 'Trade'}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
