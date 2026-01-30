@@ -877,63 +877,8 @@ export default function MemeCoins() {
                   <div ref={chartContainerRef} className="w-full h-[250px] rounded-lg overflow-hidden" />
                 </div>
 
-                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-800">
-                  <Tabs value={swapMode} onValueChange={setSwapMode} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-900/80 p-1 rounded-lg">
-                      <TabsTrigger value="buy" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-gray-400">Buy</TabsTrigger>
-                      <TabsTrigger value="sell" className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-gray-400">Sell</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="buy" className="space-y-4 mt-0">
-                      <SwapForm 
-                        inputLabel="Pay (SOL)" 
-                        outputLabel={`Receive (${selectedToken.symbol})`} 
-                        inputAmount={inputAmount} 
-                        outputAmount={outputAmount} 
-                        onInputChange={setInputAmount} 
-                        slippage={slippage} 
-                        customSlippage={customSlippage} 
-                        onSlippageChange={setSlippage} 
-                        onCustomSlippageChange={setCustomSlippage} 
-                        quoteLoading={quoteLoading} 
-                        swapping={swapping} 
-                        onSwap={handleSwap} 
-                        walletConnected={wallet.connected} 
-                        connectWallet={() => setWalletModalVisible(true)}
-                        actionLabel="Buy"
-                        actionColor="bg-green-600 hover:bg-green-700"
-                        onMax={handleMax}
-                        balance={balance}
-                        balanceLabel="SOL"
-                        isBuy={true}
-                      />
-                    </TabsContent>
-                    
-                    <TabsContent value="sell" className="space-y-4 mt-0">
-                      <SwapForm 
-                        inputLabel={`Pay (${selectedToken.symbol})`} 
-                        outputLabel="Receive (SOL)" 
-                        inputAmount={inputAmount} 
-                        outputAmount={outputAmount} 
-                        onInputChange={setInputAmount} 
-                        slippage={slippage} 
-                        customSlippage={customSlippage} 
-                        onSlippageChange={setSlippage} 
-                        onCustomSlippageChange={setCustomSlippage} 
-                        quoteLoading={quoteLoading} 
-                        swapping={swapping} 
-                        onSwap={handleSwap} 
-                        walletConnected={wallet.connected} 
-                        connectWallet={() => setWalletModalVisible(true)}
-                        actionLabel="Sell"
-                        actionColor="bg-red-600 hover:bg-red-700"
-                        onMax={handleMax}
-                        balance={balance}
-                        balanceLabel={selectedToken.symbol}
-                        isBuy={false}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-800 min-h-[550px]">
+                  <JupiterSwapEmbed isOpen={!!selectedToken} tokenMint={selectedToken.address} />
                 </div>
               </div>
             </div>
