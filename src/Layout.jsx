@@ -24,7 +24,7 @@ import { WalletProvider } from "@/lib/web3/WalletContext";
 import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal as useSolanaWalletModal } from '@solana/wallet-adapter-react-ui';
+import { UnifiedWalletButton } from '@jup-ag/wallet-adapter';
 import { useAccount } from "wagmi";
 import { useWalletConnect } from "@/lib/web3/WalletConnectProvider";
 import { getStoredReferralCode } from "@/components/hooks/useReferralCapture";
@@ -103,7 +103,6 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const location = useLocation();
   const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
   const solWallet = useSolanaWallet();
-  const { setVisible: setSolanaWalletModalVisible } = useSolanaWalletModal();
 
   const STORAGE_KEYS = {
     language: "app_language",
@@ -216,67 +215,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
   const isAdminHub = location.pathname.includes("OKXAdminHub") || location.pathname.includes("admin");
 
   const SolanaNavWalletButton = () => {
-    if (solWallet?.connected && solWallet?.publicKey) {
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2 bg-card border-border hover:bg-accent min-w-[140px]">
-              <Wallet className="w-4 h-4" />
-              <span className="font-mono text-sm">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-3 py-2 border-b border-border">
-              <p className="text-xs text-muted-foreground mb-1">Solana wallet</p>
-              <p className="font-mono text-sm">{formatShortAddress(solWallet.publicKey, 4, 4)}</p>
-            </div>
-            <DropdownMenuItem
-              onSelect={async (e) => {
-                e.preventDefault();
-                try {
-                  await navigator.clipboard.writeText(solWallet.publicKey.toString());
-                } catch {
-                  // ignore
-                }
-              }}
-              className="gap-2 cursor-pointer"
-            >
-              Copy Address
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                window.open('https://solscan.io/account/' + solWallet.publicKey, '_blank');
-              }}
-              className="gap-2 cursor-pointer"
-            >
-              View on Explorer
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
-                solWallet.disconnect();
-              }}
-              className="gap-2 cursor-pointer text-rose-600 focus:text-rose-700"
-            >
-              Disconnect
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    }
-
-    return (
-      <Button
-        onClick={() => setSolanaWalletModalVisible(true)}
-        className="glow-button bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 rounded-xl px-4 hover:from-blue-700 hover:to-cyan-700"
-      >
-        <Wallet className="w-4 h-4 mr-2" />
-        Connect Wallet
-      </Button>
-    );
+    return <UnifiedWalletButton />;
   };
 
   const accountLabel = (() => {
