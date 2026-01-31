@@ -156,10 +156,12 @@ export default function AdminAssistant() {
           activeConv = res.data || res;
         }
         
-        if (activeConv?.id) {
-          setConversation(activeConv);
+        const validId = activeConv?.id || activeConv?._id; // Handle potential ID field variations
+        if (validId) {
+          const validConv = { ...activeConv, id: validId };
+          setConversation(validConv);
           // Retry send with new conversation
-          await base44.agents.addMessage(activeConv.id, {
+          await base44.agents.addMessage(validId, {
             role: "user",
             content
           });
@@ -167,7 +169,8 @@ export default function AdminAssistant() {
           setError(null);
           return;
         } else {
-          throw new Error("Could not restore session");
+          console.error("Invalid conversation object from create:", activeConv);
+          throw new Error("Could not restore session - Missing ID");
         }
       } catch (err) {
         console.error("Re-init failed:", err);

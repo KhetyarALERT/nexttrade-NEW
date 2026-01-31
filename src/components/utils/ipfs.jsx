@@ -3,9 +3,15 @@ export const resolveIpfsUrl = (url) => {
   
   // Handle already resolved URLs or non-IPFS URLs
   if (url.startsWith('http')) {
-    // Replace broken/slow gateways (cf-ipfs.com is currently down)
-    if (url.includes('ipfs.io') || url.includes('cf-ipfs.com')) {
-      return url.replace('ipfs.io', 'dweb.link').replace('cf-ipfs.com', 'dweb.link');
+    // Replace broken/slow gateways
+    // dweb.link is unstable. cf-ipfs.com is often rate limited.
+    // ipfs.io is the public gateway, usually slower but standard.
+    // gateway.pinata.cloud is often reliable.
+    if (url.includes('ipfs.io') || url.includes('cf-ipfs.com') || url.includes('dweb.link')) {
+      // Rotate gateways or stick to a reliable one
+      return url.replace('ipfs.io', 'gateway.pinata.cloud')
+                .replace('cf-ipfs.com', 'gateway.pinata.cloud')
+                .replace('dweb.link', 'gateway.pinata.cloud');
     }
     return url;
   }
@@ -17,9 +23,8 @@ export const resolveIpfsUrl = (url) => {
   }
 
   // Check if it's just a hash (simple regex for CID)
-  // CIDv0 is 46 chars starting with Qm, CIDv1 is 59+ starting with bafy
   if (hash.match(/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[0-9a-z]{50,})/)) {
-    return `https://dweb.link/ipfs/${hash}`;
+    return `https://gateway.pinata.cloud/ipfs/${hash}`;
   }
 
   return url;

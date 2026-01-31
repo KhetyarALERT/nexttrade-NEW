@@ -12,7 +12,12 @@ export default function AdminLayout({ children }) {
 
       {/* Right Panel - Workspace */}
       <main className="flex-1 h-full overflow-hidden flex flex-col relative bg-background">
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.02] pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+             style={{ 
+               backgroundImage: `radial-gradient(#000 1px, transparent 1px)`,
+               backgroundSize: '24px 24px' 
+             }} 
+        />
         
         {/* Content Scroll Area */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">

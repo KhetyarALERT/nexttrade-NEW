@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 // Caches RugCheck results for 5 minutes
 const CACHE_TTL = 5 * 60 * 1000;
 
-export default async function handler(req) {
+Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   
   try {
@@ -43,4 +43,4 @@ export default async function handler(req) {
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
-}
+});
