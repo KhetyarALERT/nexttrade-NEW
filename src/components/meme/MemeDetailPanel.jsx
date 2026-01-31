@@ -159,7 +159,11 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                   <AlertTriangle className="w-3 h-3 text-red-500" />
                 )}
                 <span className={`font-semibold ${riskColor}`}>
-                  {loadingSafety ? 'Scanning...' : (safety?.score || 'N/A')}
+                  {loadingSafety ? 'Scanning...' : (
+                    typeof safety?.score === 'object' 
+                      ? (safety.score.score || safety.score.value || 'N/A') 
+                      : (safety?.score || 'N/A')
+                  )}
                 </span>
               </div>
               <span className={`text-xs font-bold ${riskColor}`}>

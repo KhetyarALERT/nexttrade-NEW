@@ -45,7 +45,9 @@ const MemeCard = memo(({ token, onTrade }) => {
               <h3 className="font-bold text-base text-white">{token.symbol}</h3>
               {riskLevel !== 'unknown' && (
                 <Badge variant="outline" className={`text-[10px] h-5 px-1.5 border-0 ${getRiskColor(riskLevel)}`}>
-                  {token.safety?.score ? `Score: ${token.safety.score}` : riskLevel.toUpperCase()}
+                  {token.safety?.score 
+                    ? `Score: ${typeof token.safety.score === 'object' ? (token.safety.score.score || token.safety.score.value || 0) : token.safety.score}` 
+                    : riskLevel.toUpperCase()}
                 </Badge>
               )}
             </div>

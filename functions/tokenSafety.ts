@@ -27,8 +27,17 @@ Deno.serve(async (req) => {
     const data = await response.json();
     
     // Normalize data
+    // Normalize score (handle if API returns object)
+    let finalScore = 0;
+    if (typeof data.score === 'number') {
+        finalScore = data.score;
+    } else if (typeof data.score === 'object' && data.score !== null) {
+        // Handle object case: {name, value, description, score, level}
+        finalScore = data.score.score || data.score.value || 0;
+    }
+
     const safetyData = {
-        score: data.score || 0, // Lower is better usually, or check specific API
+        score: finalScore,
         riskLevel: data.risks ? (data.risks.length > 2 ? 'high' : data.risks.length > 0 ? 'medium' : 'low') : 'good',
         flags: data.risks || [],
         rugged: data.rugged || false,
