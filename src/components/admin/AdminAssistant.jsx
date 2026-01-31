@@ -97,8 +97,9 @@ export default function AdminAssistant() {
         }
         
         if (mounted) {
-          if (activeConv?.id) {
-            setConversation(activeConv);
+          const validId = activeConv?.id || activeConv?._id;
+          if (validId) {
+            setConversation({ ...activeConv, id: validId });
             setMessages(activeConv.messages || []);
           } else {
             console.error("Invalid conversation format:", activeConv);
