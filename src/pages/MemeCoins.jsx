@@ -172,8 +172,11 @@ const MemeCoinsContent = () => {
   // Handlers
   const handleSelectTokenForTrade = useCallback((token) => {
     setSelectedToken(token);
-    setIsTradeDrawerOpen(true);
-  }, []);
+    if (isMobile) {
+      setIsDetailSheetOpen(true);
+    }
+    // Desktop: Detail panel updates automatically
+  }, [isMobile]);
 
   const handleSelectTokenForDetail = useCallback((token) => {
     setSelectedToken(token);
@@ -485,15 +488,7 @@ const MemeCoinsContent = () => {
         </Sheet>
       )}
 
-      {/* ===== TRADE DRAWER (Jupiter Swap) ===== */}
-      <TradeDrawer 
-        open={isTradeDrawerOpen} 
-        onOpenChange={(open) => {
-          setIsTradeDrawerOpen(open);
-          if (!open) setSelectedToken(null);
-        }}
-        token={selectedToken}
-      />
+      {/* Trade Drawer Removed - Unified into Detail Panel */}
     </div>
   );
 };
