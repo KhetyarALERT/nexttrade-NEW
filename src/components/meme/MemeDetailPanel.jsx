@@ -244,7 +244,8 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                   key={amt} 
                   variant="outline"
                   size="sm"
-                  className={`h-6 text-xs border-gray-700 ${amountSol === amt ? 'bg-emerald-600 border-emerald-500 text-white' : 'hover:border-emerald-500 hover:text-emerald-400'}`}
+                  type="button"
+                  className={`h-6 text-xs border-gray-700 transition-colors ${amountSol === amt ? 'bg-emerald-600 border-emerald-500 text-white' : 'hover:border-emerald-500 hover:text-emerald-400'}`}
                   onClick={() => setAmountSol(amt)}
                   disabled={isSubmitting}
                 >
@@ -259,8 +260,11 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                 <Input 
                   type="number" 
                   value={amountSol} 
-                  onChange={(e) => setAmountSol(parseFloat(e.target.value) || 0)}
-                  className="bg-gray-900 border-gray-700 h-7 text-xs pr-6"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAmountSol(val === '' ? '' : parseFloat(val));
+                  }}
+                  className="bg-gray-900 border-gray-700 h-7 text-xs pr-6 focus:border-emerald-500"
                   min={0.01}
                   step={0.1}
                   disabled={isSubmitting}
@@ -268,15 +272,16 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-600">SOL</span>
               </div>
               <Button 
-                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white"
+                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-lg shadow-emerald-900/20"
                 onClick={handleQuickBuy}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 ) : (
-                  <Zap className="w-3 h-3 fill-current" />
+                  <Zap className="w-3 h-3 fill-current mr-1" />
                 )}
+                {isSubmitting ? '...' : 'Buy'}
               </Button>
             </div>
 
