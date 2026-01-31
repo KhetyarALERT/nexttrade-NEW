@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const safetyData = {
         score: finalScore,
         riskLevel: data.risks ? (data.risks.length > 2 ? 'high' : data.risks.length > 0 ? 'medium' : 'low') : 'good',
-        flags: data.risks || [],
+        flags: (data.risks || []).map(r => typeof r === 'object' ? r.name : r),
         rugged: data.rugged || false,
         lastUpdated: Date.now()
     };

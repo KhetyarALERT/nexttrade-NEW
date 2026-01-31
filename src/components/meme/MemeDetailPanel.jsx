@@ -174,7 +174,7 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
               <div className="flex flex-wrap gap-1 mt-1">
                 {safety.flags.slice(0, 2).map((flag, i) => (
                   <span key={i} className="text-[10px] px-1 py-0.5 rounded bg-black/50 text-gray-400 border border-gray-700">
-                    {flag}
+                    {typeof flag === 'object' ? (flag.name || flag.value || JSON.stringify(flag)) : flag}
                   </span>
                 ))}
               </div>
