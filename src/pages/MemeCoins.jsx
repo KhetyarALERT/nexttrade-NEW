@@ -31,14 +31,20 @@ const formatPrice = (num) => {
 };
 
 const formatMarketCap = (num) => {
-  if (!num) return '--';
+  if (num === undefined || num === null) return 'Loading...';
   if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
   if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
   return `$${num.toFixed(0)}`;
 };
 
+const formatLiquidity = (token) => {
+  if (token.bonding_curve_status === 'bonding_curve') return 'Bonding Curve';
+  if (!token.liquidity) return 'N/A';
+  return formatMarketCap(token.liquidity);
+};
+
 const formatVolume = (num) => {
-  if (!num) return '--';
+  if (!num) return 'N/A';
   if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
   if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
   return `$${num.toFixed(0)}`;
@@ -95,7 +101,7 @@ const TokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFav
 
       {/* Liquidity */}
       <div className="w-20 text-right text-gray-400 flex-shrink-0">
-        {formatMarketCap(token.liquidity)}
+        {formatLiquidity(token)}
       </div>
 
       {/* Volume (Hidden on Mobile) */}
@@ -434,15 +440,25 @@ const MemeCoinsContent = () => {
           )}
         </div>
 
-        {/* RIGHT: Detail Panel (Desktop Only) */}
+        {/* RIGHT: Detail Panel (Desktop Only) - Always Visible */}
         {!isMobile && (
-          <div className={`${selectedToken ? 'w-[35%] min-w-[380px]' : 'w-0'} transition-all duration-300 ease-in-out overflow-y-auto`}>
-            {selectedToken && (
+          <div className="w-[380px] border-l border-gray-800 bg-[#0f172a] flex-shrink-0 flex flex-col transition-all duration-300">
+            {selectedToken ? (
               <MemeDetailPanel 
                 token={selectedToken} 
                 onClose={() => setSelectedToken(null)} 
                 onTrade={handleSelectTokenForTrade}
               />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 p-8 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gray-900 flex items-center justify-center border border-gray-800">
+                  <TrendingUp className="w-8 h-8 text-gray-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-400 mb-1">Select a Token</h3>
+                  <p className="text-xs text-gray-600">Click on any token in the list to view live stats, safety check, and trading panel.</p>
+                </div>
+              </div>
             )}
           </div>
         )}
