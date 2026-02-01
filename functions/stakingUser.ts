@@ -342,8 +342,7 @@ Deno.serve(async (req) => {
 
     // CREATE STAKE REQUEST - Lock funds and create pending position
     if (action === 'createStakeRequest') {
-      const { planKey, amount, sourceAccount, source_account } = params;
-      const finalSourceAccount = sourceAccount || source_account || 'MAIN';
+      const { planKey, amount, sourceAccount = 'MAIN' } = params;
 
       if (!planKey || !amount || amount <= 0) {
         return Response.json({ ok: false, error: { code: 'INVALID_PARAMS', message: 'Plan key and amount required' } }, { status: 400 });
@@ -364,7 +363,7 @@ Deno.serve(async (req) => {
       let lockTransferId = null;
 
       // === COPY TRADING WALLET LOGIC ===
-      if (finalSourceAccount === 'COPY_TRADING') {
+      if (sourceAccount === 'COPY_TRADING') {
         const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
         const wallet = wallets?.[0];
         
@@ -487,13 +486,13 @@ Deno.serve(async (req) => {
         term_days: plan.term_days,
         base_rewards_per_dollar: plan.base_rewards_per_dollar || 10,
         status: 'PENDING_APPROVAL',
-        source_account: finalSourceAccount,
+        source_account: sourceAccount,
         lock_transfer_id: lockTransferId,
         created_at: now,
         updated_at: now
       });
 
-      console.log('[STAKING] Created position:', position.id, 'Status: PENDING_APPROVAL', 'Source:', finalSourceAccount);
+      console.log('[STAKING] Created position:', position.id, 'Status: PENDING_APPROVAL', 'Source:', sourceAccount);
 
       // Notify admins (best effort)
       try {
