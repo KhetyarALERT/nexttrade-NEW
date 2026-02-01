@@ -217,8 +217,9 @@ export default function WalletPage({ language = "en" }) {
       }
 
       // Load copy trading wallet
+      let copyTradingRes = null;
       try {
-        const copyTradingRes = await base44.functions.invoke("copyTradingUser", { action: "getWallet" });
+        copyTradingRes = await base44.functions.invoke("copyTradingUser", { action: "getWallet" });
         if (copyTradingRes.data?.ok) {
           setCopyTradingWallet(copyTradingRes.data.data);
         }
@@ -233,8 +234,8 @@ export default function WalletPage({ language = "en" }) {
       }, 0);
       const okxBalance = okxResult.data?.data?.balances?.totalEquity || 0;
       
-      const ctAvailable = copyTradingRes.data?.data?.available_balance || 0;
-      const ctLocked = copyTradingRes.data?.data?.locked_balance || 0;
+      const ctAvailable = copyTradingRes?.data?.data?.available_balance || 0;
+      const ctLocked = copyTradingRes?.data?.data?.locked_balance || 0;
       
       setTotalBalance(internalBalance + okxBalance + ctAvailable + ctLocked);
 
