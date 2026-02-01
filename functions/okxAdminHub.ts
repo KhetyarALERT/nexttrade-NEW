@@ -567,6 +567,9 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'INVALID_STATUS', message: `Cannot approve position with status: ${position.status}` } }, { status: 400 });
       }
 
+      // Default source_account if missing
+      if (!position.source_account) position.source_account = 'MAIN';
+
       // Load staking config for first-stake promo
       let stakingConfig = null;
       try {
@@ -620,97 +623,134 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'NO_USER_ACCOUNT', message: 'User has no active OKX account' } }, { status: 400 });
       }
 
-      const account = accounts[0];
-      const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
-      if (!pool?.length) {
-        return Response.json({ ok: false, error: { code: 'NO_POOL_ACCOUNT', message: 'Pool account not found' } }, { status: 500 });
-      }
-
-      const p = pool[0];
-      const credential = {
-        apiKey: p.api_key,
-        secretKey: await decryptSecret(p.secret_enc),
-        passphrase: await decryptSecret(p.passphrase_enc)
-      };
-
       const now = new Date();
       const nowIso = now.toISOString();
       const endsAt = new Date(now.getTime() + position.term_days * 24 * 60 * 60 * 1000).toISOString();
-
-      // Transfer from user's Funding to Main (master) staking pool
-      // For Phase 1, we use master account transfer: type=2 (sub -> master)
       let stakeTransferId = null;
-      try {
-        const stakeTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+
+      if (position.source_account === 'COPY_TRADING') {
+        // === COPY TRADING APPROVAL FLOW ===
+        const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: position.user_id });
+        const wallet = wallets?.[0];
+        
+        if (!wallet) return Response.json({ ok: false, error: { code: 'NO_WALLET', message: 'Wallet not found' } }, { status: 400 });
+        if (wallet.available_balance < position.principal_amount) {
+          return Response.json({ ok: false, error: { code: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds in copy trading wallet' } }, { status: 400 });
+        }
+
+        const idempotencyKey = `stake_lock:${position.id}`;
+        
+        // Lock funds
+        await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+          available_balance: wallet.available_balance - position.principal_amount,
+          locked_balance: wallet.locked_balance + position.principal_amount,
+          updated_at: nowIso
+        });
+
+        // Ledger entry
+        await base44.asServiceRole.entities.CopyTradingLedger.create({
           user_id: position.user_id,
-          provider: 'OKX',
-          from_account: p.subaccount_name,
-          from_account_type: 'funding',
-          to_account: 'main',
-          to_account_type: 'funding',
+          kind: 'STAKING_LOCK',
+          amount: -position.principal_amount,
           currency: 'USDT',
-          amount: position.principal_amount,
-          status: 'PENDING',
+          status: 'POSTED',
+          ref_type: 'STAKING',
+          ref_id: position.id,
+          idempotency_key: idempotencyKey,
+          balance_before: wallet.available_balance,
+          balance_after: wallet.available_balance - position.principal_amount,
+          description: `Locked for staking (${position.plan_key})`,
           created_at: nowIso
         });
-        stakeTransferId = stakeTransfer?.id;
-        console.log('[STAKING_ADMIN] Created stake transfer record:', stakeTransferId);
-      } catch (e) {
-        console.log('[STAKING_ADMIN] Failed to create stake transfer record:', e.message);
-      }
 
-      // Execute transfer using MASTER credentials (sub -> master)
-      const masterCreds = getMasterCredentials();
-      if (!masterCreds.ok) {
-        return Response.json({ ok: false, error: masterCreds.error }, { status: 500 });
-      }
+      } else {
+        // === MAIN (OKX) APPROVAL FLOW ===
+        const account = accounts[0];
+        const pool = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+        if (!pool?.length) {
+          return Response.json({ ok: false, error: { code: 'NO_POOL_ACCOUNT', message: 'Pool account not found' } }, { status: 500 });
+        }
 
-      const transferRes = await okxRequest({
-        credential: masterCreds.data,
-        method: 'POST',
-        path: '/api/v5/asset/transfer',
-        body: {
-          ccy: 'USDT',
-          amt: String(position.principal_amount),
-          from: '6',      // Funding
-          to: '6',        // Funding
-          type: '2',      // Sub-account to master
-          subAcct: p.subaccount_name
-        },
-        isTradingEndpoint: false
-      });
+        const p = pool[0];
+        const credential = {
+          apiKey: p.api_key,
+          secretKey: await decryptSecret(p.secret_enc),
+          passphrase: await decryptSecret(p.passphrase_enc)
+        };
 
-      const completedAt = new Date().toISOString();
-      const transferResult = transferRes.data?.data?.[0];
+        // Transfer from user's Funding to Main (master) staking pool
+        try {
+          const stakeTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+            user_id: position.user_id,
+            provider: 'OKX',
+            from_account: p.subaccount_name,
+            from_account_type: 'funding',
+            to_account: 'main',
+            to_account_type: 'funding',
+            currency: 'USDT',
+            amount: position.principal_amount,
+            status: 'PENDING',
+            created_at: nowIso
+          });
+          stakeTransferId = stakeTransfer?.id;
+          console.log('[STAKING_ADMIN] Created stake transfer record:', stakeTransferId);
+        } catch (e) {
+          console.log('[STAKING_ADMIN] Failed to create stake transfer record:', e.message);
+        }
 
-      if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
-        const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Stake transfer failed';
-        
+        // Execute transfer using MASTER credentials (sub -> master)
+        const masterCreds = getMasterCredentials();
+        if (!masterCreds.ok) {
+          return Response.json({ ok: false, error: masterCreds.error }, { status: 500 });
+        }
+
+        const transferRes = await okxRequest({
+          credential: masterCreds.data,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            ccy: 'USDT',
+            amt: String(position.principal_amount),
+            from: '6',      // Funding
+            to: '6',        // Funding
+            type: '2',      // Sub-account to master
+            subAcct: p.subaccount_name
+          },
+          isTradingEndpoint: false
+        });
+
+        const completedAt = new Date().toISOString();
+        const transferResult = transferRes.data?.data?.[0];
+
+        if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+          const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Stake transfer failed';
+          
+          if (stakeTransferId) {
+            try {
+              await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
+                status: 'FAILED',
+                error_message: errMsg,
+                completed_at: completedAt
+              });
+            } catch (e) {
+              console.log('[STAKING_ADMIN] Failed to update stake transfer to FAILED:', e.message);
+            }
+          }
+          
+          return Response.json({ ok: false, error: { code: 'STAKE_TRANSFER_FAILED', message: errMsg } }, { status: 500 });
+        }
+
+        // Update transfer to COMPLETED
         if (stakeTransferId) {
           try {
             await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
-              status: 'FAILED',
-              error_message: errMsg,
+              status: 'COMPLETED',
+              external_transfer_id: transferResult?.transId || null,
               completed_at: completedAt
             });
           } catch (e) {
-            console.log('[STAKING_ADMIN] Failed to update stake transfer to FAILED:', e.message);
+            console.log('[STAKING_ADMIN] Failed to update stake transfer to COMPLETED:', e.message);
           }
-        }
-        
-        return Response.json({ ok: false, error: { code: 'STAKE_TRANSFER_FAILED', message: errMsg } }, { status: 500 });
-      }
-
-      // Update transfer to COMPLETED
-      if (stakeTransferId) {
-        try {
-          await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
-            status: 'COMPLETED',
-            external_transfer_id: transferResult?.transId || null,
-            completed_at: completedAt
-          });
-        } catch (e) {
-          console.log('[STAKING_ADMIN] Failed to update stake transfer to COMPLETED:', e.message);
         }
       }
 
@@ -871,53 +911,68 @@ Deno.serve(async (req) => {
 
       const nowIso = new Date().toISOString();
 
-      // Transfer back: Funding(6) -> Trading(18)
       let unlockTransferId = null;
-      try {
-        const unlockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
-          user_id: position.user_id,
-          provider: 'OKX',
-          from_account: p.subaccount_name,
-          from_account_type: 'funding',
-          to_account: p.subaccount_name,
-          to_account_type: 'trading',
-          currency: 'USDT',
-          amount: position.principal_amount,
-          status: 'PENDING',
-          created_at: nowIso
-        });
-        unlockTransferId = unlockTransfer?.id;
-      } catch (e) {
-        console.log('[STAKING_ADMIN] Failed to create unlock transfer record:', e.message);
-      }
+      let fundsReturned = false;
+      let completedAt = new Date().toISOString();
 
-      const transferRes = await okxRequest({
-        credential,
-        method: 'POST',
-        path: '/api/v5/asset/transfer',
-        body: {
-          ccy: 'USDT',
-          amt: String(position.principal_amount),
-          from: '6',  // Funding
-          to: '18',   // Trading
-          type: '0'
-        },
-        isTradingEndpoint: false
-      });
-
-      const completedAt = new Date().toISOString();
-      const fundsReturned = transferRes.ok;
-
-      if (unlockTransferId) {
+      if (position.source_account === 'COPY_TRADING') {
+        // === COPY TRADING REJECT FLOW (No transfer, just unlock) ===
+        // Wait, for COPY TRADING we *didn't* lock funds yet on create request.
+        // So for REJECT on PENDING_APPROVAL, we do nothing to funds (since they weren't locked).
+        // Only if it was ACTIVE/UNLOCKING would we need to refund.
+        // The check above says status must be PENDING_APPROVAL.
+        fundsReturned = true; // Nothing was taken
+        
+      } else {
+        // === MAIN (OKX) REJECT FLOW ===
+        // Funds were moved Trading -> Funding on create. We move them back Funding -> Trading.
+        
         try {
-          await base44.asServiceRole.entities.ExchangeTransfer.update(unlockTransferId, {
-            status: fundsReturned ? 'COMPLETED' : 'FAILED',
-            external_transfer_id: transferRes.data?.data?.[0]?.transId || null,
-            error_message: fundsReturned ? null : (transferRes.error?.okxMsg || 'Failed'),
-            completed_at: completedAt
+          const unlockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+            user_id: position.user_id,
+            provider: 'OKX',
+            from_account: p.subaccount_name,
+            from_account_type: 'funding',
+            to_account: p.subaccount_name,
+            to_account_type: 'trading',
+            currency: 'USDT',
+            amount: position.principal_amount,
+            status: 'PENDING',
+            created_at: nowIso
           });
+          unlockTransferId = unlockTransfer?.id;
         } catch (e) {
-          console.log('[STAKING_ADMIN] Failed to update unlock transfer:', e.message);
+          console.log('[STAKING_ADMIN] Failed to create unlock transfer record:', e.message);
+        }
+
+        const transferRes = await okxRequest({
+          credential,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            ccy: 'USDT',
+            amt: String(position.principal_amount),
+            from: '6',  // Funding
+            to: '18',   // Trading
+            type: '0'
+          },
+          isTradingEndpoint: false
+        });
+
+        completedAt = new Date().toISOString();
+        fundsReturned = transferRes.ok;
+
+        if (unlockTransferId) {
+          try {
+            await base44.asServiceRole.entities.ExchangeTransfer.update(unlockTransferId, {
+              status: fundsReturned ? 'COMPLETED' : 'FAILED',
+              external_transfer_id: transferRes.data?.data?.[0]?.transId || null,
+              error_message: fundsReturned ? null : (transferRes.error?.okxMsg || 'Failed'),
+              completed_at: completedAt
+            });
+          } catch (e) {
+            console.log('[STAKING_ADMIN] Failed to update unlock transfer:', e.message);
+          }
         }
       }
 

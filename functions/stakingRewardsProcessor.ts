@@ -161,6 +161,72 @@ Deno.serve(async (req) => {
             updated_at: nowIso
           });
 
+          // === MONTHLY PAYOUT CHECK (every 30 days) ===
+          const startedAt = new Date(position.started_at);
+          const nowTime = new Date();
+          const daysSinceStart = Math.floor((nowTime - startedAt) / (1000 * 60 * 60 * 24));
+          
+          // Payout triggers on day 30, 60, 90...
+          if (daysSinceStart > 0 && daysSinceStart % 30 === 0) {
+            // Auto-payout accumulated rewards
+            if (claimable > 0.01) {
+              const payoutAmount = claimable;
+              
+              if (position.source_account === 'COPY_TRADING') {
+                // Credit Copy Trading Wallet directly
+                const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: position.user_id });
+                if (wallets?.[0]) {
+                  const wallet = wallets[0];
+                  
+                  // Update Wallet
+                  await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+                    available_balance: wallet.available_balance + payoutAmount,
+                    updated_at: nowIso
+                  });
+
+                  // Wallet Ledger
+                  await base44.asServiceRole.entities.CopyTradingLedger.create({
+                    user_id: position.user_id,
+                    kind: 'STAKING_REWARD',
+                    amount: payoutAmount,
+                    currency: 'USDT',
+                    status: 'POSTED',
+                    ref_type: 'STAKING',
+                    ref_id: position.id,
+                    balance_before: wallet.available_balance,
+                    balance_after: wallet.available_balance + payoutAmount,
+                    description: `Staking Reward (${daysSinceStart} days)`,
+                    created_at: nowIso
+                  });
+
+                  // Update Position as PAID
+                  await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+                    paid_amount: (position.paid_amount || 0) + payoutAmount,
+                    payout_status: 'PAID',
+                    last_payout_at: nowIso,
+                    updated_at: nowIso
+                  });
+
+                  // Rewards Ledger
+                  await base44.asServiceRole.entities.StakingRewardsLedger.create({
+                    user_id: position.user_id,
+                    staking_position_id: position.id,
+                    kind: 'PAYOUT',
+                    amount: -payoutAmount,
+                    date_key: targetDateKey,
+                    status: 'POSTED',
+                    run_id: runId,
+                    note: `Auto-payout to Copy Trading Wallet (Day ${daysSinceStart})`,
+                    created_at: nowIso
+                  });
+                  
+                  detail.payout = `Paid ${payoutAmount} to CopyTradingWallet`;
+                }
+              }
+              // For MAIN, we keep it accumluating/claimable or use existing payout flow (no auto-credit yet unless requested)
+            }
+          }
+
           detail.status = 'accrued';
           detail.amount = roundedAmount;
           detail.newTotal = newAccrued;
@@ -295,55 +361,83 @@ Deno.serve(async (req) => {
 
     // ==================== ACTION: adminProcessPayout (admin only) ====================
     if (action === 'adminProcessPayout') {
-      const user = await base44.auth.me();
-      if (!user || user.role !== 'admin') {
-        return Response.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Admin only' } }, { status: 403 });
-      }
+    const user = await base44.auth.me();
+    if (!user || user.role !== 'admin') {
+      return Response.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Admin only' } }, { status: 403 });
+    }
 
-      const { position_id, amount, note } = payload;
-      if (!position_id || !amount || amount <= 0) {
-        return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Missing position_id or amount' } }, { status: 400 });
-      }
+    const { position_id, amount, note } = payload;
+    if (!position_id || !amount || amount <= 0) {
+      return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Missing position_id or amount' } }, { status: 400 });
+    }
 
-      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: position_id });
-      if (!positions?.length) {
-        return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Position not found' } }, { status: 404 });
-      }
+    const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: position_id });
+    if (!positions?.length) {
+      return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Position not found' } }, { status: 404 });
+    }
 
-      const position = positions[0];
-      const claimable = (position.accrued_amount || 0) - (position.paid_amount || 0);
+    const position = positions[0];
+    const claimable = (position.accrued_amount || 0) - (position.paid_amount || 0);
 
-      if (amount > claimable + 0.01) {
-        return Response.json({ ok: false, error: { code: 'EXCEEDS_CLAIMABLE', message: `Amount exceeds claimable: ${claimable.toFixed(6)}` } }, { status: 400 });
-      }
+    if (amount > claimable + 0.01) {
+      return Response.json({ ok: false, error: { code: 'EXCEEDS_CLAIMABLE', message: `Amount exceeds claimable: ${claimable.toFixed(6)}` } }, { status: 400 });
+    }
 
-      const nowIso = new Date().toISOString();
-      const dateKey = getTodayDateKey();
+    const nowIso = new Date().toISOString();
+    const dateKey = getTodayDateKey();
 
-      // Create payout ledger entry
-      await base44.asServiceRole.entities.StakingRewardsLedger.create({
-        user_id: position.user_id,
-        staking_position_id: position.id,
-        kind: 'PAYOUT',
-        amount: -amount, // Negative for payout
-        date_key: dateKey,
-        status: 'POSTED',
-        run_id: runId,
-        note: note || `Manual payout by ${user.email}`,
-        created_at: nowIso
-      });
+    // Handle payout destination based on source
+    if (position.source_account === 'COPY_TRADING') {
+      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: position.user_id });
+      if (!wallets?.length) return Response.json({ ok: false, error: { code: 'NO_WALLET', message: 'Wallet not found' } }, { status: 400 });
+      const wallet = wallets[0];
 
-      // Update position
-      const newPaid = (position.paid_amount || 0) + amount;
-      const newClaimable = (position.accrued_amount || 0) - newPaid;
-      const newStatus = newClaimable > 0.01 ? 'CLAIMABLE' : 'PAID';
-
-      await base44.asServiceRole.entities.StakingPosition.update(position.id, {
-        paid_amount: newPaid,
-        payout_status: newStatus,
-        last_payout_at: nowIso,
+      // Credit wallet
+      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+        available_balance: wallet.available_balance + amount,
         updated_at: nowIso
       });
+
+      // Wallet Ledger
+      await base44.asServiceRole.entities.CopyTradingLedger.create({
+        user_id: position.user_id,
+        kind: 'STAKING_REWARD',
+        amount: amount,
+        currency: 'USDT',
+        status: 'POSTED',
+        ref_type: 'STAKING',
+        ref_id: position.id,
+        balance_before: wallet.available_balance,
+        balance_after: wallet.available_balance + amount,
+        description: `Manual Reward Payout`,
+        created_at: nowIso
+      });
+    }
+
+    // Create payout ledger entry
+    await base44.asServiceRole.entities.StakingRewardsLedger.create({
+      user_id: position.user_id,
+      staking_position_id: position.id,
+      kind: 'PAYOUT',
+      amount: -amount, // Negative for payout
+      date_key: dateKey,
+      status: 'POSTED',
+      run_id: runId,
+      note: note || `Manual payout by ${user.email}`,
+      created_at: nowIso
+    });
+
+    // Update position
+    const newPaid = (position.paid_amount || 0) + amount;
+    const newClaimable = (position.accrued_amount || 0) - newPaid;
+    const newStatus = newClaimable > 0.01 ? 'CLAIMABLE' : 'PAID';
+
+    await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+      paid_amount: newPaid,
+      payout_status: newStatus,
+      last_payout_at: nowIso,
+      updated_at: nowIso
+    });
 
       // Notify user
       try {

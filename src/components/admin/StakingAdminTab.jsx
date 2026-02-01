@@ -227,6 +227,14 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
         <StakingStatCard title="Total Staked" value={`$${formatUsdt(stakingStats.totalStaked)}`} icon={Lock} colorClass="bg-purple-500/5 border-purple-500/20 text-purple-600" />
         <StakingStatCard title="Rewards" value={stakingStats.totalRewardsGranted || 0} icon={Gift} colorClass="bg-amber-500/5 border-amber-500/20 text-amber-600" />
       </div>
+      <div className="grid grid-cols-2 gap-4 text-xs">
+        <div className="bg-muted/30 p-2 rounded border border-border/50 flex justify-between">
+          <span>Staked (Main):</span> <span className="font-mono">{formatUsdt(stakingStats.stakedMain || 0)}</span>
+        </div>
+        <div className="bg-muted/30 p-2 rounded border border-border/50 flex justify-between">
+          <span>Staked (Copy Trading):</span> <span className="font-mono">{formatUsdt(stakingStats.stakedCopy || 0)}</span>
+        </div>
+      </div>
 
       {/* Main Tabs */}
       <Tabs value={adminTab} onValueChange={setAdminTab} className="space-y-4">

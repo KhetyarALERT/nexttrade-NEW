@@ -375,28 +375,7 @@ Deno.serve(async (req) => {
           return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient balance: ${wallet.available_balance.toFixed(2)} USDT` } }, { status: 400 });
         }
 
-        // Lock funds immediately
-        await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
-          available_balance: wallet.available_balance - amount,
-          locked_balance: wallet.locked_balance + amount,
-          updated_at: now
-        });
-
-        // Create ledger entry
-        await base44.asServiceRole.entities.CopyTradingLedger.create({
-          user_id: user.id,
-          kind: 'STAKING_LOCK',
-          amount: -amount,
-          currency: 'USDT',
-          status: 'POSTED',
-          ref_type: 'STAKING',
-          ref_id: null, // Will update with position ID if needed, or link via position
-          balance_before: wallet.available_balance,
-          balance_after: wallet.available_balance - amount,
-          description: `Locked for staking (${plan.title})`,
-          created_at: now
-        });
-
+        // Don't lock yet (per instructions: lock on admin approve)
       } else {
         // === MAIN (OKX) LOGIC ===
         // Get user's OKX credential
