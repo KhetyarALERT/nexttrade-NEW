@@ -5,28 +5,33 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 // Helper: Get or create CopyTradingWallet for user (ensures wallet always exists)
 async function getOrCreateWallet(base44, user) {
-  const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
-  if (wallets?.length > 0) {
-    return wallets[0];
+  try {
+    const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
+    if (wallets?.length > 0) {
+      return wallets[0];
+    }
+    
+    // Create new wallet with zero balance
+    const now = new Date().toISOString();
+    const newWallet = await base44.asServiceRole.entities.CopyTradingWallet.create({
+      user_id: user.id,
+      user_email: user.email || "", 
+      available_balance: 0,
+      locked_balance: 0,
+      lifetime_deposited: 0,
+      lifetime_withdrawn: 0,
+      lifetime_pnl: 0,
+      status: 'ACTIVE',
+      created_at: now,
+      updated_at: now
+    });
+    
+    console.log(`[COPY_TRADING] Created wallet for user ${user.email}`);
+    return newWallet;
+  } catch (error) {
+    console.error(`[COPY_TRADING] getOrCreateWallet error: ${error.message}`);
+    throw error;
   }
-  
-  // Create new wallet with zero balance
-  const now = new Date().toISOString();
-  const newWallet = await base44.asServiceRole.entities.CopyTradingWallet.create({
-    user_id: user.id,
-    user_email: user.email,
-    available_balance: 0,
-    locked_balance: 0,
-    lifetime_deposited: 0,
-    lifetime_withdrawn: 0,
-    lifetime_pnl: 0,
-    status: 'ACTIVE',
-    created_at: now,
-    updated_at: now
-  });
-  
-  console.log(`[COPY_TRADING] Created wallet for user ${user.email}`);
-  return newWallet;
 }
 
 // Crypto helpers for OKX API calls
