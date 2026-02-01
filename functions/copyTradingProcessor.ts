@@ -51,6 +51,8 @@ Deno.serve(async (req) => {
     const minComm = config?.min_commission_close || 0.05;
 
     // 3. Batch Fetch Prices (Zero API Spam)
+    // NOTE: We only fetch PUBLIC market data here. 
+    // This processor is for INTERNAL copy trading only and does NOT execute trades on real OKX accounts.
     // Check which instrument types are needed
     let needSwap = false;
     let needSpot = false;
