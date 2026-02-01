@@ -2,7 +2,8 @@ import PropTypes from "prop-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Sparkles, ArrowRight, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 // Shared formatters with Latin digits
 function getLocale(lang) {
@@ -44,7 +45,14 @@ const t = {
     minRequired: "Minimum required",
     insufficientBalance: "Insufficient balance",
     change: "Change",
-    transferFirst: "Transfer USDT to Trading first"
+    transferFirst: "Transfer USDT to Trading first",
+    useCopyTradingBalance: "Use Copy Trading Balance",
+    source: "Funding Source",
+    mainBalance: "Main Balance",
+    copyTradingBalance: "Copy Trading",
+    estMonthlyEarnings: "Est. Monthly Earnings",
+    estTotalUnlock: "Est. Total at Unlock",
+    paidEvery30: "Paid every 30 days"
   },
   ar: {
     step2Title: "أدخل المبلغ",
@@ -68,7 +76,14 @@ const t = {
     minRequired: "الحد الأدنى المطلوب",
     insufficientBalance: "رصيد غير كافي",
     change: "تغيير",
-    transferFirst: "حوّل USDT إلى حساب التداول أولاً"
+    transferFirst: "حوّل USDT إلى حساب التداول أولاً",
+    useCopyTradingBalance: "استخدم رصيد نسخ التداول",
+    source: "مصدر التمويل",
+    mainBalance: "الرصيد الرئيسي",
+    copyTradingBalance: "نسخ التداول",
+    estMonthlyEarnings: "الأرباح الشهرية المتوقعة",
+    estTotalUnlock: "الإجمالي المتوقع عند الفتح",
+    paidEvery30: "تدفع كل 30 يوم"
   }
 };
 
@@ -78,7 +93,8 @@ export default function StakingAmountPanel({
   plan, 
   amount, 
   setAmount, 
-  availableBalance, 
+  availableBalance, // Main/OKX balance
+  copyTradingBalance = 0, // Internal CT balance
   onStake, 
   onBack, 
   processing, 
@@ -87,13 +103,15 @@ export default function StakingAmountPanel({
   language = "en"
 }) {
   const labels = t[language] || t.en;
+  const [useCopyTrading, setUseCopyTrading] = React.useState(false);
 
   if (!plan) return null;
 
+  const activeBalance = useCopyTrading ? copyTradingBalance : availableBalance;
   const amountNum = parseFloat(amount) || 0;
   const isBelowMin = amountNum > 0 && amountNum < plan.minDeposit;
-  const isAboveBalance = amountNum > availableBalance;
-  const isValidAmount = amountNum >= plan.minDeposit && amountNum <= availableBalance;
+  const isAboveBalance = amountNum > activeBalance;
+  const isValidAmount = amountNum >= plan.minDeposit && amountNum <= activeBalance;
 
   // Calculate bonus rewards
   let baseRewards = amountNum * (plan.baseRewardsPerDollar || 0);
@@ -106,6 +124,10 @@ export default function StakingAmountPanel({
   }
   
   const totalRewards = Math.round(baseRewards + firstStakeBonus);
+  
+  // Calculate estimates
+  const estMonthlyEarnings = (amountNum * (plan.apyPercent / 100)) / 12;
+  const estTotalAtUnlock = amountNum + (amountNum * (plan.apyPercent / 100) * (plan.termDays / 365));
 
   // Estimated unlock date
   const estUnlockDate = new Date();
@@ -136,14 +158,29 @@ export default function StakingAmountPanel({
         </Button>
       </div>
 
-      {/* Available Balance */}
-      <div className="flex items-center justify-between text-sm px-1">
-        <span className="text-muted-foreground">{labels.available}</span>
-        <div className="flex items-center gap-1.5">
-          <UsdtIcon size="xs" language={language} />
-          <span className="font-mono font-semibold">
-            {formatUsdt(availableBalance, language)} USDT
-          </span>
+      {/* Source Selector */}
+      <div className="bg-card border border-border rounded-xl p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{labels.source}</span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${!useCopyTrading ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+              {labels.mainBalance}
+            </span>
+            <Switch checked={useCopyTrading} onCheckedChange={setUseCopyTrading} />
+            <span className={`text-xs ${useCopyTrading ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+              {labels.copyTradingBalance}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between text-sm pt-2 border-t border-border/50">
+          <span className="text-muted-foreground">{labels.available}</span>
+          <div className="flex items-center gap-1.5">
+            <UsdtIcon size="xs" language={language} />
+            <span className="font-mono font-semibold transition-all">
+              {formatUsdt(activeBalance, language)} USDT
+            </span>
+          </div>
         </div>
       </div>
 
@@ -160,7 +197,7 @@ export default function StakingAmountPanel({
             onChange={(e) => setAmount(e.target.value)}
             placeholder={String(plan.minDeposit)}
             min={plan.minDeposit}
-            max={availableBalance}
+            max={activeBalance}
             className="ltr:pl-12 rtl:pr-12 ltr:pr-16 rtl:pl-16 text-lg font-mono h-12"
           />
           <span className="absolute inset-y-0 ltr:right-3 rtl:left-3 flex items-center text-sm text-muted-foreground font-medium">
@@ -175,9 +212,12 @@ export default function StakingAmountPanel({
           </p>
         )}
         {isAboveBalance && (
-          <p className="text-xs text-red-600">
-            {labels.insufficientBalance}
-          </p>
+          <div className="flex items-center justify-between text-xs text-red-600">
+            <span>{labels.insufficientBalance}</span>
+            {useCopyTrading && (
+              <a href="/Wallet?page=deposit" className="underline hover:text-red-700">Add funds</a>
+            )}
+          </div>
         )}
         
         {/* Preset chips */}
@@ -189,7 +229,7 @@ export default function StakingAmountPanel({
               size="sm"
               onClick={() => setAmount(String(preset))}
               className="text-xs h-9 px-3 min-w-[72px]"
-              disabled={preset > availableBalance}
+              disabled={preset > activeBalance}
             >
               {preset} USDT
             </Button>
@@ -197,9 +237,9 @@ export default function StakingAmountPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAmount(String(Math.floor(availableBalance * 100) / 100))}
+            onClick={() => setAmount(String(Math.floor(activeBalance * 100) / 100))}
             className="text-xs h-9 px-3"
-            disabled={availableBalance < plan.minDeposit}
+            disabled={activeBalance < plan.minDeposit}
           >
             {labels.max}
           </Button>
@@ -236,6 +276,27 @@ export default function StakingAmountPanel({
                 )}
               </div>
             </div>
+
+            <div className="pt-2 mt-2 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-muted-foreground block mb-0.5">{labels.estMonthlyEarnings}</span>
+                <span className="font-mono font-medium text-emerald-500">
+                  ~{formatUsdt(estMonthlyEarnings, language)} USDT
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-muted-foreground block mb-0.5">{labels.estTotalUnlock}</span>
+                <span className="font-mono font-medium">
+                  ~{formatUsdt(estTotalAtUnlock, language)} USDT
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex justify-center pt-1">
+              <span className="text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Info className="w-3 h-3" /> {labels.paidEvery30}
+              </span>
+            </div>
             
             <div className="flex justify-between items-center pt-2 border-t border-border">
               <span className="text-muted-foreground">{labels.statusAfterSubmit}</span>
@@ -254,7 +315,7 @@ export default function StakingAmountPanel({
           {labels.back}
         </Button>
         <Button 
-          onClick={onStake} 
+          onClick={() => onStake(useCopyTrading ? 'COPY_TRADING' : 'MAIN')} 
           disabled={processing || !isValidAmount}
           className="flex-1 h-11"
         >

@@ -354,6 +354,7 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                     <TableHead>User</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Source</TableHead>
                     <TableHead>APY</TableHead>
                     <TableHead>Rewards</TableHead>
                     <TableHead>Status</TableHead>
@@ -374,6 +375,11 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                         </TableCell>
                         <TableCell className="font-medium">{req.planKey}</TableCell>
                         <TableCell className="font-mono">{formatUsdt(req.principal)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[10px]">
+                            {req.sourceAccount === 'COPY_TRADING' ? 'Copy Trading' : 'Main'}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-emerald-600 font-medium">{req.apyPercent}%</TableCell>
                         <TableCell className="font-mono">{req.rewardsGranted || 0}</TableCell>
                         <TableCell>

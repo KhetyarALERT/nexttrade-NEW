@@ -74,6 +74,10 @@ export default function CopyTradingAdminTab({ onRefresh }) {
   const [topUpForm, setTopUpForm] = useState({ userEmail: "", amount: "", note: "" });
   const [topUpLoading, setTopUpLoading] = useState(false);
 
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [withdrawForm, setWithdrawForm] = useState({ userEmail: "", amount: "", note: "" });
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -161,6 +165,31 @@ export default function CopyTradingAdminTab({ onRefresh }) {
       toast.error(err.message);
     } finally {
       setTopUpLoading(false);
+    }
+  };
+
+  const handleAdminWithdraw = async () => {
+    if (!withdrawForm.userEmail || !withdrawForm.amount) return;
+    setWithdrawLoading(true);
+    try {
+      const res = await base44.functions.invoke("copyTradingAdmin", {
+        action: "withdrawFundsAdmin",
+        userEmail: withdrawForm.userEmail.trim(),
+        amount: parseFloat(withdrawForm.amount),
+        note: withdrawForm.note
+      });
+      if (res.data?.ok) {
+        toast.success("Withdrawal successful");
+        setWithdrawDialogOpen(false);
+        setWithdrawForm({ userEmail: "", amount: "", note: "" });
+        loadData();
+      } else {
+        toast.error(res.data?.error?.message || "Failed");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setWithdrawLoading(false);
     }
   };
 
@@ -266,11 +295,12 @@ export default function CopyTradingAdminTab({ onRefresh }) {
                     <TableHead>Locked</TableHead>
                     <TableHead>Total Deposited</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {wallets.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No wallets</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No wallets</TableCell></TableRow>
                   ) : (
                     wallets.map(w => (
                       <TableRow key={w.id}>
@@ -279,6 +309,14 @@ export default function CopyTradingAdminTab({ onRefresh }) {
                         <TableCell className="font-mono text-muted-foreground">{formatUsdt(w.locked_balance)}</TableCell>
                         <TableCell className="font-mono">{formatUsdt(w.lifetime_deposited)}</TableCell>
                         <TableCell><Badge variant="outline" className={statusColors[w.status] || ''}>{w.status}</Badge></TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-8" onClick={() => {
+                            setWithdrawForm({ userEmail: w.user_email, amount: "", note: "" });
+                            setWithdrawDialogOpen(true);
+                          }}>
+                            Withdraw
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -372,6 +410,33 @@ export default function CopyTradingAdminTab({ onRefresh }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTopUpDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleManualTopUp} disabled={topUpLoading}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Withdrawal</DialogTitle>
+            <DialogDescription>Deduct funds from user wallet (Admin Only)</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>User Email</Label>
+              <Input value={withdrawForm.userEmail} disabled readOnly className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (USDT)</Label>
+              <Input type="number" value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} placeholder="0.00" />
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Input value={withdrawForm.note} onChange={e => setWithdrawForm({...withdrawForm, note: e.target.value})} placeholder="Why is this being deducted?" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWithdrawDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleAdminWithdraw} disabled={withdrawLoading}>Confirm Withdraw</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
