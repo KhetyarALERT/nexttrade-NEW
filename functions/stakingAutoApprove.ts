@@ -344,10 +344,10 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // Lock funds
+          // Lock funds (Deduct from available, do not add to locked - treated as withdrawal to staking position)
           await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
             available_balance: wallet.available_balance - position.principal_amount,
-            locked_balance: wallet.locked_balance + position.principal_amount,
+            // locked_balance: wallet.locked_balance, // Do not increase locked balance to avoid double counting assets
             updated_at: nowIso
           });
 

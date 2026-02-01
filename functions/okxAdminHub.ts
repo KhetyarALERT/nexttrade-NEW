@@ -539,6 +539,9 @@ Deno.serve(async (req) => {
       const totalStakedPending = pending.reduce((sum, p) => sum + (p.principal_amount || 0), 0);
       const totalRewardsGranted = (positions || []).reduce((sum, p) => sum + (p.rewards_granted || 0), 0);
 
+      const stakedMain = active.filter(p => !p.source_account || p.source_account === 'MAIN').reduce((s, p) => s + (p.principal_amount || 0), 0);
+      const stakedCopy = active.filter(p => p.source_account === 'COPY_TRADING').reduce((s, p) => s + (p.principal_amount || 0), 0);
+
       return Response.json({
         ok: true,
         data: {
@@ -550,7 +553,9 @@ Deno.serve(async (req) => {
           totalStakedActive,
           totalStakedPending,
           totalStaked: totalStakedActive + totalStakedPending,
-          totalRewardsGranted
+          totalRewardsGranted,
+          stakedMain,
+          stakedCopy
         }
       });
     }
@@ -641,10 +646,10 @@ Deno.serve(async (req) => {
 
         const idempotencyKey = `stake_lock:${position.id}`;
         
-        // Lock funds
+        // Lock funds (Deduct from available, do not add to locked - treated as withdrawal to staking position)
         await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
           available_balance: wallet.available_balance - position.principal_amount,
-          locked_balance: wallet.locked_balance + position.principal_amount,
+          // locked_balance: wallet.locked_balance, // Do not increase locked balance to avoid double counting assets
           updated_at: nowIso
         });
 
