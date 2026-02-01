@@ -1,17 +1,18 @@
 // @ts-nocheck
 /// <reference lib="deno.ns" />
-// Copy Trading Processor - Closes positions based on market price
+// Copy Trading Processor - Isolated & Robust
+// Handles SL/TP/Liquidation for internal Copy Trading only.
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 // Helper to fetch all tickers efficiently (Batch Request)
 async function getTickerMap(instType) {
   try {
     const res = await fetch(`https://www.okx.com/api/v5/market/tickers?instType=${instType}`, {
-      headers: { "User-Agent": "Base44/CopyTrading" }
+      headers: { "User-Agent": "Base44/CopyTradingProcessor" }
     });
     const json = await res.json();
     if (json.code !== '0') {
-      console.error(`OKX API Error for ${instType}:`, json.msg);
+      console.error(`[PROCESSOR] OKX API Error for ${instType}:`, json.msg);
       return {};
     }
     
@@ -21,27 +22,28 @@ async function getTickerMap(instType) {
     }
     return map;
   } catch (e) {
-    console.error(`Failed to fetch tickers for ${instType}:`, e);
+    console.error(`[PROCESSOR] Failed to fetch tickers for ${instType}:`, e);
     return {};
   }
 }
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
+  const startTs = Date.now();
 
   try {
     const user = await base44.auth.me();
-    // Allow admin execution (scheduled tasks typically run as admin or have a way to auth)
+    // Strict admin check
     if (user?.role !== 'admin') {
        return Response.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     // 1. Fetch Open Positions
-    // Increased limit to 1000 to ensure we cover all active positions in one run
+    // Increased limit to 1000 to cover all active positions
     const positions = await base44.asServiceRole.entities.CopyPosition.filter({ status: 'OPEN' }, '-opened_at', 1000);
     
     if (!positions?.length) {
-      return Response.json({ ok: true, message: 'No open positions' });
+      return Response.json({ ok: true, message: 'No open positions', processed: 0 });
     }
 
     // 2. Fetch Config for Commission
@@ -51,27 +53,21 @@ Deno.serve(async (req) => {
     const minComm = config?.min_commission_close || 0.05;
 
     // 3. Batch Fetch Prices (Zero API Spam)
-    // Check which instrument types are needed
     let needSwap = false;
     let needSpot = false;
     
     for (const p of positions) {
       if (p.symbol.endsWith('-SWAP')) needSwap = true;
-      else needSpot = true; // Fallback assumption for non-swap symbols
+      else needSpot = true; 
     }
 
     const priceMap = {};
-    
-    // Fetch SWAP tickers (1 call for all swaps)
-    if (needSwap) {
-      const swaps = await getTickerMap('SWAP');
-      Object.assign(priceMap, swaps);
-    }
-    
-    // Fetch SPOT tickers (1 call for all spots) if needed
-    if (needSpot) {
-      const spots = await getTickerMap('SPOT');
-      Object.assign(priceMap, spots);
+    if (needSwap) Object.assign(priceMap, await getTickerMap('SWAP'));
+    if (needSpot) Object.assign(priceMap, await getTickerMap('SPOT'));
+
+    if (Object.keys(priceMap).length === 0) {
+       console.warn('[PROCESSOR] No prices fetched, skipping run safely.');
+       return Response.json({ ok: false, error: 'Price feed failed' });
     }
 
     let processed = 0;
@@ -81,85 +77,124 @@ Deno.serve(async (req) => {
     for (const pos of positions) {
       const currentPrice = priceMap[pos.symbol];
       
-      // Skip if price unavailable (e.g. delisted or API error)
+      // Skip if price unavailable (safe skip)
       if (!currentPrice) continue;
 
-      let closeReason = null;
+      // EXPLICIT POSITION SIZING (Backwards Compatible)
+      const margin = pos.margin_usdt || (pos.notional_usdt / pos.leverage);
+      const qty = pos.qty_base || (pos.notional_usdt / pos.entry_price);
       const side = pos.side;
-      
-      // Trigger Logic: Price Hits Target Level
+
+      // 1. Calculate PnL (Linear Math)
+      let rawPnl = 0;
       if (side === 'LONG') {
-        // Long SL: Price drops BELOW or EQUAL to SL
-        if (pos.stop_loss && currentPrice <= pos.stop_loss) closeReason = 'SL';
-        // Long TP: Price rises ABOVE or EQUAL to TP
-        else if (pos.tp1 && currentPrice >= pos.tp1) closeReason = 'TP';
-        else if (pos.tp2 && currentPrice >= pos.tp2) closeReason = 'TP';
-      } else { // SHORT
-        // Short SL: Price rises ABOVE or EQUAL to SL
-        if (pos.stop_loss && currentPrice >= pos.stop_loss) closeReason = 'SL';
-        // Short TP: Price drops BELOW or EQUAL to TP
-        else if (pos.tp1 && currentPrice <= pos.tp1) closeReason = 'TP';
-        else if (pos.tp2 && currentPrice <= pos.tp2) closeReason = 'TP';
+        rawPnl = (currentPrice - pos.entry_price) * qty;
+      } else {
+        rawPnl = (pos.entry_price - currentPrice) * qty;
+      }
+
+      let pnl = Number(rawPnl.toFixed(2));
+      let closeReason = null;
+
+      // 2. LIQUIDATION GUARD (Highest Priority)
+      // If loss exceeds margin (pnl <= -margin), liquidate.
+      // E.g. Margin 10, PnL -12 -> Liquidate, Cap loss at -10.
+      if (pnl <= -margin) {
+        closeReason = 'LIQUIDATION';
+        pnl = -margin; // Cap loss to margin amount
+      } 
+      else {
+        // 3. SL/TP TRIGGERS (Simple Breach Logic)
+        if (side === 'LONG') {
+          if (pos.stop_loss && currentPrice <= pos.stop_loss) closeReason = 'SL';
+          else if (pos.tp1 && currentPrice >= pos.tp1) closeReason = 'TP';
+          else if (pos.tp2 && currentPrice >= pos.tp2) closeReason = 'TP';
+        } else { // SHORT
+          if (pos.stop_loss && currentPrice >= pos.stop_loss) closeReason = 'SL';
+          else if (pos.tp1 && currentPrice <= pos.tp1) closeReason = 'TP';
+          else if (pos.tp2 && currentPrice <= pos.tp2) closeReason = 'TP';
+        }
       }
 
       if (closeReason) {
-        // Calculate PnL
-        const qty = pos.notional_usdt / pos.entry_price;
-        const rawPnl = side === 'LONG' 
-          ? (currentPrice - pos.entry_price) * qty
-          : (pos.entry_price - currentPrice) * qty;
+        // Calculate PnL % based on NOTIONAL for display (standard)
+        // or MARGIN? User said "roi cannot go below -100% on margin".
+        // Let's store pnl_pct based on margin for internal consistency if LIQ.
+        // But usually pnl_pct is on margin for futures.
+        // Let's stick to user request: "pnl_pct_notional = pnl_usdt / notional_usdt * 100"
+        // But for liquidation, let's make sure it reflects reality.
         
-        const pnl = Number(rawPnl.toFixed(2));
-        const pnlPct = (rawPnl / (pos.notional_usdt / pos.leverage)) * 100;
-
-        // Calculate Closing Commission
-        const commClose = Math.max(minComm, pos.notional_usdt * commRate);
+        let pnlPct = (pnl / pos.notional_usdt) * 100;
+        
+        // If Liquidated, explicit -100% on margin? 
+        // User asked: "roi cannot go below -100% on margin"
+        // Let's calculate ROI on margin to check
+        const roiMargin = (pnl / margin) * 100;
+        
+        // Calculate Closing Commission (Standard)
+        // For liquidation, usually exchange takes remaining margin? 
+        // Simplicity: Deduct commission if funds remain, otherwise 0?
+        // Let's apply standard comm unless it pushes us negative?
+        // If pnl is -margin, user has 0 left. Commission would make it negative.
+        // Rule: User balance cannot be negative.
+        // If LIQUIDATION, commission is effectively absorbed in the total loss (max loss = margin).
+        
+        let commClose = Math.max(minComm, pos.notional_usdt * commRate);
+        if (closeReason === 'LIQUIDATION') {
+           commClose = 0; // No extra comm fee on top of total loss
+        }
 
         // A. Update Position to CLOSED
         await base44.asServiceRole.entities.CopyPosition.update(pos.id, {
-          status: 'CLOSED',
+          status: closeReason === 'LIQUIDATION' ? 'LIQUIDATED' : 'CLOSED',
           close_price: currentPrice,
           close_reason: closeReason,
           closed_at: new Date().toISOString(),
           pnl_usdt: pnl,
-          pnl_pct: pnlPct,
+          pnl_pct: pnlPct, // Storing notional % as requested
           commission_close_usdt: commClose
         });
 
         // B. Ledger: Realized PnL
         await base44.asServiceRole.entities.CopyTradingLedger.create({
           user_id: pos.user_id,
-          kind: 'PNL',
+          kind: closeReason === 'LIQUIDATION' ? 'LIQUIDATION' : 'PNL',
           amount: pnl,
           currency: 'USDT',
           status: 'POSTED',
           ref_type: 'POSITION',
           ref_id: pos.id,
-          description: `PnL for ${pos.symbol} (${closeReason})`,
+          description: `${closeReason} for ${pos.symbol}`,
           created_at: new Date().toISOString()
         });
 
-        // C. Ledger: Commission
-        await base44.asServiceRole.entities.CopyTradingLedger.create({
-          user_id: pos.user_id,
-          kind: 'COMMISSION_CLOSE',
-          amount: -commClose,
-          currency: 'USDT',
-          status: 'POSTED',
-          ref_type: 'POSITION',
-          ref_id: pos.id,
-          description: `Close commission for ${pos.symbol}`,
-          created_at: new Date().toISOString()
-        });
+        // C. Ledger: Commission (if any)
+        if (commClose > 0) {
+          await base44.asServiceRole.entities.CopyTradingLedger.create({
+            user_id: pos.user_id,
+            kind: 'COMMISSION_CLOSE',
+            amount: -commClose,
+            currency: 'USDT',
+            status: 'POSTED',
+            ref_type: 'POSITION',
+            ref_id: pos.id,
+            description: `Close commission for ${pos.symbol}`,
+            created_at: new Date().toISOString()
+          });
+        }
 
         // D. Update Wallet: Unlock Margin + Add Net PnL
-        const margin = pos.notional_usdt / pos.leverage;
+        // Net Change = +Margin (unlock) + PnL (neg/pos) - Commission
+        // If Liquidated: +Margin - Margin - 0 = 0 change to available. Correct.
+        
         const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: pos.user_id });
         if (walletRes?.[0]) {
           const w = walletRes[0];
+          const netChange = margin + pnl - commClose;
+          
           await base44.asServiceRole.entities.CopyTradingWallet.update(w.id, {
             locked_balance: Math.max(0, w.locked_balance - margin),
-            available_balance: Math.max(0, w.available_balance + margin + pnl - commClose),
+            available_balance: Math.max(0, w.available_balance + netChange),
             lifetime_pnl: (w.lifetime_pnl || 0) + pnl - commClose,
             updated_at: new Date().toISOString()
           });
@@ -179,29 +214,29 @@ Deno.serve(async (req) => {
 
           if (shouldNotify) {
             const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}` : `${pnl.toFixed(2)}`;
-            const isProfit = pnl >= 0;
-            const title = closeReason === 'TP' 
-              ? '✅ Take Profit Executed' 
-              : (isProfit ? '🛑 Position Closed' : '🛑 Stop Loss Executed');
+            let title = 'Position Closed';
+            if (closeReason === 'TP') title = '✅ Take Profit Executed';
+            else if (closeReason === 'SL') title = '🛑 Stop Loss Executed';
+            else if (closeReason === 'LIQUIDATION') title = '☠️ Position Liquidated';
             
             await base44.asServiceRole.entities.Notification.create({
               user_id: pos.user_id,
-              type: closeReason === 'TP' ? 'trade_closed' : 'margin_warning',
+              type: closeReason === 'TP' ? 'trade_closed' : 'liquidation_warning',
               title: title,
-              message: `${pos.symbol} closed at ${currentPrice}. PnL: ${pnlStr} USDT`,
+              message: `${pos.symbol} ${closeReason} @ ${currentPrice}. PnL: ${pnlStr} USDT`,
               data: { 
                 instId: pos.symbol,
                 positionId: pos.id,
                 pnl,
                 reason: closeReason,
-                link: `/Futures?tab=bots` // Correct link to Copy Trading tab
+                link: `/Futures?tab=bots`
               },
               read: false,
               priority: 'high'
             });
           }
         } catch (e) {
-          console.error('[COPY_TRADING_PROCESSOR] Notification error:', e.message);
+          console.error('[PROCESSOR] Notification error:', e.message);
         }
 
         updates.push({ id: pos.id, symbol: pos.symbol, pnl, reason: closeReason });
@@ -209,15 +244,17 @@ Deno.serve(async (req) => {
       }
     }
 
+    const duration = Date.now() - startTs;
     return Response.json({ 
       ok: true, 
       processed, 
       updates,
-      prices_fetched: Object.keys(priceMap).length 
+      prices_fetched: Object.keys(priceMap).length,
+      duration_ms: duration
     });
 
   } catch (error) {
-    console.error('[COPY_TRADING_PROCESSOR] Fatal error:', error);
+    console.error('[PROCESSOR] Fatal error:', error);
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
 });
