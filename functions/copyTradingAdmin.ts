@@ -171,6 +171,57 @@ Deno.serve(async (req) => {
       return Response.json(res);
     }
 
+    // ==================== ADMIN WITHDRAWAL ====================
+    if (action === 'withdrawFundsAdmin') {
+      const { userEmail, amount, note } = body;
+      
+      if (!userEmail) return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'User email required' } });
+      const withdrawalAmount = Number(amount);
+      if (!Number.isFinite(withdrawalAmount) || withdrawalAmount <= 0) {
+        return Response.json({ ok: false, error: { code: 'INVALID_AMOUNT', message: 'Invalid amount' } });
+      }
+
+      const users = await base44.asServiceRole.entities.User.filter({ email: userEmail.trim().toLowerCase() });
+      if (!users?.length) return Response.json({ ok: false, error: { code: 'USER_NOT_FOUND', message: 'User not found' } });
+      const targetUser = users[0];
+
+      const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: targetUser.id });
+      const wallet = wallets?.[0];
+      
+      if (!wallet) return Response.json({ ok: false, error: { code: 'NO_WALLET', message: 'Wallet not found' } });
+      if (wallet.available_balance < withdrawalAmount) {
+        return Response.json({ ok: false, error: { code: 'INSUFFICIENT_FUNDS', message: `Insufficient balance: ${wallet.available_balance}` } });
+      }
+
+      const now = new Date().toISOString();
+      const idempotencyKey = `admin_withdraw:${targetUser.id}:${Date.now()}`;
+
+      // Create Ledger
+      const ledgerEntry = await base44.asServiceRole.entities.CopyTradingLedger.create({
+        user_id: targetUser.id,
+        kind: 'WITHDRAWAL_ADMIN',
+        amount: -withdrawalAmount,
+        currency: 'USDT',
+        status: 'POSTED',
+        ref_type: 'ADMIN_ADJUST',
+        idempotency_key: idempotencyKey,
+        balance_before: wallet.available_balance,
+        balance_after: wallet.available_balance - withdrawalAmount,
+        description: `Admin withdrawal: ${note || 'Manual deduction'}`,
+        meta: { admin_email: user.email, note },
+        created_at: now
+      });
+
+      // Update Wallet
+      await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+        available_balance: wallet.available_balance - withdrawalAmount,
+        lifetime_withdrawn: (wallet.lifetime_withdrawn || 0) + withdrawalAmount,
+        updated_at: now
+      });
+
+      return Response.json({ ok: true, data: { success: true, newBalance: wallet.available_balance - withdrawalAmount } });
+    }
+
     // ==================== MANUAL TOP-UP ====================
     if (action === 'manualTopUp') {
       const { userEmail, amount, note } = body;

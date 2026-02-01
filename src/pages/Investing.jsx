@@ -47,6 +47,8 @@ const t = {
     earned: "Earned",
     activePositions: "Active",
     avgApy: "Avg. APY",
+    estMonthlyReturn: "Est. Monthly Return",
+    estMonthlyReturnDesc: "Calculated for min. deposit",
     choosePlan: "Choose a Plan",
     step2Title: "Enter Amount",
     selectPlanFirst: "Select a plan to continue",
@@ -159,6 +161,7 @@ export default function Investing({ language = "en" }) {
   const [loading, setLoading] = useState(true);
   const [hasOkxAccount, setHasOkxAccount] = useState(false);
   const [tradingBalance, setTradingBalance] = useState(0);
+  const [copyTradingBalance, setCopyTradingBalance] = useState(0);
   const [isEligibleFirstStake, setIsEligibleFirstStake] = useState(false);
 
   // Wizard state
@@ -192,10 +195,11 @@ export default function Investing({ language = "en" }) {
       }
 
       if (isAuthenticated) {
-        const [summaryRes, positionsRes, okxRes] = await Promise.all([
-          base44.functions.invoke("stakingUser", { action: "getSummary" }),
-          base44.functions.invoke("stakingUser", { action: "getPositions" }),
-          base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
+        const [summaryRes, positionsRes, okxRes, ctWalletRes] = await Promise.all([
+        base44.functions.invoke("stakingUser", { action: "getSummary" }),
+        base44.functions.invoke("stakingUser", { action: "getPositions" }),
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
+        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
         ]);
 
         if (summaryRes.data?.ok) {
@@ -217,6 +221,9 @@ export default function Investing({ language = "en" }) {
         if (okxRes.data?.ok && okxRes.data.data?.hasAccount) {
           setHasOkxAccount(true);
           setTradingBalance(okxRes.data.data.balances?.tradingUsdt || 0);
+        }
+        if (ctWalletRes.data?.ok) {
+          setCopyTradingBalance(ctWalletRes.data.data?.available_balance || 0);
         }
       }
     } catch (err) {
@@ -249,7 +256,7 @@ export default function Investing({ language = "en" }) {
     }
   };
 
-  const handleStake = async () => {
+  const handleStake = async (sourceAccount) => {
     if (!selectedPlan || !stakeAmount) return;
 
     const amount = parseFloat(stakeAmount);
@@ -257,17 +264,15 @@ export default function Investing({ language = "en" }) {
       toast.error(`${labels.minDeposit}: $${selectedPlan.minDeposit}`);
       return;
     }
-    if (amount > tradingBalance) {
-      toast.error(labels.insufficientBalance);
-      return;
-    }
-
+    
+    // Balance check is handled inside StakingAmountPanel/backend now based on source
     setProcessing(true);
     try {
       const res = await base44.functions.invoke("stakingUser", {
         action: "createStakeRequest",
         planKey: selectedPlan.key,
-        amount
+        amount,
+        sourceAccount
       });
 
       if (res.data?.ok) {
@@ -397,6 +402,7 @@ export default function Investing({ language = "en" }) {
                     onSelect={handleSelectPlan}
                     isEligibleFirstStake={isEligibleFirstStake}
                     language={language}
+                    labels={labels}
                   />
                 ))}
               </div>
@@ -451,6 +457,7 @@ export default function Investing({ language = "en" }) {
                     amount={stakeAmount}
                     setAmount={setStakeAmount}
                     availableBalance={tradingBalance}
+                    copyTradingBalance={copyTradingBalance}
                     onStake={handleStake}
                     onBack={() => setSelectedPlan(null)}
                     processing={processing}
@@ -541,6 +548,7 @@ export default function Investing({ language = "en" }) {
                 amount={stakeAmount}
                 setAmount={setStakeAmount}
                 availableBalance={tradingBalance}
+                copyTradingBalance={copyTradingBalance}
                 onStake={handleStake}
                 onBack={() => { setSelectedPlan(null); setSheetOpen(false); }}
                 processing={processing}

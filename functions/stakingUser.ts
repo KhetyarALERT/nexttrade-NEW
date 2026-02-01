@@ -334,14 +334,15 @@ Deno.serve(async (req) => {
           estimatedEarned: getAccruedAmount(p),
           createdAt: p.created_at || p.created_date,
           rejectReason: p.reject_reason,
-          destinationPool: p.destination_pool
+          destinationPool: p.destination_pool,
+          sourceAccount: p.source_account || 'MAIN'
         }))
       });
     }
 
     // CREATE STAKE REQUEST - Lock funds and create pending position
     if (action === 'createStakeRequest') {
-      const { planKey, amount } = params;
+      const { planKey, amount, sourceAccount = 'MAIN' } = params;
 
       if (!planKey || !amount || amount <= 0) {
         return Response.json({ ok: false, error: { code: 'INVALID_PARAMS', message: 'Plan key and amount required' } }, { status: 400 });
@@ -358,102 +359,140 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'MIN_DEPOSIT', message: `Minimum deposit is ${plan.min_deposit} USDT` } }, { status: 400 });
       }
 
-      // Get user's OKX credential
-      const credResult = await getUserOkxCredential(base44, user.id);
-      if (!credResult.ok) {
-        return Response.json({ ok: false, error: credResult.error }, { status: 400 });
-      }
-
-      const { account, credential } = credResult.data;
-
-      // Check trading account balance
-      const balanceRes = await okxRequest({
-        credential,
-        method: 'GET',
-        path: '/api/v5/account/balance',
-        isTradingEndpoint: true
-      });
-
-      if (!balanceRes.ok) {
-        return Response.json({ ok: false, error: { code: 'BALANCE_CHECK_FAILED', message: balanceRes.error?.okxMsg || 'Failed to check balance' } }, { status: 500 });
-      }
-
-      const tradingUsdt = parseFloat(balanceRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
-      if (tradingUsdt < amount) {
-        return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient trading balance. Available: ${tradingUsdt.toFixed(2)} USDT` } }, { status: 400 });
-      }
-
       const now = new Date().toISOString();
-
-      // STEP 1: Create PENDING transfer record
       let lockTransferId = null;
-      try {
-        const lockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+
+      // === COPY TRADING WALLET LOGIC ===
+      if (sourceAccount === 'COPY_TRADING') {
+        const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: user.id });
+        const wallet = wallets?.[0];
+        
+        if (!wallet) {
+          return Response.json({ ok: false, error: { code: 'NO_WALLET', message: 'Copy Trading wallet not found' } }, { status: 400 });
+        }
+
+        if (wallet.available_balance < amount) {
+          return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient balance: ${wallet.available_balance.toFixed(2)} USDT` } }, { status: 400 });
+        }
+
+        // Lock funds immediately
+        await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+          available_balance: wallet.available_balance - amount,
+          locked_balance: wallet.locked_balance + amount,
+          updated_at: now
+        });
+
+        // Create ledger entry
+        await base44.asServiceRole.entities.CopyTradingLedger.create({
           user_id: user.id,
-          provider: 'OKX',
-          from_account: account.external_account_id || 'self',
-          from_account_type: 'trading',
-          to_account: account.external_account_id || 'self',
-          to_account_type: 'funding',
+          kind: 'STAKING_LOCK',
+          amount: -amount,
           currency: 'USDT',
-          amount: parseFloat(amount),
-          status: 'PENDING',
+          status: 'POSTED',
+          ref_type: 'STAKING',
+          ref_id: null, // Will update with position ID if needed, or link via position
+          balance_before: wallet.available_balance,
+          balance_after: wallet.available_balance - amount,
+          description: `Locked for staking (${plan.title})`,
           created_at: now
         });
-        lockTransferId = lockTransfer?.id;
-        console.log('[STAKING] Created lock transfer record:', lockTransferId);
-      } catch (e) {
-        console.log('[STAKING] Failed to create lock transfer record (non-blocking):', e.message);
-      }
 
-      // STEP 2: Execute OKX transfer: Trading(18) -> Funding(6)
-      const transferRes = await okxRequest({
-        credential,
-        method: 'POST',
-        path: '/api/v5/asset/transfer',
-        body: {
-          ccy: 'USDT',
-          amt: String(amount),
-          from: '18', // Trading
-          to: '6',    // Funding
-          type: '0'   // Within account
-        },
-        isTradingEndpoint: false
-      });
+      } else {
+        // === MAIN (OKX) LOGIC ===
+        // Get user's OKX credential
+        const credResult = await getUserOkxCredential(base44, user.id);
+        if (!credResult.ok) {
+          return Response.json({ ok: false, error: credResult.error }, { status: 400 });
+        }
 
-      const transferResult = transferRes.data?.data?.[0];
-      const completedAt = new Date().toISOString();
+        const { account, credential } = credResult.data;
 
-      if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
-        const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Lock transfer failed';
-        
-        // Update transfer to FAILED
+        // Check trading account balance
+        const balanceRes = await okxRequest({
+          credential,
+          method: 'GET',
+          path: '/api/v5/account/balance',
+          isTradingEndpoint: true
+        });
+
+        if (!balanceRes.ok) {
+          return Response.json({ ok: false, error: { code: 'BALANCE_CHECK_FAILED', message: balanceRes.error?.okxMsg || 'Failed to check balance' } }, { status: 500 });
+        }
+
+        const tradingUsdt = parseFloat(balanceRes.data?.data?.[0]?.details?.find(d => d.ccy === 'USDT')?.availBal || '0');
+        if (tradingUsdt < amount) {
+          return Response.json({ ok: false, error: { code: 'INSUFFICIENT_BALANCE', message: `Insufficient trading balance. Available: ${tradingUsdt.toFixed(2)} USDT` } }, { status: 400 });
+        }
+
+        // STEP 1: Create PENDING transfer record
+        try {
+          const lockTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+            user_id: user.id,
+            provider: 'OKX',
+            from_account: account.external_account_id || 'self',
+            from_account_type: 'trading',
+            to_account: account.external_account_id || 'self',
+            to_account_type: 'funding',
+            currency: 'USDT',
+            amount: parseFloat(amount),
+            status: 'PENDING',
+            created_at: now
+          });
+          lockTransferId = lockTransfer?.id;
+          console.log('[STAKING] Created lock transfer record:', lockTransferId);
+        } catch (e) {
+          console.log('[STAKING] Failed to create lock transfer record (non-blocking):', e.message);
+        }
+
+        // STEP 2: Execute OKX transfer: Trading(18) -> Funding(6)
+        const transferRes = await okxRequest({
+          credential,
+          method: 'POST',
+          path: '/api/v5/asset/transfer',
+          body: {
+            ccy: 'USDT',
+            amt: String(amount),
+            from: '18', // Trading
+            to: '6',    // Funding
+            type: '0'   // Within account
+          },
+          isTradingEndpoint: false
+        });
+
+        const transferResult = transferRes.data?.data?.[0];
+        const completedAt = new Date().toISOString();
+
+        if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+          const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Lock transfer failed';
+          
+          // Update transfer to FAILED
+          if (lockTransferId) {
+            try {
+              await base44.asServiceRole.entities.ExchangeTransfer.update(lockTransferId, {
+                status: 'FAILED',
+                error_message: errMsg,
+                completed_at: completedAt
+              });
+            } catch (e) {
+              console.log('[STAKING] Failed to update lock transfer to FAILED:', e.message);
+            }
+          }
+          
+          return Response.json({ ok: false, error: { code: 'LOCK_FAILED', message: errMsg } }, { status: 500 });
+        }
+
+        // Update transfer to COMPLETED
         if (lockTransferId) {
           try {
             await base44.asServiceRole.entities.ExchangeTransfer.update(lockTransferId, {
-              status: 'FAILED',
-              error_message: errMsg,
+              status: 'COMPLETED',
+              external_transfer_id: transferResult?.transId || null,
               completed_at: completedAt
             });
+            console.log('[STAKING] Updated lock transfer to COMPLETED:', lockTransferId);
           } catch (e) {
-            console.log('[STAKING] Failed to update lock transfer to FAILED:', e.message);
+            console.log('[STAKING] Failed to update lock transfer to COMPLETED:', e.message);
           }
-        }
-        
-        return Response.json({ ok: false, error: { code: 'LOCK_FAILED', message: errMsg } }, { status: 500 });
-      }
-
-      // Update transfer to COMPLETED
-      if (lockTransferId) {
-        try {
-          await base44.asServiceRole.entities.ExchangeTransfer.update(lockTransferId, {
-            status: 'COMPLETED',
-            external_transfer_id: transferResult?.transId || null,
-            completed_at: completedAt
-          });
-          console.log('[STAKING] Updated lock transfer to COMPLETED:', lockTransferId);
-        } catch (e) {
-          console.log('[STAKING] Failed to update lock transfer to COMPLETED:', e.message);
         }
       }
 
@@ -468,12 +507,13 @@ Deno.serve(async (req) => {
         term_days: plan.term_days,
         base_rewards_per_dollar: plan.base_rewards_per_dollar || 10,
         status: 'PENDING_APPROVAL',
+        source_account: sourceAccount,
         lock_transfer_id: lockTransferId,
         created_at: now,
         updated_at: now
       });
 
-      console.log('[STAKING] Created position:', position.id, 'Status: PENDING_APPROVAL');
+      console.log('[STAKING] Created position:', position.id, 'Status: PENDING_APPROVAL', 'Source:', sourceAccount);
 
       // Notify admins (best effort)
       try {
