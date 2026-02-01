@@ -165,8 +165,13 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         >
           <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
         </button>
-        <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-lg">
-          {token.symbol.charAt(0).toUpperCase()}
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-800">
+          <img 
+            src={token.image_url || `https://ui-avatars.com/api/?name=${token.symbol}&background=random`} 
+            alt={token.symbol}
+            className="w-full h-full object-cover"
+            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=random`; }}
+          />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-white truncate">{token.symbol}</h3>
@@ -364,14 +369,10 @@ const MemeCoinsContent = () => {
       {/* ===== TOP BAR ===== */}
       <div className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-lg flex items-center justify-center font-bold text-sm shadow-lg">
-            ⚡
-          </div>
           <div>
-            <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-              NextTrade
+            <h1 className="text-lg font-bold text-white">
+              NextTrade Meme Terminal
             </h1>
-            <p className="text-xs text-slate-500">Solana Meme Terminal</p>
           </div>
         </div>
 

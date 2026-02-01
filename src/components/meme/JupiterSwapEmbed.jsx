@@ -12,6 +12,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
   const [isLoaded, setIsLoaded] = useState(false);
   const instanceRef = useRef(null);
   const lastMintRef = useRef(null);
+  const lastAmountRef = useRef(null);
 
   // Environment variable for referral account (placeholder)
   const ENV_REFERRAL_ACCOUNT = import.meta.env.VITE_JUP_REFERRAL_ACCOUNT;
@@ -28,8 +29,8 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
       return;
     }
 
-    // Avoid re-init if same mint and already running
-    if (instanceRef.current && lastMintRef.current === outputMint) {
+    // Avoid re-init if same mint/amount and already running
+    if (instanceRef.current && lastMintRef.current === outputMint && lastAmountRef.current === initialAmount) {
       return;
     }
 
@@ -61,6 +62,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
             ...(activeReferralAccount ? {
               referralAccount: activeReferralAccount,
               referralFee: 255,
+              feeBps: 100, // 1% fee
             } : {}),
           },
           strictTokenList: false, // Critical for pump.fun / new meme coins
@@ -88,6 +90,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
 
         instanceRef.current = true;
         lastMintRef.current = outputMint;
+        lastAmountRef.current = initialAmount;
         setIsLoaded(true);
 
       } catch (err) {
@@ -104,7 +107,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
       }
       instanceRef.current = null;
     };
-  }, [open, outputMint, inputMint, activeReferralAccount, setVisible]);
+  }, [open, outputMint, inputMint, activeReferralAccount, setVisible, initialAmount]);
 
   // Sync Props Effect - Only on meaningful wallet changes
   useEffect(() => {
