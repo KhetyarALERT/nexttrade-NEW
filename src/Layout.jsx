@@ -299,13 +299,14 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       const copyTradingLockedUsdt = copyTradingData?.locked_balance || 0;
 
       // Combined totals
-      // OKX total (what's in user's subaccount) = funding + trading
-      const okxTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt + wealthUsdt;
-      // Total including staking & copy trading = OKX total + ACTIVE staked + Copy Trading internal balance
-      const totalUsdt = okxTotal + stakedActiveUsdt + copyTradingAvailableUsdt + copyTradingLockedUsdt;
+      // Main Wallet (Funding + Trading) - strictly liquid/trading assets
+      const mainWalletTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt;
+      
+      // Total including staking & copy trading
+      const totalUsdt = mainWalletTotal + wealthUsdt + stakedActiveUsdt + copyTradingAvailableUsdt + copyTradingLockedUsdt;
       const totalUsd = totalUsdt; // 1:1 for USDT
 
-      setAccountTotals({ totalUsd, totalUsdt });
+      setAccountTotals({ totalUsd, totalUsdt, mainWalletTotal });
       setAccountBalances({
         // Fund Account = internal platform funding + OKX funding account
         fundingUsdt: internalFundingUsdt + okxFundingUsdt,
@@ -577,7 +578,7 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
                                           <Wallet className="h-4 w-4" />
                                           <span>{language === "ar" ? "المحفظة" : "Wallet"}</span>
                                         </div>
-                                        <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.totalUsdt - accountBalances.stakedActiveUsdt)} USDT</span>
+                                        <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.mainWalletTotal)} USDT</span>
                                       </div>
                                     </Link>
                                   </DropdownMenuItem>

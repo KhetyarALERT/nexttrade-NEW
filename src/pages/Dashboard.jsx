@@ -290,7 +290,7 @@ export default function Dashboard({ language = "en" }) {
 
       setBalanceData({
         total: spot + locked + staked + okxBalance + copyTradingTotal,
-        available: Math.max(0, spot - locked) + okxBalance, // Copy Trading funds are specific to that wallet, not general available
+        available: Math.max(0, spot - locked) + okxBalance + copyTradingAvailable, // Including CT available to match user expectations
         inPositions: locked + staked + copyTradingLocked
       });
 

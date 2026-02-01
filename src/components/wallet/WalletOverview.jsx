@@ -137,23 +137,48 @@ export default function WalletOverview({
   // Build unified asset list from perCcy
   const buildAssetList = () => {
     const assets = [];
+    const assetMap = { ...perCcy };
+
+    // Inject Copy Trading balance into USDT
+    if (copyTradingWallet) {
+      const ctTotal = (copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0);
+      if (ctTotal > 0) {
+        if (!assetMap["USDT"]) assetMap["USDT"] = { total: 0, funding: 0, trading: 0 };
+        // We track it in 'total' but separate from funding/trading
+        // This ensures it shows up in "Total" view
+      }
+    }
     
-    // Add all currencies from perCcy
-    for (const [ccy, data] of Object.entries(perCcy)) {
+    // Add all currencies
+    for (const [ccy, data] of Object.entries(assetMap)) {
       let displayBalance = 0;
-      if (assetView === "total") displayBalance = data.total || 0;
-      else if (assetView === "funding") displayBalance = data.funding || 0;
-      else if (assetView === "trading") displayBalance = data.trading || 0;
+      let funding = data.funding || 0;
+      let trading = data.trading || 0;
+      let total = data.total || 0;
+
+      // Add Internal Funding (from props.wallets) if USDT
+      if (ccy === "USDT") {
+        funding += fundingBalance; // Add internal wallet funding
+        total += fundingBalance;
+        
+        // Add Copy Trading if USDT
+        if (copyTradingWallet) {
+          const ctTotal = (copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0);
+          total += ctTotal;
+        }
+      }
+
+      if (assetView === "total") displayBalance = total;
+      else if (assetView === "funding") displayBalance = funding;
+      else if (assetView === "trading") displayBalance = trading;
       
-      // Only show if there's a balance in the selected view
-      if (displayBalance > 0 || (assetView === "total" && (data.funding > 0 || data.trading > 0))) {
+      if (displayBalance > 0 || (assetView === "total" && total > 0)) {
         assets.push({
           currency: ccy,
           balance: displayBalance,
-          funding: data.funding || 0,
-          trading: data.trading || 0,
-          total: data.total || 0,
-          // Estimate USD value (rough for non-stablecoins)
+          funding,
+          trading,
+          total,
           usdValue: ccy === "USDT" || ccy === "USDC" ? displayBalance :
                     ccy === "BTC" ? displayBalance * 95000 :
                     ccy === "ETH" ? displayBalance * 3400 :
@@ -357,57 +382,7 @@ export default function WalletOverview({
           </CardContent>
         </Card>
 
-        {/* Copy Trading Card */}
-        {copyTradingWallet && (
-          <Card className="border-border/60 border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
-                  {language === "ar" ? "نسخ التداول" : "Copy Trading"}
-                </CardTitle>
-                {copyTradingWallet.status === 'ACTIVE' && (
-                  <Badge className="bg-blue-500/20 text-blue-700 border-0 text-xs">
-                    {language === "ar" ? "نشط" : "Active"}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">
-                {formatUSD((copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0))}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {language === "ar" ? "متاح" : "Available"}: {formatUSD(copyTradingWallet.available_balance || 0)}
-                {copyTradingWallet.locked_balance > 0 && (
-                  <> • {language === "ar" ? "مقفل" : "Locked"}: {formatUSD(copyTradingWallet.locked_balance)}</>
-                )}
-              </p>
-              <div className="mt-3 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onCopyTradingDeposit}
-                  disabled={!isFullyUnlocked}
-                  className="rounded-lg text-xs flex-1 border-blue-500/30 text-blue-700 hover:bg-blue-500/10"
-                >
-                  <ArrowDownToLine className="h-3 w-3 mr-1" />
-                  {t.deposit}
-                </Button>
-                <Button
-                  size="sm"
-                  asChild
-                  className="rounded-lg text-xs flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Link to={createPageUrl("Futures") + "?tab=bots"}>
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    {language === "ar" ? "عرض" : "View"}
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Copy Trading Card - Removed and merged into Total/Assets as requested */}
       </div>
 
       {/* Assets List */}
