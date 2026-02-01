@@ -4,7 +4,7 @@ import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, Loader2, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch } from 'lucide-react';
+import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, Loader2, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch, DollarSign } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import JupiterSwapEmbed from './JupiterSwapEmbed';
 import { requestQueue } from '@/components/utils/requestQueue';
