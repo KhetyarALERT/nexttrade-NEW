@@ -510,6 +510,7 @@ Deno.serve(async (req) => {
           destinationPool: p.destination_pool,
           approvedByType: p.approved_by_type || (p.approved_by ? 'ADMIN' : null),
           approvalNote: p.approval_note,
+          sourceAccount: p.source_account || 'MAIN',
           status: p.status,
           lockTransferId: p.lock_transfer_id,
           stakeTransferId: p.stake_transfer_id,

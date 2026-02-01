@@ -276,64 +276,8 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Check: user has OKX account
-        const userAccounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
-          user_id: position.user_id,
-          provider: 'OKX',
-          status: 'ACTIVE'
-        });
-        if (!userAccounts?.length) {
-          posDetail.status = 'skipped';
-          posDetail.reason = 'No active OKX account';
-          result.skippedCount++;
-          result.details.push(posDetail);
-          continue;
-        }
-
-        const account = userAccounts[0];
-        const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
-        if (!pools?.length) {
-          posDetail.status = 'skipped';
-          posDetail.reason = 'Pool account not found';
-          result.skippedCount++;
-          result.details.push(posDetail);
-          continue;
-        }
-
-        const pool = pools[0];
-        const credential = {
-          apiKey: pool.api_key,
-          secretKey: await decryptSecret(pool.secret_enc),
-          passphrase: await decryptSecret(pool.passphrase_enc)
-        };
-
-        // Check: funding balance sufficient
-        const fundingRes = await okxRequest({
-          credential,
-          method: 'GET',
-          path: '/api/v5/asset/balances',
-          isTradingEndpoint: false
-        });
-
-        if (!fundingRes.ok) {
-          posDetail.status = 'skipped';
-          posDetail.reason = `Failed to check funding balance: ${fundingRes.error?.okxMsg}`;
-          result.skippedCount++;
-          result.details.push(posDetail);
-          continue;
-        }
-
-        const fundingUsdt = parseFloat((fundingRes.data?.data || []).find(d => d.ccy === 'USDT')?.bal || '0');
-        if (fundingUsdt < position.principal_amount) {
-          posDetail.status = 'skipped';
-          posDetail.reason = `Insufficient funding balance: ${fundingUsdt} < ${position.principal_amount}`;
-          result.skippedCount++;
-          result.details.push(posDetail);
-          continue;
-        }
-
         // ========== APPROVE THE STAKE ==========
-        console.log(`[STAKING_AUTO_APPROVE] [${runId}] Approving position ${position.id}`);
+        console.log(`[STAKING_AUTO_APPROVE] [${runId}] Processing position ${position.id}`);
 
         // Re-check status (concurrency guard)
         const freshPositions = await base44.asServiceRole.entities.StakingPosition.filter({ id: position.id });
@@ -348,7 +292,7 @@ Deno.serve(async (req) => {
         const nowIso = new Date().toISOString();
         const endsAt = new Date(Date.now() + position.term_days * 24 * 60 * 60 * 1000).toISOString();
 
-        // Calculate rewards (same logic as okxAdminHub.approveStake)
+        // Calculate rewards
         const baseRewardsPerDollar = position.base_rewards_per_dollar || 10;
         let baseRewards = Math.round(position.principal_amount * baseRewardsPerDollar);
         let firstStakeBonus = 0;
@@ -377,97 +321,181 @@ Deno.serve(async (req) => {
         }
 
         const totalRewardsGranted = baseRewards + firstStakeBonus;
-
-        // Create stake transfer record
         let stakeTransferId = null;
-        try {
-          const stakeTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+
+        // === COPY TRADING LOGIC ===
+        if (position.source_account === 'COPY_TRADING') {
+          const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: position.user_id });
+          const wallet = wallets?.[0];
+          
+          if (!wallet) {
+            posDetail.status = 'skipped';
+            posDetail.reason = 'No Copy Trading wallet';
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
+
+          if (wallet.available_balance < position.principal_amount) {
+            posDetail.status = 'skipped';
+            posDetail.reason = `Insufficient balance: ${wallet.available_balance} < ${position.principal_amount}`;
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
+
+          // Lock funds
+          await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+            available_balance: wallet.available_balance - position.principal_amount,
+            locked_balance: wallet.locked_balance + position.principal_amount,
+            updated_at: nowIso
+          });
+
+          // Ledger entry
+          await base44.asServiceRole.entities.CopyTradingLedger.create({
             user_id: position.user_id,
-            provider: 'OKX',
-            from_account: pool.subaccount_name,
-            from_account_type: 'funding',
-            to_account: 'main',
-            to_account_type: 'funding',
+            kind: 'STAKING_LOCK',
+            amount: -position.principal_amount,
             currency: 'USDT',
-            amount: position.principal_amount,
-            status: 'PENDING',
+            status: 'POSTED',
+            ref_type: 'STAKING',
+            ref_id: position.id,
+            idempotency_key: `stake_lock:${position.id}`,
+            balance_before: wallet.available_balance,
+            balance_after: wallet.available_balance - position.principal_amount,
+            description: `Locked for staking (${position.plan_key})`,
             created_at: nowIso
           });
-          stakeTransferId = stakeTransfer?.id;
-        } catch (e) {
-          console.log(`[STAKING_AUTO_APPROVE] [${runId}] Failed to create transfer record:`, e.message);
-        }
 
-        // Execute transfer to main pool
-        const transferRes = await okxRequest({
-          credential: masterCreds.data,
-          method: 'POST',
-          path: '/api/v5/asset/transfer',
-          body: {
-            ccy: 'USDT',
-            amt: String(position.principal_amount),
-            from: '6',
-            to: '6',
-            type: '2',
-            subAcct: pool.subaccount_name
-          },
-          isTradingEndpoint: false
-        });
+        } else {
+          // === OKX MAIN LOGIC ===
+          // Check: user has OKX account
+          const userAccounts = await base44.asServiceRole.entities.UserExchangeAccount.filter({
+            user_id: position.user_id,
+            provider: 'OKX',
+            status: 'ACTIVE'
+          });
+          if (!userAccounts?.length) {
+            posDetail.status = 'skipped';
+            posDetail.reason = 'No active OKX account';
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
 
-        const transferResult = transferRes.data?.data?.[0];
-        const completedAt = new Date().toISOString();
+          const account = userAccounts[0];
+          const pools = await base44.asServiceRole.entities.OKXSubAccountPool.filter({ id: account.pool_account_id });
+          if (!pools?.length) {
+            posDetail.status = 'skipped';
+            posDetail.reason = 'Pool account not found';
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
 
-        if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
-          const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Transfer failed';
+          const pool = pools[0];
+          const credential = {
+            apiKey: pool.api_key,
+            secretKey: await decryptSecret(pool.secret_enc),
+            passphrase: await decryptSecret(pool.passphrase_enc)
+          };
 
+          // Check: funding balance sufficient
+          const fundingRes = await okxRequest({
+            credential,
+            method: 'GET',
+            path: '/api/v5/asset/balances',
+            isTradingEndpoint: false
+          });
+
+          if (!fundingRes.ok) {
+            posDetail.status = 'skipped';
+            posDetail.reason = `Failed to check funding balance: ${fundingRes.error?.okxMsg}`;
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
+
+          const fundingUsdt = parseFloat((fundingRes.data?.data || []).find(d => d.ccy === 'USDT')?.bal || '0');
+          if (fundingUsdt < position.principal_amount) {
+            posDetail.status = 'skipped';
+            posDetail.reason = `Insufficient funding balance: ${fundingUsdt} < ${position.principal_amount}`;
+            result.skippedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
+
+          // Create stake transfer record
+          try {
+            const stakeTransfer = await base44.asServiceRole.entities.ExchangeTransfer.create({
+              user_id: position.user_id,
+              provider: 'OKX',
+              from_account: pool.subaccount_name,
+              from_account_type: 'funding',
+              to_account: 'main',
+              to_account_type: 'funding',
+              currency: 'USDT',
+              amount: position.principal_amount,
+              status: 'PENDING',
+              created_at: nowIso
+            });
+            stakeTransferId = stakeTransfer?.id;
+          } catch (e) {
+            console.log(`[STAKING_AUTO_APPROVE] [${runId}] Failed to create transfer record:`, e.message);
+          }
+
+          // Execute transfer to main pool
+          const transferRes = await okxRequest({
+            credential: masterCreds.data,
+            method: 'POST',
+            path: '/api/v5/asset/transfer',
+            body: {
+              ccy: 'USDT',
+              amt: String(position.principal_amount),
+              from: '6',
+              to: '6',
+              type: '2',
+              subAcct: pool.subaccount_name
+            },
+            isTradingEndpoint: false
+          });
+
+          const transferResult = transferRes.data?.data?.[0];
+          const completedAt = new Date().toISOString();
+
+          if (!transferRes.ok || (transferResult?.code && transferResult.code !== '0')) {
+            const errMsg = transferRes.error?.okxMsg || transferResult?.msg || 'Transfer failed';
+
+            if (stakeTransferId) {
+              await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
+                status: 'FAILED',
+                error_message: errMsg,
+                completed_at: completedAt
+              });
+            }
+
+            // Update position with error
+            await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+              last_auto_attempt_at: completedAt,
+              last_auto_error: errMsg,
+              updated_at: completedAt
+            });
+
+            posDetail.status = 'failed';
+            posDetail.reason = errMsg;
+            result.failedCount++;
+            result.details.push(posDetail);
+            continue;
+          }
+
+          // Update transfer to COMPLETED
           if (stakeTransferId) {
             await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
-              status: 'FAILED',
-              error_message: errMsg,
+              status: 'COMPLETED',
+              external_transfer_id: transferResult?.transId || null,
               completed_at: completedAt
             });
           }
-
-          // Update position with error
-          await base44.asServiceRole.entities.StakingPosition.update(position.id, {
-            last_auto_attempt_at: completedAt,
-            last_auto_error: errMsg,
-            updated_at: completedAt
-          });
-
-          posDetail.status = 'failed';
-          posDetail.reason = errMsg;
-          result.failedCount++;
-          result.details.push(posDetail);
-
-          // Notify admin (dedupe by position + error)
-          try {
-            const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
-            if (admins?.length) {
-              await base44.asServiceRole.entities.Notification.create({
-                user_id: admins[0].id,
-                type: 'system',
-                title: 'Auto-Approve Failed',
-                message: `Failed to auto-approve stake ${position.id}: ${errMsg}`,
-                data: { stakingPositionId: position.id, error: errMsg, action: 'auto_approve_failed' },
-                read: false,
-                priority: 'high'
-              });
-            }
-          } catch (e) {
-            console.log(`[STAKING_AUTO_APPROVE] [${runId}] Failed to notify admin:`, e.message);
-          }
-
-          continue;
-        }
-
-        // Update transfer to COMPLETED
-        if (stakeTransferId) {
-          await base44.asServiceRole.entities.ExchangeTransfer.update(stakeTransferId, {
-            status: 'COMPLETED',
-            external_transfer_id: transferResult?.transId || null,
-            completed_at: completedAt
-          });
         }
 
         // Update position to ACTIVE
