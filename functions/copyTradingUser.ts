@@ -269,6 +269,9 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
   } catch (e) {}
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) entryPrice = signal.entry_price || 0;
 
+  // Calculate explicit quantity in base currency
+  const qtyBase = notional / entryPrice;
+
   // 7. Create Position
   const position = await base44.asServiceRole.entities.CopyPosition.create({
     user_id: targetUserId,
@@ -277,8 +280,10 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
     symbol: signal.symbol,
     side: signal.side,
     entry_price: entryPrice,
+    margin_usdt: margin,
     notional_usdt: notional,
     leverage: levNum,
+    qty_base: qtyBase,
     stop_loss: signal.stop_loss,
     tp1: signal.tp1,
     tp2: signal.tp2,
