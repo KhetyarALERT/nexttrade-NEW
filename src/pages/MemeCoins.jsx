@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
-  Zap, Star, BarChart3, Flame, DollarSign, Eye, EyeOff, Menu, Settings
+  Zap, Star, BarChart3, Flame, DollarSign
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -45,7 +45,7 @@ const formatVolume = (num) => {
 };
 
 // ============================================================================
-// MOBILE TOKEN CARD (Beautiful, Responsive)
+// MOBILE TOKEN CARD
 // ============================================================================
 
 const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
@@ -54,14 +54,14 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 
   return (
     <div 
-      className="bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 mb-3 cursor-pointer hover:border-emerald-500/50 transition-all duration-300 shadow-lg"
+      className="bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 mb-3 cursor-pointer hover:border-emerald-500/50 transition-all duration-300 shadow-lg"
       onClick={() => onDetail(token)}
     >
-      {/* Header: Token Info + Favorite */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-lg">
-            {token.symbol.charAt(0)}
+            {token.symbol.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-base text-white truncate">{token.symbol}</h3>
@@ -104,7 +104,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </div>
       </div>
 
-      {/* Quick Actions - Full Width on Mobile */}
+      {/* Quick Actions */}
       <div className="flex gap-2 w-full">
         <Button 
           className="flex-1 h-10 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-bold rounded-lg transition-all duration-300 shadow-lg"
@@ -113,16 +113,16 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
             onTrade(token);
           }}
         >
-          <Zap className="w-4 h-4 mr-2" /> Buy Now
+          <Zap className="w-4 h-4 mr-2 fill-current" /> Buy
         </Button>
         <Button 
-          className="flex-1 h-10 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-bold rounded-lg transition-all duration-300 border border-slate-600/50"
+          className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-all duration-300 border border-slate-600/50"
           onClick={(e) => {
             e.stopPropagation();
             onDetail(token);
           }}
         >
-          <BarChart3 className="w-4 h-4 mr-2" /> Chart
+          <BarChart3 className="w-4 h-4 mr-2" /> Details
         </Button>
       </div>
     </div>
@@ -130,7 +130,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 });
 
 // ============================================================================
-// DESKTOP TOKEN ROW (Beautiful, High-Density)
+// DESKTOP TOKEN ROW
 // ============================================================================
 
 const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
@@ -142,7 +142,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
       className="flex items-center justify-between px-4 py-3 border-b border-slate-700/30 hover:bg-slate-800/30 transition-all duration-200 cursor-pointer group backdrop-blur-sm"
       onClick={() => onDetail(token)}
     >
-      {/* Favorite + Token Name */}
+      {/* Favorite + Token */}
       <div className="flex items-center gap-3 min-w-[220px]">
         <button 
           onClick={(e) => {
@@ -154,7 +154,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
           <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
         </button>
         <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-lg">
-          {token.symbol.charAt(0)}
+          {token.symbol.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-white truncate">{token.symbol}</h3>
@@ -205,7 +205,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
             onTrade(token);
           }}
         >
-          <Zap className="w-3 h-3" />
+          <Zap className="w-3 h-3 fill-current" />
         </Button>
         <Button 
           size="sm" 
@@ -215,7 +215,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
             onDetail(token);
           }}
         >
-          📊
+          <BarChart3 className="w-3 h-3" />
         </Button>
       </div>
     </div>
@@ -229,7 +229,6 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 const MemeCoinsContent = () => {
   const { tokens, loading, connectionStatus } = useMemeData();
   
-  // State
   const [search, setSearch] = useState('');
   const [selectedToken, setSelectedToken] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -244,7 +243,6 @@ const MemeCoinsContent = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'market_cap', direction: 'desc' });
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
-  // Mobile Detection
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', checkMobile);
@@ -252,7 +250,6 @@ const MemeCoinsContent = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Handlers
   const handleSelectTokenForTrade = useCallback((token) => {
     setSelectedToken(token);
     setIsTradeDrawerOpen(true);
@@ -284,7 +281,6 @@ const MemeCoinsContent = () => {
     }));
   }, []);
 
-  // Filter and Sort
   const filteredTokens = useMemo(() => {
     let result = tokens.filter(t => {
       const matchesSearch = t.symbol.toLowerCase().includes(search.toLowerCase()) || 
@@ -302,7 +298,6 @@ const MemeCoinsContent = () => {
       return matchesSearch && matchesSource && matchesLiquidity && matchesMarketCap && matchesChange && matchesFavorites;
     });
 
-    // Sort
     result.sort((a, b) => {
       let aVal = a[sortConfig.key] || 0;
       let bVal = b[sortConfig.key] || 0;
@@ -326,15 +321,11 @@ const MemeCoinsContent = () => {
     setFilter('all');
   };
 
-  // ========================================================================
-  // RENDER
-  // ========================================================================
-
   return (
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col overflow-hidden">
       
-      {/* ===== PREMIUM TOP BAR ===== */}
-      <div className="bg-gradient-to-r from-slate-900/80 to-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg">
+      {/* ===== TOP BAR ===== */}
+      <div className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-lg flex items-center justify-center font-bold text-sm shadow-lg">
             ⚡
@@ -343,7 +334,7 @@ const MemeCoinsContent = () => {
             <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
               NextTrade
             </h1>
-            <p className="text-xs text-slate-500">Meme Trading Terminal</p>
+            <p className="text-xs text-slate-500">Solana Meme Terminal</p>
           </div>
         </div>
 
@@ -367,7 +358,7 @@ const MemeCoinsContent = () => {
         </div>
       </div>
 
-      {/* ===== SEARCH & FILTER BAR ===== */}
+      {/* ===== SEARCH & FILTER ===== */}
       <div className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 px-4 py-3 shrink-0">
         <div className="flex items-center gap-2 mb-3">
           <div className="relative flex-1">
@@ -397,11 +388,9 @@ const MemeCoinsContent = () => {
           </Button>
         </div>
 
-        {/* Filter Panel */}
         {showFilters && (
           <div className="space-y-3 pt-3 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2">
             
-            {/* Source Filter */}
             <div className="flex gap-2 flex-wrap">
               <span className="text-xs text-slate-500 font-semibold pt-2">Source:</span>
               <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
@@ -417,12 +406,11 @@ const MemeCoinsContent = () => {
               </div>
             </div>
 
-            {/* Numeric Filters */}
             <div className="flex flex-wrap gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className={`h-9 text-xs border-slate-700/50 rounded-lg transition-all duration-300 ${minLiquidity > 0 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' : 'text-slate-400 bg-slate-800/50'}`}>
-                    <DollarSign className="w-3 h-3 mr-1" /> Liquidity {minLiquidity > 0 ? `> $${minLiquidity}k` : ''}
+                    <DollarSign className="w-3 h-3 mr-1" /> Liquidity
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
@@ -439,7 +427,7 @@ const MemeCoinsContent = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className={`h-9 text-xs border-slate-700/50 rounded-lg transition-all duration-300 ${minMarketCap > 0 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' : 'text-slate-400 bg-slate-800/50'}`}>
-                    <BarChart3 className="w-3 h-3 mr-1" /> MCap {minMarketCap > 0 ? `> $${minMarketCap}k` : ''}
+                    <BarChart3 className="w-3 h-3 mr-1" /> MCap
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
@@ -456,7 +444,7 @@ const MemeCoinsContent = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className={`h-9 text-xs border-slate-700/50 rounded-lg transition-all duration-300 ${minChange24h > 0 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' : 'text-slate-400 bg-slate-800/50'}`}>
-                    <Flame className="w-3 h-3 mr-1" /> 24h {minChange24h > 0 ? `> ${minChange24h}%` : ''}
+                    <Flame className="w-3 h-3 mr-1" /> 24h
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
@@ -472,7 +460,7 @@ const MemeCoinsContent = () => {
 
               {activeFiltersCount > 0 && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg">
-                  <X className="w-3 h-3 mr-1" /> Clear All
+                  <X className="w-3 h-3 mr-1" /> Clear
                 </Button>
               )}
             </div>
@@ -480,13 +468,11 @@ const MemeCoinsContent = () => {
         )}
       </div>
 
-      {/* ===== MAIN CONTENT AREA ===== */}
+      {/* ===== CONTENT AREA ===== */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* LEFT: Token List */}
         <div className={`flex-1 flex flex-col overflow-hidden ${selectedToken && !isMobile ? 'max-w-[65%] border-r border-slate-700/50' : 'w-full'}`}>
           
-          {/* Desktop: Column Headers */}
           {!isMobile && (
             <div className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 px-4 py-3 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">
               <div className="min-w-[220px]">Token</div>
@@ -500,7 +486,6 @@ const MemeCoinsContent = () => {
             </div>
           )}
 
-          {/* Content */}
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 p-8">
               <Loader2 className="w-12 h-12 animate-spin text-emerald-500 mb-3" />
@@ -518,7 +503,6 @@ const MemeCoinsContent = () => {
               ) : (
                 <div>
                   {isMobile ? (
-                    // Mobile: Card Grid
                     <div className="p-4 space-y-3 pb-20">
                       {filteredTokens.map(token => (
                         <MobileTokenCard 
@@ -532,7 +516,6 @@ const MemeCoinsContent = () => {
                       ))}
                     </div>
                   ) : (
-                    // Desktop: High-Density List
                     <div>
                       {filteredTokens.map(token => (
                         <DesktopTokenRow 
@@ -552,7 +535,6 @@ const MemeCoinsContent = () => {
           )}
         </div>
 
-        {/* RIGHT: Detail Panel (Desktop Only) */}
         {!isMobile && (
           <div className={`${selectedToken ? 'w-[35%] min-w-[380px]' : 'w-0'} transition-all duration-300 ease-in-out overflow-y-auto`}>
             {selectedToken && (
@@ -566,7 +548,7 @@ const MemeCoinsContent = () => {
         )}
       </div>
 
-      {/* ===== MOBILE: Detail Sheet ===== */}
+      {/* ===== MOBILE DETAIL SHEET ===== */}
       {isMobile && selectedToken && (
         <Sheet open={isDetailSheetOpen} onOpenChange={(open) => {
           setIsDetailSheetOpen(open);
@@ -574,7 +556,7 @@ const MemeCoinsContent = () => {
         }}>
           <SheetContent side="bottom" className="h-[90vh] p-0 bg-gradient-to-br from-slate-900 to-slate-950 border-t border-slate-700/50">
             <SheetHeader className="p-4 border-b border-slate-700/50">
-              <SheetTitle className="text-white text-base">{selectedToken?.symbol} - {selectedToken?.name}</SheetTitle>
+              <SheetTitle className="text-white text-base">{selectedToken?.symbol}</SheetTitle>
             </SheetHeader>
             <div className="h-[calc(100%-60px)] overflow-y-auto">
               <MemeDetailPanel 
@@ -587,7 +569,7 @@ const MemeCoinsContent = () => {
         </Sheet>
       )}
 
-      {/* ===== TRADE DRAWER (Jupiter Swap) ===== */}
+      {/* ===== TRADE DRAWER ===== */}
       <TradeDrawer 
         open={isTradeDrawerOpen} 
         onOpenChange={(open) => {
