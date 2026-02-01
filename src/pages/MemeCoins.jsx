@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
-  Zap, Star, BarChart3, Flame, DollarSign
+  Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,13 +44,23 @@ const formatVolume = (num) => {
   return num.toFixed(0);
 };
 
+const formatTimeAgo = (timestamp) => {
+  if (!timestamp) return 'Just now';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
 // ============================================================================
 // MOBILE TOKEN CARD
 // ============================================================================
 
 const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
-  const priceChange = token.priceChange24h || 0;
-  const isPositive = priceChange >= 0;
+  const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
 
   return (
     <div 
@@ -79,12 +89,15 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </button>
       </div>
 
-      {/* Price Row */}
+      {/* Released Time & Txns Row */}
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/30">
-        <span className="text-2xl font-bold text-white">{formatPrice(token.price)}</span>
-        <span className={`text-lg font-bold flex items-center gap-1 px-3 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-          {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-          {priceChange.toFixed(2)}%
+        <div className="flex items-center gap-2">
+          <Clock className="w-4 h-4 text-emerald-400" />
+          <span className="text-lg font-bold text-white">{formatTimeAgo(token.createdAt)}</span>
+        </div>
+        <span className={`text-sm font-bold flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-700/50 text-slate-200`}>
+          <Activity className="w-3 h-3 text-blue-400" />
+          {txns} Txns (5m)
         </span>
       </div>
 
@@ -134,8 +147,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // ============================================================================
 
 const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
-  const priceChange = token.priceChange24h || 0;
-  const isPositive = priceChange >= 0;
+  const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
 
   return (
     <div 
@@ -162,16 +174,15 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </div>
       </div>
 
-      {/* Price */}
+      {/* Released (Time Ago) */}
       <div className="min-w-[110px] text-right">
-        <p className="font-bold text-white">{formatPrice(token.price)}</p>
+        <p className="font-bold text-emerald-400">{formatTimeAgo(token.createdAt)}</p>
       </div>
 
-      {/* 24h Change */}
+      {/* Txns (5m) */}
       <div className="min-w-[100px] text-right">
-        <span className={`font-bold flex items-center justify-end gap-1 px-2 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-          {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {priceChange.toFixed(2)}%
+        <span className={`font-bold flex items-center justify-end gap-1 px-2 py-1 rounded-lg bg-slate-800/50 text-slate-300`}>
+          {txns}
         </span>
       </div>
 
@@ -240,7 +251,8 @@ const MemeCoinsContent = () => {
   const [isTradeDrawerOpen, setIsTradeDrawerOpen] = useState(false);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
-  const [sortConfig, setSortConfig] = useState({ key: 'market_cap', direction: 'desc' });
+  // Default sort by Created (Released) Descending (Newest first)
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   useEffect(() => {
@@ -292,15 +304,23 @@ const MemeCoinsContent = () => {
       
       const matchesLiquidity = (t.liquidity || 0) >= minLiquidity;
       const matchesMarketCap = (t.market_cap || 0) >= minMarketCap;
-      const matchesChange = (t.priceChange24h || 0) >= minChange24h;
+      // 24h change filter might be less relevant if we removed the column, but logic remains valid for filtering
+      const matchesChange = (t.priceChange24h || 0) >= minChange24h; 
       const matchesFavorites = !showOnlyFavorites || favorites.has(t.mint);
 
       return matchesSearch && matchesSource && matchesLiquidity && matchesMarketCap && matchesChange && matchesFavorites;
     });
 
     result.sort((a, b) => {
-      let aVal = a[sortConfig.key] || 0;
-      let bVal = b[sortConfig.key] || 0;
+      let aVal, bVal;
+
+      if (sortConfig.key === 'txns') {
+        aVal = (a.buys_5m || 0) + (a.sells_5m || 0);
+        bVal = (b.buys_5m || 0) + (b.sells_5m || 0);
+      } else {
+        aVal = a[sortConfig.key] || 0;
+        bVal = b[sortConfig.key] || 0;
+      }
       
       if (sortConfig.direction === 'asc') {
         return aVal - bVal;
@@ -320,6 +340,23 @@ const MemeCoinsContent = () => {
     setMinChange24h(0);
     setFilter('all');
   };
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-emerald-400" />
+      : <ArrowDown className="w-3 h-3 ml-1 text-emerald-400" />;
+  };
+
+  const HeaderCell = ({ label, columnKey, align = 'right', minWidth = '100px' }) => (
+    <div 
+      className={`min-w-[${minWidth}] text-${align} flex items-center ${align === 'right' ? 'justify-end' : ''} cursor-pointer hover:text-white transition-colors select-none`}
+      onClick={() => handleSort(columnKey)}
+    >
+      {label}
+      <SortIcon columnKey={columnKey} />
+    </div>
+  );
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col overflow-hidden">
@@ -476,12 +513,12 @@ const MemeCoinsContent = () => {
           {!isMobile && (
             <div className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 px-4 py-3 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">
               <div className="min-w-[220px]">Token</div>
-              <div className="min-w-[110px] text-right">Price</div>
-              <div className="min-w-[100px] text-right">24h %</div>
-              <div className="min-w-[110px] text-right">MCap</div>
-              <div className="min-w-[110px] text-right">Liquidity</div>
-              <div className="min-w-[100px] text-right">Volume</div>
-              <div className="min-w-[80px] text-right">Holders</div>
+              <HeaderCell label="Released" columnKey="createdAt" align="right" minWidth="110px" />
+              <HeaderCell label="Txns (5m)" columnKey="txns" align="right" minWidth="100px" />
+              <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="110px" />
+              <HeaderCell label="Liquidity" columnKey="liquidity" align="right" minWidth="110px" />
+              <HeaderCell label="Volume" columnKey="volume24h" align="right" minWidth="100px" />
+              <HeaderCell label="Holders" columnKey="holders" align="right" minWidth="80px" />
               <div className="min-w-[80px] text-right">Action</div>
             </div>
           )}
