@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Loader2, ChevronDown, HelpCircle, MessageSquare } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, CheckCircle2, AlertCircle, Camera, FileText, User, Loader2, HelpCircle, MessageSquare } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -434,18 +435,19 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
 
             <div>
               <Label>{t.docType}</Label>
-              <div className="relative">
-                <select
-                  value={form.documentType}
-                  onChange={(e) => setForm({ ...form, documentType: e.target.value })}
-                  className="flex h-11 w-full items-center justify-between whitespace-nowrap rounded-xl border-2 border-input bg-background/50 px-4 py-2 text-sm shadow-sm ring-offset-background transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
-                >
-                  <option value="passport">{t.passport}</option>
-                  <option value="national_id">{t.nationalId}</option>
-                  <option value="drivers_license">{t.driversLicense}</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <Select
+                value={form.documentType}
+                onValueChange={(value) => setForm({ ...form, documentType: value })}
+              >
+                <SelectTrigger className="h-11 rounded-xl border-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="passport">{t.passport}</SelectItem>
+                  <SelectItem value="national_id">{t.nationalId}</SelectItem>
+                  <SelectItem value="drivers_license">{t.driversLicense}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <FileUploadBox
@@ -611,19 +613,19 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               </div>
               <div>
                 <Label>{t.country}</Label>
-                <div className="relative">
-                  <select
-                    value={form.country}
-                    onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    className="flex h-11 w-full items-center justify-between whitespace-nowrap rounded-xl border-2 border-input bg-background/50 px-4 py-2 text-sm shadow-sm ring-offset-background transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
-                  >
-                    <option value="">{language === "ar" ? "اختر الدولة" : "Select country"}</option>
+                <Select
+                  value={form.country}
+                  onValueChange={(value) => setForm({ ...form, country: value })}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-2">
+                    <SelectValue placeholder={language === "ar" ? "اختر الدولة" : "Select country"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
                     {countries.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex gap-2">

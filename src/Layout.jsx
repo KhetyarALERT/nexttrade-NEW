@@ -37,17 +37,28 @@ const formatShortAddress = (address, start = 6, end = 4) => {
   return `${str.slice(0, start)}...${str.slice(-end)}`;
 };
 
+// Haptic feedback utility
+const triggerHaptic = () => {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(10); // Light 10ms tap feedback
+  }
+};
+
 // Mobile Bottom Navigation Component
 function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location }) {
   const { openAssistantModal, activeTab, saveScrollPosition } = useMobileNavigation();
   const navT = tSection("nav", language);
   
   const handleTabClick = (tabName) => {
+    // Haptic feedback for native feel
+    triggerHaptic();
     // Save scroll position before navigating
     saveScrollPosition(activeTab);
   };
 
   const handleSupportClick = () => {
+    // Haptic feedback
+    triggerHaptic();
     // Open assistant modal without page reload
     openAssistantModal();
   };
@@ -58,7 +69,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
         <Link
           to={createPageUrl("Dashboard")}
           onClick={() => handleTabClick("Dashboard")}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home")
               ? 'text-primary bg-primary/15'
               : 'text-muted-foreground'
@@ -71,7 +82,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
         <Link
           to={createPageUrl("Futures")}
           onClick={() => handleTabClick("Futures")}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname === createPageUrl("Futures")
               ? 'text-primary bg-primary/15'
               : 'text-muted-foreground'
@@ -84,7 +95,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
         <Link
           to={createPageUrl("Wallet")}
           onClick={() => handleTabClick("Wallet")}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname.includes("Wallet")
               ? 'text-primary bg-primary/15'
               : 'text-muted-foreground'
@@ -97,7 +108,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
         <button
           type="button"
           onClick={handleSupportClick}
-          className="flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all text-muted-foreground active:text-primary active:bg-primary/15"
+          className="flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all text-muted-foreground active:text-primary active:bg-primary/15 active:scale-95"
         >
           <MessageCircle className="w-4 h-4" />
           <span className="text-[9px] font-medium">{navT.support}</span>
@@ -110,6 +121,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               handleTabClick("Profile");
             } else {
               e.preventDefault(); 
+              triggerHaptic();
               const refCode = getStoredReferralCode();
               const currentUrl = new URL(window.location.href);
               if (refCode && !currentUrl.searchParams.has('ref')) {
@@ -118,7 +130,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               navigateToLogin(currentUrl.toString()); 
             }
           }}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
+          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname.includes("Profile")
               ? 'text-primary bg-primary/15'
               : 'text-muted-foreground'
