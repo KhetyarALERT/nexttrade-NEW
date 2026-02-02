@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
   Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown,
-  Sparkles, Info
+  Sparkles, Info, RefreshCw, ExternalLink
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TradeDrawer from '@/components/meme/TradeDrawer';
 import MemeDetailPanel from '@/components/meme/MemeDetailPanel';
 
@@ -63,12 +64,10 @@ const formatTimeAgo = (timestamp) => {
 // MOBILE TOKEN CARD
 // ============================================================================
 
-const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
+const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
-
-  // DexScreener provides direct image URLs
   const imageUrl = token.image_url || null;
 
   return (
@@ -85,9 +84,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
                 src={imageUrl} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => { 
-                  e.target.style.display = 'none'; 
-                }}
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
             ) : null}
             <div className={`w-full h-full flex items-center justify-center text-sm font-bold text-white ${imageUrl ? 'hidden' : ''}`}>
@@ -97,18 +94,21 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-base text-white truncate">{token.symbol}</h3>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${token.bonding_curve_status === 'migrated' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
-                {token.bonding_curve_status === 'migrated' ? 'RAY' : 'PUMP'}
-              </span>
+              {isPumpfun ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                  PUMP
+                </span>
+              ) : (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                  DEX
+                </span>
+              )}
             </div>
             <p className="text-sm text-slate-400 truncate">{token.name}</p>
           </div>
         </div>
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(token.mint);
-          }}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(token.mint); }}
           className="text-slate-400 hover:text-yellow-400 transition-colors flex-shrink-0 p-1"
         >
           <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
@@ -129,16 +129,23 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
           <p className="text-[10px] text-slate-500 mb-0.5">Liq</p>
           <p className="text-sm font-semibold text-cyan-400">{formatMarketCap(token.liquidity)}</p>
         </div>
-        <div className={`px-2 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-          <p className="text-[9px] text-slate-500 mb-0.5">5m</p>
-          <p className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {Math.abs(priceChange).toFixed(1)}%
-          </p>
-        </div>
+        {isPumpfun && token.bondingProgress !== undefined ? (
+          <div className="px-2 py-1 rounded-lg bg-pink-500/20">
+            <p className="text-[9px] text-slate-500 mb-0.5">Progress</p>
+            <p className="text-sm font-bold text-pink-400">{token.bondingProgress.toFixed(0)}%</p>
+          </div>
+        ) : (
+          <div className={`px-2 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+            <p className="text-[9px] text-slate-500 mb-0.5">5m</p>
+            <p className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+              {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              {Math.abs(priceChange).toFixed(1)}%
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Stats Grid - Enhanced */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-700/30 text-center">
           <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Volume</p>
@@ -158,19 +165,13 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
       <div className="flex gap-2 w-full">
         <Button 
           className="flex-1 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/20"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTrade(token);
-          }}
+          onClick={(e) => { e.stopPropagation(); onTrade(token); }}
         >
           <Zap className="w-4 h-4 mr-2 fill-current" /> Quick Buy
         </Button>
         <Button 
           className="flex-1 h-11 bg-slate-700/80 hover:bg-slate-600 text-white font-bold rounded-xl transition-all duration-300 border border-slate-600/50"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDetail(token);
-          }}
+          onClick={(e) => { e.stopPropagation(); onDetail(token); }}
         >
           <BarChart3 className="w-4 h-4 mr-2" /> Chart
         </Button>
@@ -183,12 +184,10 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // DESKTOP TOKEN ROW
 // ============================================================================
 
-const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
+const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
-
-  // DexScreener provides direct image URLs
   const imageUrl = token.image_url || null;
 
   return (
@@ -199,10 +198,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
       {/* Favorite + Token */}
       <div className="flex items-center gap-3 min-w-[200px]">
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(token.mint);
-          }}
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(token.mint); }}
           className="text-slate-600 hover:text-yellow-400 transition-colors"
         >
           <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400 opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
@@ -213,9 +209,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
               src={imageUrl} 
               alt={token.symbol}
               className="w-full h-full object-cover"
-              onError={(e) => { 
-                e.target.style.display = 'none'; 
-              }}
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           ) : null}
           <div className={`w-full h-full flex items-center justify-center text-xs font-bold text-white ${imageUrl ? 'hidden' : ''}`}>
@@ -225,19 +219,25 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <h3 className="font-semibold text-sm text-white truncate group-hover:text-emerald-400 transition-colors">{token.symbol}</h3>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${token.bonding_curve_status === 'migrated' ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-              {token.bonding_curve_status === 'migrated' ? 'RAY' : 'PUMP'}
-            </span>
+            {isPumpfun ? (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-pink-500/20 text-pink-400">PUMP</span>
+            ) : (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-purple-500/20 text-purple-400">DEX</span>
+            )}
           </div>
           <p className="text-xs text-slate-500 truncate max-w-[120px]">{token.name}</p>
         </div>
       </div>
 
-      {/* 5m Change */}
+      {/* 5m Change or Bonding Progress */}
       <div className="min-w-[70px] text-right">
-        <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
-          {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
-        </span>
+        {isPumpfun && token.bondingProgress !== undefined ? (
+          <span className="text-sm font-semibold text-pink-400">{token.bondingProgress.toFixed(0)}%</span>
+        ) : (
+          <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
+          </span>
+        )}
       </div>
 
       {/* Age */}
@@ -265,30 +265,28 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         <span className="text-sm font-medium text-blue-400">{txns}</span>
       </div>
 
-      {/* Holders */}
-      <div className="min-w-[60px] text-right">
-        <span className="text-sm text-purple-400">{token.holders || '--'}</span>
-      </div>
-
       {/* Quick Actions */}
       <div className="flex gap-2 ml-4">
         <Button 
           size="sm" 
           className="h-8 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-emerald-500/20"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTrade(token);
-          }}
+          onClick={(e) => { e.stopPropagation(); onTrade(token); }}
         >
           <Zap className="w-3 h-3 mr-1 fill-current" /> Buy
         </Button>
+        {isPumpfun && (
+          <Button 
+            size="sm" 
+            className="h-8 px-3 bg-pink-600/20 hover:bg-pink-600/40 text-pink-400 rounded-lg transition-all duration-300 border border-pink-500/30"
+            onClick={(e) => { e.stopPropagation(); window.open(`https://pump.fun/${token.mint}`, '_blank'); }}
+          >
+            <ExternalLink className="w-3 h-3" />
+          </Button>
+        )}
         <Button 
           size="sm" 
           className="h-8 px-3 bg-slate-700/80 hover:bg-slate-600 text-white rounded-lg transition-all duration-300 border border-slate-600/50"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDetail(token);
-          }}
+          onClick={(e) => { e.stopPropagation(); onDetail(token); }}
         >
           <BarChart3 className="w-3 h-3" />
         </Button>
@@ -302,22 +300,33 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // ============================================================================
 
 const MemeCoinsContent = () => {
-  const { tokens, loading, connectionStatus, refreshTokens } = useMemeData();
+  const { 
+    migratedTokens, 
+    pumpfunTokens, 
+    loadingMigrated, 
+    loadingPumpfun,
+    activeTab,
+    setActiveTab,
+    refreshMigrated,
+    refreshPumpfun,
+    connectionStatus,
+    diagnostics
+  } = useMemeData();
   
   const [search, setSearch] = useState('');
   const [selectedToken, setSelectedToken] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [minLiquidity, setMinLiquidity] = useState(0);
-  const [minMarketCap, setMinMarketCap] = useState(0);
-  const [minChange24h, setMinChange24h] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [isTradeDrawerOpen, setIsTradeDrawerOpen] = useState(false);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
-  // Default sort by Created (Released) Descending (Newest first)
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  
+  // Filter states
+  const [minLiquidity, setMinLiquidity] = useState(0);
+  const [minMarketCap, setMinMarketCap] = useState(0);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -357,22 +366,34 @@ const MemeCoinsContent = () => {
     }));
   }, []);
 
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setSearch('');
+    setSortConfig({ key: 'createdAt', direction: 'desc' });
+  }, [setActiveTab]);
+
+  const handleRefresh = useCallback(() => {
+    if (activeTab === 'migrated') {
+      refreshMigrated();
+    } else {
+      refreshPumpfun();
+    }
+  }, [activeTab, refreshMigrated, refreshPumpfun]);
+
+  // Get current tokens based on active tab
+  const currentTokens = activeTab === 'migrated' ? migratedTokens : pumpfunTokens;
+  const loading = activeTab === 'migrated' ? loadingMigrated : loadingPumpfun;
+  const isPumpfunTab = activeTab === 'pumpfun';
+
   const filteredTokens = useMemo(() => {
-    let result = tokens.filter(t => {
+    let result = currentTokens.filter(t => {
       const matchesSearch = t.symbol.toLowerCase().includes(search.toLowerCase()) || 
                             t.name.toLowerCase().includes(search.toLowerCase());
-      
-      const matchesSource = filter === 'all' || 
-                            (filter === 'pump' && t.bonding_curve_status !== 'migrated') ||
-                            (filter === 'ray' && t.bonding_curve_status === 'migrated');
-      
-      const matchesLiquidity = (t.liquidity || 0) >= minLiquidity;
-      const matchesMarketCap = (t.market_cap || 0) >= minMarketCap;
-      // 5m change filter
-      const matchesChange = (t.priceChange5m || 0) >= minChange24h; 
+      const matchesLiquidity = (t.liquidity || 0) >= minLiquidity * 1000;
+      const matchesMarketCap = (t.market_cap || 0) >= minMarketCap * 1000;
       const matchesFavorites = !showOnlyFavorites || favorites.has(t.mint);
 
-      return matchesSearch && matchesSource && matchesLiquidity && matchesMarketCap && matchesChange && matchesFavorites;
+      return matchesSearch && matchesLiquidity && matchesMarketCap && matchesFavorites;
     });
 
     result.sort((a, b) => {
@@ -381,6 +402,9 @@ const MemeCoinsContent = () => {
       if (sortConfig.key === 'txns') {
         aVal = (a.buys_5m || 0) + (a.sells_5m || 0);
         bVal = (b.buys_5m || 0) + (b.sells_5m || 0);
+      } else if (sortConfig.key === 'bondingProgress') {
+        aVal = a.bondingProgress || 0;
+        bVal = b.bondingProgress || 0;
       } else {
         aVal = a[sortConfig.key] || 0;
         bVal = b[sortConfig.key] || 0;
@@ -394,15 +418,13 @@ const MemeCoinsContent = () => {
     });
 
     return result;
-  }, [tokens, search, filter, minLiquidity, minMarketCap, minChange24h, showOnlyFavorites, favorites, sortConfig]);
+  }, [currentTokens, search, minLiquidity, minMarketCap, showOnlyFavorites, favorites, sortConfig]);
 
-  const activeFiltersCount = (minLiquidity > 0 ? 1 : 0) + (minMarketCap > 0 ? 1 : 0) + (minChange24h > 0 ? 1 : 0);
+  const activeFiltersCount = (minLiquidity > 0 ? 1 : 0) + (minMarketCap > 0 ? 1 : 0);
 
   const clearFilters = () => {
     setMinLiquidity(0);
     setMinMarketCap(0);
-    setMinChange24h(0);
-    setFilter('all');
   };
 
   const SortIcon = ({ columnKey }) => {
@@ -433,10 +455,8 @@ const MemeCoinsContent = () => {
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white">
-                Meme Terminal
-              </h1>
-              <p className="text-[10px] text-slate-500 -mt-0.5">Real-time Solana meme coins</p>
+              <h1 className="text-lg font-bold text-white">Meme Terminal</h1>
+              <p className="text-[10px] text-slate-500 -mt-0.5">Solana Meme Coins</p>
             </div>
           </div>
         </div>
@@ -446,12 +466,18 @@ const MemeCoinsContent = () => {
             variant="ghost"
             size="sm"
             className="h-8 px-3 text-xs text-slate-400 hover:text-white"
-            onClick={refreshTokens}
+            onClick={handleRefresh}
             disabled={loading}
           >
-            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
             <span className="ml-1 hidden sm:inline">Refresh</span>
           </Button>
+          <button 
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-slate-300"
+          >
+            <Info className="w-4 h-4" />
+          </button>
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-sm ${connectionStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
             {connectionStatus === 'connected' ? (
               <>
@@ -466,10 +492,51 @@ const MemeCoinsContent = () => {
             )}
           </div>
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700/50 backdrop-blur-sm">
-            <span className="text-xs text-slate-300 font-medium">{tokens.length}</span>
+            <span className="text-xs text-slate-300 font-medium">{filteredTokens.length}</span>
             <span className="text-xs text-slate-500">tokens</span>
           </div>
         </div>
+      </div>
+
+      {/* ===== DIAGNOSTICS PANEL ===== */}
+      {showDiagnostics && (
+        <div className="bg-slate-900/80 border-b border-slate-700/50 px-4 py-2 text-xs font-mono">
+          <div className="flex items-center gap-6 text-slate-400">
+            <span className="text-slate-500">Migrated:</span>
+            <span>{diagnostics.migrated?.count || 0} tokens</span>
+            <span>Newest: {diagnostics.migrated?.newest?.slice(0, 19) || '--'}</span>
+            <span>Source: {diagnostics.migrated?.source || '--'}</span>
+            <span className="text-slate-500">|</span>
+            <span className="text-slate-500">Pump.fun:</span>
+            <span>{diagnostics.pumpfun?.count || 0} tokens</span>
+            <span>Newest: {diagnostics.pumpfun?.newest?.slice(0, 19) || '--'}</span>
+            <span>Source: {diagnostics.pumpfun?.source || '--'}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB SWITCHER ===== */}
+      <div className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 px-4 py-2 shrink-0">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="w-full max-w-md bg-slate-800/50 border border-slate-700/50">
+            <TabsTrigger 
+              value="migrated" 
+              className="flex-1 data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Migrated (Dex)
+              <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-slate-700/50">{migratedTokens.length}</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pumpfun" 
+              className="flex-1 data-[state=active]:bg-pink-600/20 data-[state=active]:text-pink-400"
+            >
+              <Flame className="w-4 h-4 mr-2" />
+              Pump.fun (Bonding)
+              <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-slate-700/50">{pumpfunTokens.length}</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* ===== SEARCH & FILTER ===== */}
@@ -504,22 +571,6 @@ const MemeCoinsContent = () => {
 
         {showFilters && (
           <div className="space-y-3 pt-3 border-t border-slate-700/50 animate-in fade-in slide-in-from-top-2">
-            
-            <div className="flex gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-semibold pt-2">Source:</span>
-              <div className="flex gap-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
-                {['all', 'pump', 'ray'].map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 text-xs rounded-md capitalize transition-all duration-300 font-medium ${filter === f ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700/50'}`}
-                  >
-                    {f === 'ray' ? 'Raydium' : f === 'pump' ? 'Pump.fun' : 'All'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="flex flex-wrap gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -530,7 +581,7 @@ const MemeCoinsContent = () => {
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
                   <DropdownMenuLabel>Min Liquidity</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-slate-700/50" />
-                  {[0, 5, 10, 50, 100].map(val => (
+                  {[0, 1, 5, 10, 50].map(val => (
                     <DropdownMenuItem key={val} onClick={() => setMinLiquidity(val)} className="hover:bg-slate-800">
                       {val === 0 ? 'Any' : `$${val}k+`}
                     </DropdownMenuItem>
@@ -547,26 +598,9 @@ const MemeCoinsContent = () => {
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
                   <DropdownMenuLabel>Min Market Cap</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-slate-700/50" />
-                  {[0, 50, 100, 500, 1000].map(val => (
+                  {[0, 10, 50, 100, 500].map(val => (
                     <DropdownMenuItem key={val} onClick={() => setMinMarketCap(val)} className="hover:bg-slate-800">
                       {val === 0 ? 'Any' : `$${val}k+`}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-9 text-xs border-slate-700/50 rounded-lg transition-all duration-300 ${minChange24h > 0 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' : 'text-slate-400 bg-slate-800/50'}`}>
-                    <Flame className="w-3 h-3 mr-1" /> 5m %
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
-                  <DropdownMenuLabel>Min 5m Change</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-slate-700/50" />
-                  {[0, 5, 10, 25, 50].map(val => (
-                    <DropdownMenuItem key={val} onClick={() => setMinChange24h(val)} className="hover:bg-slate-800">
-                      {val === 0 ? 'Any' : `${val}%+`}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -590,28 +624,23 @@ const MemeCoinsContent = () => {
           {!isMobile && (
             <div className="bg-slate-900/70 backdrop-blur-md border-b border-slate-700/50 px-4 py-2.5 flex items-center justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
               <div className="min-w-[200px]">Token</div>
-              <HeaderCell label="5m %" columnKey="priceChange5m" align="right" minWidth="70px" />
+              <HeaderCell label={isPumpfunTab ? "Progress" : "5m %"} columnKey={isPumpfunTab ? "bondingProgress" : "priceChange5m"} align="right" minWidth="70px" />
               <HeaderCell label="Age" columnKey="createdAt" align="right" minWidth="60px" />
               <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="90px" />
               <HeaderCell label="Liq" columnKey="liquidity" align="right" minWidth="90px" />
               <HeaderCell label="Vol" columnKey="volume24h" align="right" minWidth="80px" />
               <HeaderCell label="Txns" columnKey="txns" align="right" minWidth="60px" />
-              <HeaderCell label="Holders" columnKey="holders" align="right" minWidth="60px" />
-              <div className="min-w-[90px] text-right">Action</div>
+              <div className="min-w-[120px] text-right">Action</div>
             </div>
           )}
 
-          {loading ? (
+          {loading && filteredTokens.length === 0 ? (
             <div className="flex flex-col items-center justify-center flex-1 p-8">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center mb-4 border border-emerald-500/30">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
               </div>
-              <p className="text-base font-semibold text-white mb-1">Connecting to Live Feed</p>
-              <p className="text-sm text-slate-400">Fetching real-time meme coin data...</p>
-              <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Pump.fun</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" /> Raydium</span>
-              </div>
+              <p className="text-base font-semibold text-white mb-1">Loading {isPumpfunTab ? 'Pump.fun' : 'Migrated'} Coins</p>
+              <p className="text-sm text-slate-400">Fetching latest data...</p>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
@@ -621,7 +650,7 @@ const MemeCoinsContent = () => {
                     <Search className="w-8 h-8 text-slate-600" />
                   </div>
                   <p className="text-lg font-semibold text-white mb-1">No tokens found</p>
-                  <p className="text-sm text-slate-400 max-w-xs">Try adjusting your search or filters to find more tokens</p>
+                  <p className="text-sm text-slate-400 max-w-xs">Try adjusting your search or filters</p>
                   {activeFiltersCount > 0 && (
                     <Button 
                       variant="outline" 
@@ -645,6 +674,7 @@ const MemeCoinsContent = () => {
                           onDetail={handleSelectTokenForDetail}
                           isFavorite={favorites.has(token.mint)}
                           onToggleFavorite={handleToggleFavorite}
+                          isPumpfun={isPumpfunTab}
                         />
                       ))}
                     </div>
@@ -658,6 +688,7 @@ const MemeCoinsContent = () => {
                           onDetail={handleSelectTokenForDetail}
                           isFavorite={favorites.has(token.mint)}
                           onToggleFavorite={handleToggleFavorite}
+                          isPumpfun={isPumpfunTab}
                         />
                       ))}
                     </div>
