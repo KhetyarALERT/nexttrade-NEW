@@ -160,58 +160,62 @@ async function fetchDexScreenerTokens(targetCount = 200) {
     if (tokenMap.size < targetCount) {
       console.log(`[DEXSCREENER] Searching for more tokens (have ${tokenMap.size})...`);
       
-      for (const query of searchQueries.slice(0, 3)) {
-        if (tokenMap.size >= targetCount) break;
-        
+      // Run multiple searches in parallel for speed
+      const searchPromises = searchQueries.map(async (query) => {
         try {
           const searchRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/search?q=${query}`);
           if (searchRes.ok) {
             const searchData = await searchRes.json();
-            const solanaPairs = (searchData.pairs || [])
+            return (searchData.pairs || [])
               .filter(p => p.chainId === 'solana')
               .slice(0, 50);
-            
-            console.log(`[DEXSCREENER] Search "${query}" returned ${solanaPairs.length} pairs`);
-            
-            solanaPairs.forEach(pair => {
-              const token = normalizeDexPair(pair, profileMap);
-              if (token && !tokenMap.has(token.mint)) {
-                tokenMap.set(token.mint, token);
-              }
-            });
           }
         } catch (e) {
           console.error(`[DEXSCREENER] Search "${query}" failed:`, e.message);
         }
-      }
+        return [];
+      });
+      
+      const searchResults = await Promise.all(searchPromises);
+      searchResults.forEach((pairs, i) => {
+        console.log(`[DEXSCREENER] Search "${searchQueries[i]}" returned ${pairs.length} pairs`);
+        pairs.forEach(pair => {
+          const token = normalizeDexPair(pair, profileMap);
+          if (token && !tokenMap.has(token.mint)) {
+            tokenMap.set(token.mint, token);
+          }
+        });
+      });
     }
 
-    // Strategy 4: Fetch pairs by DEX (pumpswap, raydium, meteora)
+    // Strategy 4: Fetch pairs by DEX (pumpswap, raydium, meteora, orca)
     if (tokenMap.size < targetCount) {
-      const dexes = ['raydium', 'meteora', 'orca'];
+      const dexes = ['raydium', 'meteora', 'orca', 'pumpswap'];
       
-      for (const dex of dexes) {
-        if (tokenMap.size >= targetCount) break;
-        
+      // Run DEX fetches in parallel
+      const dexPromises = dexes.map(async (dex) => {
         try {
           const dexRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/pairs/solana?dex=${dex}`);
           if (dexRes.ok) {
             const dexData = await dexRes.json();
-            const pairs = dexData.pairs || [];
-            
-            console.log(`[DEXSCREENER] DEX "${dex}" returned ${pairs.length} pairs`);
-            
-            pairs.slice(0, 50).forEach(pair => {
-              const token = normalizeDexPair(pair, profileMap);
-              if (token && !tokenMap.has(token.mint)) {
-                tokenMap.set(token.mint, token);
-              }
-            });
+            return { dex, pairs: (dexData.pairs || []).slice(0, 100) };
           }
         } catch (e) {
           console.error(`[DEXSCREENER] DEX "${dex}" failed:`, e.message);
         }
-      }
+        return { dex, pairs: [] };
+      });
+      
+      const dexResults = await Promise.all(dexPromises);
+      dexResults.forEach(({ dex, pairs }) => {
+        console.log(`[DEXSCREENER] DEX "${dex}" returned ${pairs.length} pairs`);
+        pairs.forEach(pair => {
+          const token = normalizeDexPair(pair, profileMap);
+          if (token && !tokenMap.has(token.mint)) {
+            tokenMap.set(token.mint, token);
+          }
+        });
+      });
     }
 
     const tokens = Array.from(tokenMap.values())
