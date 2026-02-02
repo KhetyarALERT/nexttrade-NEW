@@ -191,6 +191,28 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
           <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
         </div>
       )}
+      
+      {/* Success/Error Status Overlay */}
+      {lastSwapStatus && (
+        <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium shadow-lg transition-all duration-300 ${
+          lastSwapStatus === 'success' 
+            ? 'bg-emerald-500/90 text-white' 
+            : 'bg-red-500/90 text-white'
+        }`}>
+          {lastSwapStatus === 'success' ? (
+            <>
+              <CheckCircle2 className="w-4 h-4" />
+              Swap Complete!
+            </>
+          ) : (
+            <>
+              <XCircle className="w-4 h-4" />
+              Swap Failed
+            </>
+          )}
+        </div>
+      )}
+      
       <div id="jupiter-swap-container" className="w-full h-full min-h-[520px]" />
     </div>
   );
