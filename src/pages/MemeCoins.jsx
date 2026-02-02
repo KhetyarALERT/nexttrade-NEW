@@ -33,28 +33,30 @@ const formatPrice = (num) => {
 };
 
 const formatMarketCap = (num) => {
-  if (!num) return '--';
-  if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+  if (!num || num === 0) return '--';
+  if (num >= 1000000000) return `$${(num / 1000000000).toFixed(2)}B`;
+  if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
   if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
   return `$${num.toFixed(0)}`;
 };
 
 const formatVolume = (num) => {
-  if (!num) return '--';
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toFixed(0);
+  if (!num || num === 0) return '--';
+  if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+  if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+  return `$${num.toFixed(0)}`;
 };
 
 const formatTimeAgo = (timestamp) => {
   if (!timestamp) return 'Just now';
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 0) return 'Just now';
+  if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
 };
 
 // ============================================================================
