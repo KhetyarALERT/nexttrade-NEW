@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,8 @@ import {
   Info,
   Lock,
   Clock,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import RecentTransfersCard from "./RecentTransfersCard";
@@ -96,9 +97,11 @@ export default function WalletOverview({
   onDeposit,
   onTransfer,
   onCopyTradingDeposit,
-  onRefresh
+  onRefresh,
+  showBackButton = false
 }) {
   const t = translations[language] || translations.en;
+  const navigate = useNavigate();
   const [assetView, setAssetView] = useState("total"); // total | funding | trading | staked
 
   // Staking amounts (from overlay)
@@ -197,6 +200,21 @@ export default function WalletOverview({
 
   return (
     <div className="space-y-6">
+      {/* Mobile Back Button */}
+      {showBackButton && (
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {language === "ar" ? "رجوع" : "Back"}
+          </Button>
+        </div>
+      )}
+      
       {/* Total Balance Card */}
       <Card className="border-border/60 bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden">
         <CardContent className="p-6">
@@ -536,5 +554,6 @@ WalletOverview.propTypes = {
   onDeposit: PropTypes.func,
   onTransfer: PropTypes.func,
   onCopyTradingDeposit: PropTypes.func,
-  onRefresh: PropTypes.func
+  onRefresh: PropTypes.func,
+  showBackButton: PropTypes.bool
 };

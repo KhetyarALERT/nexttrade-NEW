@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,8 @@ import {
   RefreshCw,
   QrCode,
   Info,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import CryptoIcon from "@/components/ui/CryptoIcon";
@@ -85,8 +87,9 @@ const translations = {
   }
 };
 
-export default function WalletDeposit({ language = "en", hasOkxAccount = false, onRefresh }) {
+export default function WalletDeposit({ language = "en", hasOkxAccount = false, onRefresh, showBackButton = false }) {
   const t = translations[language] || translations.en;
+  const navigate = useNavigate();
 
   const [selectedCurrency, setSelectedCurrency] = useState("USDT");
   const [selectedChain, setSelectedChain] = useState("");
@@ -187,6 +190,21 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
 
   return (
     <div className="space-y-6">
+      {/* Mobile Back Button */}
+      {showBackButton && (
+        <div className="lg:hidden mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {language === "ar" ? "رجوع" : "Back"}
+          </Button>
+        </div>
+      )}
+      
       {/* Deposit Form */}
       <Card className="border-border/60">
         <CardHeader>
@@ -378,5 +396,6 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
 WalletDeposit.propTypes = {
   language: PropTypes.string,
   hasOkxAccount: PropTypes.bool,
-  onRefresh: PropTypes.func
+  onRefresh: PropTypes.func,
+  showBackButton: PropTypes.bool
 };

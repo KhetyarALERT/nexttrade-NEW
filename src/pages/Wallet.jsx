@@ -546,6 +546,7 @@ export default function WalletPage({ language = "en" }) {
                 onTransfer={() => setTransferModalOpen(true)}
                 onCopyTradingDeposit={() => setCopyTradingDepositOpen(true)}
                 onRefresh={handleRefresh}
+                showBackButton={false}
               />
             )}
             {activePage === "deposit" && (
@@ -553,12 +554,14 @@ export default function WalletPage({ language = "en" }) {
                 language={language}
                 hasOkxAccount={hasOkxAccount}
                 onRefresh={handleRefresh}
+                showBackButton={true}
               />
             )}
             {activePage === "history" && (
               <WalletHistory
                 language={language}
                 onRefresh={handleRefresh}
+                showBackButton={true}
               />
             )}
           </main>

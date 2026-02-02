@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,8 @@ import {
   ArrowLeftRight,
   RefreshCw,
   ExternalLink,
-  Clock
+  Clock,
+  ArrowLeft
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 
@@ -56,8 +58,9 @@ const STATUS_CONFIG = {
   cancelled: { color: "text-slate-600 border-slate-300 bg-slate-50", label: "failed" }
 };
 
-export default function WalletHistory({ language = "en", onRefresh }) {
+export default function WalletHistory({ language = "en", onRefresh, showBackButton = false }) {
   const t = translations[language] || translations.en;
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -133,8 +136,24 @@ export default function WalletHistory({ language = "en", onRefresh }) {
   }
 
   return (
-    <Card className="border-border/60">
-      <CardHeader className="flex flex-row items-center justify-between">
+    <div className="space-y-4">
+      {/* Mobile Back Button */}
+      {showBackButton && (
+        <div className="lg:hidden">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {language === "ar" ? "رجوع" : "Back"}
+          </Button>
+        </div>
+      )}
+      
+      <Card className="border-border/60">
+        <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <History className="h-5 w-5 text-primary" />
           {t.title}
@@ -239,11 +258,13 @@ export default function WalletHistory({ language = "en", onRefresh }) {
           </TabsContent>
         </Tabs>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
 WalletHistory.propTypes = {
   language: PropTypes.string,
-  onRefresh: PropTypes.func
+  onRefresh: PropTypes.func,
+  showBackButton: PropTypes.bool
 };
