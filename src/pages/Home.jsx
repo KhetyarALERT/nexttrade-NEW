@@ -309,9 +309,9 @@ export default function Home({ language = "en" }) {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             {/* Left Content - Text */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+              initial={fadeInUp.initial}
+              animate={fadeInUp.animate}
+              transition={{ duration: shouldReduceMotion ? 0.2 : 0.6 }}
               className="order-2 lg:order-1 text-center lg:text-left"
             >
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
