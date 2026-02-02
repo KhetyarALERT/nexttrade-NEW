@@ -256,41 +256,41 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </div>
       </div>
 
-      {/* Price */}
-      <div className="min-w-[100px] text-right">
-        <p className="font-mono text-sm font-semibold text-emerald-400">{formatPrice(token.price_usd)}</p>
-      </div>
-
       {/* 24h Change */}
-      <div className="min-w-[80px] text-right">
+      <div className="min-w-[70px] text-right">
         <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
           {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
         </span>
       </div>
 
-      {/* Released (Time Ago) */}
-      <div className="min-w-[80px] text-right">
-        <p className="text-sm text-slate-400">{formatTimeAgo(token.createdAt)}</p>
+      {/* Age */}
+      <div className="min-w-[60px] text-right">
+        <p className="text-sm font-medium text-emerald-400">{formatTimeAgo(token.createdAt)}</p>
       </div>
 
       {/* Market Cap */}
-      <div className="min-w-[100px] text-right">
+      <div className="min-w-[90px] text-right">
         <p className="text-sm font-medium text-white">{formatMarketCap(token.market_cap)}</p>
       </div>
 
       {/* Liquidity */}
-      <div className="min-w-[100px] text-right">
+      <div className="min-w-[90px] text-right">
         <p className="text-sm font-medium text-cyan-400">{formatMarketCap(token.liquidity)}</p>
       </div>
 
       {/* Volume */}
-      <div className="min-w-[90px] text-right">
+      <div className="min-w-[80px] text-right">
         <p className="text-sm text-slate-400">{formatVolume(token.volume24h)}</p>
       </div>
 
       {/* Txns */}
-      <div className="min-w-[70px] text-right">
+      <div className="min-w-[60px] text-right">
         <span className="text-sm font-medium text-blue-400">{txns}</span>
+      </div>
+
+      {/* Holders */}
+      <div className="min-w-[60px] text-right">
+        <span className="text-sm text-purple-400">{token.holders || '--'}</span>
       </div>
 
       {/* Quick Actions */}
@@ -602,16 +602,16 @@ const MemeCoinsContent = () => {
         <div className={`flex-1 flex flex-col overflow-hidden ${selectedToken && !isMobile ? 'max-w-[65%] border-r border-slate-700/50' : 'w-full'}`}>
           
           {!isMobile && (
-            <div className="bg-slate-900/70 backdrop-blur-md border-b border-slate-700/50 px-4 py-2.5 flex items-center justify-between text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+            <div className="bg-slate-900/70 backdrop-blur-md border-b border-slate-700/50 px-4 py-2.5 flex items-center justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
               <div className="min-w-[200px]">Token</div>
-              <HeaderCell label="Price" columnKey="price_usd" align="right" minWidth="100px" />
-              <HeaderCell label="24h" columnKey="priceChange24h" align="right" minWidth="80px" />
-              <HeaderCell label="Age" columnKey="createdAt" align="right" minWidth="80px" />
-              <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="100px" />
-              <HeaderCell label="Liquidity" columnKey="liquidity" align="right" minWidth="100px" />
-              <HeaderCell label="Volume" columnKey="volume24h" align="right" minWidth="90px" />
-              <HeaderCell label="Txns" columnKey="txns" align="right" minWidth="70px" />
-              <div className="min-w-[100px] text-right">Action</div>
+              <HeaderCell label="24h %" columnKey="priceChange24h" align="right" minWidth="70px" />
+              <HeaderCell label="Age" columnKey="createdAt" align="right" minWidth="60px" />
+              <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="90px" />
+              <HeaderCell label="Liq" columnKey="liquidity" align="right" minWidth="90px" />
+              <HeaderCell label="Vol" columnKey="volume24h" align="right" minWidth="80px" />
+              <HeaderCell label="Txns" columnKey="txns" align="right" minWidth="60px" />
+              <HeaderCell label="Holders" columnKey="holders" align="right" minWidth="60px" />
+              <div className="min-w-[90px] text-right">Action</div>
             </div>
           )}
 
