@@ -68,20 +68,8 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
   const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
 
-  // Resolve IPFS/image URL for token image
-  const getTokenImage = (url) => {
-    if (!url) return null;
-    if (url.startsWith('ipfs://')) {
-      return url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
-    }
-    // Handle pump.fun CDN URLs
-    if (url.includes('cf-ipfs.com') || url.includes('dweb.link')) {
-      return url.replace('cf-ipfs.com', 'gateway.pinata.cloud').replace('dweb.link', 'gateway.pinata.cloud');
-    }
-    return url;
-  };
-
-  const imageUrl = getTokenImage(token.image_url);
+  // DexScreener provides direct image URLs
+  const imageUrl = token.image_url || null;
 
   return (
     <div 
