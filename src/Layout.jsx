@@ -1052,7 +1052,7 @@ LayoutInner.propTypes = {
 };
 
 // Wrap Layout with MobileNavigationProvider
-export default function Layout(props) {
+function Layout(props) {
   return (
     <MobileNavigationProvider>
       <LayoutInner {...props} />
@@ -1064,3 +1064,5 @@ Layout.propTypes = {
   children: PropTypes.node.isRequired,
   currentPageName: PropTypes.string,
 };
+
+export default Layout;
