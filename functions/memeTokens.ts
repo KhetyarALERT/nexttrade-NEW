@@ -10,8 +10,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 // =============================================================================
 
 const DEXSCREENER_API = 'https://api.dexscreener.com';
-const PUMPPORTAL_API = 'https://pumpportal.fun/api';
-const HELIUS_API = 'https://mainnet.helius-rpc.com';
+const PUMPFUN_ADVANCED_API = 'https://advanced-api-v2.pump.fun';
+const PUMPFUN_FRONTEND_API = 'https://frontend-api-v2.pump.fun';
 
 // In-memory cache with TTL
 const cache = new Map();
@@ -332,10 +332,10 @@ function normalizeDexPair(pair, profileMap = new Map(), boostAmount = 0) {
 }
 
 // =============================================================================
-// PUMPPORTAL: Fetch Pump.fun bonding curve tokens via WebSocket snapshot
+// PUMP.FUN: Fetch bonding curve tokens from official API
 // =============================================================================
 
-async function fetchPumpFunTokens(targetCount = 100) {
+async function fetchPumpFunTokens(targetCount = 200) {
   const cacheKey = 'pumpfun-tokens';
   const cached = getCached(cacheKey);
   if (cached) {
@@ -345,119 +345,202 @@ async function fetchPumpFunTokens(targetCount = 100) {
 
   console.log(`[PUMPFUN] Fetching bonding curve tokens, target: ${targetCount}`);
   const startTime = Date.now();
+  const tokenMap = new Map();
 
+  // Strategy 1: Try the advanced API with sort by creation time
   try {
-    // PumpPortal provides a REST API for recent tokens
-    // Endpoint: /api/coins - returns latest coins
-    const response = await throttledFetch(`${PUMPPORTAL_API}/coins?limit=${targetCount}&sort=created&order=desc`);
+    const advancedRes = await throttledFetch(
+      `${PUMPFUN_ADVANCED_API}/coins/list?sortBy=creationTime&direction=desc`,
+      { headers: { 'Accept': 'application/json' } }
+    );
     
-    if (response.ok) {
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        const tokens = data.map(normalizePumpPortalCoin).filter(Boolean);
+    if (advancedRes.ok) {
+      const contentType = advancedRes.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await advancedRes.json();
+        const coins = data.coins || data || [];
         
-        const elapsed = Date.now() - startTime;
-        console.log(`[PUMPFUN] Success: ${tokens.length} tokens in ${elapsed}ms`);
-        
-        if (tokens.length > 0) {
-          console.log(`[PUMPFUN] Newest: ${tokens[0]?.symbol}`);
+        if (Array.isArray(coins) && coins.length > 0) {
+          console.log(`[PUMPFUN] Advanced API returned ${coins.length} coins`);
+          
+          coins.forEach(coin => {
+            const token = normalizePumpFunCoin(coin);
+            if (token && !tokenMap.has(token.mint)) {
+              tokenMap.set(token.mint, token);
+            }
+          });
         }
-        
-        setCache(cacheKey, tokens);
-        return tokens;
       }
+    } else {
+      console.log(`[PUMPFUN] Advanced API status: ${advancedRes.status}`);
     }
-    
-    console.log(`[PUMPFUN] API response: ${response.status}`);
-    
-    // Fallback: Use DexScreener to find pumpfun pairs
-    return await fetchPumpFunFallback(targetCount);
-  } catch (error) {
-    console.error('[PUMPFUN] Error:', error.message);
-    return await fetchPumpFunFallback(targetCount);
+  } catch (e) {
+    console.error('[PUMPFUN] Advanced API error:', e.message);
   }
-}
 
-async function fetchPumpFunFallback(targetCount = 100) {
-  console.log('[PUMPFUN-FALLBACK] Using DexScreener search for pump tokens');
-  
-  try {
-    // Search for pump tokens on DexScreener
-    const searchRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/search?q=pump`);
-    
-    if (!searchRes.ok) {
-      console.log(`[PUMPFUN-FALLBACK] Search failed: ${searchRes.status}`);
-      return [];
-    }
-    
-    const searchData = await searchRes.json();
-    
-    // Filter for Solana pairs that are on pumpfun or pumpswap
-    const pumpPairs = (searchData.pairs || [])
-      .filter(p => 
-        p.chainId === 'solana' && 
-        (p.dexId === 'pumpfun' || p.dexId === 'pumpswap' || (p.baseToken?.symbol || '').toLowerCase().includes('pump'))
-      )
-      .slice(0, targetCount);
-
-    console.log(`[PUMPFUN-FALLBACK] Found ${pumpPairs.length} pump-related pairs`);
-
-    const tokens = pumpPairs.map(pair => {
-      const token = normalizeDexPair(pair, new Map());
-      if (token) {
-        // Mark as bonding curve if on pumpfun dex
-        token.bonding_curve_status = pair.dexId === 'pumpfun' ? 'bonding_curve' : 'migrated';
-        token.source = 'dexscreener-pump';
-      }
-      return token;
-    }).filter(Boolean);
-
-    // Also try to get tokens specifically from pumpfun dex
+  // Strategy 2: Try the frontend API for latest coins
+  if (tokenMap.size < targetCount) {
     try {
-      const pumpfunRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/pairs/solana?dex=pumpfun`);
-      if (pumpfunRes.ok) {
-        const pumpfunData = await pumpfunRes.json();
-        const additionalPairs = (pumpfunData.pairs || []).slice(0, 50);
-        
-        console.log(`[PUMPFUN-FALLBACK] pumpfun dex returned ${additionalPairs.length} pairs`);
-        
-        additionalPairs.forEach(pair => {
-          const token = normalizeDexPair(pair, new Map());
-          if (token && !tokens.find(t => t.mint === token.mint)) {
-            token.bonding_curve_status = 'bonding_curve';
-            token.source = 'dexscreener-pump';
-            tokens.push(token);
+      const frontendRes = await throttledFetch(
+        `${PUMPFUN_FRONTEND_API}/coins?offset=0&limit=100&sort=created_timestamp&order=DESC&includeNsfw=false`,
+        { headers: { 'Accept': 'application/json' } }
+      );
+      
+      if (frontendRes.ok) {
+        const contentType = frontendRes.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const coins = await frontendRes.json();
+          
+          if (Array.isArray(coins) && coins.length > 0) {
+            console.log(`[PUMPFUN] Frontend API returned ${coins.length} coins`);
+            
+            coins.forEach(coin => {
+              const token = normalizePumpFunCoinLegacy(coin);
+              if (token && !tokenMap.has(token.mint)) {
+                tokenMap.set(token.mint, token);
+              }
+            });
           }
-        });
+        }
+      } else {
+        console.log(`[PUMPFUN] Frontend API status: ${frontendRes.status}`);
       }
     } catch (e) {
-      console.error('[PUMPFUN-FALLBACK] pumpfun dex fetch failed:', e.message);
+      console.error('[PUMPFUN] Frontend API error:', e.message);
     }
-
-    return tokens.slice(0, targetCount);
-  } catch (e) {
-    console.error('[PUMPFUN-FALLBACK] Error:', e.message);
-    return [];
   }
+
+  // Strategy 3: Fallback to DexScreener for pumpfun pairs
+  if (tokenMap.size < 50) {
+    console.log('[PUMPFUN] Using DexScreener fallback...');
+    
+    try {
+      // Search for new pump tokens
+      const searchTerms = ['pump', 'new', 'launch'];
+      
+      for (const term of searchTerms) {
+        if (tokenMap.size >= targetCount) break;
+        
+        try {
+          const searchRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/search?q=${term}`);
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const pumpPairs = (searchData.pairs || [])
+              .filter(p => p.chainId === 'solana' && p.dexId === 'pumpfun')
+              .slice(0, 100);
+            
+            console.log(`[PUMPFUN] DexScreener search "${term}" found ${pumpPairs.length} pumpfun pairs`);
+            
+            pumpPairs.forEach(pair => {
+              const token = normalizeDexPair(pair, new Map());
+              if (token && !tokenMap.has(token.mint)) {
+                token.bonding_curve_status = 'bonding_curve';
+                token.source = 'dexscreener-pump';
+                tokenMap.set(token.mint, token);
+              }
+            });
+          }
+        } catch (e) {
+          // Continue with other terms
+        }
+      }
+    } catch (e) {
+      console.error('[PUMPFUN] DexScreener fallback error:', e.message);
+    }
+  }
+
+  // Sort by creation time (newest first) and dedupe
+  const tokens = Array.from(tokenMap.values())
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, targetCount);
+
+  const elapsed = Date.now() - startTime;
+  console.log(`[PUMPFUN] Complete: ${tokens.length} unique tokens in ${elapsed}ms`);
+  
+  if (tokens.length > 0) {
+    const newest = tokens[0];
+    const oldest = tokens[tokens.length - 1];
+    const newestAge = formatTimeAge(newest?.createdAt);
+    const oldestAge = formatTimeAge(oldest?.createdAt);
+    console.log(`PumpFun: fetched ${tokenMap.size}, unique ${tokens.length}, newest=${newestAge}, oldest=${oldestAge}`);
+  }
+
+  setCache(cacheKey, tokens);
+  return tokens;
 }
 
-function normalizePumpPortalCoin(coin) {
+function formatTimeAge(timestamp) {
+  if (!timestamp) return 'unknown';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 0) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function normalizePumpFunCoin(coin) {
+  if (!coin) return null;
+  
+  const mint = coin.coinMint || coin.mint;
+  if (!mint) return null;
+
+  // Calculate bonding curve progress
+  const marketCap = coin.marketCap || coin.usd_market_cap || 0;
+  const bondingProgress = coin.bondingCurveProgress || Math.min(100, (marketCap / 69000) * 100);
+
+  return {
+    mint: mint,
+    symbol: coin.ticker || coin.symbol || 'UNKNOWN',
+    name: coin.name || 'Unknown Token',
+    image_url: coin.imageUrl || coin.image_uri || '',
+    description: coin.description || '',
+    price_usd: coin.currentMarketPrice || (marketCap > 0 ? marketCap / 1000000000 : 0),
+    market_cap: marketCap,
+    liquidity: 0, // Bonding curve tokens don't have traditional liquidity
+    volume24h: coin.volume || 0,
+    volume5m: 0,
+    priceChange5m: 0,
+    priceChange1h: 0,
+    priceChange24h: 0,
+    buys_5m: coin.buyTransactions || 0,
+    sells_5m: coin.sellTransactions || 0,
+    buys_1h: 0,
+    sells_1h: 0,
+    buys_24h: coin.transactions || 0,
+    sells_24h: 0,
+    holders: coin.numHolders || 0,
+    twitter: coin.twitter || null,
+    telegram: coin.telegram || null,
+    website: coin.website || null,
+    dexId: 'pumpfun',
+    pairAddress: coin.poolAddress || null,
+    createdAt: coin.creationTime || Date.now(),
+    bonding_curve_status: coin.graduationDate ? 'migrated' : 'bonding_curve',
+    bondingProgress: bondingProgress,
+    allTimeHighMarketCap: coin.allTimeHighMarketCap || 0,
+    devHoldingsPercentage: coin.devHoldingsPercentage || 0,
+    source: 'pumpfun-advanced'
+  };
+}
+
+function normalizePumpFunCoinLegacy(coin) {
   if (!coin || !coin.mint) return null;
 
-  // Calculate bonding curve progress (pump.fun completes at ~$69k)
-  const marketCap = coin.usd_market_cap || coin.marketCap || 0;
+  const marketCap = coin.usd_market_cap || coin.market_cap || 0;
   const bondingProgress = Math.min(100, (marketCap / 69000) * 100);
 
   return {
     mint: coin.mint,
     symbol: coin.symbol || 'UNKNOWN',
     name: coin.name || 'Unknown Token',
-    image_url: coin.image_uri || coin.image || `https://pump.fun/${coin.mint}/image`,
+    image_url: coin.image_uri || coin.image || '',
     description: coin.description || '',
     price_usd: marketCap > 0 ? marketCap / 1000000000 : 0,
     market_cap: marketCap,
-    liquidity: coin.virtual_sol_reserves ? coin.virtual_sol_reserves * 200 : 0,
+    liquidity: 0,
     volume24h: coin.volume_24h || 0,
     volume5m: 0,
     priceChange5m: 0,
@@ -470,16 +553,15 @@ function normalizePumpPortalCoin(coin) {
     buys_24h: 0,
     sells_24h: 0,
     holders: coin.holder_count || 0,
-    twitter: coin.twitter ? `https://twitter.com/${coin.twitter}` : null,
-    telegram: coin.telegram ? `https://t.me/${coin.telegram}` : null,
+    twitter: coin.twitter ? (coin.twitter.startsWith('http') ? coin.twitter : `https://twitter.com/${coin.twitter}`) : null,
+    telegram: coin.telegram ? (coin.telegram.startsWith('http') ? coin.telegram : `https://t.me/${coin.telegram}`) : null,
     website: coin.website || null,
     dexId: 'pumpfun',
     pairAddress: null,
     createdAt: coin.created_timestamp || Date.now(),
-    bonding_curve_status: 'bonding_curve',
+    bonding_curve_status: coin.complete ? 'migrated' : 'bonding_curve',
     bondingProgress: bondingProgress,
-    is_currently_live: coin.is_currently_live || false,
-    source: 'pumpportal'
+    source: 'pumpfun-frontend'
   };
 }
 
