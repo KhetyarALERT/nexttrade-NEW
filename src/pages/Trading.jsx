@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
@@ -41,6 +42,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 
 export default function Trading({ language = "en" }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isCopyMode = searchParams.get("tab") === "bots";
   
@@ -367,7 +369,7 @@ export default function Trading({ language = "en" }) {
           <div className="border-b border-border px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur z-50 sticky top-0">
             <div className="flex items-center justify-between mb-3 relative">
               <button 
-                onClick={() => window.history.back()} 
+                onClick={() => navigate(-1)} 
                 className="text-foreground/60 p-2 -ml-2 active:bg-accent rounded-full touch-manipulation"
                 style={{ touchAction: 'manipulation' }}
               >
@@ -498,7 +500,7 @@ export default function Trading({ language = "en" }) {
         {/* Header */}
         <div className="border-b border-border/50 px-4 py-2.5 shrink-0 glass-panel bg-blue-500/5">
           <div className="flex items-center justify-between">
-            <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
 
@@ -594,7 +596,7 @@ export default function Trading({ language = "en" }) {
         {/* Mobile Header */}
         <div className="border-b border-border px-3 py-2.5 shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
             
@@ -705,7 +707,7 @@ export default function Trading({ language = "en" }) {
       <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => window.history.back()} className="text-foreground/60 hover:text-foreground transition-colors">
+            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-lg font-semibold text-foreground">
