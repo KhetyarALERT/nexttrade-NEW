@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import { AssistantModalPrimitive } from "@/lib/assistant-ui/react";
 import { useLocation } from "react-router-dom";
@@ -5,6 +6,7 @@ import { useLocation } from "react-router-dom";
 import { Thread } from "@/components/assistant-ui/thread";
 import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
+import { useMobileNavigation } from "@/components/mobile/MobileNavigationContext";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 
@@ -12,6 +14,7 @@ export function AssistantModal({ language = "en" }) {
   const t = tAssistant(language);
   const isRtl = language === "ar";
   const location = useLocation();
+  const { assistantModalOpen, closeAssistantModal } = useMobileNavigation();
   
   // Hide completely on futures/trading/memecoins pages
   const isTradingPage = location.pathname.includes("Futures") || location.pathname.includes("Trading") || location.pathname.includes("MemeCoins");
@@ -21,7 +24,7 @@ export function AssistantModal({ language = "en" }) {
   }
 
   return (
-    <AssistantModalPrimitive.Root>
+    <AssistantModalPrimitive.Root open={assistantModalOpen} onOpenChange={(open) => !open && closeAssistantModal()}>
       {/* Floating trigger - HIDDEN on mobile (bottom nav has Support button instead) */}
       <AssistantModalPrimitive.Anchor className="fixed bottom-6 right-6 z-50 hidden sm:block">
         <AssistantModalPrimitive.Trigger asChild>
