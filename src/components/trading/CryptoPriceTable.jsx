@@ -51,14 +51,20 @@ Sparkline.propTypes = {
 
 export default function CryptoPriceTable({ language: _language = "en" }) {
   const [marketData, setMarketData] = useState([]);
+  const [error, setError] = useState(null);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
+    // Create abort controller for cleanup
+    abortControllerRef.current = new AbortController();
+    
     // Initial fetch from CoinGecko
     const fetchInitial = async () => {
       const ids = COINS.map(c => c.id).join(",");
       try {
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`,
+          { signal: abortControllerRef.current.signal }
         );
         if (res.ok) {
           const data = await res.json();
@@ -67,16 +73,27 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
             binanceSymbol: COINS.find(c => c.id === coin.id)?.binance || null
           }));
           setMarketData(mapped);
+          setError(null);
+        } else {
+          setError("Failed to load market data");
         }
       } catch (err) {
-        console.error("CoinGecko fetch error:", err);
+        // Don't log abort errors
+        if (err.name !== 'AbortError') {
+          console.error("CoinGecko fetch error:", err);
+          setError("Failed to load market data");
+        }
       }
     };
 
     fetchInitial();
 
-    // Home page: CoinGecko-only updates (no WS)
-    return () => {};
+    // Cleanup: abort any pending requests
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const formatPrice = (p) => {
