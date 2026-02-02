@@ -284,15 +284,13 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
         )}
 
         {activeTab === 'chart' && (
-          <div className="p-4 h-full min-h-[500px] relative">
+          <div className="h-[500px] relative overflow-hidden">
              <iframe
-                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=1&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark&chartOverrides=mainSeriesProperties.visible:false`}
-                className="w-full border-0 bg-[#0f172a] rounded-lg"
-                style={{ height: 'calc(100% + 30px)', marginBottom: '-30px' }}
+                src={`https://www.dextools.io/widget-chart/en/solana/pe-light/${token.mint}?theme=dark&chartType=1&chartResolution=1&drawingToolbars=false`}
+                className="w-full h-full border-0 rounded-lg"
                 title="Chart"
+                allow="clipboard-write"
               />
-             {/* Cover footer */}
-             <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-950 pointer-events-none" />
           </div>
         )}
 

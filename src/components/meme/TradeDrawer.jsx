@@ -131,15 +131,13 @@ export default function TradeDrawer({ open, onOpenChange, token }) {
               </div>
             </TabsContent>
 
-            <TabsContent value="chart" className="flex-1 h-full p-0 relative overflow-hidden">
+            <TabsContent value="chart" className="flex-1 h-full p-0 overflow-hidden">
               <iframe
-                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=1&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark`}
-                className="w-full border-0 bg-[#0f172a]"
-                style={{ height: 'calc(100% + 30px)', marginBottom: '-30px' }}
+                src={`https://www.dextools.io/widget-chart/en/solana/pe-light/${token.mint}?theme=dark&chartType=1&chartResolution=1&drawingToolbars=false`}
+                className="w-full h-full border-0"
                 title="Chart"
+                allow="clipboard-write"
               />
-              {/* Cover footer */}
-              <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#0f172a] pointer-events-none" />
             </TabsContent>
           </Tabs>
         </div>

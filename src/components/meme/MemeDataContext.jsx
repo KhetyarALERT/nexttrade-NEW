@@ -34,39 +34,52 @@ export const MemeDataProvider = ({ children }) => {
         };
 
         ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                
-                // Handle New Token
-                if (data.txType === 'create') {
-                   // UPSERT - Check if exists first to avoid overwriting accumulation
-                   const existing = tokensMapRef.current.get(data.mint) || {};
-                   
-                   const newToken = {
-                       ...existing, // Keep existing stats if any
-                       mint: data.mint,
-                       symbol: data.symbol,
-                       name: data.name,
-                       image_url: data.uri, 
-                       // Only overwrite if 0/missing, otherwise keep current price from trades
-                       price: existing.price || 0,
-                       price_usd: existing.price_usd || 0,
-                       market_cap: existing.market_cap || 0,
-                       liquidity: existing.liquidity || 0,
-                       volume24h: existing.volume24h || 0,
-                       holders: existing.holders || 0,
-                       volume_sol_24h: existing.volume_sol_24h || 0,
-                       bonding_curve_status: 'bonding_curve',
-                       priceChange24h: existing.priceChange24h || 0,
-                       createdAt: Date.now(), // New creation event = now
-                       buys_5m: existing.buys_5m || 0,
-                       sells_5m: existing.sells_5m || 0,
-                       volume_5m: existing.volume_5m || 0,
-                       tx_count: existing.tx_count || 0
-                   };
-                   
-                   tokensMapRef.current.set(data.mint, newToken);
-                } else if (data.txType === 'trade') {
+        try {
+        const data = JSON.parse(event.data);
+
+        // Handle New Token
+        if (data.txType === 'create') {
+           // UPSERT - Check if exists first to avoid overwriting accumulation
+           const existing = tokensMapRef.current.get(data.mint) || {};
+
+           // data.uri from pump.fun is either the image URL or metadata JSON URL
+           // If it's a metadata URL, we need to fetch the actual image
+           let imageUrl = data.uri || existing.image_url || '';
+
+           // pump.fun tokens often have image directly or need to fetch from metadata
+           // The uri field is usually the token metadata JSON, not the image
+           // We'll use a fallback pattern
+           if (data.image) {
+             imageUrl = data.image;
+           } else if (data.imageUri) {
+             imageUrl = data.imageUri;
+           }
+
+           const newToken = {
+               ...existing, // Keep existing stats if any
+               mint: data.mint,
+               symbol: data.symbol || existing.symbol || 'UNKNOWN',
+               name: data.name || existing.name || 'Unknown Token',
+               image_url: imageUrl,
+               // Only overwrite if 0/missing, otherwise keep current price from trades
+               price: existing.price || 0,
+               price_usd: existing.price_usd || 0,
+               market_cap: existing.market_cap || data.marketCapSol * 200 || 0,
+               liquidity: existing.liquidity || (data.marketCapSol * 200 * 0.15) || 0,
+               volume24h: existing.volume24h || 0,
+               holders: existing.holders || 0,
+               volume_sol_24h: existing.volume_sol_24h || 0,
+               bonding_curve_status: 'bonding_curve',
+               priceChange24h: existing.priceChange24h || 0,
+               createdAt: Date.now(), // New creation event = now
+               buys_5m: existing.buys_5m || 0,
+               sells_5m: existing.sells_5m || 0,
+               volume_5m: existing.volume_5m || 0,
+               tx_count: existing.tx_count || 0
+           };
+
+           tokensMapRef.current.set(data.mint, newToken);
+        } else if (data.txType === 'trade') {
                     // Update rolling metrics
                     let token = tokensMapRef.current.get(data.mint);
                     
