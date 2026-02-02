@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { base44 } from "@/api/base44Client";
 
 const MemeDataContext = createContext(null);
@@ -11,256 +10,253 @@ export const MemeDataProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   
-  // Use a map for O(1) updates
+  // Use a map for O(1) updates - persisted across renders
   const tokensMapRef = useRef(new Map());
+  const wsRef = useRef(null);
+  const reconnectTimerRef = useRef(null);
 
-  // WebSocket Connection
-  useEffect(() => {
-    let ws;
-    let reconnectTimer;
-    
-    const connect = () => {
-        setConnectionStatus('connecting');
-        ws = new WebSocket('wss://pumpportal.fun/api/data');
+  // Fetch trending tokens from DexScreener API (reliable data source)
+  const fetchTrendingTokens = useCallback(async () => {
+    try {
+      console.log('Fetching trending tokens from DexScreener...');
+      const res = await base44.functions.invoke('memeTokens', { action: 'getTrending' });
+      
+      if (res.data?.ok && Array.isArray(res.data.data)) {
+        const trendingTokens = res.data.data;
+        console.log(`Received ${trendingTokens.length} trending tokens`);
+        
+        trendingTokens.forEach(t => {
+          // Only update if we have real data (liquidity > 0)
+          if (t.liquidity > 0 || t.market_cap > 0) {
+            const existing = tokensMapRef.current.get(t.mint) || {};
+            tokensMapRef.current.set(t.mint, {
+              ...existing,
+              ...t,
+              // Ensure proper field mapping
+              price: t.price_usd,
+              lastUpdated: Date.now()
+            });
+          }
+        });
+        
+        // Update state immediately after fetch
+        updateTokensState();
+        return trendingTokens.map(t => t.mint);
+      }
+      return [];
+    } catch (e) {
+      console.warn("Failed to fetch trending tokens:", e);
+      return [];
+    }
+  }, []);
 
-        ws.onopen = () => {
-            console.log('Connected to PumpPortal Feed');
-            setConnectionStatus('connected');
-            setLoading(false);
-            
-            // Subscribe
-            ws.send(JSON.stringify({ method: "subscribeNewToken" }));
-            ws.send(JSON.stringify({ method: "subscribeMigration" }));
-        };
+  // Update tokens state from map
+  const updateTokensState = useCallback(() => {
+    if (tokensMapRef.current.size > 0) {
+      const arr = Array.from(tokensMapRef.current.values());
+      
+      // Filter: only show tokens with meaningful data
+      // At minimum require liquidity > $100 OR market_cap > $1000 OR recent trades
+      const filtered = arr.filter(t => {
+        const hasLiquidity = (t.liquidity || 0) > 100;
+        const hasMarketCap = (t.market_cap || 0) > 1000;
+        const hasTrades = ((t.buys_5m || 0) + (t.sells_5m || 0)) > 0;
+        const hasVolume = (t.volume24h || 0) > 0;
+        return hasLiquidity || hasMarketCap || hasTrades || hasVolume;
+      });
+      
+      // Sort by a combination of recency and activity
+      filtered.sort((a, b) => {
+        // Prioritize tokens with actual trading activity
+        const aScore = (a.volume24h || 0) + (a.liquidity || 0) * 0.1;
+        const bScore = (b.volume24h || 0) + (b.liquidity || 0) * 0.1;
+        return bScore - aScore;
+      });
+      
+      setTokens(filtered.slice(0, 200));
+    }
+  }, []);
 
-        ws.onmessage = (event) => {
-        try {
+  // WebSocket for real-time updates (supplement, not primary)
+  const connectWebSocket = useCallback((mintsToSubscribe = []) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      // Already connected, just subscribe to new mints
+      if (mintsToSubscribe.length > 0) {
+        wsRef.current.send(JSON.stringify({
+          method: "subscribeTokenTrade",
+          keys: mintsToSubscribe
+        }));
+      }
+      return;
+    }
+
+    setConnectionStatus('connecting');
+    const ws = new WebSocket('wss://pumpportal.fun/api/data');
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WebSocket connected to PumpPortal');
+      setConnectionStatus('connected');
+      
+      // Subscribe to new tokens and migrations
+      ws.send(JSON.stringify({ method: "subscribeNewToken" }));
+      ws.send(JSON.stringify({ method: "subscribeMigration" }));
+      
+      // Subscribe to trades for existing tokens
+      if (mintsToSubscribe.length > 0) {
+        ws.send(JSON.stringify({
+          method: "subscribeTokenTrade",
+          keys: mintsToSubscribe.slice(0, 100) // Limit subscriptions
+        }));
+      }
+    };
+
+    ws.onmessage = (event) => {
+      try {
         const data = JSON.parse(event.data);
         
-        // Debug log to see raw data structure
-        // console.log('WS Event:', data.txType, data);
-
-        // Handle New Token
         if (data.txType === 'create') {
-           // UPSERT - Check if exists first to avoid overwriting accumulation
-           const existing = tokensMapRef.current.get(data.mint) || {};
-
-           // PumpPortal 'create' event fields:
-           // mint, symbol, name, uri (metadata JSON URL), 
-           // marketCapSol, vTokensInBondingCurve, vSolInBondingCurve
-           // The 'uri' is metadata JSON - we need to construct image URL
-           // Pump.fun image URL pattern: https://ipfs.io/ipfs/<CID> from metadata
-           // Or direct: https://pump.mypinata.cloud/ipfs/<hash>
-           
-           // For pump.fun tokens, derive image from metadata URI
-           // The uri is typically: https://cf-ipfs.com/ipfs/<hash> or ipfs://<hash>
-           let imageUrl = '';
-           if (data.uri) {
-             // If uri ends with common image extensions, use directly
-             if (data.uri.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
-               imageUrl = data.uri;
-             } else {
-               // Assume it's metadata JSON - try to construct image URL
-               // Many pump.fun tokens have image at same IPFS path with /image suffix
-               imageUrl = data.uri;
-             }
-           }
-           
-           // Override with direct image fields if present
-           if (data.image) imageUrl = data.image;
-           if (data.imageUri) imageUrl = data.imageUri;
-           
-           // Fallback to existing or empty
-           imageUrl = imageUrl || existing.image_url || '';
-
-           // Calculate initial market cap from bonding curve data
-           const solPrice = 200; // Hardcoded SOL price
-           const initialMcap = data.marketCapSol ? data.marketCapSol * solPrice : 0;
-           const initialLiquidity = data.vSolInBondingCurve ? data.vSolInBondingCurve * solPrice : initialMcap * 0.15;
-
-           const newToken = {
-               ...existing, // Keep existing stats if any
-               mint: data.mint,
-               symbol: data.symbol || existing.symbol || 'UNKNOWN',
-               name: data.name || existing.name || 'Unknown Token',
-               image_url: imageUrl,
-               // Only overwrite if 0/missing, otherwise keep current price from trades
-               price: existing.price || 0,
-               price_usd: existing.price_usd || 0,
-               market_cap: existing.market_cap || initialMcap,
-               liquidity: existing.liquidity || initialLiquidity,
-               volume24h: existing.volume24h || 0,
-               holders: existing.holders || 1, // At least creator
-               volume_sol_24h: existing.volume_sol_24h || 0,
-               bonding_curve_status: 'bonding_curve',
-               priceChange5m: existing.priceChange5m || 0,
-               price5mAgo: existing.price5mAgo || 0, // Track for 5m change calc
-               createdAt: Date.now(), // New creation event = now
-               buys_5m: existing.buys_5m || 0,
-               sells_5m: existing.sells_5m || 0,
-               volume_5m: existing.volume_5m || 0,
-               tx_count: existing.tx_count || 0
-           };
-
-           tokensMapRef.current.set(data.mint, newToken);
-        } else if (data.txType === 'trade') {
-                    // Update rolling metrics
-                    let token = tokensMapRef.current.get(data.mint);
-                    
-                    // If trade comes before create event, init a skeleton
-                    if (!token) {
-                        token = {
-                            mint: data.mint,
-                            symbol: 'Unknown', // Will fill on create/fetch
-                            name: 'Unknown Token',
-                            image_url: '',
-                            createdAt: Date.now(),
-                            bonding_curve_status: 'bonding_curve'
-                        };
-                    }
-
-                    const isBuy = data.isBuy;
-                    const solAmount = data.solAmount;
-                    const SOL_PRICE = 200; // Hardcoded for stability
-                    
-                    // Update rolling stats
-                    token.buys_5m = (token.buys_5m || 0) + (isBuy ? 1 : 0);
-                    token.sells_5m = (token.sells_5m || 0) + (isBuy ? 0 : 1);
-                    token.volume_5m = (token.volume_5m || 0) + solAmount;
-                    
-                    // Update price and market cap
-                    // Pump.fun emits marketCapSol
-                    const priceUsd = (data.marketCapSol * SOL_PRICE) / 1000000000;
-                    token.price_usd = priceUsd;
-                    token.price = priceUsd; // Map to 'price' for UI
-                    token.market_cap = data.marketCapSol * SOL_PRICE;
-                    
-                    // Estimate liquidity (virtual bonding curve liquidity ~15% of mcap)
-                    token.liquidity = token.market_cap * 0.15; 
-                    
-                    // Update 24h volume (accumulate)
-                    token.volume_sol_24h = (token.volume_sol_24h || 0) + solAmount;
-                    token.volume24h = token.volume_sol_24h * SOL_PRICE;
-
-                    // Track price for 5m change calculation
-                    const now = Date.now();
-                    if (!token.price5mAgo || !token.price5mAgoTime || (now - token.price5mAgoTime) > 300000) {
-                        // Store current price as "5m ago" baseline every 5 mins
-                        token.price5mAgo = token.price_usd || priceUsd;
-                        token.price5mAgoTime = now;
-                    }
-                    
-                    // Calculate 5m price change
-                    if (token.price5mAgo && token.price5mAgo > 0) {
-                        token.priceChange5m = ((priceUsd - token.price5mAgo) / token.price5mAgo) * 100;
-                    } else {
-                        token.priceChange5m = 0;
-                    }
-
-                    // Ping update
-                    token.lastTrade = now;
-                    tokensMapRef.current.set(data.mint, { ...token });
+          // New token - fetch full data from DexScreener after a delay
+          // (give it time to appear on DEXes)
+          setTimeout(async () => {
+            try {
+              const res = await base44.functions.invoke('memeTokens', { 
+                action: 'getToken', 
+                mint: data.mint 
+              });
+              if (res.data?.ok && res.data.data) {
+                const t = res.data.data;
+                if (t.liquidity > 100 || t.market_cap > 1000) {
+                  tokensMapRef.current.set(t.mint, {
+                    ...t,
+                    price: t.price_usd,
+                    lastUpdated: Date.now()
+                  });
                 }
+              }
             } catch (e) {
-                console.error("WSS Error", e);
+              // Token might not be on DexScreener yet, that's ok
             }
-        };
-
-        ws.onclose = () => {
-            setConnectionStatus('disconnected');
-            reconnectTimer = setTimeout(connect, 3000);
-        };
+          }, 5000);
+        } 
+        else if (data.txType === 'trade') {
+          // Update existing token with trade data
+          let token = tokensMapRef.current.get(data.mint);
+          if (token) {
+            const SOL_PRICE = 200;
+            const isBuy = data.isBuy;
+            const solAmount = data.solAmount || 0;
+            
+            // Update rolling stats
+            token.buys_5m = (token.buys_5m || 0) + (isBuy ? 1 : 0);
+            token.sells_5m = (token.sells_5m || 0) + (isBuy ? 0 : 1);
+            
+            // Update price from trade
+            if (data.marketCapSol) {
+              const newPrice = (data.marketCapSol * SOL_PRICE) / 1000000000;
+              
+              // Track price for 5m change
+              const now = Date.now();
+              if (!token.price5mAgo || !token.price5mAgoTime || (now - token.price5mAgoTime) > 300000) {
+                token.price5mAgo = token.price_usd || newPrice;
+                token.price5mAgoTime = now;
+              }
+              
+              // Calculate 5m change
+              if (token.price5mAgo > 0) {
+                token.priceChange5m = ((newPrice - token.price5mAgo) / token.price5mAgo) * 100;
+              }
+              
+              token.price_usd = newPrice;
+              token.price = newPrice;
+              token.market_cap = data.marketCapSol * SOL_PRICE;
+            }
+            
+            token.lastTrade = Date.now();
+            tokensMapRef.current.set(data.mint, { ...token });
+          }
+        }
+      } catch (e) {
+        console.error("WebSocket message error:", e);
+      }
     };
 
-    connect();
-
-    // Initial Fetch of Trending Data
-    const fetchInitialData = async () => {
-        try {
-             const res = await base44.functions.invoke('memeTrending', { limit: 100 });
-             if (res.data?.ok && Array.isArray(res.data.data)) {
-                 const initialTokens = res.data.data;
-                 const mintsToSub = [];
-                 initialTokens.forEach(t => {
-                     const SOL_PRICE = 200; // Hardcoded for consistency as requested
-                     const price = t.price_usd || 0;
-                     const volume24h = (t.volume_sol_24h || 0) * SOL_PRICE;
-                     
-                     // Upsert: merge with existing if any
-                     const existing = tokensMapRef.current.get(t.mint) || {};
-                     
-                     tokensMapRef.current.set(t.mint, {
-                         ...existing,
-                         ...t,
-                         mint: t.mint, // Ensure mint is set
-                         price: price,
-                         market_cap: price * 1000000000, 
-                         liquidity: (price * 1000000000) * 0.15,
-                         volume24h: volume24h,
-                         holders: t.holders || 0,
-                         createdAt: new Date(t.last_trade_at || Date.now()).getTime(),
-                         // Ensure stats object exists or map flat fields
-                         stats: {
-                             buys_5m: t.buys_5m || 0,
-                             sells_5m: t.sells_5m || 0,
-                             volume_5m: t.volume_sol_5m || 0,
-                             ...existing.stats
-                         },
-                         // Flattened for easy UI access as well, or migrate UI to use stats.
-                         buys_5m: t.buys_5m || 0,
-                         sells_5m: t.sells_5m || 0,
-                         volume_5m: t.volume_sol_5m || 0
-                     });
-                     mintsToSub.push(t.mint);
-                 });
-                 
-                 if (ws && ws.readyState === WebSocket.OPEN && mintsToSub.length > 0) {
-                     ws.send(JSON.stringify({
-                         method: "subscribeTokenTrade",
-                         keys: mintsToSub
-                     }));
-                 }
-             }
-        } catch (e) {
-             console.warn("Initial fetch failed, relying on live feed", e);
-        }
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+      setConnectionStatus('disconnected');
+      // Reconnect after delay
+      reconnectTimerRef.current = setTimeout(() => {
+        const mints = Array.from(tokensMapRef.current.keys());
+        connectWebSocket(mints);
+      }, 5000);
     };
-    fetchInitialData();
 
-    // Throttled State Update (Interval)
-    const interval = setInterval(() => {
-        if (tokensMapRef.current.size > 0) {
-             const arr = Array.from(tokensMapRef.current.values());
-             // Dedupe is inherent in Map, but ensure we don't have multiple entries with same mint in array
-             // Sort by recency/trending
-             arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-             
-             // Debug: Log first token to verify data structure
-             if (arr.length > 0 && Math.random() < 0.1) {
-               console.log('Sample token data:', {
-                 symbol: arr[0].symbol,
-                 market_cap: arr[0].market_cap,
-                 liquidity: arr[0].liquidity,
-                 volume24h: arr[0].volume24h,
-                 holders: arr[0].holders,
-                 image_url: arr[0].image_url
-               });
-             }
-             
-             // Update state only if changed significantly or just periodically
-             setTokens(arr.slice(0, 1000));
-        }
-    }, 1000); 
-
-    return () => {
-        if (ws) ws.close();
-        clearTimeout(reconnectTimer);
-        clearInterval(interval);
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
     };
   }, []);
 
+  // Initial load and periodic refresh
+  useEffect(() => {
+    let mounted = true;
+    let refreshInterval;
+
+    const init = async () => {
+      setLoading(true);
+      
+      // Fetch trending tokens first (reliable data)
+      const mints = await fetchTrendingTokens();
+      
+      if (mounted) {
+        setLoading(false);
+        // Connect WebSocket for real-time updates
+        connectWebSocket(mints);
+      }
+    };
+
+    init();
+
+    // Refresh trending data every 30 seconds
+    refreshInterval = setInterval(() => {
+      if (mounted) {
+        fetchTrendingTokens();
+      }
+    }, 30000);
+
+    // Update UI state every 2 seconds
+    const uiInterval = setInterval(() => {
+      if (mounted) {
+        updateTokensState();
+      }
+    }, 2000);
+
+    return () => {
+      mounted = false;
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      clearInterval(refreshInterval);
+      clearInterval(uiInterval);
+    };
+  }, [fetchTrendingTokens, connectWebSocket, updateTokensState]);
+
+  // Manual refresh function
+  const refreshTokens = useCallback(async () => {
+    setLoading(true);
+    await fetchTrendingTokens();
+    setLoading(false);
+  }, [fetchTrendingTokens]);
+
   return (
-    <MemeDataContext.Provider value={{ tokens, loading, connectionStatus }}>
+    <MemeDataContext.Provider value={{ 
+      tokens, 
+      loading, 
+      connectionStatus,
+      refreshTokens 
+    }}>
       {children}
     </MemeDataContext.Provider>
   );
