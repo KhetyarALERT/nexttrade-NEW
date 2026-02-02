@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, CheckCircle2, GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
+import { BookOpen, CheckCircle2, GraduationCap, ShieldCheck, Sparkles, Loader2, Trophy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "learn_earn_progress_v1";
 
@@ -14,6 +18,12 @@ function clamp01(v) {
 }
 
 export default function LearnEarn({ language = "en" }) {
+  const { user, isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [state, setState] = useState({ points: 0, courses: {} });
+  const [progressRecordId, setProgressRecordId] = useState(null);
+
   const t = useMemo(() => {
     const en = {
       title: "Learn & Earn",
@@ -32,6 +42,8 @@ export default function LearnEarn({ language = "en" }) {
       pts: "pts",
       disclaimer: "Educational content only. Points are demo rewards and may change.",
       lessonsComplete: "Lessons completed",
+      syncing: "Syncing...",
+      loginToSave: "Log in to save your progress permanently.",
       courses: {
         basics: {
           title: "Getting Started",
@@ -112,6 +124,8 @@ export default function LearnEarn({ language = "en" }) {
       pts: "نقطة",
       disclaimer: "محتوى تعليمي فقط. النقاط تجريبية وقد تتغيّر.",
       lessonsComplete: "الدروس المكتملة",
+      syncing: "جاري المزامنة...",
+      loginToSave: "سجل الدخول لحفظ تقدمك بشكل دائم.",
       courses: {
         basics: {
           title: "البدء من الصفر",
@@ -178,42 +192,112 @@ export default function LearnEarn({ language = "en" }) {
     return language === "ar" ? ar : en;
   }, [language]);
 
-  const [state, setState] = useState(() => ({ points: 0, courses: {} }));
-
+  // Load progress
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-  }, []);
+    let active = true;
 
-  const save = (next) => {
-    setState(next);
+    const load = async () => {
+      if (!isAuthenticated || !user?.id) {
+        // Fallback to local storage for guests
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw && active) setState(JSON.parse(raw));
+        } catch { }
+        if (active) setLoading(false);
+        return;
+      }
+
+      try {
+        const records = await base44.entities.UserLearnProgress.filter({ user_id: user.id });
+        if (active) {
+          if (records.length > 0) {
+            const rec = records[0];
+            setState({ points: rec.points || 0, courses: rec.courses || {} });
+            setProgressRecordId(rec.id);
+          } else {
+            // Check local storage for merge? Or just start fresh?
+            // Let's check local storage to see if we can migrate guest progress
+            let initialState = { points: 0, courses: {} };
+            try {
+              const raw = localStorage.getItem(STORAGE_KEY);
+              if (raw) initialState = JSON.parse(raw);
+            } catch { }
+            
+            setState(initialState);
+            
+            // Create initial record
+            const newRec = await base44.entities.UserLearnProgress.create({
+              user_id: user.id,
+              points: initialState.points,
+              courses: initialState.courses,
+              last_updated_at: new Date().toISOString()
+            });
+            setProgressRecordId(newRec.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load progress", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { active = false; };
+  }, [isAuthenticated, user?.id]);
+
+  const saveState = async (nextState) => {
+    setState(nextState);
+    
+    // Always save to local storage as backup/guest
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+    } catch { }
+
+    // If logged in, save to DB
+    if (isAuthenticated && user?.id) {
+      setSyncing(true);
+      try {
+        if (progressRecordId) {
+          await base44.entities.UserLearnProgress.update(progressRecordId, {
+            points: nextState.points,
+            courses: nextState.courses,
+            last_updated_at: new Date().toISOString()
+          });
+        } else {
+          const newRec = await base44.entities.UserLearnProgress.create({
+            user_id: user.id,
+            points: nextState.points,
+            courses: nextState.courses,
+            last_updated_at: new Date().toISOString()
+          });
+          setProgressRecordId(newRec.id);
+        }
+      } catch (err) {
+        console.error("Failed to sync progress", err);
+      } finally {
+        setSyncing(false);
+      }
     }
   };
 
-  const courseKeys = Object.keys(t.courses);
-
-  const getCourseProgress = (key) => {
+  const getCourseProgress = useCallback((key) => {
     const courseState = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
     const lessonCount = t.courses[key].lessons.length;
     const lessonsDone = Math.min(courseState.lessonIndex, lessonCount);
     const lessonPct = lessonCount ? lessonsDone / lessonCount : 0;
     const quizPct = courseState.quizPassed ? 1 : 0;
     return clamp01((lessonPct * 0.8) + (quizPct * 0.2));
-  };
+  }, [state, t]);
 
-  const markLessonDone = (key) => {
+  const markLessonDone = async (key) => {
     const lessonCount = t.courses[key].lessons.length;
     const prev = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
     const nextLessonIndex = Math.min(lessonCount, (prev.lessonIndex || 0) + 1);
+    
+    // Only give points if actually progressing
     const gained = nextLessonIndex > (prev.lessonIndex || 0) ? 10 : 0;
+    if (gained === 0) return; // Already done
 
     const next = {
       ...state,
@@ -224,132 +308,222 @@ export default function LearnEarn({ language = "en" }) {
       },
     };
 
-    save(next);
-    if (gained) toast.success(`${t.earned} 10 ${t.pts}`);
+    await saveState(next);
+    toast.success(`${t.earned} 10 ${t.pts}`);
   };
 
-  const takeQuiz = (key) => {
+  const takeQuiz = async (key) => {
     const prev = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
     if (prev.quizPassed) return;
 
     const quiz = t.courses[key].quiz;
     const answer = window.prompt(`${quiz.q}\n\n1) ${quiz.a[0]}\n2) ${quiz.a[1]}\n3) ${quiz.a[2]}\n\n${language === "ar" ? "اكتب رقم الإجابة (1-3)" : "Type answer number (1-3)"}`);
 
+    if (!answer) return;
+
     const idx = Number.parseInt(answer || "", 10) - 1;
     const passed = idx === quiz.correct;
 
-    const gained = passed ? 25 : 0;
-    const next = {
-      ...state,
-      points: (state.points || 0) + gained,
-      courses: {
-        ...(state.courses || {}),
-        [key]: { ...prev, quizPassed: passed || prev.quizPassed },
-      },
-    };
+    if (passed) {
+      const gained = 25;
+      const next = {
+        ...state,
+        points: (state.points || 0) + gained,
+        courses: {
+          ...(state.courses || {}),
+          [key]: { ...prev, quizPassed: true },
+        },
+      };
 
-    save(next);
-
-    if (passed) toast.success(`${t.passed} — ${t.earned} 25 ${t.pts}`);
-    else toast.error(language === "ar" ? "إجابة غير صحيحة" : "Incorrect answer");
+      await saveState(next);
+      
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#22c55e', '#3b82f6', '#f59e0b']
+      });
+      
+      toast.success(`${t.passed} — ${t.earned} 25 ${t.pts}`);
+    } else {
+      toast.error(language === "ar" ? "إجابة غير صحيحة، حاول مرة أخرى" : "Incorrect answer, try again");
+    }
   };
+
+  const courseKeys = Object.keys(t.courses);
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-8 bg-card border border-border rounded-2xl p-6 shadow-sm">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <GraduationCap className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
               <h1 className="text-3xl font-bold text-foreground">{t.title}</h1>
-              <Badge variant="outline" className="border-border text-muted-foreground">
-                <GraduationCap className="h-3.5 w-3.5 mr-1" />
-                {t.points}: {state.points || 0}
-              </Badge>
             </div>
-            <p className="text-muted-foreground mt-2">{t.subtitle}</p>
-            <p className="text-xs text-muted-foreground mt-2">{t.pointsHelp}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t.disclaimer}</p>
+            <p className="text-muted-foreground text-lg">{t.subtitle}</p>
+            
+            {!isAuthenticated && (
+              <p className="text-sm text-amber-600 mt-3 font-medium bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg inline-block">
+                {t.loginToSave}
+              </p>
+            )}
+          </div>
+          
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-xl border border-border">
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{t.points}</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">{state.points || 0}</p>
+              </div>
+              <Trophy className="h-8 w-8 text-yellow-500 fill-yellow-500/20" />
+            </div>
+            {syncing && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
+                <Loader2 className="w-3 h-3 animate-spin" /> {t.syncing}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {courseKeys.map((key) => {
-            const course = t.courses[key];
-            const courseState = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
-            const lessonCount = course.lessons.length;
-            const progress = getCourseProgress(key);
-            const done = progress >= 0.999;
+        {/* Content Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-64 rounded-2xl bg-muted/20 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {courseKeys.map((key) => {
+              const course = t.courses[key];
+              const courseState = state.courses?.[key] || { lessonIndex: 0, quizPassed: false };
+              const lessonCount = course.lessons.length;
+              const progress = getCourseProgress(key);
+              const done = progress >= 0.999;
+              const isStarted = progress > 0;
 
-            const Icon =
-              key === "security" ? ShieldCheck :
-              key === "risk" ? Sparkles :
-              BookOpen;
+              const Icon =
+                key === "security" ? ShieldCheck :
+                key === "risk" ? Sparkles :
+                BookOpen;
 
-            return (
-              <Card key={key} className="border-border shadow-sm">
-                <CardHeader className="border-b border-border">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Icon className="h-5 w-5 text-blue-600" />
-                    {course.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <p className="text-sm text-muted-foreground">{course.desc}</p>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{t.yourProgress}</span>
-                      <span>{Math.round(progress * 100)}%</span>
+              return (
+                <Card 
+                  key={key} 
+                  className={cn(
+                    "border-border shadow-sm transition-all duration-300 hover:shadow-md",
+                    done && "border-emerald-500/50 bg-emerald-50/10 dark:bg-emerald-900/10"
+                  )}
+                >
+                  <CardHeader className="border-b border-border pb-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          done ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                        )}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <CardTitle className="text-lg">{course.title}</CardTitle>
+                      </div>
+                      {done && (
+                        <Badge variant="success" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+                          {t.courseComplete}
+                        </Badge>
+                      )}
                     </div>
-                    <Progress value={progress * 100} className="h-2" />
-                    <div className="text-[11px] text-muted-foreground">
-                      {t.lessonsComplete}: {Math.min(courseState.lessonIndex || 0, lessonCount)} / {lessonCount}
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-6">
+                    <p className="text-sm text-muted-foreground min-h-[40px]">{course.desc}</p>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                        <span>{t.yourProgress}</span>
+                        <span>{Math.round(progress * 100)}%</span>
+                      </div>
+                      <Progress 
+                        value={progress * 100} 
+                        className="h-2" 
+                        indicatorClassName={cn(done ? "bg-emerald-500" : "bg-blue-600")}
+                      />
+                      <div className="text-[11px] text-muted-foreground flex justify-between">
+                        <span>{t.lessonsComplete}: {Math.min(courseState.lessonIndex || 0, lessonCount)} / {lessonCount}</span>
+                        <span>{courseState.quizPassed ? t.passed : t.notYet}</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="text-muted-foreground font-medium">
-                      {language === "ar" ? "الدروس" : "Lessons"}
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-foreground border-b border-border pb-2">
+                        {language === "ar" ? "الدروس" : "Lessons"}
+                      </div>
+                      <ul className="space-y-2">
+                        {course.lessons.map((lesson, idx) => {
+                          const doneLesson = idx < (courseState.lessonIndex || 0);
+                          const isNext = idx === (courseState.lessonIndex || 0);
+                          
+                          return (
+                            <li 
+                              key={lesson} 
+                              className={cn(
+                                "flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+                                doneLesson 
+                                  ? "bg-muted/50 text-muted-foreground" 
+                                  : isNext 
+                                    ? "bg-card border border-blue-200 dark:border-blue-800 shadow-sm" 
+                                    : "bg-card border border-border opacity-60"
+                              )}
+                            >
+                              <span className={cn(doneLesson && "line-through decoration-emerald-500/50")}>{lesson}</span>
+                              {doneLesson && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
+                              {isNext && <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse shrink-0" />}
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                    <ul className="space-y-1">
-                      {course.lessons.map((lesson, idx) => {
-                        const doneLesson = idx < (courseState.lessonIndex || 0);
-                        return (
-                          <li key={lesson} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
-                            <span className={doneLesson ? "text-muted-foreground line-through" : "text-foreground"}>{lesson}</span>
-                            {doneLesson ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : null}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      onClick={() => markLessonDone(key)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      disabled={(courseState.lessonIndex || 0) >= lessonCount}
-                    >
-                      {(courseState.lessonIndex || 0) === 0 ? t.start : t.continue}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => takeQuiz(key)}
-                      disabled={(courseState.lessonIndex || 0) < lessonCount}
-                    >
-                      {t.takeQuiz}
-                    </Button>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    {language === "ar" ? "الاختبار" : "Quiz"}: {courseState.quizPassed ? t.passed : t.notYet}
-                    {done ? ` • ${t.courseComplete}` : ""}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                    <div className="pt-2 grid grid-cols-2 gap-3">
+                      <Button
+                        onClick={() => markLessonDone(key)}
+                        className={cn(
+                          "w-full transition-all",
+                          done ? "opacity-50" : "hover:scale-[1.02]"
+                        )}
+                        variant={isStarted ? "default" : "secondary"}
+                        disabled={(courseState.lessonIndex || 0) >= lessonCount}
+                      >
+                        {(courseState.lessonIndex || 0) === 0 ? (
+                          <><ArrowRight className="w-4 h-4 mr-2" /> {t.start}</>
+                        ) : (
+                          <>{t.continue}</>
+                        )}
+                      </Button>
+                      <Button
+                        variant={courseState.quizPassed ? "outline" : "default"}
+                        onClick={() => takeQuiz(key)}
+                        disabled={(courseState.lessonIndex || 0) < lessonCount}
+                        className={cn(
+                          (courseState.lessonIndex || 0) >= lessonCount && !courseState.quizPassed && "animate-pulse shadow-lg shadow-blue-500/20"
+                        )}
+                      >
+                        {courseState.quizPassed ? (
+                          <><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-500" /> {t.passed}</>
+                        ) : (
+                          <>{t.takeQuiz}</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
