@@ -116,8 +116,26 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
     return `${pct > 0 ? "+" : ""}${pct.toFixed(2)}%`;
   };
 
-  if (marketData.length === 0) {
+  // Loading state
+  if (marketData.length === 0 && !error) {
     return <Card className="bg-gray-950 border-0"><CardContent className="p-12 text-center text-gray-500">Loading live data...</CardContent></Card>;
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Card className="bg-gray-950 border-0">
+        <CardContent className="p-12 text-center">
+          <p className="text-red-400 mb-2">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="text-blue-400 hover:underline text-sm"
+          >
+            Retry
+          </button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
