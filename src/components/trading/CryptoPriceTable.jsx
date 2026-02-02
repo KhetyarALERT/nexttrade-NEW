@@ -17,7 +17,8 @@ const COINS = [
   // add more if needed
 ];
 
-const Sparkline = ({ data = [], width = 120, height = 40 }) => {
+// Memoized Sparkline component to prevent unnecessary re-renders
+const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 }) {
   if (!data || data.length < 2) return <div className="w-[120px] h-[40px] bg-gray-800/50 rounded" />;
 
   const min = Math.min(...data);
@@ -40,6 +41,12 @@ const Sparkline = ({ data = [], width = 120, height = 40 }) => {
       <polyline fill="none" stroke={stroke} strokeWidth="2" points={points} />
     </svg>
   );
+});
+
+Sparkline.propTypes = {
+  data: PropTypes.array,
+  width: PropTypes.number,
+  height: PropTypes.number
 };
 
 export default function CryptoPriceTable({ language: _language = "en" }) {
