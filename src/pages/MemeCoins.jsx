@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
   Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown,
-  Sparkles, Info, RefreshCw, ExternalLink
+  Sparkles, Info, RefreshCw
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -274,19 +274,12 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         >
           <Zap className="w-3 h-3 mr-1 fill-current" /> Buy
         </Button>
-        {isPumpfun && (
-          <Button 
-            size="sm" 
-            className="h-8 px-3 bg-pink-600/20 hover:bg-pink-600/40 text-pink-400 rounded-lg transition-all duration-300 border border-pink-500/30"
-            onClick={(e) => { e.stopPropagation(); window.open(`https://pump.fun/${token.mint}`, '_blank'); }}
-          >
-            <ExternalLink className="w-3 h-3" />
-          </Button>
-        )}
         <Button 
           size="sm" 
-          className="h-8 px-3 bg-slate-700/80 hover:bg-slate-600 text-white rounded-lg transition-all duration-300 border border-slate-600/50"
+          className={`h-8 px-3 rounded-lg transition-all duration-300 border ${isPumpfun && !token.liquidity ? 'bg-slate-800/50 text-slate-500 border-slate-700/50 cursor-not-allowed' : 'bg-slate-700/80 hover:bg-slate-600 text-white border-slate-600/50'}`}
           onClick={(e) => { e.stopPropagation(); onDetail(token); }}
+          disabled={isPumpfun && !token.liquidity}
+          title={isPumpfun && !token.liquidity ? 'No pool yet (bonding curve)' : 'View chart'}
         >
           <BarChart3 className="w-3 h-3" />
         </Button>
