@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
+import PropTypes from "prop-types";
 
 const COINS = [
   { id: "bitcoin", binance: "btcusdt", bingx: "BTC-USDT" },
