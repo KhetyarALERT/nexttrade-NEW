@@ -796,7 +796,8 @@ export default function Home({ language = "en" }) {
           </div>
         </div>
       </section>
-    </div>);
+    </div>
+    </MotionConfig>);
 }
 
 Home.propTypes = {
