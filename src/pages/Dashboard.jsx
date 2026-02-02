@@ -694,7 +694,7 @@ export default function Dashboard({ language = "en" }) {
           </Card>
         </div>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }
 
