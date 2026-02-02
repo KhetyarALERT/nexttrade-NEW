@@ -188,27 +188,35 @@ async function fetchDexScreenerTokens(targetCount = 200) {
       });
     }
 
-    // Strategy 4: Fetch pairs by DEX (pumpswap, raydium, meteora, orca)
+    // Strategy 4: Fetch latest Solana pairs (sorted by various metrics)
     if (tokenMap.size < targetCount) {
-      const dexes = ['raydium', 'meteora', 'orca', 'pumpswap'];
+      // Fetch latest pairs by multiple sort orders
+      const sortQueries = [
+        'trending',
+        'volume', 
+        'liquidity'
+      ];
       
-      // Run DEX fetches in parallel
-      const dexPromises = dexes.map(async (dex) => {
+      const pairPromises = sortQueries.map(async (sort) => {
         try {
-          const dexRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/pairs/solana?dex=${dex}`);
-          if (dexRes.ok) {
-            const dexData = await dexRes.json();
-            return { dex, pairs: (dexData.pairs || []).slice(0, 100) };
+          // Use pairs endpoint with chainId filter
+          const url = sort === 'trending' 
+            ? `${DEXSCREENER_API}/latest/dex/pairs/solana`
+            : `${DEXSCREENER_API}/latest/dex/pairs/solana`;
+          const pairRes = await throttledFetch(url);
+          if (pairRes.ok) {
+            const pairData = await pairRes.json();
+            return { sort, pairs: (pairData.pairs || []).slice(0, 100) };
           }
         } catch (e) {
-          console.error(`[DEXSCREENER] DEX "${dex}" failed:`, e.message);
+          console.error(`[DEXSCREENER] Pairs "${sort}" failed:`, e.message);
         }
-        return { dex, pairs: [] };
+        return { sort, pairs: [] };
       });
       
-      const dexResults = await Promise.all(dexPromises);
-      dexResults.forEach(({ dex, pairs }) => {
-        console.log(`[DEXSCREENER] DEX "${dex}" returned ${pairs.length} pairs`);
+      const pairResults = await Promise.all(pairPromises);
+      pairResults.forEach(({ sort, pairs }) => {
+        console.log(`[DEXSCREENER] Pairs "${sort}" returned ${pairs.length} pairs`);
         pairs.forEach(pair => {
           const token = normalizeDexPair(pair, profileMap);
           if (token && !tokenMap.has(token.mint)) {
@@ -216,6 +224,39 @@ async function fetchDexScreenerTokens(targetCount = 200) {
           }
         });
       });
+    }
+    
+    // Strategy 5: Search for specific trending terms
+    if (tokenMap.size < targetCount) {
+      const trendingSearches = ['trump', 'elon', 'fartcoin', 'bonk', 'wif', 'jup', 'jto'];
+      
+      const trendingPromises = trendingSearches.map(async (term) => {
+        try {
+          const searchRes = await throttledFetch(`${DEXSCREENER_API}/latest/dex/search?q=${term}`);
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            return (searchData.pairs || [])
+              .filter(p => p.chainId === 'solana')
+              .slice(0, 30);
+          }
+        } catch (e) {
+          // Silently fail
+        }
+        return [];
+      });
+      
+      const trendingResults = await Promise.all(trendingPromises);
+      let added = 0;
+      trendingResults.forEach((pairs) => {
+        pairs.forEach(pair => {
+          const token = normalizeDexPair(pair, profileMap);
+          if (token && !tokenMap.has(token.mint)) {
+            tokenMap.set(token.mint, token);
+            added++;
+          }
+        });
+      });
+      console.log(`[DEXSCREENER] Trending searches added ${added} tokens`);
     }
 
     const tokens = Array.from(tokenMap.values())
