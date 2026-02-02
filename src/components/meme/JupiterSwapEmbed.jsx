@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { init } from '@jup-ag/plugin';
 import '@jup-ag/plugin/css';
+import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount, initialAmount }) {
   const wallet = useWallet();
