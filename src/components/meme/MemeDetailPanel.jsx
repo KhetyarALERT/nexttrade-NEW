@@ -250,12 +250,20 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                 <p className="text-lg font-bold text-emerald-400">{formatNumber(token.liquidity || 0)}</p>
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
-                <p className="text-xs text-slate-500 mb-1 font-semibold">5m Volume</p>
-                <p className="text-lg font-bold text-white">{formatNumber(token.volume_5m || 0)}</p>
+                <p className="text-xs text-slate-500 mb-1 font-semibold">24h Volume</p>
+                <p className="text-lg font-bold text-white">{formatNumber(token.volume24h || 0)}</p>
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
                 <p className="text-xs text-slate-500 mb-1 font-semibold">5m Txs</p>
                 <p className="text-sm font-bold"><span className="text-emerald-400">{token.buys_5m || 0}B</span> / <span className="text-red-400">{token.sells_5m || 0}S</span></p>
+              </div>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
+                <p className="text-xs text-slate-500 mb-1 font-semibold">1h Txs</p>
+                <p className="text-sm font-bold"><span className="text-emerald-400">{token.buys_1h || 0}B</span> / <span className="text-red-400">{token.sells_1h || 0}S</span></p>
+              </div>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
+                <p className="text-xs text-slate-500 mb-1 font-semibold">24h Txs</p>
+                <p className="text-sm font-bold"><span className="text-emerald-400">{token.buys_24h || 0}B</span> / <span className="text-red-400">{token.sells_24h || 0}S</span></p>
               </div>
             </div>
 
