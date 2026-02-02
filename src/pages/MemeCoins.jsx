@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
-  Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown
+  Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown,
+  Sparkles, Info
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -24,10 +25,11 @@ import MemeDetailPanel from '@/components/meme/MemeDetailPanel';
 
 const formatPrice = (num) => {
   if (!num || num === 0) return '$0.00';
-  if (num < 0.00001) return num.toExponential(2);
-  if (num < 0.01) return num.toFixed(6);
-  if (num < 1) return num.toFixed(4);
-  return num.toFixed(2);
+  if (num < 0.000001) return `$${num.toExponential(2)}`;
+  if (num < 0.00001) return `$${num.toFixed(10)}`;
+  if (num < 0.01) return `$${num.toFixed(8)}`;
+  if (num < 1) return `$${num.toFixed(6)}`;
+  return `$${num.toFixed(4)}`;
 };
 
 const formatMarketCap = (num) => {
@@ -61,20 +63,49 @@ const formatTimeAgo = (timestamp) => {
 
 const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
+  const priceChange = token.priceChange24h || 0;
+  const isPositive = priceChange >= 0;
+
+  // Resolve IPFS URL for token image
+  const getTokenImage = (url) => {
+    if (!url) return null;
+    if (url.startsWith('ipfs://')) {
+      return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return url;
+  };
+
+  const imageUrl = getTokenImage(token.image_url);
 
   return (
     <div 
-      className="bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-xl p-4 mb-3 cursor-pointer hover:border-emerald-500/50 transition-all duration-300 shadow-lg"
+      className="bg-gradient-to-br from-slate-800/60 to-slate-900/60 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 mb-3 cursor-pointer hover:border-emerald-500/50 hover:shadow-emerald-500/10 hover:shadow-xl transition-all duration-300 shadow-lg"
       onClick={() => onDetail(token)}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-lg">
-            {token.symbol.charAt(0).toUpperCase()}
+          <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700/50 shadow-lg">
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt={token.symbol}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white">
+                {token.symbol?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base text-white truncate">{token.symbol}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-white truncate">{token.symbol}</h3>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${token.bonding_curve_status === 'migrated' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                {token.bonding_curve_status === 'migrated' ? 'RAY' : 'PUMP'}
+              </span>
+            </div>
             <p className="text-sm text-slate-400 truncate">{token.name}</p>
           </div>
         </div>
@@ -83,59 +114,70 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
             e.stopPropagation();
             onToggleFavorite(token.mint);
           }}
-          className="text-slate-400 hover:text-yellow-400 transition-colors flex-shrink-0"
+          className="text-slate-400 hover:text-yellow-400 transition-colors flex-shrink-0 p-1"
         >
           <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
         </button>
       </div>
 
-      {/* Released Time & Txns Row */}
+      {/* Price & Change Row */}
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/30">
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-emerald-400" />
-          <span className="text-lg font-bold text-white">{formatTimeAgo(token.createdAt)}</span>
+        <div>
+          <p className="text-xs text-slate-500 mb-0.5">Price</p>
+          <p className="text-lg font-bold text-emerald-400 font-mono">{formatPrice(token.price_usd)}</p>
         </div>
-        <span className={`text-sm font-bold flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-700/50 text-slate-200`}>
-          <Activity className="w-3 h-3 text-blue-400" />
-          {txns} Txns (5m)
-        </span>
+        <div className="text-right">
+          <p className="text-xs text-slate-500 mb-0.5">Age</p>
+          <p className="text-sm font-semibold text-white">{formatTimeAgo(token.createdAt)}</p>
+        </div>
+        <div className={`px-3 py-1.5 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+          <p className="text-xs text-slate-400 mb-0.5">24h</p>
+          <p className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {Math.abs(priceChange).toFixed(1)}%
+          </p>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-700/30">
-          <p className="text-xs text-slate-500 mb-1 font-semibold">MCap</p>
-          <p className="font-bold text-white text-sm">{formatMarketCap(token.market_cap)}</p>
+      {/* Stats Grid - Enhanced */}
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">MCap</p>
+          <p className="font-bold text-white text-xs">{formatMarketCap(token.market_cap)}</p>
         </div>
-        <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-700/30">
-          <p className="text-xs text-slate-500 mb-1 font-semibold">Liquidity</p>
-          <p className="font-bold text-white text-sm">{formatMarketCap(token.liquidity)}</p>
+        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Liquidity</p>
+          <p className="font-bold text-cyan-400 text-xs">{formatMarketCap(token.liquidity)}</p>
         </div>
-        <div className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-700/30">
-          <p className="text-xs text-slate-500 mb-1 font-semibold">Volume</p>
-          <p className="font-bold text-white text-sm">{formatVolume(token.volume24h)}</p>
+        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Volume</p>
+          <p className="font-bold text-white text-xs">{formatVolume(token.volume24h)}</p>
+        </div>
+        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Txns</p>
+          <p className="font-bold text-blue-400 text-xs">{txns}</p>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="flex gap-2 w-full">
         <Button 
-          className="flex-1 h-10 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-bold rounded-lg transition-all duration-300 shadow-lg"
+          className="flex-1 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/20"
           onClick={(e) => {
             e.stopPropagation();
             onTrade(token);
           }}
         >
-          <Zap className="w-4 h-4 mr-2 fill-current" /> Buy
+          <Zap className="w-4 h-4 mr-2 fill-current" /> Quick Buy
         </Button>
         <Button 
-          className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-all duration-300 border border-slate-600/50"
+          className="flex-1 h-11 bg-slate-700/80 hover:bg-slate-600 text-white font-bold rounded-xl transition-all duration-300 border border-slate-600/50"
           onClick={(e) => {
             e.stopPropagation();
             onDetail(token);
           }}
         >
-          <BarChart3 className="w-4 h-4 mr-2" /> Details
+          <BarChart3 className="w-4 h-4 mr-2" /> Chart
         </Button>
       </div>
     </div>
@@ -148,84 +190,113 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 
 const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
+  const priceChange = token.priceChange24h || 0;
+  const isPositive = priceChange >= 0;
+
+  // Resolve IPFS URL for token image
+  const getTokenImage = (url) => {
+    if (!url) return null;
+    if (url.startsWith('ipfs://')) {
+      return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return url;
+  };
+
+  const imageUrl = getTokenImage(token.image_url);
 
   return (
     <div 
-      className="flex items-center justify-between px-4 py-3 border-b border-slate-700/30 hover:bg-slate-800/30 transition-all duration-200 cursor-pointer group backdrop-blur-sm"
+      className="flex items-center justify-between px-4 py-3 border-b border-slate-700/20 hover:bg-slate-800/40 transition-all duration-200 cursor-pointer group"
       onClick={() => onDetail(token)}
     >
       {/* Favorite + Token */}
-      <div className="flex items-center gap-3 min-w-[220px]">
+      <div className="flex items-center gap-3 min-w-[200px]">
         <button 
           onClick={(e) => {
             e.stopPropagation();
             onToggleFavorite(token.mint);
           }}
-          className="text-slate-500 hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100"
+          className="text-slate-600 hover:text-yellow-400 transition-colors"
         >
-          <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+          <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400 opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
         </button>
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-slate-800">
-          <img 
-            src={token.image_url || `https://ui-avatars.com/api/?name=${token.symbol}&background=random`} 
-            alt={token.symbol}
-            className="w-full h-full object-cover"
-            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=random`; }}
-          />
+        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700/50">
+          {imageUrl ? (
+            <img 
+              src={imageUrl} 
+              alt={token.symbol}
+              className="w-full h-full object-cover"
+              onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">
+              {token.symbol?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-white truncate">{token.symbol}</h3>
-          <p className="text-xs text-slate-500 truncate">{token.name}</p>
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-sm text-white truncate group-hover:text-emerald-400 transition-colors">{token.symbol}</h3>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${token.bonding_curve_status === 'migrated' ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+              {token.bonding_curve_status === 'migrated' ? 'RAY' : 'PUMP'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 truncate max-w-[120px]">{token.name}</p>
         </div>
       </div>
 
-      {/* Released (Time Ago) */}
-      <div className="min-w-[110px] text-right">
-        <p className="font-bold text-emerald-400">{formatTimeAgo(token.createdAt)}</p>
+      {/* Price */}
+      <div className="min-w-[100px] text-right">
+        <p className="font-mono text-sm font-semibold text-emerald-400">{formatPrice(token.price_usd)}</p>
       </div>
 
-      {/* Txns (5m) */}
-      <div className="min-w-[100px] text-right">
-        <span className={`font-bold flex items-center justify-end gap-1 px-2 py-1 rounded-lg bg-slate-800/50 text-slate-300`}>
-          {txns}
+      {/* 24h Change */}
+      <div className="min-w-[80px] text-right">
+        <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+          {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
         </span>
       </div>
 
+      {/* Released (Time Ago) */}
+      <div className="min-w-[80px] text-right">
+        <p className="text-sm text-slate-400">{formatTimeAgo(token.createdAt)}</p>
+      </div>
+
       {/* Market Cap */}
-      <div className="min-w-[110px] text-right">
-        <p className="text-sm text-slate-300">{formatMarketCap(token.market_cap)}</p>
+      <div className="min-w-[100px] text-right">
+        <p className="text-sm font-medium text-white">{formatMarketCap(token.market_cap)}</p>
       </div>
 
       {/* Liquidity */}
-      <div className="min-w-[110px] text-right">
-        <p className="text-sm text-slate-300">{formatMarketCap(token.liquidity)}</p>
+      <div className="min-w-[100px] text-right">
+        <p className="text-sm font-medium text-cyan-400">{formatMarketCap(token.liquidity)}</p>
       </div>
 
       {/* Volume */}
-      <div className="min-w-[100px] text-right">
-        <p className="text-sm text-slate-300">{formatVolume(token.volume24h)}</p>
+      <div className="min-w-[90px] text-right">
+        <p className="text-sm text-slate-400">{formatVolume(token.volume24h)}</p>
       </div>
 
-      {/* Holders */}
-      <div className="min-w-[80px] text-right">
-        <p className="text-sm text-slate-300">{token.holders || '--'}</p>
+      {/* Txns */}
+      <div className="min-w-[70px] text-right">
+        <span className="text-sm font-medium text-blue-400">{txns}</span>
       </div>
 
       {/* Quick Actions */}
       <div className="flex gap-2 ml-4">
         <Button 
           size="sm" 
-          className="h-8 px-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-bold rounded-lg transition-all duration-300"
+          className="h-8 px-4 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold rounded-lg transition-all duration-300 shadow-lg shadow-emerald-500/20"
           onClick={(e) => {
             e.stopPropagation();
             onTrade(token);
           }}
         >
-          <Zap className="w-3 h-3 fill-current" />
+          <Zap className="w-3 h-3 mr-1 fill-current" /> Buy
         </Button>
         <Button 
           size="sm" 
-          className="h-8 px-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all duration-300 border border-slate-600/50"
+          className="h-8 px-3 bg-slate-700/80 hover:bg-slate-600 text-white rounded-lg transition-all duration-300 border border-slate-600/50"
           onClick={(e) => {
             e.stopPropagation();
             onDetail(token);
@@ -367,31 +438,39 @@ const MemeCoinsContent = () => {
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col overflow-hidden">
       
       {/* ===== TOP BAR ===== */}
-      <div className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg">
+      <div className="bg-gradient-to-r from-slate-900/95 via-slate-900/90 to-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg">
         <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-white">
-              NextTrade Meme Terminal
-            </h1>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white">
+                Meme Terminal
+              </h1>
+              <p className="text-[10px] text-slate-500 -mt-0.5">Real-time Solana meme coins</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700/50 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-sm ${connectionStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
             {connectionStatus === 'connected' ? (
               <>
-                <Wifi className="w-3 h-3 text-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-semibold">Live</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-emerald-400 font-semibold">Live Feed</span>
               </>
             ) : (
               <>
                 <WifiOff className="w-3 h-3 text-red-500" />
-                <span className="text-xs text-red-400 font-semibold">Offline</span>
+                <span className="text-xs text-red-400 font-semibold">Reconnecting...</span>
               </>
             )}
           </div>
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700/50 backdrop-blur-sm">
-            <span className="text-xs text-slate-400">{tokens.length} Tokens</span>
+            <Activity className="w-3 h-3 text-blue-400" />
+            <span className="text-xs text-slate-300 font-medium">{tokens.length}</span>
+            <span className="text-xs text-slate-500">tokens</span>
           </div>
         </div>
       </div>
@@ -512,31 +591,50 @@ const MemeCoinsContent = () => {
         <div className={`flex-1 flex flex-col overflow-hidden ${selectedToken && !isMobile ? 'max-w-[65%] border-r border-slate-700/50' : 'w-full'}`}>
           
           {!isMobile && (
-            <div className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 px-4 py-3 flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider shrink-0">
-              <div className="min-w-[220px]">Token</div>
-              <HeaderCell label="Released" columnKey="createdAt" align="right" minWidth="110px" />
-              <HeaderCell label="Txns (5m)" columnKey="txns" align="right" minWidth="100px" />
-              <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="110px" />
-              <HeaderCell label="Liquidity" columnKey="liquidity" align="right" minWidth="110px" />
-              <HeaderCell label="Volume" columnKey="volume24h" align="right" minWidth="100px" />
-              <HeaderCell label="Holders" columnKey="holders" align="right" minWidth="80px" />
-              <div className="min-w-[80px] text-right">Action</div>
+            <div className="bg-slate-900/70 backdrop-blur-md border-b border-slate-700/50 px-4 py-2.5 flex items-center justify-between text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+              <div className="min-w-[200px]">Token</div>
+              <HeaderCell label="Price" columnKey="price_usd" align="right" minWidth="100px" />
+              <HeaderCell label="24h" columnKey="priceChange24h" align="right" minWidth="80px" />
+              <HeaderCell label="Age" columnKey="createdAt" align="right" minWidth="80px" />
+              <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="100px" />
+              <HeaderCell label="Liquidity" columnKey="liquidity" align="right" minWidth="100px" />
+              <HeaderCell label="Volume" columnKey="volume24h" align="right" minWidth="90px" />
+              <HeaderCell label="Txns" columnKey="txns" align="right" minWidth="70px" />
+              <div className="min-w-[100px] text-right">Action</div>
             </div>
           )}
 
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 p-8">
-              <Loader2 className="w-12 h-12 animate-spin text-emerald-500 mb-3" />
-              <p className="text-sm text-slate-400">Connecting to Pump.fun & Jupiter...</p>
-              <p className="text-xs text-slate-600 mt-2">Fetching real-time data</p>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center mb-4 border border-emerald-500/30">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+              </div>
+              <p className="text-base font-semibold text-white mb-1">Connecting to Live Feed</p>
+              <p className="text-sm text-slate-400">Fetching real-time meme coin data...</p>
+              <div className="flex items-center gap-4 mt-4 text-xs text-slate-500">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Pump.fun</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" /> Raydium</span>
+              </div>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto">
               {filteredTokens.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <Search className="w-14 h-14 text-slate-700 mb-3" />
-                  <p className="text-slate-400 font-semibold">No tokens found</p>
-                  <p className="text-xs text-slate-600 mt-1">Try adjusting your filters</p>
+                  <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700/50">
+                    <Search className="w-8 h-8 text-slate-600" />
+                  </div>
+                  <p className="text-lg font-semibold text-white mb-1">No tokens found</p>
+                  <p className="text-sm text-slate-400 max-w-xs">Try adjusting your search or filters to find more tokens</p>
+                  {activeFiltersCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={clearFilters}
+                      className="mt-4 border-slate-700 text-slate-300 hover:bg-slate-800"
+                    >
+                      Clear all filters
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div>

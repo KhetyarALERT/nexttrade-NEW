@@ -1,13 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { formatNumber, formatPrice } from './MemeList';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, Loader2, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch, DollarSign } from 'lucide-react';
+import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, Loader2, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch, DollarSign, Info, Activity } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import JupiterSwapEmbed from './JupiterSwapEmbed';
 import { requestQueue } from '@/components/utils/requestQueue';
+
+// Local format functions to avoid import issues
+const formatNumber = (num) => {
+  if (!num || num === 0) return '$0';
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+};
+
+const formatPrice = (price) => {
+  if (!price || price === 0) return '$0.00';
+  if (price < 0.000001) return `$${price.toExponential(2)}`;
+  if (price < 0.00001) return `$${price.toFixed(10)}`;
+  if (price < 0.01) return `$${price.toFixed(8)}`;
+  if (price < 1) return `$${price.toFixed(6)}`;
+  return `$${price.toFixed(4)}`;
+};
 
 // Safety Flag Helper
 const getSafetyStatus = (safety) => {
@@ -92,10 +109,10 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700/50">
               <img 
-                src={token.image_url || `https://ui-avatars.com/api/?name=${token.symbol}&background=random`} 
+                src={resolveIpfsUrl(token.image_url) || `https://ui-avatars.com/api/?name=${token.symbol}&background=10b981&color=fff`} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=random`; }}
+                onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=10b981&color=fff`; }}
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -267,12 +284,15 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
         )}
 
         {activeTab === 'chart' && (
-          <div className="p-4 h-full min-h-[500px]">
+          <div className="p-4 h-full min-h-[500px] relative">
              <iframe
-                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=15&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark`}
-                className="w-full h-full border-0 bg-[#0f172a] rounded-lg min-h-[500px]"
+                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=1&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark&chartOverrides=mainSeriesProperties.visible:false`}
+                className="w-full border-0 bg-[#0f172a] rounded-lg"
+                style={{ height: 'calc(100% + 30px)', marginBottom: '-30px' }}
                 title="Chart"
               />
+             {/* Cover footer */}
+             <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-950 pointer-events-none" />
           </div>
         )}
 

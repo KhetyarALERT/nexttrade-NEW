@@ -4,10 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExternalLink, Copy, AlertTriangle } from 'lucide-react';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
-import { formatNumber, formatPrice } from './MemeList';
 import JupiterSwapEmbed from './JupiterSwapEmbed';
 import { Badge } from '@/components/ui/badge';
 import { useMediaQuery } from '@/components/hooks/useMediaQuery';
+
+// Local format functions
+const formatNumber = (num) => {
+  if (!num || num === 0) return '$0';
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+};
+
+const formatPrice = (price) => {
+  if (!price || price === 0) return '$0.00';
+  if (price < 0.000001) return `$${price.toExponential(2)}`;
+  if (price < 0.01) return `$${price.toFixed(8)}`;
+  return `$${price.toFixed(4)}`;
+};
 
 // This is the Mobile Bottom Sheet implementation
 export default function TradeDrawer({ open, onOpenChange, token }) {
@@ -107,12 +122,15 @@ export default function TradeDrawer({ open, onOpenChange, token }) {
               </div>
             </TabsContent>
 
-            <TabsContent value="chart" className="flex-1 h-full p-0">
+            <TabsContent value="chart" className="flex-1 h-full p-0 relative overflow-hidden">
               <iframe
-                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=15&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark`}
-                className="w-full h-full border-0 bg-[#0f172a]"
+                src={`https://birdeye.so/tv-widget/${token.mint}?chain=solana&viewMode=pair&chartInterval=1&chartType=Candle&chartTimezone=Europe%2FBerlin&chartLeftToolbar=show&theme=dark`}
+                className="w-full border-0 bg-[#0f172a]"
+                style={{ height: 'calc(100% + 30px)', marginBottom: '-30px' }}
                 title="Chart"
               />
+              {/* Cover footer */}
+              <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#0f172a] pointer-events-none" />
             </TabsContent>
           </Tabs>
         </div>
