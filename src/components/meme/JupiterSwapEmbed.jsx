@@ -7,11 +7,12 @@ import '@jup-ag/plugin/css';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 
-export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount, initialAmount }) {
+export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount, initialAmount, onSwapSuccess, onSwapError }) {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
   
   const [isLoaded, setIsLoaded] = useState(false);
+  const [lastSwapStatus, setLastSwapStatus] = useState(null); // 'success' | 'error' | null
   const instanceRef = useRef(null);
   const lastMintRef = useRef(null);
   const lastAmountRef = useRef(null);
@@ -19,6 +20,63 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
   // Environment variable for referral account (placeholder)
   const ENV_REFERRAL_ACCOUNT = import.meta.env.VITE_JUP_REFERRAL_ACCOUNT;
   const activeReferralAccount = referralAccount || ENV_REFERRAL_ACCOUNT;
+
+  // Swap success handler with confetti celebration
+  const handleSwapSuccess = useCallback(({ txid, swapResult, quoteResponseMeta }) => {
+    setLastSwapStatus('success');
+    
+    // Fire confetti celebration
+    confetti({
+      particleCount: 150,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#22c55e', '#10b981', '#3b82f6', '#f59e0b']
+    });
+    
+    // Show success toast with transaction link
+    toast.success(
+      <div className="flex flex-col gap-1">
+        <span className="font-semibold">Swap Successful! 🎉</span>
+        <a 
+          href={`https://solscan.io/tx/${txid}`} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-xs text-blue-400 hover:underline"
+        >
+          View on Solscan →
+        </a>
+      </div>,
+      { duration: 6000 }
+    );
+    
+    // Call parent callback if provided
+    onSwapSuccess?.({ txid, swapResult, quoteResponseMeta });
+    
+    // Reset status after animation
+    setTimeout(() => setLastSwapStatus(null), 3000);
+  }, [onSwapSuccess]);
+
+  // Swap error handler
+  const handleSwapError = useCallback(({ error, quoteResponseMeta }) => {
+    setLastSwapStatus('error');
+    
+    const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+    
+    // Show error toast
+    toast.error(
+      <div className="flex flex-col gap-1">
+        <span className="font-semibold">Swap Failed</span>
+        <span className="text-xs text-red-300">{errorMessage.slice(0, 100)}</span>
+      </div>,
+      { duration: 5000 }
+    );
+    
+    // Call parent callback if provided
+    onSwapError?.({ error, quoteResponseMeta });
+    
+    // Reset status after animation
+    setTimeout(() => setLastSwapStatus(null), 3000);
+  }, [onSwapError]);
 
   // Main Init Effect
   useEffect(() => {
