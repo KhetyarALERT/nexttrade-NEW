@@ -219,6 +219,18 @@ export const MemeDataProvider = ({ children }) => {
              // Sort by recency/trending
              arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
              
+             // Debug: Log first token to verify data structure
+             if (arr.length > 0 && Math.random() < 0.1) {
+               console.log('Sample token data:', {
+                 symbol: arr[0].symbol,
+                 market_cap: arr[0].market_cap,
+                 liquidity: arr[0].liquidity,
+                 volume24h: arr[0].volume24h,
+                 holders: arr[0].holders,
+                 image_url: arr[0].image_url
+               });
+             }
+             
              // Update state only if changed significantly or just periodically
              setTokens(arr.slice(0, 1000));
         }

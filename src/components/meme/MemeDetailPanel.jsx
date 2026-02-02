@@ -253,16 +253,22 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Token Information</p>
               
               <div className="flex justify-between items-center py-2 border-b border-slate-700/30">
-                <span className="text-sm text-slate-400">Holders</span>
+                <span className="text-sm text-slate-400 flex items-center gap-2">
+                  <Users className="w-4 h-4" /> Holders
+                </span>
                 <span className="text-sm font-bold text-white">{token.holders || '--'}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-700/30">
-                <span className="text-sm text-slate-400">Supply</span>
+                <span className="text-sm text-slate-400 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" /> Supply
+                </span>
                 <span className="text-sm font-bold text-white">{formatNumber(token.supply || 0)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-700/30">
-                <span className="text-sm text-slate-400">Created</span>
-                <span className="text-sm font-bold text-white">{token.created_at ? new Date(token.created_at).toLocaleDateString() : '--'}</span>
+                <span className="text-sm text-slate-400 flex items-center gap-2">
+                  <Clock className="w-4 h-4" /> Created
+                </span>
+                <span className="text-sm font-bold text-white">{token.created_at ? new Date(token.created_at).toLocaleDateString() : token.createdAt ? new Date(token.createdAt).toLocaleDateString() : 'Recently'}</span>
               </div>
               <div className="flex justify-between items-center py-2">
                 <span className="text-sm text-slate-400">Status</span>
@@ -272,11 +278,73 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
               </div>
             </div>
 
+            {/* Social Links */}
+            {(token.twitter || token.telegram || token.website) && (
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Social & Links</p>
+                <div className="flex gap-2">
+                  {token.website && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 border-slate-700/50 hover:border-blue-500/50 hover:text-blue-400"
+                      onClick={() => window.open(token.website, '_blank')}
+                    >
+                      <Globe className="w-3 h-3 mr-1" /> Website
+                    </Button>
+                  )}
+                  {token.twitter && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 border-slate-700/50 hover:border-blue-500/50 hover:text-blue-400"
+                      onClick={() => window.open(token.twitter, '_blank')}
+                    >
+                      <MessageCircle className="w-3 h-3 mr-1" /> X
+                    </Button>
+                  )}
+                  {token.telegram && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex-1 border-slate-700/50 hover:border-blue-500/50 hover:text-blue-400"
+                      onClick={() => window.open(token.telegram, '_blank')}
+                    >
+                      <MessageCircle className="w-3 h-3 mr-1" /> TG
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* External Links */}
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="flex-1 border-slate-700/50 hover:border-emerald-500/50 hover:text-emerald-400 transition-all duration-300"
+                onClick={() => window.open(`https://dexscreener.com/solana/${token.mint}`, '_blank')}
+              >
+                <ExternalLink className="w-3 h-3 mr-1" /> DexScreener
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="flex-1 border-slate-700/50 hover:border-purple-500/50 hover:text-purple-400 transition-all duration-300"
+                onClick={() => window.open(`https://birdeye.so/token/${token.mint}?chain=solana`, '_blank')}
+              >
+                <ExternalLink className="w-3 h-3 mr-1" /> Birdeye
+              </Button>
+            </div>
+
             {/* Copy Contract */}
             <Button 
               variant="outline" 
               className="w-full border-slate-700/50 hover:border-emerald-500/50 hover:text-emerald-400 transition-all duration-300"
-              onClick={() => navigator.clipboard.writeText(token.mint)}
+              onClick={() => {
+                navigator.clipboard.writeText(token.mint);
+                // Optional: Add toast notification
+              }}
             >
               <Copy className="w-4 h-4 mr-2" /> Copy Contract Address
             </Button>
