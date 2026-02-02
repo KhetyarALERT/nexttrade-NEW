@@ -203,7 +203,7 @@ ConnectedWalletAccountsItem.propTypes = {
   language: PropTypes.string.isRequired
 };
 
-export default function Layout({ children, currentPageName: _currentPageName }) {
+function LayoutInner({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
   const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
   const solWallet = useSolanaWallet();
