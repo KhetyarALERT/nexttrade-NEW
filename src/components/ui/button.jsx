@@ -52,15 +52,29 @@ const buttonVariants = cva(
  * }} ButtonProps
  */
 
+// Haptic feedback utility
+const triggerHaptic = () => {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(10);
+  }
+};
+
 /**
  * @type {import("react").ForwardRefRenderFunction<HTMLButtonElement, ButtonProps>}
  */
-function ButtonInner({ className, variant, size, asChild = false, ...props }, ref) {
+function ButtonInner({ className, variant, size, asChild = false, onClick, ...props }, ref) {
   const Comp = asChild ? Slot : "button";
+  
+  const handleClick = (e) => {
+    triggerHaptic();
+    onClick?.(e);
+  };
+  
   return (
     <Comp
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
+      onClick={handleClick}
       {...props}
     />
   );

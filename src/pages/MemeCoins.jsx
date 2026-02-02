@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TradeDrawer from '@/components/meme/TradeDrawer';
 import MemeDetailPanel from '@/components/meme/MemeDetailPanel';
+import PullToRefresh from '@/components/ui/PullToRefresh';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -439,7 +440,16 @@ const MemeCoinsContent = () => {
     </div>
   );
 
+  const handlePullToRefresh = useCallback(async () => {
+    if (activeTab === 'migrated') {
+      await refreshMigrated();
+    } else {
+      await refreshPumpfun();
+    }
+  }, [activeTab, refreshMigrated, refreshPumpfun]);
+
   return (
+    <PullToRefresh onRefresh={handlePullToRefresh}>
     <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col overflow-hidden">
       
       {/* ===== TOP BAR ===== */}
@@ -738,6 +748,7 @@ const MemeCoinsContent = () => {
         token={selectedToken}
       />
     </div>
+    </PullToRefresh>
   );
 };
 

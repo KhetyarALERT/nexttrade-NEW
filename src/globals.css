@@ -149,6 +149,16 @@ css
     -webkit-user-select: none;
     -webkit-touch-callout: none;
   }
+  
+  /* Allow text selection on monospace/code elements for copying wallet addresses */
+  .font-mono,
+  code,
+  pre,
+  [data-selectable] {
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+  }
 }
 
 @layer components {
