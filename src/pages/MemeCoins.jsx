@@ -66,11 +66,15 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
   const priceChange = token.priceChange24h || 0;
   const isPositive = priceChange >= 0;
 
-  // Resolve IPFS URL for token image
+  // Resolve IPFS/image URL for token image
   const getTokenImage = (url) => {
     if (!url) return null;
     if (url.startsWith('ipfs://')) {
-      return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+      return url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+    }
+    // Handle pump.fun CDN URLs
+    if (url.includes('cf-ipfs.com') || url.includes('dweb.link')) {
+      return url.replace('cf-ipfs.com', 'gateway.pinata.cloud').replace('dweb.link', 'gateway.pinata.cloud');
     }
     return url;
   };
@@ -85,19 +89,20 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
-          <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700/50 shadow-lg">
+          <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-emerald-500 to-cyan-500 border border-slate-700/50 shadow-lg">
             {imageUrl ? (
               <img 
                 src={imageUrl} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+                onError={(e) => { 
+                  e.target.style.display = 'none'; 
+                }}
               />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold text-white">
-                {token.symbol?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-            )}
+            ) : null}
+            <div className={`w-full h-full flex items-center justify-center text-sm font-bold text-white ${imageUrl ? 'hidden' : ''}`}>
+              {token.symbol?.charAt(0)?.toUpperCase() || '?'}
+            </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -193,11 +198,15 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
   const priceChange = token.priceChange24h || 0;
   const isPositive = priceChange >= 0;
 
-  // Resolve IPFS URL for token image
+  // Resolve IPFS/image URL for token image
   const getTokenImage = (url) => {
     if (!url) return null;
     if (url.startsWith('ipfs://')) {
-      return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+      return url.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+    }
+    // Handle pump.fun CDN URLs
+    if (url.includes('cf-ipfs.com') || url.includes('dweb.link')) {
+      return url.replace('cf-ipfs.com', 'gateway.pinata.cloud').replace('dweb.link', 'gateway.pinata.cloud');
     }
     return url;
   };
@@ -220,19 +229,20 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         >
           <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-400 text-yellow-400 opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
         </button>
-        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800 border border-slate-700/50">
+        <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-emerald-500 to-cyan-500 border border-slate-700/50">
           {imageUrl ? (
             <img 
               src={imageUrl} 
               alt={token.symbol}
               className="w-full h-full object-cover"
-              onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+              onError={(e) => { 
+                e.target.style.display = 'none'; 
+              }}
             />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-xs font-bold text-white">
-              {token.symbol?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-          )}
+          ) : null}
+          <div className={`w-full h-full flex items-center justify-center text-xs font-bold text-white ${imageUrl ? 'hidden' : ''}`}>
+            {token.symbol?.charAt(0)?.toUpperCase() || '?'}
+          </div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
