@@ -4,9 +4,24 @@
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
-
 import { cn } from "@/lib/utils"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
+
+// Hook to detect mobile viewport (<768px)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false);
+  
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  
+  return isMobile;
+}
 
 const Select = SelectPrimitive.Root
 
@@ -96,9 +111,9 @@ SelectScrollDownButton.displayName =
  */
 
 /**
- * @type {import("react").ForwardRefRenderFunction<SelectContentRef, SelectContentProps>}
+ * Desktop popover content (unchanged from original)
  */
-function SelectContentInner({ className, children, position = "popper", ...props }, ref) {
+function SelectContentDesktop({ className, children, position = "popper", ...props }, ref) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -125,6 +140,56 @@ function SelectContentInner({ className, children, position = "popper", ...props
         <SelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
+  );
+}
+
+const SelectContentDesktopRef = React.forwardRef(SelectContentDesktop);
+
+/**
+ * Mobile drawer content - renders as bottom sheet
+ */
+function SelectContentMobile({ className, children, ...props }, ref) {
+  // Get the Select context to control open state
+  const context = React.useContext(SelectPrimitive.SelectContext);
+  const isOpen = context?.open ?? false;
+  
+  return (
+    <Drawer open={isOpen} onOpenChange={(open) => !open && context?.onOpenChange?.(false)}>
+      <DrawerContent className="max-h-[60vh]">
+        <VisuallyHidden.Root>
+          <DrawerTitle>Select an option</DrawerTitle>
+        </VisuallyHidden.Root>
+        <div className="overflow-y-auto p-2 pb-8">
+          {children}
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+const SelectContentMobileRef = React.forwardRef(SelectContentMobile);
+
+/**
+ * Responsive SelectContent - uses Drawer on mobile, Popover on desktop
+ * @type {import("react").ForwardRefRenderFunction<SelectContentRef, SelectContentProps>}
+ */
+function SelectContentInner({ className, children, position = "popper", ...props }, ref) {
+  const isMobile = useIsMobile();
+  
+  // On mobile, use drawer-based selection
+  if (isMobile) {
+    return (
+      <SelectContentMobileRef ref={ref} className={className} {...props}>
+        {children}
+      </SelectContentMobileRef>
+    );
+  }
+  
+  // On desktop, use standard popover
+  return (
+    <SelectContentDesktopRef ref={ref} className={className} position={position} {...props}>
+      {children}
+    </SelectContentDesktopRef>
   );
 }
 
