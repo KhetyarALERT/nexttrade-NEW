@@ -922,86 +922,12 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
       
       {/* Mobile Bottom Navigation - 5 items only: Overview, Trade, Wallet, Support, Account */}
       {!isMemeCoinsPage && !isTradingPage && !isAdminHub && (
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] glass-effect border-t border-border safe-area-bottom">
-        <div className="flex items-center justify-around h-14 px-1">
-          {(() => {
-            const navT = tSection("nav", language);
-            return (
-              <>
-                <Link
-                  to={createPageUrl("Dashboard")}
-                  className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
-                    location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home")
-                      ? 'text-primary bg-primary/15'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <Home className="w-4 h-4" />
-                  <span className="text-[9px] font-medium">{navT.overview}</span>
-                </Link>
-
-                <Link
-                  to={createPageUrl("Futures")}
-                  className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
-                    location.pathname === createPageUrl("Futures")
-                      ? 'text-primary bg-primary/15'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-[9px] font-medium">{navT.trade}</span>
-                </Link>
-
-                <Link
-                  to={createPageUrl("Wallet")}
-                  className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
-                    location.pathname.includes("Wallet")
-                      ? 'text-primary bg-primary/15'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <WalletIcon className="w-4 h-4" />
-                  <span className="text-[9px] font-medium">{navT.wallet}</span>
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Toggle existing support chat widget
-                    const trigger = document.querySelector('[data-support-trigger]');
-                    if (trigger) trigger.click();
-                  }}
-                  className="flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all text-muted-foreground active:text-primary active:bg-primary/15"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-[9px] font-medium">{navT.support}</span>
-                </button>
-
-                <Link
-                  to={isAuthenticated ? createPageUrl("Profile") : '#'}
-                  onClick={isAuthenticated ? undefined : (e) => { 
-                    e.preventDefault(); 
-                    const refCode = getStoredReferralCode();
-                    const currentUrl = new URL(window.location.href);
-                    if (refCode && !currentUrl.searchParams.has('ref')) {
-                      currentUrl.searchParams.set('ref', refCode);
-                    }
-                    navigateToLogin(currentUrl.toString()); 
-                  }}
-                  className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all ${
-                    location.pathname.includes("Profile")
-                      ? 'text-primary bg-primary/15'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-[9px] font-medium">{navT.account}</span>
-                </Link>
-              </>
-            );
-          })()}
-        </div>
-      </nav>
+      <MobileBottomNav 
+        language={language} 
+        isAuthenticated={isAuthenticated} 
+        navigateToLogin={navigateToLogin}
+        location={location}
+      />
       )}
       
       <NotificationSettings 
