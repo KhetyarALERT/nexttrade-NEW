@@ -379,7 +379,8 @@ const MemeCoinsContent = () => {
   const isPumpfunTab = activeTab === 'pumpfun';
 
   const filteredTokens = useMemo(() => {
-    let result = currentTokens.filter(t => {
+    // Clone and filter - never mutate original array
+    const result = [...currentTokens].filter(t => {
       const matchesSearch = t.symbol.toLowerCase().includes(search.toLowerCase()) || 
                             t.name.toLowerCase().includes(search.toLowerCase());
       const matchesLiquidity = (t.liquidity || 0) >= minLiquidity * 1000;
@@ -389,6 +390,7 @@ const MemeCoinsContent = () => {
       return matchesSearch && matchesLiquidity && matchesMarketCap && matchesFavorites;
     });
 
+    // Sort on cloned array
     result.sort((a, b) => {
       let aVal, bVal;
 
