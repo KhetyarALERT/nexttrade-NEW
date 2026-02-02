@@ -127,11 +127,27 @@ css
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
   
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
+  }
+  
+  /* Prevent text selection on interactive elements for mobile */
+  button,
+  [role="button"],
+  nav,
+  nav *,
+  .nav-link,
+  [data-radix-collection-item],
+  .lucide,
+  svg {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 }
 
