@@ -65,7 +65,7 @@ const formatTimeAgo = (timestamp) => {
 
 const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
-  const priceChange = token.priceChange24h || 0;
+  const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
 
   // Resolve IPFS/image URL for token image
@@ -142,6 +142,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
           <p className="text-sm font-semibold text-cyan-400">{formatMarketCap(token.liquidity)}</p>
         </div>
         <div className={`px-2 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+          <p className="text-[9px] text-slate-500 mb-0.5">5m</p>
           <p className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {Math.abs(priceChange).toFixed(1)}%
@@ -196,7 +197,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 
 const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
-  const priceChange = token.priceChange24h || 0;
+  const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
 
   // Resolve IPFS/image URL for token image
@@ -256,7 +257,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </div>
       </div>
 
-      {/* 24h Change */}
+      {/* 5m Change */}
       <div className="min-w-[70px] text-right">
         <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
           {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
@@ -391,8 +392,8 @@ const MemeCoinsContent = () => {
       
       const matchesLiquidity = (t.liquidity || 0) >= minLiquidity;
       const matchesMarketCap = (t.market_cap || 0) >= minMarketCap;
-      // 24h change filter might be less relevant if we removed the column, but logic remains valid for filtering
-      const matchesChange = (t.priceChange24h || 0) >= minChange24h; 
+      // 5m change filter
+      const matchesChange = (t.priceChange5m || 0) >= minChange24h; 
       const matchesFavorites = !showOnlyFavorites || favorites.has(t.mint);
 
       return matchesSearch && matchesSource && matchesLiquidity && matchesMarketCap && matchesChange && matchesFavorites;
@@ -572,13 +573,13 @@ const MemeCoinsContent = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className={`h-9 text-xs border-slate-700/50 rounded-lg transition-all duration-300 ${minChange24h > 0 ? 'text-emerald-400 border-emerald-500/50 bg-emerald-500/10' : 'text-slate-400 bg-slate-800/50'}`}>
-                    <Flame className="w-3 h-3 mr-1" /> 24h
+                    <Flame className="w-3 h-3 mr-1" /> 5m %
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-slate-900 border-slate-700/50">
-                  <DropdownMenuLabel>Min 24h Change</DropdownMenuLabel>
+                  <DropdownMenuLabel>Min 5m Change</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-slate-700/50" />
-                  {[0, 10, 50, 100, 500].map(val => (
+                  {[0, 5, 10, 25, 50].map(val => (
                     <DropdownMenuItem key={val} onClick={() => setMinChange24h(val)} className="hover:bg-slate-800">
                       {val === 0 ? 'Any' : `${val}%+`}
                     </DropdownMenuItem>
@@ -604,7 +605,7 @@ const MemeCoinsContent = () => {
           {!isMobile && (
             <div className="bg-slate-900/70 backdrop-blur-md border-b border-slate-700/50 px-4 py-2.5 flex items-center justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
               <div className="min-w-[200px]">Token</div>
-              <HeaderCell label="24h %" columnKey="priceChange24h" align="right" minWidth="70px" />
+              <HeaderCell label="5m %" columnKey="priceChange5m" align="right" minWidth="70px" />
               <HeaderCell label="Age" columnKey="createdAt" align="right" minWidth="60px" />
               <HeaderCell label="MCap" columnKey="market_cap" align="right" minWidth="90px" />
               <HeaderCell label="Liq" columnKey="liquidity" align="right" minWidth="90px" />

@@ -93,7 +93,8 @@ export const MemeDataProvider = ({ children }) => {
                holders: existing.holders || 1, // At least creator
                volume_sol_24h: existing.volume_sol_24h || 0,
                bonding_curve_status: 'bonding_curve',
-               priceChange24h: existing.priceChange24h || 0,
+               priceChange5m: existing.priceChange5m || 0,
+               price5mAgo: existing.price5mAgo || 0, // Track for 5m change calc
                createdAt: Date.now(), // New creation event = now
                buys_5m: existing.buys_5m || 0,
                sells_5m: existing.sells_5m || 0,
@@ -141,8 +142,23 @@ export const MemeDataProvider = ({ children }) => {
                     token.volume_sol_24h = (token.volume_sol_24h || 0) + solAmount;
                     token.volume24h = token.volume_sol_24h * SOL_PRICE;
 
+                    // Track price for 5m change calculation
+                    const now = Date.now();
+                    if (!token.price5mAgo || !token.price5mAgoTime || (now - token.price5mAgoTime) > 300000) {
+                        // Store current price as "5m ago" baseline every 5 mins
+                        token.price5mAgo = token.price_usd || priceUsd;
+                        token.price5mAgoTime = now;
+                    }
+                    
+                    // Calculate 5m price change
+                    if (token.price5mAgo && token.price5mAgo > 0) {
+                        token.priceChange5m = ((priceUsd - token.price5mAgo) / token.price5mAgo) * 100;
+                    } else {
+                        token.priceChange5m = 0;
+                    }
+
                     // Ping update
-                    token.lastTrade = Date.now();
+                    token.lastTrade = now;
                     tokensMapRef.current.set(data.mint, { ...token });
                 }
             } catch (e) {
