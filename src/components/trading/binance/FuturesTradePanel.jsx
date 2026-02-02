@@ -472,31 +472,53 @@ export default function FuturesTradePanel({
     setOrderSuccess("");
     setBotsBusy(true);
 
+    // Build order params early for optimistic update
+    const qty = parseNum(amount);
+    const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const entryPrice = refPrice || lastPrice;
+    const normalizedSide = sideKey === "SHORT" ? "SHORT" : "LONG";
+    const lev = Number(leverage);
+    const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(5, Math.max(1, lev)) : 5;
+    
+    // Optimistic UI: Show success immediately for better mobile feel
+    const optimisticId = `pending_${Date.now()}`;
+    let optimisticPosition = null;
+
     try {
       const isLive = !demoMode && liveAccount?.id;
       const tradingAccountId = demoMode ? demoAccount?.id : liveAccount?.id;
       if (!tradingAccountId) {
         setBotsError(language === "ar" ? "لا يوجد حساب متاح" : "No trading account available");
+        setBotsBusy(false);
         return;
       }
 
-      const qty = parseNum(amount);
-      const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1;
-      const entryPrice = refPrice || lastPrice;
       if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
         setBotsError(language === "ar" ? "سعر غير صالح" : "Invalid price");
+        setBotsBusy(false);
         return;
       }
-
-      const normalizedSide = sideKey === "SHORT" ? "SHORT" : "LONG";
-      const lev = Number(leverage);
-      const levSafe = Number.isFinite(lev) && lev > 0 ? Math.min(5, Math.max(1, lev)) : 5;
 
       const tpRaw = normalizedSide === "LONG" ? parseNum(longTpTrigger) : parseNum(shortTpTrigger);
       const slRaw = normalizedSide === "LONG" ? parseNum(longSlTrigger) : parseNum(shortSlTrigger);
-
       const takeProfit = Number.isFinite(tpRaw) && tpRaw > 0 ? tpRaw : null;
       const stopLoss = Number.isFinite(slRaw) && slRaw > 0 ? slRaw : null;
+
+      // OPTIMISTIC UI: Show pending state immediately
+      optimisticPosition = {
+        id: optimisticId,
+        symbol,
+        side: normalizedSide,
+        quantity,
+        entry_price: entryPrice,
+        leverage: levSafe,
+        status: 'PENDING',
+        unrealized_pnl: 0,
+        _optimistic: true,
+      };
+      
+      // Show success message immediately for snappy feel
+      setOrderSuccess(language === "ar" ? "جاري تنفيذ الأمر..." : "Placing order...");
 
       if (isLive) {
         const okxSide = normalizedSide === "SHORT" ? "sell" : "buy";
@@ -520,6 +542,7 @@ export default function FuturesTradePanel({
             (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade");
           const errorCode = res?.data?.error?.code || res?.data?.error?.okxCode || '';
           setBotsError(`${errorMsg}${errorCode ? ` (${errorCode})` : ''}`);
+          setOrderSuccess("");
           return;
         }
       } else {
@@ -540,19 +563,23 @@ export default function FuturesTradePanel({
 
         if (!res?.data?.success) {
           setBotsError(res?.data?.error || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+          setOrderSuccess("");
           return;
         }
       }
 
-      // Show success message
+      // Update success message
       setOrderSuccess(language === "ar" ? "تم تنفيذ الأمر بنجاح" : "Order placed successfully");
       setTimeout(() => setOrderSuccess(""), 3000);
       
-      // Refresh data
-      await onTradesChanged?.();
-      await onAccountsChanged?.();
+      // Refresh data in background (don't await for snappy feel)
+      Promise.all([
+        onTradesChanged?.(),
+        onAccountsChanged?.()
+      ]).catch(() => {});
     } catch (err) {
       setBotsError(err?.message || (language === "ar" ? "فشل فتح الصفقة" : "Failed to open trade"));
+      setOrderSuccess("");
     } finally {
       setBotsBusy(false);
     }
