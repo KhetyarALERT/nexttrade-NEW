@@ -4,10 +4,8 @@
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
-import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 
 // Hook to detect mobile viewport (<768px)
 function useIsMobile() {
@@ -110,51 +108,44 @@ SelectScrollDownButton.displayName =
  * @typedef {import("react").ComponentPropsWithoutRef<typeof SelectPrimitive.Content>} SelectContentProps
  */
 
-
-
 /**
- * Mobile drawer content - renders as bottom sheet
- */
-function SelectContentMobile({ className, children, ...props }, ref) {
-  const { open, setOpen } = React.useContext(SelectOpenContext);
-  
-  return (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerContent className="max-h-[60vh]">
-        <VisuallyHidden.Root>
-          <DrawerTitle>Select an option</DrawerTitle>
-        </VisuallyHidden.Root>
-        <div className="overflow-y-auto p-2 pb-8">
-          {children}
-        </div>
-      </DrawerContent>
-    </Drawer>
-  );
-}
-
-const SelectContentMobileRef = React.forwardRef(SelectContentMobile);
-
-/**
- * Responsive SelectContent - uses Drawer on mobile, Popover on desktop
+ * Responsive SelectContent - uses mobile-optimized styling on small screens
  * @type {import("react").ForwardRefRenderFunction<SelectContentRef, SelectContentProps>}
  */
 function SelectContentInner({ className, children, position = "popper", ...props }, ref) {
   const isMobile = useIsMobile();
   
-  // On mobile, use drawer-based selection
-  if (isMobile) {
-    return (
-      <SelectContentMobileRef ref={ref} className={className} {...props}>
-        {children}
-      </SelectContentMobileRef>
-    );
-  }
-  
-  // On desktop, use standard popover
   return (
-    <SelectContentDesktopRef ref={ref} className={className} position={position} {...props}>
-      {children}
-    </SelectContentDesktopRef>
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        ref={ref}
+        className={cn(
+          "relative z-50 overflow-hidden rounded-xl border border-border/50 bg-popover/95 backdrop-blur-xl text-popover-foreground shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+          // Mobile: full-width bottom sheet style
+          isMobile && "fixed inset-x-2 bottom-2 top-auto max-h-[50vh] min-w-0 rounded-2xl",
+          // Desktop: standard popover
+          !isMobile && "max-h-96 min-w-[8rem]",
+          position === "popper" && !isMobile &&
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
+        )}
+        position={isMobile ? "popper" : position}
+        {...props}
+      >
+        {!isMobile && <SelectScrollUpButton />}
+        <SelectPrimitive.Viewport
+          className={cn(
+            "p-1",
+            isMobile && "max-h-[48vh] overflow-y-auto pb-4",
+            !isMobile && position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        {!isMobile && <SelectScrollDownButton />}
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
   );
 }
 
