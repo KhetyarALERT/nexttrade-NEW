@@ -1,261 +1,277 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { base44 } from "@/api/base44Client";
 
+// =============================================================================
+// MEME DATA CONTEXT - Dual-source: DexScreener (migrated) + Pump.fun (bonding)
+// =============================================================================
+
 const MemeDataContext = createContext(null);
 
 export const useMemeData = () => useContext(MemeDataContext);
 
+// Cache with TTL
+const dataCache = {
+  migrated: { data: [], timestamp: 0, loading: false },
+  pumpfun: { data: [], timestamp: 0, loading: false }
+};
+const CACHE_TTL = 15000; // 15 seconds
+
 export const MemeDataProvider = ({ children }) => {
-  const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // State for each tab
+  const [migratedTokens, setMigratedTokens] = useState([]);
+  const [pumpfunTokens, setPumpfunTokens] = useState([]);
+  const [loadingMigrated, setLoadingMigrated] = useState(true);
+  const [loadingPumpfun, setLoadingPumpfun] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [lastRefresh, setLastRefresh] = useState({ migrated: null, pumpfun: null });
+  const [diagnostics, setDiagnostics] = useState({ migrated: null, pumpfun: null });
   
-  // Use a map for O(1) updates - persisted across renders
-  const tokensMapRef = useRef(new Map());
+  // Active tab tracking for smart refresh
+  const [activeTab, setActiveTab] = useState('migrated');
+  
+  // Refs
   const wsRef = useRef(null);
-  const reconnectTimerRef = useRef(null);
+  const refreshTimerRef = useRef(null);
+  const visibilityRef = useRef(true);
+  const mountedRef = useRef(true);
 
-  // Fetch trending tokens from DexScreener API (reliable data source)
-  const fetchTrendingTokens = useCallback(async () => {
-    try {
-      console.log('Fetching trending tokens from DexScreener...');
-      const res = await base44.functions.invoke('memeTokens', { action: 'getTrending' });
-      
-      if (res.data?.ok && Array.isArray(res.data.data)) {
-        const trendingTokens = res.data.data;
-        console.log(`Received ${trendingTokens.length} trending tokens`);
-        
-        trendingTokens.forEach(t => {
-          // Only update if we have real data (liquidity > 0)
-          if (t.liquidity > 0 || t.market_cap > 0) {
-            const existing = tokensMapRef.current.get(t.mint) || {};
-            tokensMapRef.current.set(t.mint, {
-              ...existing,
-              ...t,
-              // Ensure proper field mapping
-              price: t.price_usd,
-              lastUpdated: Date.now()
-            });
-          }
-        });
-        
-        // Update state immediately after fetch
-        updateTokensState();
-        return trendingTokens.map(t => t.mint);
-      }
-      return [];
-    } catch (e) {
-      console.warn("Failed to fetch trending tokens:", e);
-      return [];
-    }
-  }, []);
-
-  // Update tokens state from map
-  const updateTokensState = useCallback(() => {
-    if (tokensMapRef.current.size > 0) {
-      const arr = Array.from(tokensMapRef.current.values());
-      
-      // Filter: only show tokens with meaningful data
-      // At minimum require liquidity > $100 OR market_cap > $1000 OR recent trades
-      const filtered = arr.filter(t => {
-        const hasLiquidity = (t.liquidity || 0) > 100;
-        const hasMarketCap = (t.market_cap || 0) > 1000;
-        const hasTrades = ((t.buys_5m || 0) + (t.sells_5m || 0)) > 0;
-        const hasVolume = (t.volume24h || 0) > 0;
-        return hasLiquidity || hasMarketCap || hasTrades || hasVolume;
-      });
-      
-      // Sort by a combination of recency and activity
-      filtered.sort((a, b) => {
-        // Prioritize tokens with actual trading activity
-        const aScore = (a.volume24h || 0) + (a.liquidity || 0) * 0.1;
-        const bScore = (b.volume24h || 0) + (b.liquidity || 0) * 0.1;
-        return bScore - aScore;
-      });
-      
-      setTokens(filtered.slice(0, 200));
-    }
-  }, []);
-
-  // WebSocket for real-time updates (supplement, not primary)
-  const connectWebSocket = useCallback((mintsToSubscribe = []) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // Already connected, just subscribe to new mints
-      if (mintsToSubscribe.length > 0) {
-        wsRef.current.send(JSON.stringify({
-          method: "subscribeTokenTrade",
-          keys: mintsToSubscribe
-        }));
-      }
+  // =========================================================================
+  // FETCH MIGRATED TOKENS (DexScreener)
+  // =========================================================================
+  const fetchMigratedTokens = useCallback(async (force = false) => {
+    // Check cache
+    if (!force && dataCache.migrated.data.length > 0 && 
+        Date.now() - dataCache.migrated.timestamp < CACHE_TTL) {
+      console.log('[MIGRATED] Using cached data:', dataCache.migrated.data.length, 'tokens');
+      setMigratedTokens(dataCache.migrated.data);
+      setLoadingMigrated(false);
       return;
     }
 
-    setConnectionStatus('connecting');
-    const ws = new WebSocket('wss://pumpportal.fun/api/data');
-    wsRef.current = ws;
+    // Prevent duplicate requests
+    if (dataCache.migrated.loading) {
+      console.log('[MIGRATED] Request already in progress');
+      return;
+    }
 
-    ws.onopen = () => {
-      console.log('WebSocket connected to PumpPortal');
-      setConnectionStatus('connected');
-      
-      // Subscribe to new tokens and migrations
-      ws.send(JSON.stringify({ method: "subscribeNewToken" }));
-      ws.send(JSON.stringify({ method: "subscribeMigration" }));
-      
-      // Subscribe to trades for existing tokens
-      if (mintsToSubscribe.length > 0) {
-        ws.send(JSON.stringify({
-          method: "subscribeTokenTrade",
-          keys: mintsToSubscribe.slice(0, 100) // Limit subscriptions
-        }));
-      }
-    };
+    dataCache.migrated.loading = true;
+    setLoadingMigrated(true);
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+    try {
+      console.log('[MIGRATED] Fetching from API...');
+      const startTime = Date.now();
+      
+      const res = await base44.functions.invoke('memeTokens', { 
+        action: 'getMigrated',
+        limit: 200 
+      });
+
+      if (!mountedRef.current) return;
+
+      if (res.data?.ok && Array.isArray(res.data.data)) {
+        const tokens = res.data.data;
+        const elapsed = Date.now() - startTime;
         
-        if (data.txType === 'create') {
-          // New token - fetch full data from DexScreener after a delay
-          // (give it time to appear on DEXes)
-          setTimeout(async () => {
-            try {
-              const res = await base44.functions.invoke('memeTokens', { 
-                action: 'getToken', 
-                mint: data.mint 
-              });
-              if (res.data?.ok && res.data.data) {
-                const t = res.data.data;
-                if (t.liquidity > 100 || t.market_cap > 1000) {
-                  tokensMapRef.current.set(t.mint, {
-                    ...t,
-                    price: t.price_usd,
-                    lastUpdated: Date.now()
-                  });
-                }
-              }
-            } catch (e) {
-              // Token might not be on DexScreener yet, that's ok
-            }
-          }, 5000);
-        } 
-        else if (data.txType === 'trade') {
-          // Update existing token with trade data
-          let token = tokensMapRef.current.get(data.mint);
-          if (token) {
-            const SOL_PRICE = 200;
-            const isBuy = data.isBuy;
-            const solAmount = data.solAmount || 0;
-            
-            // Update rolling stats
-            token.buys_5m = (token.buys_5m || 0) + (isBuy ? 1 : 0);
-            token.sells_5m = (token.sells_5m || 0) + (isBuy ? 0 : 1);
-            
-            // Update price from trade
-            if (data.marketCapSol) {
-              const newPrice = (data.marketCapSol * SOL_PRICE) / 1000000000;
-              
-              // Track price for 5m change
-              const now = Date.now();
-              if (!token.price5mAgo || !token.price5mAgoTime || (now - token.price5mAgoTime) > 300000) {
-                token.price5mAgo = token.price_usd || newPrice;
-                token.price5mAgoTime = now;
-              }
-              
-              // Calculate 5m change
-              if (token.price5mAgo > 0) {
-                token.priceChange5m = ((newPrice - token.price5mAgo) / token.price5mAgo) * 100;
-              }
-              
-              token.price_usd = newPrice;
-              token.price = newPrice;
-              token.market_cap = data.marketCapSol * SOL_PRICE;
-            }
-            
-            token.lastTrade = Date.now();
-            tokensMapRef.current.set(data.mint, { ...token });
+        console.log(`[MIGRATED] Received ${tokens.length} tokens in ${elapsed}ms`);
+        
+        // Update diagnostics
+        setDiagnostics(prev => ({
+          ...prev,
+          migrated: {
+            count: tokens.length,
+            fetchTime: elapsed,
+            newest: tokens[0]?.createdAt ? new Date(tokens[0].createdAt).toISOString() : null,
+            oldest: tokens[tokens.length-1]?.createdAt ? new Date(tokens[tokens.length-1].createdAt).toISOString() : null,
+            source: res.data.meta?.source || 'unknown',
+            cacheHit: res.data.meta?.cacheHit || false
           }
-        }
-      } catch (e) {
-        console.error("WebSocket message error:", e);
+        }));
+
+        // Update cache
+        dataCache.migrated.data = tokens;
+        dataCache.migrated.timestamp = Date.now();
+        
+        setMigratedTokens(tokens);
+        setLastRefresh(prev => ({ ...prev, migrated: Date.now() }));
+        setConnectionStatus('connected');
+      } else {
+        console.error('[MIGRATED] Invalid response:', res.data);
       }
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setConnectionStatus('disconnected');
-      // Reconnect after delay
-      reconnectTimerRef.current = setTimeout(() => {
-        const mints = Array.from(tokensMapRef.current.keys());
-        connectWebSocket(mints);
-      }, 5000);
-    };
-
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
+    } catch (e) {
+      console.error('[MIGRATED] Fetch error:', e);
+      setConnectionStatus('error');
+    } finally {
+      dataCache.migrated.loading = false;
+      if (mountedRef.current) {
+        setLoadingMigrated(false);
+      }
+    }
   }, []);
 
-  // Initial load and periodic refresh
-  useEffect(() => {
-    let mounted = true;
-    let refreshInterval;
+  // =========================================================================
+  // FETCH PUMP.FUN TOKENS (Bonding Curve)
+  // =========================================================================
+  const fetchPumpfunTokens = useCallback(async (force = false) => {
+    // Check cache
+    if (!force && dataCache.pumpfun.data.length > 0 && 
+        Date.now() - dataCache.pumpfun.timestamp < CACHE_TTL) {
+      console.log('[PUMPFUN] Using cached data:', dataCache.pumpfun.data.length, 'tokens');
+      setPumpfunTokens(dataCache.pumpfun.data);
+      setLoadingPumpfun(false);
+      return;
+    }
 
-    const init = async () => {
-      setLoading(true);
+    // Prevent duplicate requests
+    if (dataCache.pumpfun.loading) {
+      console.log('[PUMPFUN] Request already in progress');
+      return;
+    }
+
+    dataCache.pumpfun.loading = true;
+    setLoadingPumpfun(true);
+
+    try {
+      console.log('[PUMPFUN] Fetching from API...');
+      const startTime = Date.now();
       
-      // Fetch trending tokens first (reliable data)
-      const mints = await fetchTrendingTokens();
-      
-      if (mounted) {
-        setLoading(false);
-        // Connect WebSocket for real-time updates
-        connectWebSocket(mints);
+      const res = await base44.functions.invoke('memeTokens', { 
+        action: 'getPumpFun',
+        limit: 100 
+      });
+
+      if (!mountedRef.current) return;
+
+      if (res.data?.ok && Array.isArray(res.data.data)) {
+        const tokens = res.data.data;
+        const elapsed = Date.now() - startTime;
+        
+        console.log(`[PUMPFUN] Received ${tokens.length} tokens in ${elapsed}ms`);
+        
+        // Update diagnostics
+        setDiagnostics(prev => ({
+          ...prev,
+          pumpfun: {
+            count: tokens.length,
+            fetchTime: elapsed,
+            newest: tokens[0]?.createdAt ? new Date(tokens[0].createdAt).toISOString() : null,
+            oldest: tokens[tokens.length-1]?.createdAt ? new Date(tokens[tokens.length-1].createdAt).toISOString() : null,
+            source: res.data.meta?.source || 'unknown',
+            cacheHit: res.data.meta?.cacheHit || false
+          }
+        }));
+
+        // Update cache
+        dataCache.pumpfun.data = tokens;
+        dataCache.pumpfun.timestamp = Date.now();
+        
+        setPumpfunTokens(tokens);
+        setLastRefresh(prev => ({ ...prev, pumpfun: Date.now() }));
+      } else {
+        console.error('[PUMPFUN] Invalid response:', res.data);
+      }
+    } catch (e) {
+      console.error('[PUMPFUN] Fetch error:', e);
+    } finally {
+      dataCache.pumpfun.loading = false;
+      if (mountedRef.current) {
+        setLoadingPumpfun(false);
+      }
+    }
+  }, []);
+
+  // =========================================================================
+  // REFRESH FUNCTIONS
+  // =========================================================================
+  const refreshMigrated = useCallback(() => fetchMigratedTokens(true), [fetchMigratedTokens]);
+  const refreshPumpfun = useCallback(() => fetchPumpfunTokens(true), [fetchPumpfunTokens]);
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchMigratedTokens(true), fetchPumpfunTokens(true)]);
+  }, [fetchMigratedTokens, fetchPumpfunTokens]);
+
+  // =========================================================================
+  // VISIBILITY-AWARE POLLING
+  // =========================================================================
+  useEffect(() => {
+    const handleVisibility = () => {
+      visibilityRef.current = document.visibilityState === 'visible';
+      if (visibilityRef.current) {
+        // Refresh data when tab becomes visible
+        if (activeTab === 'migrated') {
+          fetchMigratedTokens();
+        } else {
+          fetchPumpfunTokens();
+        }
       }
     };
 
-    init();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [activeTab, fetchMigratedTokens, fetchPumpfunTokens]);
 
-    // Refresh trending data every 30 seconds
-    refreshInterval = setInterval(() => {
-      if (mounted) {
-        fetchTrendingTokens();
+  // =========================================================================
+  // INITIAL LOAD + POLLING
+  // =========================================================================
+  useEffect(() => {
+    mountedRef.current = true;
+
+    // Initial fetch of both sources
+    fetchMigratedTokens();
+    fetchPumpfunTokens();
+
+    // Polling interval - refresh active tab every 30s
+    refreshTimerRef.current = setInterval(() => {
+      if (!visibilityRef.current) return;
+      
+      if (activeTab === 'migrated') {
+        fetchMigratedTokens();
+      } else {
+        fetchPumpfunTokens();
       }
     }, 30000);
 
-    // Update UI state every 2 seconds
-    const uiInterval = setInterval(() => {
-      if (mounted) {
-        updateTokensState();
-      }
-    }, 2000);
-
     return () => {
-      mounted = false;
+      mountedRef.current = false;
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
       if (wsRef.current) {
         wsRef.current.close();
       }
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-      clearInterval(refreshInterval);
-      clearInterval(uiInterval);
     };
-  }, [fetchTrendingTokens, connectWebSocket, updateTokensState]);
+  }, [fetchMigratedTokens, fetchPumpfunTokens, activeTab]);
 
-  // Manual refresh function
-  const refreshTokens = useCallback(async () => {
-    setLoading(true);
-    await fetchTrendingTokens();
-    setLoading(false);
-  }, [fetchTrendingTokens]);
+  // =========================================================================
+  // COMBINED TOKENS (for backwards compatibility)
+  // =========================================================================
+  const tokens = activeTab === 'migrated' ? migratedTokens : pumpfunTokens;
+  const loading = activeTab === 'migrated' ? loadingMigrated : loadingPumpfun;
 
   return (
     <MemeDataContext.Provider value={{ 
+      // Current tab data
       tokens, 
       loading, 
       connectionStatus,
-      refreshTokens 
+      
+      // Tab-specific data
+      migratedTokens,
+      pumpfunTokens,
+      loadingMigrated,
+      loadingPumpfun,
+      
+      // Tab control
+      activeTab,
+      setActiveTab,
+      
+      // Refresh functions
+      refreshMigrated,
+      refreshPumpfun,
+      refreshAll,
+      refreshTokens: activeTab === 'migrated' ? refreshMigrated : refreshPumpfun,
+      
+      // Diagnostics
+      lastRefresh,
+      diagnostics
     }}>
       {children}
     </MemeDataContext.Provider>
