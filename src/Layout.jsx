@@ -835,7 +835,9 @@ export default function Layout({ children, currentPageName: _currentPageName }) 
 
       {/* Main Content */}
       <main className={`${isTradingPage ? 'pt-0' : 'pt-16'} md:pb-0 pb-20`}>
-        {React.cloneElement(children, { language })}
+        <PageTransition>
+          {React.cloneElement(children, { language })}
+        </PageTransition>
       </main>
 
       {/* Footer - Only on Home Page */}
