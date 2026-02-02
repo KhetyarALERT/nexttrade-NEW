@@ -21,7 +21,7 @@ import {
   ArrowUpRight,
   RefreshCw,
 } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, MotionConfig } from "framer-motion";
 import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
