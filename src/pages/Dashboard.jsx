@@ -693,6 +693,7 @@ export default function Dashboard({ language = "en" }) {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
     </PullToRefresh>
   );
