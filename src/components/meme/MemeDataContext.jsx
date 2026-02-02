@@ -36,24 +36,47 @@ export const MemeDataProvider = ({ children }) => {
         ws.onmessage = (event) => {
         try {
         const data = JSON.parse(event.data);
+        
+        // Debug log to see raw data structure
+        // console.log('WS Event:', data.txType, data);
 
         // Handle New Token
         if (data.txType === 'create') {
            // UPSERT - Check if exists first to avoid overwriting accumulation
            const existing = tokensMapRef.current.get(data.mint) || {};
 
-           // data.uri from pump.fun is either the image URL or metadata JSON URL
-           // If it's a metadata URL, we need to fetch the actual image
-           let imageUrl = data.uri || existing.image_url || '';
-
-           // pump.fun tokens often have image directly or need to fetch from metadata
-           // The uri field is usually the token metadata JSON, not the image
-           // We'll use a fallback pattern
-           if (data.image) {
-             imageUrl = data.image;
-           } else if (data.imageUri) {
-             imageUrl = data.imageUri;
+           // PumpPortal 'create' event fields:
+           // mint, symbol, name, uri (metadata JSON URL), 
+           // marketCapSol, vTokensInBondingCurve, vSolInBondingCurve
+           // The 'uri' is metadata JSON - we need to construct image URL
+           // Pump.fun image URL pattern: https://ipfs.io/ipfs/<CID> from metadata
+           // Or direct: https://pump.mypinata.cloud/ipfs/<hash>
+           
+           // For pump.fun tokens, derive image from metadata URI
+           // The uri is typically: https://cf-ipfs.com/ipfs/<hash> or ipfs://<hash>
+           let imageUrl = '';
+           if (data.uri) {
+             // If uri ends with common image extensions, use directly
+             if (data.uri.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+               imageUrl = data.uri;
+             } else {
+               // Assume it's metadata JSON - try to construct image URL
+               // Many pump.fun tokens have image at same IPFS path with /image suffix
+               imageUrl = data.uri;
+             }
            }
+           
+           // Override with direct image fields if present
+           if (data.image) imageUrl = data.image;
+           if (data.imageUri) imageUrl = data.imageUri;
+           
+           // Fallback to existing or empty
+           imageUrl = imageUrl || existing.image_url || '';
+
+           // Calculate initial market cap from bonding curve data
+           const solPrice = 200; // Hardcoded SOL price
+           const initialMcap = data.marketCapSol ? data.marketCapSol * solPrice : 0;
+           const initialLiquidity = data.vSolInBondingCurve ? data.vSolInBondingCurve * solPrice : initialMcap * 0.15;
 
            const newToken = {
                ...existing, // Keep existing stats if any
@@ -64,10 +87,10 @@ export const MemeDataProvider = ({ children }) => {
                // Only overwrite if 0/missing, otherwise keep current price from trades
                price: existing.price || 0,
                price_usd: existing.price_usd || 0,
-               market_cap: existing.market_cap || data.marketCapSol * 200 || 0,
-               liquidity: existing.liquidity || (data.marketCapSol * 200 * 0.15) || 0,
+               market_cap: existing.market_cap || initialMcap,
+               liquidity: existing.liquidity || initialLiquidity,
                volume24h: existing.volume24h || 0,
-               holders: existing.holders || 0,
+               holders: existing.holders || 1, // At least creator
                volume_sol_24h: existing.volume_sol_24h || 0,
                bonding_curve_status: 'bonding_curve',
                priceChange24h: existing.priceChange24h || 0,
