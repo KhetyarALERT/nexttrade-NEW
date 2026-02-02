@@ -205,3 +205,7 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
     </Card>
   );
 }
+
+CryptoPriceTable.propTypes = {
+  language: PropTypes.string
+};
