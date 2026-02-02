@@ -171,7 +171,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
       }
       instanceRef.current = null;
     };
-  }, [open, outputMint, inputMint, activeReferralAccount, setVisible, initialAmount]);
+  }, [open, outputMint, inputMint, activeReferralAccount, setVisible, initialAmount, handleSwapSuccess, handleSwapError]);
 
   // Sync Props Effect - Only on meaningful wallet changes
   useEffect(() => {
