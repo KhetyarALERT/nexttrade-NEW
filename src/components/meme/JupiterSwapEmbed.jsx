@@ -174,13 +174,16 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
   }, [open, outputMint, inputMint, activeReferralAccount, setVisible, initialAmount, handleSwapSuccess, handleSwapError]);
 
   // Sync Props Effect - Only on meaningful wallet changes
+  // Memoize wallet public key to prevent string recreation on every render
+  const walletPublicKeyString = wallet.publicKey?.toBase58();
+  
   useEffect(() => {
     if (!open || !instanceRef.current || !window.Jupiter?.syncProps) return;
     
     // Sync wallet state to plugin
     window.Jupiter.syncProps({ passthroughWalletContextState: wallet });
     
-  }, [open, wallet.connected, wallet.publicKey?.toBase58()]);
+  }, [open, wallet.connected, walletPublicKeyString, wallet]);
 
   if (!open) return null;
 
