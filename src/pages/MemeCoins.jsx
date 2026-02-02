@@ -326,7 +326,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // ============================================================================
 
 const MemeCoinsContent = () => {
-  const { tokens, loading, connectionStatus } = useMemeData();
+  const { tokens, loading, connectionStatus, refreshTokens } = useMemeData();
   
   const [search, setSearch] = useState('');
   const [selectedToken, setSelectedToken] = useState(null);
@@ -466,21 +466,30 @@ const MemeCoinsContent = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-3 text-xs text-slate-400 hover:text-white"
+            onClick={refreshTokens}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
+            <span className="ml-1 hidden sm:inline">Refresh</span>
+          </Button>
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border backdrop-blur-sm ${connectionStatus === 'connected' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
             {connectionStatus === 'connected' ? (
               <>
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-semibold">Live Feed</span>
+                <span className="text-xs text-emerald-400 font-semibold">Live</span>
               </>
             ) : (
               <>
                 <WifiOff className="w-3 h-3 text-red-500" />
-                <span className="text-xs text-red-400 font-semibold">Reconnecting...</span>
+                <span className="text-xs text-red-400 font-semibold">...</span>
               </>
             )}
           </div>
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700/50 backdrop-blur-sm">
-            <Activity className="w-3 h-3 text-blue-400" />
             <span className="text-xs text-slate-300 font-medium">{tokens.length}</span>
             <span className="text-xs text-slate-500">tokens</span>
           </div>
