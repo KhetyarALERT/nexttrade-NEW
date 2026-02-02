@@ -367,9 +367,9 @@ export default function Home({ language = "en" }) {
 
             {/* Right Content - Phone Mockup */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              initial={fadeInScale.initial}
+              animate={fadeInScale.animate}
+              transition={{ duration: shouldReduceMotion ? 0.2 : 0.8, delay: shouldReduceMotion ? 0 : 0.2 }}
               className="order-1 lg:order-2 flex justify-center"
             >
               <PhoneMockup language={language} />
