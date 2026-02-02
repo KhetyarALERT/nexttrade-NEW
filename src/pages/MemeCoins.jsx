@@ -127,18 +127,21 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
         </button>
       </div>
 
-      {/* Price & Change Row */}
+      {/* Key Metrics Row */}
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-700/30">
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Price</p>
-          <p className="text-lg font-bold text-emerald-400 font-mono">{formatPrice(token.price_usd)}</p>
+          <p className="text-[10px] text-slate-500 mb-0.5">Age</p>
+          <p className="text-sm font-bold text-emerald-400">{formatTimeAgo(token.createdAt)}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-500 mb-0.5">Age</p>
-          <p className="text-sm font-semibold text-white">{formatTimeAgo(token.createdAt)}</p>
+        <div className="text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5">MCap</p>
+          <p className="text-sm font-semibold text-white">{formatMarketCap(token.market_cap)}</p>
         </div>
-        <div className={`px-3 py-1.5 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
-          <p className="text-xs text-slate-400 mb-0.5">24h</p>
+        <div className="text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5">Liq</p>
+          <p className="text-sm font-semibold text-cyan-400">{formatMarketCap(token.liquidity)}</p>
+        </div>
+        <div className={`px-2 py-1 rounded-lg ${isPositive ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
           <p className={`text-sm font-bold flex items-center gap-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
             {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             {Math.abs(priceChange).toFixed(1)}%
@@ -147,22 +150,18 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
       </div>
 
       {/* Stats Grid - Enhanced */}
-      <div className="grid grid-cols-4 gap-2 mb-4">
-        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
-          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">MCap</p>
-          <p className="font-bold text-white text-xs">{formatMarketCap(token.market_cap)}</p>
-        </div>
-        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
-          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Liquidity</p>
-          <p className="font-bold text-cyan-400 text-xs">{formatMarketCap(token.liquidity)}</p>
-        </div>
-        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-700/30 text-center">
           <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Volume</p>
           <p className="font-bold text-white text-xs">{formatVolume(token.volume24h)}</p>
         </div>
-        <div className="bg-slate-900/60 rounded-xl p-2.5 border border-slate-700/30 text-center">
-          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Txns</p>
+        <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Txns (5m)</p>
           <p className="font-bold text-blue-400 text-xs">{txns}</p>
+        </div>
+        <div className="bg-slate-900/60 rounded-xl p-2 border border-slate-700/30 text-center">
+          <p className="text-[10px] text-slate-500 mb-0.5 font-medium">Holders</p>
+          <p className="font-bold text-purple-400 text-xs">{token.holders || '--'}</p>
         </div>
       </div>
 
