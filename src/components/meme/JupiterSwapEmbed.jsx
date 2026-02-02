@@ -133,6 +133,10 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
           passthroughWalletContextState: wallet,
           onRequestConnectWallet: () => setVisible(true),
           
+          // Swap callbacks for success/error handling
+          onSuccess: handleSwapSuccess,
+          onSwapError: handleSwapError,
+          
           // Branding
           branding: {
             name: "NextTrade",
