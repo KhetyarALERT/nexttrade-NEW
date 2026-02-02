@@ -23,7 +23,28 @@ function useIsMobile() {
   return isMobile;
 }
 
-const Select = SelectPrimitive.Root
+// Context to share open state between Select and SelectContent
+const SelectOpenContext = React.createContext({ open: false, setOpen: () => {} });
+
+// Wrapper for Select that tracks open state for mobile drawer
+function Select({ children, open: controlledOpen, onOpenChange, ...props }) {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  
+  const handleOpenChange = React.useCallback((newOpen) => {
+    if (!isControlled) setInternalOpen(newOpen);
+    onOpenChange?.(newOpen);
+  }, [isControlled, onOpenChange]);
+  
+  return (
+    <SelectOpenContext.Provider value={{ open, setOpen: handleOpenChange }}>
+      <SelectPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props}>
+        {children}
+      </SelectPrimitive.Root>
+    </SelectOpenContext.Provider>
+  );
+}
 
 const SelectGroup = SelectPrimitive.Group
 
@@ -149,12 +170,10 @@ const SelectContentDesktopRef = React.forwardRef(SelectContentDesktop);
  * Mobile drawer content - renders as bottom sheet
  */
 function SelectContentMobile({ className, children, ...props }, ref) {
-  // Get the Select context to control open state
-  const context = React.useContext(SelectPrimitive.SelectContext);
-  const isOpen = context?.open ?? false;
+  const { open, setOpen } = React.useContext(SelectOpenContext);
   
   return (
-    <Drawer open={isOpen} onOpenChange={(open) => !open && context?.onOpenChange?.(false)}>
+    <Drawer open={open} onOpenChange={setOpen}>
       <DrawerContent className="max-h-[60vh]">
         <VisuallyHidden.Root>
           <DrawerTitle>Select an option</DrawerTitle>
