@@ -502,7 +502,7 @@ export default function Home({ language = "en" }) {
               
               {/* Floating Success Badge */}
               <motion.div 
-                animate={{ y: [0, -10, 0] }}
+                animate={shouldReduceMotion ? {} : { y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity }}
                 className="absolute -bottom-6 -right-6 bg-card p-6 rounded-3xl shadow-2xl border border-border flex items-center gap-4"
               >
