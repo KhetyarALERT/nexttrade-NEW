@@ -207,7 +207,17 @@ export default function Home({ language = "en" }) {
 
   const t = content[language];
 
+  // Animation variants that respect reduced motion
+  const fadeInUp = shouldReduceMotion 
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    : { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
+  
+  const fadeInScale = shouldReduceMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 } }
+    : { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 } };
+
   return (
+    <MotionConfig reducedMotion="user">
     <div className="overflow-hidden bg-background text-foreground">
       {/* Mobile Hero (Minimal, No Phone Mockup) */}
       <section className="md:hidden relative bg-slate-950 pt-24 pb-12 px-4 overflow-hidden flex flex-col justify-center min-h-[60vh] max-h-[80vh]">
