@@ -1046,6 +1046,20 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
 
 }
 
+LayoutInner.propTypes = {
+  children: PropTypes.node.isRequired,
+  currentPageName: PropTypes.string,
+};
+
+// Wrap Layout with MobileNavigationProvider
+export default function Layout(props) {
+  return (
+    <MobileNavigationProvider>
+      <LayoutInner {...props} />
+    </MobileNavigationProvider>
+  );
+}
+
 Layout.propTypes = {
   children: PropTypes.node.isRequired,
   currentPageName: PropTypes.string,
