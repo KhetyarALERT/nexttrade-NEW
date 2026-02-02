@@ -69,6 +69,7 @@ import VerificationModal from "@/components/profile/VerificationModal";
 import AllocationModal from "@/components/copytrading/AllocationModal";
 import CopyTradingDepositHistory from "@/components/copytrading/CopyTradingDepositHistory.jsx";
 import CopyTradingSettingsForm from "@/components/copytrading/CopyTradingSettingsForm.jsx";
+import DangerZone from "@/components/profile/DangerZone";
 
 const translations = {
   en: {
@@ -1225,6 +1226,9 @@ export default function Profile({ language = "en" }) {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Danger Zone */}
+            <DangerZone language={language} />
 
             <VerificationModal
               open={verificationModalOpen}

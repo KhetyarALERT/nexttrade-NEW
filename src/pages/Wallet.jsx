@@ -35,6 +35,7 @@ import WalletDeposit from "@/components/wallet/WalletDeposit";
 import WalletHistory from "@/components/wallet/WalletHistory";
 import OKXTransferModal from "@/components/profile/OKXTransferModal";
 import AllocationModal from "@/components/copytrading/AllocationModal";
+import PullToRefresh from "@/components/ui/PullToRefresh";
 
 const translations = {
   en: {
@@ -433,8 +434,9 @@ export default function WalletPage({ language = "en" }) {
   const isFullyUnlocked = isKycApproved && hasOkxAccount;
 
   return (
-    <div className="min-h-screen bg-background pb-24 lg:pb-8 pt-4 sm:pt-6" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-background pb-24 lg:pb-8 pt-4 sm:pt-6" dir={language === "ar" ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -578,7 +580,8 @@ export default function WalletPage({ language = "en" }) {
         language={language}
         onSuccess={handleRefresh}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }
 
