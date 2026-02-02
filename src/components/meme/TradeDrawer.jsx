@@ -39,11 +39,20 @@ export default function TradeDrawer({ open, onOpenChange, token }) {
         <div className="px-4 pt-4 pb-2 border-b border-gray-800">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <img 
-                src={resolveIpfsUrl(token.image_url)} 
-                alt={token.symbol}
-                className="w-12 h-12 rounded-xl bg-gray-800 object-cover"
-              />
+              <div className="w-12 h-12 rounded-xl bg-gray-800 overflow-hidden flex-shrink-0">
+                {token.image_url ? (
+                  <img 
+                    src={resolveIpfsUrl(token.image_url)} 
+                    alt={token.symbol}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-lg font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-lg font-bold text-white">
+                    {token.symbol?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
+              </div>
               <div>
                 <DrawerTitle className="text-xl font-bold flex items-center gap-2">
                   {token.symbol}
