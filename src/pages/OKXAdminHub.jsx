@@ -533,12 +533,14 @@ export default function OKXAdminHub() {
                       </div>
                       <div className="flex gap-2 mt-2">
                         <Button size="sm" variant="outline" onClick={async () => {
-                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'reconcileMirrorFromCanonical', userId: refDetails.referrer.id });
-                          if (res.data?.success) {
-                            toast.success('Mirror updated from canonical');
-                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
-                            if (integ.data?.success) setIntegrity(integ.data.data);
-                          } else { toast.error(res.data?.error || 'Failed'); }
+                          try {
+                            const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'reconcileMirrorFromCanonical', userId: refDetails.referrer.id });
+                            if (res.data?.success) {
+                              toast.success('Mirror updated from canonical');
+                              const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                              if (integ.data?.success) setIntegrity(integ.data.data);
+                            } else { toast.error(res.data?.error || 'Failed'); }
+                          } catch (e) { toast.error(e?.message || 'Failed'); }
                         }}>Fix Mirror</Button>
                         <Button size="sm" variant="outline" onClick={async () => {
                           const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'backfillCanonicalFromMirror', userId: refDetails.referrer.id });
