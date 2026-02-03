@@ -4,10 +4,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const MIN_WITHDRAWAL = 5.00;
 const NETWORK_FEES = {
   TRC20: 1.50,
-  ERC20: 0, // Coming soon
-  BEP20: 0  // Coming soon
+  ERC20: 0,
+  BEP20: 0
 };
-const SUPPORTED_NETWORKS = ['TRC20']; // Only TRC20 for now
+const SUPPORTED_NETWORKS = ['TRC20', 'ERC20', 'BEP20']; // All networks enabled
+const VALID_SOURCE_ACCOUNTS = ['FUNDING', 'COPY_TRADING'];
 const RATE_LIMIT_SECONDS = 10;
 
 // In-memory rate limiter (per-user)
@@ -35,20 +36,28 @@ const generateMockTxHash = () => {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-// Basic address validation
+// Address validation (network-aware)
 const validateAddress = (address, network) => {
-  if (!address || typeof address !== 'string') return false;
+  if (!address || typeof address !== 'string') return { valid: false, error: 'Address is required' };
   address = address.trim();
   
   if (network === 'TRC20') {
-    // TRC20 addresses start with T and are 34 chars
-    return /^T[A-Za-z0-9]{33}$/.test(address);
+    // TRC20/TRON addresses: start with T, 34 chars, base58
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)) {
+      return { valid: false, error: 'Invalid TRC20 address. Must start with T and be 34 characters.' };
+    }
+    return { valid: true };
   }
+  
   if (network === 'ERC20' || network === 'BEP20') {
-    // EVM addresses start with 0x and are 42 chars
-    return /^0x[a-fA-F0-9]{40}$/.test(address);
+    // EVM addresses: 0x + 40 hex chars
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return { valid: false, error: `Invalid ${network} address. Must start with 0x and be 42 characters.` };
+    }
+    return { valid: true };
   }
-  return false;
+  
+  return { valid: false, error: 'Unsupported network' };
 };
 
 // Rate limit check
@@ -68,6 +77,92 @@ const audit = (action, userId, data) => {
   console.log(`[LEDGER_WITHDRAWAL] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
 };
 
+// Get account balances for a specific source
+const getAccountBalance = async (base44, userId, sourceAccountType) => {
+  if (sourceAccountType === 'COPY_TRADING') {
+    // Get from CopyTradingWallet entity
+    const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: userId });
+    if (!wallets?.length) {
+      return { total: 0, locked: 0, reserved: 0, withdrawable: 0, exists: false };
+    }
+    const wallet = wallets[0];
+    const total = wallet.available_balance || 0;
+    const locked = wallet.locked_balance || 0;
+    const reserved = 0;
+    return {
+      total: total + locked,
+      locked,
+      reserved,
+      withdrawable: total, // available_balance is already withdrawable
+      exists: true,
+      walletId: wallet.id
+    };
+  }
+  
+  if (sourceAccountType === 'FUNDING') {
+    // Get from internal Wallet entity (USDT wallets)
+    const wallets = await base44.asServiceRole.entities.Wallet.filter({ user_id: userId, currency: 'USDT' });
+    const total = wallets?.reduce((sum, w) => sum + (w.balance || 0), 0) || 0;
+    const locked = wallets?.reduce((sum, w) => sum + (w.locked_balance || 0), 0) || 0;
+    const staked = wallets?.reduce((sum, w) => sum + (w.staked_balance || 0), 0) || 0;
+    const reserved = 0;
+    return {
+      total,
+      locked: locked + staked, // Both locked and staked are not withdrawable
+      reserved,
+      withdrawable: Math.max(0, total - locked - staked - reserved),
+      exists: wallets?.length > 0,
+      wallets
+    };
+  }
+  
+  return { total: 0, locked: 0, reserved: 0, withdrawable: 0, exists: false };
+};
+
+// Deduct balance from source account
+const deductBalance = async (base44, userId, sourceAccountType, amount, balanceData) => {
+  if (sourceAccountType === 'COPY_TRADING') {
+    if (!balanceData.walletId) throw new Error('Copy Trading wallet not found');
+    
+    const wallet = (await base44.asServiceRole.entities.CopyTradingWallet.filter({ id: balanceData.walletId }))[0];
+    const newAvailable = Math.max(0, (wallet.available_balance || 0) - amount);
+    
+    await base44.asServiceRole.entities.CopyTradingWallet.update(balanceData.walletId, {
+      available_balance: newAvailable,
+      lifetime_withdrawn: (wallet.lifetime_withdrawn || 0) + amount,
+      last_activity_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    
+    return true;
+  }
+  
+  if (sourceAccountType === 'FUNDING') {
+    // Find primary USDT wallet and deduct
+    const wallets = balanceData.wallets || [];
+    if (!wallets.length) throw new Error('Funding wallet not found');
+    
+    // Deduct from first wallet with sufficient balance
+    let remaining = amount;
+    for (const wallet of wallets) {
+      if (remaining <= 0) break;
+      const available = (wallet.balance || 0) - (wallet.locked_balance || 0) - (wallet.staked_balance || 0);
+      if (available > 0) {
+        const deduct = Math.min(available, remaining);
+        await base44.asServiceRole.entities.Wallet.update(wallet.id, {
+          balance: Math.max(0, (wallet.balance || 0) - deduct),
+          total_withdrawn: (wallet.total_withdrawn || 0) + deduct
+        });
+        remaining -= deduct;
+      }
+    }
+    
+    return true;
+  }
+  
+  throw new Error('Invalid source account type');
+};
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   
@@ -82,9 +177,32 @@ Deno.serve(async (req) => {
     
     console.log('[LEDGER_WITHDRAWAL]', { action, userId: user.id });
 
+    // ==================== GET BALANCES ====================
+    if (action === 'getBalances') {
+      const fundingBalance = await getAccountBalance(base44, user.id, 'FUNDING');
+      const copyTradingBalance = await getAccountBalance(base44, user.id, 'COPY_TRADING');
+      
+      return jsonOk({
+        FUNDING: {
+          total: fundingBalance.total,
+          locked: fundingBalance.locked,
+          reserved: fundingBalance.reserved,
+          withdrawable: fundingBalance.withdrawable,
+          exists: fundingBalance.exists
+        },
+        COPY_TRADING: {
+          total: copyTradingBalance.total,
+          locked: copyTradingBalance.locked,
+          reserved: copyTradingBalance.reserved,
+          withdrawable: copyTradingBalance.withdrawable,
+          exists: copyTradingBalance.exists
+        }
+      });
+    }
+
     // ==================== CREATE WITHDRAWAL ====================
     if (action === 'create') {
-      const { network, address, amount, requestId } = params;
+      const { sourceAccountType, network, address, amount, requestId } = params;
       
       // Rate limit check
       const rateCheck = checkRateLimit(user.id);
@@ -92,14 +210,20 @@ Deno.serve(async (req) => {
         return jsonError('RATE_LIMITED', `Please wait ${rateCheck.waitSeconds} seconds before submitting another withdrawal`, 429);
       }
       
+      // Validate source account type
+      if (!sourceAccountType || !VALID_SOURCE_ACCOUNTS.includes(sourceAccountType)) {
+        return jsonError('INVALID_SOURCE', `Invalid source account. Must be one of: ${VALID_SOURCE_ACCOUNTS.join(', ')}`, 400);
+      }
+      
       // Validate network
       if (!network || !SUPPORTED_NETWORKS.includes(network)) {
-        return jsonError('INVALID_NETWORK', `Network not supported. Available: ${SUPPORTED_NETWORKS.join(', ')}`, 400);
+        return jsonError('INVALID_NETWORK', `Invalid network. Must be one of: ${SUPPORTED_NETWORKS.join(', ')}`, 400);
       }
       
       // Validate address
-      if (!validateAddress(address, network)) {
-        return jsonError('INVALID_ADDRESS', `Invalid ${network} address format`, 400);
+      const addressValidation = validateAddress(address, network);
+      if (!addressValidation.valid) {
+        return jsonError('INVALID_ADDRESS', addressValidation.error, 400);
       }
       
       // Validate amount
@@ -113,68 +237,34 @@ Deno.serve(async (req) => {
       const fee = NETWORK_FEES[network] || 0;
       const totalDebit = receiveAmount + fee;
       
-      // Idempotency check (if requestId provided)
+      // Idempotency check
       if (requestId) {
         const existing = await base44.asServiceRole.entities.LedgerWithdrawal.filter({
           user_id: user.id,
           request_id: requestId
         });
         if (existing?.length > 0) {
-          // Return existing withdrawal
           return jsonOk(existing[0]);
         }
       }
       
-      // Get user's OKX account balance
-      let walletTotal = 0;
-      let walletLocked = 0;
-      
-      try {
-        const okxResult = await base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' });
-        if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
-          const balances = okxResult.data.data.balances;
-          // Use funding USDT as the withdrawable source
-          walletTotal = balances?.fundingUsdt || 0;
-          // Locked = in trading positions (not withdrawable)
-          walletLocked = balances?.tradingUsdt || 0;
-        }
-      } catch (e) {
-        console.error('[LEDGER_WITHDRAWAL] Failed to get OKX balance:', e.message);
-      }
-      
-      // Also add internal wallet balance
-      try {
-        const walletsResult = await base44.functions.invoke('wallet', { action: 'list' });
-        if (walletsResult.data?.success) {
-          const internalBalance = (walletsResult.data.data || []).reduce((sum, w) => {
-            if (w.currency === 'USDT') return sum + (w.balance || 0);
-            return sum;
-          }, 0);
-          walletTotal += internalBalance;
-        }
-      } catch (e) {
-        console.error('[LEDGER_WITHDRAWAL] Failed to get internal wallet:', e.message);
-      }
-      
-      // Calculate withdrawable = total - locked (reserved is 0 for now)
-      const reserved = 0;
-      const withdrawable = walletTotal - walletLocked - reserved;
+      // Get balance for the selected source account (NOT OKX, purely internal)
+      const balanceData = await getAccountBalance(base44, user.id, sourceAccountType);
       
       audit('WITHDRAWAL_ATTEMPT', user.id, { 
+        sourceAccountType,
         amount: receiveAmount, 
         fee, 
         totalDebit, 
-        walletTotal, 
-        walletLocked, 
-        withdrawable 
+        balance: balanceData
       });
       
       // Check if sufficient balance
-      if (totalDebit > withdrawable) {
-        // Create FAILED withdrawal record
+      if (totalDebit > balanceData.withdrawable) {
         const failedWithdrawal = await base44.asServiceRole.entities.LedgerWithdrawal.create({
           user_id: user.id,
           user_email: user.email,
+          source_account_type: sourceAccountType,
           asset: 'USDT',
           network,
           address: address.trim(),
@@ -184,21 +274,21 @@ Deno.serve(async (req) => {
           status: 'FAILED',
           reference: generateReference(),
           mock_tx_hash: null,
-          failure_reason: `Insufficient withdrawable balance. Needed: ${totalDebit.toFixed(2)} USDT, Available: ${withdrawable.toFixed(2)} USDT`,
+          failure_reason: `Insufficient withdrawable balance. Needed: ${totalDebit.toFixed(2)} USDT, Available: ${balanceData.withdrawable.toFixed(2)} USDT`,
           request_id: requestId || null,
-          wallet_balance_before: walletTotal,
-          wallet_balance_after: walletTotal
+          wallet_balance_before: balanceData.total,
+          wallet_balance_after: balanceData.total
         });
         
         audit('WITHDRAWAL_FAILED', user.id, { 
           withdrawalId: failedWithdrawal.id,
           reason: 'INSUFFICIENT_BALANCE',
           needed: totalDebit,
-          available: withdrawable
+          available: balanceData.withdrawable
         });
         
         return jsonError('INSUFFICIENT_BALANCE', 
-          `Insufficient withdrawable balance. Needed: ${totalDebit.toFixed(2)} USDT, Available: ${withdrawable.toFixed(2)} USDT`, 
+          `Insufficient withdrawable balance. Needed: ${totalDebit.toFixed(2)} USDT, Available: ${balanceData.withdrawable.toFixed(2)} USDT`, 
           400,
           { withdrawalId: failedWithdrawal.id }
         );
@@ -208,16 +298,21 @@ Deno.serve(async (req) => {
       const reference = generateReference();
       const mockTxHash = generateMockTxHash();
       
-      // ATOMIC: Deduct from wallet and create withdrawal record
-      // For now, we use OKX funding account as the source
-      // In production, this would be a proper ledger transaction
+      // ATOMIC: Deduct from source wallet
+      try {
+        await deductBalance(base44, user.id, sourceAccountType, totalDebit, balanceData);
+      } catch (deductError) {
+        audit('WITHDRAWAL_DEDUCT_FAILED', user.id, { error: deductError.message });
+        return jsonError('DEDUCT_FAILED', `Failed to deduct balance: ${deductError.message}`, 500);
+      }
       
-      const newTotal = walletTotal - totalDebit;
+      const newTotal = balanceData.total - totalDebit;
       
       // Create APPROVED withdrawal
       const withdrawal = await base44.asServiceRole.entities.LedgerWithdrawal.create({
         user_id: user.id,
         user_email: user.email,
+        source_account_type: sourceAccountType,
         asset: 'USDT',
         network,
         address: address.trim(),
@@ -227,24 +322,25 @@ Deno.serve(async (req) => {
         status: 'APPROVED',
         reference,
         mock_tx_hash: mockTxHash,
-        note_to_user: `Your withdrawal of ${receiveAmount.toFixed(2)} USDT has been approved. Processing time: 5 minutes to 24 hours.`,
+        note_to_user: `Your withdrawal of ${receiveAmount.toFixed(2)} USDT from ${sourceAccountType.replace('_', ' ')} has been approved. Processing time: 5 minutes to 24 hours.`,
         request_id: requestId || null,
-        wallet_balance_before: walletTotal,
+        wallet_balance_before: balanceData.total,
         wallet_balance_after: newTotal
       });
       
       // Create admin notification
       try {
         await base44.asServiceRole.entities.Notification.create({
-          user_id: user.id, // This will be visible to admins via admin queries
+          user_id: user.id,
           type: 'system',
           title: 'Withdrawal Approved',
-          message: `Withdrawal of ${receiveAmount.toFixed(2)} USDT to ${address.slice(0, 8)}...${address.slice(-6)} has been approved.`,
+          message: `Withdrawal of ${receiveAmount.toFixed(2)} USDT from ${sourceAccountType.replace('_', ' ')} to ${address.slice(0, 8)}...${address.slice(-6)} has been approved.`,
           priority: 'high',
           data: {
-            type: 'WITHDRAWAL_CREATED',
+            type: 'WITHDRAWAL_APPROVED',
             withdrawalId: withdrawal.id,
             userId: user.id,
+            sourceAccountType,
             amount: receiveAmount,
             fee,
             totalDebit,
@@ -259,6 +355,7 @@ Deno.serve(async (req) => {
       
       audit('WITHDRAWAL_APPROVED', user.id, {
         withdrawalId: withdrawal.id,
+        sourceAccountType,
         reference,
         amount: receiveAmount,
         fee,
@@ -272,6 +369,7 @@ Deno.serve(async (req) => {
         reference,
         mock_tx_hash: mockTxHash,
         status: 'APPROVED',
+        source_account_type: sourceAccountType,
         amount: receiveAmount,
         fee,
         total_debit: totalDebit,
@@ -296,6 +394,7 @@ Deno.serve(async (req) => {
         id: w.id,
         reference: w.reference,
         status: w.status,
+        source_account_type: w.source_account_type,
         amount: w.amount,
         fee: w.fee,
         total_debit: w.total_debit,
@@ -314,12 +413,12 @@ Deno.serve(async (req) => {
     if (action === 'getConfig') {
       return jsonOk({
         min_withdrawal: MIN_WITHDRAWAL,
-        networks: Object.entries(NETWORK_FEES).map(([network, fee]) => ({
+        networks: SUPPORTED_NETWORKS.map(network => ({
           network,
-          fee,
-          supported: SUPPORTED_NETWORKS.includes(network),
-          coming_soon: !SUPPORTED_NETWORKS.includes(network)
+          fee: NETWORK_FEES[network],
+          supported: true
         })),
+        source_accounts: VALID_SOURCE_ACCOUNTS,
         rate_limit_seconds: RATE_LIMIT_SECONDS
       });
     }
@@ -330,11 +429,12 @@ Deno.serve(async (req) => {
         return jsonError('FORBIDDEN', 'Admin access required', 403);
       }
       
-      const { status, network, userId, limit = 100, skip = 0 } = params;
+      const { status, network, sourceAccountType, userId, limit = 100, skip = 0 } = params;
       
       let query = {};
       if (status) query.status = status;
       if (network) query.network = network;
+      if (sourceAccountType) query.source_account_type = sourceAccountType;
       if (userId) query.user_id = userId;
       
       const withdrawals = await base44.asServiceRole.entities.LedgerWithdrawal.filter(
