@@ -171,15 +171,14 @@ export default function WalletPage({ language = "en" }) {
     try {
       const user = await base44.auth.me();
 
-      // Load KYC status
-      const verifications = await base44.entities.VerificationRequest.filter(
-        { user_id: user.id },
-        "-created_date",
-        1
-      );
-      if (verifications?.length > 0) {
-        setKycStatus(verifications[0].status);
-        setKycRejectionReason(verifications[0].rejection_reason);
+      // Load KYC status from UserVerification (single source of truth)
+      const uvResult = await base44.functions.invoke("verificationService", { action: "getStatus" });
+      if (uvResult.data?.ok && uvResult.data.data?.exists) {
+        const uvData = uvResult.data.data;
+        // Map status: verified → approved (for backward compat with UI)
+        const mappedStatus = uvData.status === "verified" ? "approved" : uvData.status;
+        setKycStatus(mappedStatus);
+        setKycRejectionReason(uvData.rejection_reason);
       } else {
         setKycStatus(null);
       }
