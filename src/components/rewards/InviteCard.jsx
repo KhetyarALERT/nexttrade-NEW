@@ -4,48 +4,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Copy, Check, Share2, Gift, Crown, Users, ArrowRight, Sparkles } from "lucide-react";
+import { Copy, Check, Share2, Gift, Crown, Users, Sparkles, DollarSign, ArrowRight, Zap, Star } from "lucide-react";
 
 const t = {
   en: {
-    inviteTitle: "Invite Friends & Earn",
-    inviteSubtitle: "Share your link and earn rewards when friends join",
-    yourCode: "Your Referral Code",
+    heroTitle: "Invite Friends",
+    heroHighlight: "Earn $10",
+    heroSubtitle: "For every friend who joins & deposits",
+    yourCode: "Your Invite Code",
     copyLink: "Copy Link",
     copied: "Copied!",
-    share: "Share",
-    howItWorks: "How It Works",
-    step1Title: "Share Your Link",
-    step1Desc: "Send your unique link to friends",
-    step2Title: "Friends Join",
-    step2Desc: "They deposit $100+ and verify KYC",
-    step3Title: "Earn Rewards",
-    step3Desc: "Get $10 voucher per eligible friend",
-    yourProgress: "Your Progress",
+    share: "Share Now",
+    step1: "Share Link",
+    step2: "Friend Joins",
+    step3: "You Earn $10",
     eligibleFriends: "Eligible Friends",
-    toNextLevel: "to reach Level",
+    toNextLevel: "to Level",
     vipActive: "VIP Active",
-    viewDetails: "View Details"
+    unlimited: "No limit on earnings!",
+    instantReward: "Instant voucher reward"
   },
   ar: {
-    inviteTitle: "ادعُ أصدقاءك واربح",
-    inviteSubtitle: "شارك رابطك واربح مكافآت عندما ينضم الأصدقاء",
-    yourCode: "كود الإحالة الخاص بك",
+    heroTitle: "ادعُ أصدقاءك",
+    heroHighlight: "واربح $10",
+    heroSubtitle: "لكل صديق ينضم ويودع",
+    yourCode: "كود الدعوة الخاص بك",
     copyLink: "نسخ الرابط",
     copied: "تم النسخ!",
-    share: "شارك",
-    howItWorks: "كيف يعمل",
-    step1Title: "شارك رابطك",
-    step1Desc: "أرسل رابطك الفريد للأصدقاء",
-    step2Title: "الأصدقاء ينضمون",
-    step2Desc: "يودعون $100+ ويكملون التحقق",
-    step3Title: "اربح المكافآت",
-    step3Desc: "احصل على قسيمة $10 لكل صديق مؤهل",
-    yourProgress: "تقدمك",
+    share: "شارك الآن",
+    step1: "شارك الرابط",
+    step2: "صديقك ينضم",
+    step3: "تربح $10",
     eligibleFriends: "أصدقاء مؤهلون",
-    toNextLevel: "للوصول للمستوى",
+    toNextLevel: "للمستوى",
     vipActive: "VIP نشط",
-    viewDetails: "عرض التفاصيل"
+    unlimited: "بدون حد للأرباح!",
+    instantReward: "قسيمة فورية"
   }
 };
 
@@ -76,37 +70,85 @@ export default function InviteCard({
 
   return (
     <div className="space-y-4">
-      {/* Main Invite Card */}
-      <Card className="relative overflow-hidden border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 shadow-xl">
-        <CardContent className="p-5 sm:p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/25">
-                <Gift className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-foreground">{txt.inviteTitle}</h2>
-                <p className="text-sm text-muted-foreground">{txt.inviteSubtitle}</p>
-              </div>
-            </div>
-            {vipActive && (
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1 px-3 py-1">
-                <Crown className="w-3.5 h-3.5" /> {txt.vipActive}
+      {/* Hero Invite Card */}
+      <div className="relative overflow-hidden rounded-3xl">
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600" />
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"none\" fill-rule=\"evenodd\"%3E%3Cg fill=\"%23ffffff\" fill-opacity=\"0.05\"%3E%3Cpath d=\"M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
+        
+        {/* Floating Elements */}
+        <div className="absolute top-4 right-8 w-20 h-20 bg-white/10 rounded-full blur-2xl animate-pulse" />
+        <div className="absolute bottom-8 left-4 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 right-4 w-16 h-16 bg-yellow-400/20 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }} />
+        
+        <div className="relative p-6 sm:p-8">
+          {/* VIP Badge */}
+          {vipActive && (
+            <div className="absolute top-4 right-4">
+              <Badge className="bg-gradient-to-r from-amber-400 to-orange-500 text-white border-0 gap-1.5 px-3 py-1.5 shadow-lg">
+                <Crown className="w-4 h-4" /> {txt.vipActive}
               </Badge>
-            )}
+            </div>
+          )}
+
+          {/* Hero Content */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 mb-4">
+              <Sparkles className="w-4 h-4 text-yellow-300" />
+              <span className="text-white/90 text-sm font-medium">{txt.unlimited}</span>
+            </div>
+            
+            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+              {txt.heroTitle}
+              <span className="block text-yellow-300 mt-1">{txt.heroHighlight}</span>
+            </h1>
+            <p className="text-white/80 text-lg">{txt.heroSubtitle}</p>
           </div>
 
-          {/* Referral Code Section */}
-          <div className="bg-muted/50 rounded-2xl p-4 mb-5 border border-border/50">
-            <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">{txt.yourCode}</p>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-1 bg-background rounded-xl px-4 py-3 border border-border">
-                <span className="font-mono font-bold text-lg text-primary tracking-wider">{referralCode || "---"}</span>
+          {/* Steps Flow */}
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-8">
+            {[
+              { icon: Share2, label: txt.step1, color: "bg-white/20" },
+              { icon: Users, label: txt.step2, color: "bg-white/20" },
+              { icon: DollarSign, label: txt.step3, color: "bg-yellow-400 text-yellow-900" }
+            ].map((step, i) => (
+              <React.Fragment key={i}>
+                <div className="flex flex-col items-center gap-2">
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ${step.color} flex items-center justify-center shadow-lg backdrop-blur-sm`}>
+                    <step.icon className={`w-6 h-6 ${i === 2 ? "" : "text-white"}`} />
+                  </div>
+                  <span className="text-white/90 text-xs sm:text-sm font-medium">{step.label}</span>
+                </div>
+                {i < 2 && (
+                  <ArrowRight className="w-5 h-5 text-white/40 mt-[-20px]" />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Referral Code Box */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/20">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-white/70 text-sm font-medium">{txt.yourCode}</span>
+              <div className="flex items-center gap-1 text-yellow-300">
+                <Zap className="w-4 h-4" />
+                <span className="text-xs font-medium">{txt.instantReward}</span>
               </div>
             </div>
-            <div className="bg-background/50 rounded-xl px-4 py-2.5 border border-border/50 mb-4">
-              <p className="font-mono text-sm text-foreground/80 truncate" dir="ltr">{referralLink || "Loading..."}</p>
+            
+            {/* Code Display */}
+            <div className="bg-white/95 rounded-xl px-4 sm:px-6 py-3 sm:py-4 mb-4 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-mono font-bold text-xl sm:text-2xl text-emerald-600 tracking-wider">{referralCode || "---"}</span>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                  <Gift className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <p className="font-mono text-xs sm:text-sm text-gray-500 truncate" dir="ltr">{referralLink || "Loading..."}</p>
+              </div>
             </div>
             
             {/* Action Buttons */}
@@ -114,10 +156,10 @@ export default function InviteCard({
               <Button 
                 onClick={handleCopy}
                 size="lg"
-                className={`h-12 rounded-xl font-semibold text-base transition-all ${
+                className={`h-12 sm:h-14 rounded-xl font-bold text-base transition-all shadow-lg ${
                   copied 
-                    ? "bg-emerald-500 hover:bg-emerald-600 text-white" 
-                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    ? "bg-white text-emerald-600" 
+                    : "bg-white/20 hover:bg-white/30 text-white border-2 border-white/30 hover:border-white/50"
                 }`}
               >
                 {copied ? <Check className="w-5 h-5 mr-2" /> : <Copy className="w-5 h-5 mr-2" />}
@@ -126,73 +168,54 @@ export default function InviteCard({
               <Button 
                 onClick={onShare}
                 size="lg"
-                variant="outline"
-                className="h-12 rounded-xl font-semibold text-base border-2 hover:bg-muted"
+                className="h-12 sm:h-14 rounded-xl font-bold text-base bg-white text-emerald-600 hover:bg-white/90 shadow-lg"
               >
                 <Share2 className="w-5 h-5 mr-2" /> {txt.share}
               </Button>
             </div>
           </div>
 
-          {/* Progress Section */}
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent rounded-2xl p-4 border border-primary/20">
-            <div className="flex items-center justify-between mb-3">
+          {/* Progress Bar */}
+          <div className="mt-5 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-foreground">{txt.yourProgress}</span>
+                <Star className="w-5 h-5 text-yellow-300" />
+                <span className="text-white font-semibold">{txt.eligibleFriends}</span>
               </div>
-              <Badge variant="outline" className="text-xs border-primary/30 text-primary">
-                Level {currentLevel} / 3
+              <Badge variant="outline" className="border-white/30 text-white bg-white/10">
+                Level {currentLevel}/3
               </Badge>
             </div>
             
             {/* Progress Bar */}
-            <div className="relative h-3 bg-muted rounded-full overflow-hidden mb-3">
+            <div className="relative h-3 bg-white/20 rounded-full overflow-hidden mb-2">
               <div 
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-yellow-400 to-yellow-300 rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${progressPercent}%` }}
               />
+              {/* Glow effect */}
+              {progressPercent > 0 && (
+                <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-yellow-400 to-yellow-300 rounded-full blur-sm opacity-50"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              )}
             </div>
             
             <div className="flex items-center justify-between text-sm">
-              <div>
-                <span className="text-muted-foreground">{txt.eligibleFriends}: </span>
-                <span className="font-bold text-foreground">{eligibleCount}</span>
-                <span className="text-muted-foreground"> / {nextLevelTarget}</span>
-              </div>
+              <span className="text-white">
+                <span className="font-bold text-lg text-yellow-300">{eligibleCount}</span>
+                <span className="text-white/70"> / {nextLevelTarget}</span>
+              </span>
               {remaining > 0 && currentLevel < 3 && (
-                <span className="text-primary font-medium">
-                  {remaining} {isAr ? txt.toNextLevel : "more"} {!isAr && txt.toNextLevel} {currentLevel + 1}
+                <span className="text-white/80">
+                  {remaining} more {txt.toNextLevel} {currentLevel + 1}
                 </span>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* How It Works - Horizontal Steps */}
-      <Card className="border border-border/50 bg-card shadow-lg">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">{txt.howItWorks}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { icon: Share2, title: txt.step1Title, desc: txt.step1Desc, color: "from-blue-500 to-cyan-500" },
-              { icon: Users, title: txt.step2Title, desc: txt.step2Desc, color: "from-purple-500 to-pink-500" },
-              { icon: Gift, title: txt.step3Title, desc: txt.step3Desc, color: "from-emerald-500 to-teal-500" }
-            ].map((step, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/50">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${step.color} flex-shrink-0`}>
-                  <step.icon className="w-5 h-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground text-sm">{step.title}</p>
-                  <p className="text-xs text-muted-foreground">{step.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
