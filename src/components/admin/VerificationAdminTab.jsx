@@ -30,6 +30,7 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminResponse, setAdminResponse] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [runningCleanup, setRunningCleanup] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [editForm, setEditForm] = useState({
     full_name: '',
@@ -38,12 +39,34 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
     document_type: 'passport'
   });
 
-  const pendingVerifications = verifications.filter(v => 
+  // Filter out superseded requests
+  const activeVerifications = verifications.filter(v => v.status !== 'superseded');
+  
+  const pendingVerifications = activeVerifications.filter(v => 
     v.status === 'pending' || v.status === 'under_review' || v.status === 'needs_help'
   );
-  const processedVerifications = verifications.filter(v => 
+  const processedVerifications = activeVerifications.filter(v => 
     v.status !== 'pending' && v.status !== 'under_review' && v.status !== 'needs_help'
   );
+  
+  const runCleanup = async () => {
+    if (!confirm('Run cleanup to fix duplicate verification requests? This will consolidate data into UserVerification.')) return;
+    
+    setRunningCleanup(true);
+    try {
+      const res = await base44.functions.invoke("verificationService", { action: "runCleanup" });
+      if (res.data?.ok) {
+        toast.success(`Cleanup complete: ${res.data.data?.users_processed} users processed, ${res.data.data?.requests_superseded} duplicates fixed`);
+        onRefresh();
+      } else {
+        throw new Error(res.data?.error || "Cleanup failed");
+      }
+    } catch (err) {
+      toast.error('Cleanup failed: ' + err.message);
+    } finally {
+      setRunningCleanup(false);
+    }
+  };
 
   const handleReview = async () => {
     if (!selectedVerification) return;
@@ -210,6 +233,25 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
 
   return (
     <div className="space-y-6">
+      {/* Cleanup Button */}
+      <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-foreground">Data Cleanup Tool</p>
+            <p className="text-xs text-muted-foreground">Fix duplicate verification requests and sync UserVerification status</p>
+          </div>
+          <Button
+            onClick={runCleanup}
+            disabled={runningCleanup}
+            variant="outline"
+            className="bg-amber-600 hover:bg-amber-700 text-white border-0"
+          >
+            {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+            Run Cleanup
+          </Button>
+        </CardContent>
+      </Card>
+      
       {/* Pending/Help Requests */}
       <Card className={pendingVerifications.length > 0 ? 'border-orange-500/30' : ''}>
         <CardHeader>
