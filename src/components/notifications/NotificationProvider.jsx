@@ -86,8 +86,15 @@ export function NotificationProvider({ children }) {
         return;
       }
 
-      // Load or create preferences
-      const prefsResult = await base44.entities.UserPreferences.filter({ user_id: user.id });
+      // Load preferences - use filter with user_id
+      let prefsResult = [];
+      try {
+        prefsResult = await base44.entities.UserPreferences.filter({ user_id: user.id });
+      } catch (prefsErr) {
+        // RLS might block - use defaults
+        console.warn("[NotificationProvider] Could not load preferences:", prefsErr?.message);
+      }
+      
       if (prefsResult?.length) {
         setPreferences(prefsResult[0]);
         if (prefsResult[0].timezone) {
@@ -95,41 +102,20 @@ export function NotificationProvider({ children }) {
           setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
         }
       } else {
-        // Create default preferences with auto-detected timezone
-        // Wrapped in try-catch to handle 403 permission errors gracefully
+        // No preferences found - use defaults (don't try to create, admin/service creates them)
         const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        try {
-          const newPrefs = await base44.entities.UserPreferences.create({
-            user_id: user.id,
-            timezone: detectedTz,
-            timezone_auto_detected: true,
-            notifications_enabled: true,
-            notify_price_alerts: true,
-            notify_trade_executions: true,
-            notify_margin_warnings: true,
-            notify_deposits: true,
-            notify_withdrawals: true,
-            notify_staking: true,
-            price_alerts: []
-          });
-          setPreferences(newPrefs);
-        } catch (createErr) {
-          // 403 = RLS permission denied - user may not have create rights yet
-          // Silently ignore and use defaults, don't trigger rerenders
-          console.warn("[NotificationProvider] Could not create UserPreferences (may be RLS):", createErr?.message);
-          setPreferences({
-            user_id: user.id,
-            timezone: detectedTz,
-            notifications_enabled: true,
-            notify_price_alerts: true,
-            notify_trade_executions: true,
-            notify_margin_warnings: true,
-            notify_deposits: true,
-            notify_withdrawals: true,
-            notify_staking: true,
-            price_alerts: []
-          });
-        }
+        setPreferences({
+          user_id: user.id,
+          timezone: detectedTz,
+          notifications_enabled: true,
+          notify_price_alerts: true,
+          notify_trade_executions: true,
+          notify_margin_warnings: true,
+          notify_deposits: true,
+          notify_withdrawals: true,
+          notify_staking: true,
+          price_alerts: []
+        });
         setTimezone(normalizeTimeZone(detectedTz) || "UTC");
       }
 
