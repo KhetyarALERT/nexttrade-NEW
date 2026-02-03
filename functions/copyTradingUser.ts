@@ -822,6 +822,7 @@ Deno.serve(async (req) => {
       const { settings } = body;
       if (!settings) return Response.json({ ok: false, error: { code: 'MISSING_DATA', message: 'Missing settings' } });
 
+      // CRITICAL: Always use asServiceRole for settings operations to ensure proper access
       const existing = await base44.asServiceRole.entities.CopyTradingSettings.filter({ user_id: user.id });
       const now = new Date().toISOString();
       const payload = {
@@ -845,6 +846,10 @@ Deno.serve(async (req) => {
 
       let res;
       if (existing?.length) {
+        // Verify user owns this settings record before updating
+        if (existing[0].user_id !== user.id) {
+          return Response.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Cannot update settings of another user' } }, { status: 403 });
+        }
         res = await base44.asServiceRole.entities.CopyTradingSettings.update(existing[0].id, payload);
       } else {
         payload.created_at = now;
