@@ -643,7 +643,7 @@ Deno.serve(async (req) => {
       if (type) query.type = type;
       if (status) query.status = status;
       
-      let transactions = await base44.asServiceRole.entities.WalletTransaction.filter(query, '-created_date', limit + skip);
+      let transactions = await base44.entities.WalletTransaction.filter(query, '-created_date', limit + skip);
       transactions = transactions.slice(skip, skip + limit);
       
       return Response.json({ success: true, data: transactions || [] });

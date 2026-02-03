@@ -384,7 +384,7 @@ Deno.serve(async (req) => {
     if (action === 'list') {
       const { limit = 50, skip = 0 } = params;
       
-      const withdrawals = await base44.asServiceRole.entities.LedgerWithdrawal.filter(
+      const withdrawals = await base44.entities.LedgerWithdrawal.filter(
         { user_id: user.id },
         '-created_date',
         limit + skip

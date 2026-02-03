@@ -130,7 +130,7 @@ export function NotificationProvider({ children }) {
       }
 
       // Load notifications
-      const notifs = await base44.asServiceRole.entities.Notification.filter(
+      const notifs = await base44.entities.Notification.filter(
         { user_id: user.id },
         '-created_date',
         50
@@ -205,7 +205,7 @@ export function NotificationProvider({ children }) {
   // Mark as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
-      await base44.asServiceRole.entities.Notification.update(notificationId, { read: true });
+      await base44.entities.Notification.update(notificationId, { read: true });
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
@@ -220,7 +220,7 @@ export function NotificationProvider({ children }) {
     try {
       const unread = notifications.filter(n => !n.read);
       await Promise.all(unread.map(n => 
-        base44.asServiceRole.entities.Notification.update(n.id, { read: true })
+        base44.entities.Notification.update(n.id, { read: true })
       ));
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
