@@ -52,21 +52,21 @@ const buttonVariants = cva(
  * }} ButtonProps
  */
 
-// Haptic feedback utility
-const triggerHaptic = () => {
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    navigator.vibrate(10);
-  }
-};
+// Import haptic utility with patterns
+import { triggerHaptic } from "@/components/mobile/haptics";
 
 /**
  * @type {import("react").ForwardRefRenderFunction<HTMLButtonElement, ButtonProps>}
  */
-function ButtonInner({ className, variant, size, asChild = false, onClick, ...props }, ref) {
+function ButtonInner({ className, variant, size, asChild = false, onClick, hapticType = "light", ...props }, ref) {
   const Comp = asChild ? Slot : "button";
   
   const handleClick = (e) => {
-    triggerHaptic();
+    // Use appropriate haptic based on button variant
+    const haptic = variant === "destructive" ? "warning" : 
+                   variant === "success" ? "success" : 
+                   hapticType;
+    triggerHaptic(haptic);
     onClick?.(e);
   };
   

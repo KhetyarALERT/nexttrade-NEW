@@ -36,10 +36,30 @@ function isRootPath(pathname) {
 export function MobileNavigationProvider({ children }) {
   // Track scroll positions per tab
   const scrollPositions = useRef({});
+  // Track navigation history per tab for proper back handling
+  const tabHistories = useRef({
+    Dashboard: [],
+    Futures: [],
+    Wallet: [],
+    Profile: [],
+  });
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [assistantModalOpen, setAssistantModalOpen] = useState(false);
   const [navigationDirection, setNavigationDirection] = useState("none"); // "forward" | "back" | "none"
+  const [isPopstateNavigation, setIsPopstateNavigation] = useState(false);
   const lastPathRef = useRef("");
+
+  // Listen for browser back/forward (popstate)
+  useEffect(() => {
+    const handlePopstate = () => {
+      setIsPopstateNavigation(true);
+      // Reset after a short delay to allow navigation to complete
+      setTimeout(() => setIsPopstateNavigation(false), 50);
+    };
+
+    window.addEventListener("popstate", handlePopstate);
+    return () => window.removeEventListener("popstate", handlePopstate);
+  }, []);
 
   // Save scroll position for current tab
   const saveScrollPosition = useCallback((tab) => {
@@ -59,25 +79,72 @@ export function MobileNavigationProvider({ children }) {
     }
   }, []);
 
+  // Push a path to the tab's local history
+  const pushToTabHistory = useCallback((tab, pathname) => {
+    const history = tabHistories.current[tab] || [];
+    // Avoid duplicates at the top
+    if (history[history.length - 1] !== pathname) {
+      history.push(pathname);
+      tabHistories.current[tab] = history;
+    }
+  }, []);
+
+  // Pop from the tab's local history
+  const popFromTabHistory = useCallback((tab) => {
+    const history = tabHistories.current[tab] || [];
+    if (history.length > 1) {
+      history.pop();
+      tabHistories.current[tab] = history;
+      return history[history.length - 1]; // Return the previous path
+    }
+    return null;
+  }, []);
+
+  // Check if the tab has history to go back to
+  const canGoBackInTab = useCallback((tab) => {
+    const history = tabHistories.current[tab] || [];
+    return history.length > 1;
+  }, []);
+
+  // Clear tab history (when switching tabs)
+  const clearTabHistory = useCallback((tab) => {
+    tabHistories.current[tab] = [];
+  }, []);
+
   // Update active tab from pathname
   const updateFromPathname = useCallback((pathname) => {
     const newTab = getActiveTabFromPath(pathname);
-    const isRoot = isRootPath(pathname);
+    const newIsRoot = isRootPath(pathname);
     
     // Determine navigation direction
     const lastPath = lastPathRef.current;
     if (lastPath && pathname !== lastPath) {
       // Simple heuristic: going to root = back, going deeper = forward
       const wasRoot = isRootPath(lastPath);
-      if (wasRoot && !isRoot) {
+      const lastTab = getActiveTabFromPath(lastPath);
+      
+      if (lastTab !== newTab) {
+        // Tab switch - no slide animation
+        setNavigationDirection("none");
+        // Reset the new tab's history with its root
+        if (newIsRoot) {
+          tabHistories.current[newTab] = [pathname];
+        }
+      } else if (wasRoot && !newIsRoot) {
         setNavigationDirection("forward");
-      } else if (!wasRoot && isRoot) {
+        pushToTabHistory(newTab, pathname);
+      } else if (!wasRoot && newIsRoot) {
         setNavigationDirection("back");
-      } else if (getActiveTabFromPath(lastPath) !== newTab) {
-        setNavigationDirection("none"); // Tab switch - no slide
+        // Clear history when going back to root
+        tabHistories.current[newTab] = [pathname];
       } else {
+        // Same level navigation
         setNavigationDirection("forward");
+        pushToTabHistory(newTab, pathname);
       }
+    } else if (!lastPath) {
+      // Initial load - set up history
+      tabHistories.current[newTab] = [pathname];
     }
     
     lastPathRef.current = pathname;
@@ -87,7 +154,7 @@ export function MobileNavigationProvider({ children }) {
       setActiveTab(newTab);
       restoreScrollPosition(newTab);
     }
-  }, [activeTab, saveScrollPosition, restoreScrollPosition]);
+  }, [activeTab, saveScrollPosition, restoreScrollPosition, pushToTabHistory]);
 
   // Toggle assistant modal
   const toggleAssistantModal = useCallback(() => {
@@ -125,6 +192,12 @@ export function MobileNavigationProvider({ children }) {
     openAssistantModal,
     closeAssistantModal,
     navigationDirection,
+    isPopstateNavigation,
+    // Tab history management
+    canGoBackInTab,
+    popFromTabHistory,
+    pushToTabHistory,
+    clearTabHistory,
   };
 
   return (
@@ -155,6 +228,11 @@ export function useMobileNavigation() {
       openAssistantModal: () => {},
       closeAssistantModal: () => {},
       navigationDirection: "none",
+      isPopstateNavigation: false,
+      canGoBackInTab: () => false,
+      popFromTabHistory: () => null,
+      pushToTabHistory: () => {},
+      clearTabHistory: () => {},
     };
   }
   return context;

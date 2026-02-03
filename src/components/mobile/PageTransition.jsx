@@ -27,9 +27,14 @@ const transition = {
   duration: 0.25,
 };
 
+// Instant transition for popstate (browser back/forward)
+const instantTransition = {
+  duration: 0,
+};
+
 export default function PageTransition({ children }) {
   const location = useLocation();
-  const { navigationDirection, updateFromPathname } = useMobileNavigation();
+  const { navigationDirection, updateFromPathname, isPopstateNavigation } = useMobileNavigation();
   
   // Check if mobile
   const [isMobile, setIsMobile] = React.useState(() => 
@@ -52,16 +57,20 @@ export default function PageTransition({ children }) {
     return <>{children}</>;
   }
 
+  // Use instant transition for popstate to avoid double animation with browser's native transition
+  const currentTransition = isPopstateNavigation ? instantTransition : transition;
+  const currentDirection = isPopstateNavigation ? "none" : navigationDirection;
+
   return (
-    <AnimatePresence mode="wait" initial={false} custom={navigationDirection}>
+    <AnimatePresence mode="wait" initial={false} custom={currentDirection}>
       <motion.div
         key={location.pathname}
-        custom={navigationDirection}
+        custom={currentDirection}
         variants={variants}
         initial="enter"
         animate="center"
         exit="exit"
-        transition={transition}
+        transition={currentTransition}
         className="w-full"
       >
         {children}
