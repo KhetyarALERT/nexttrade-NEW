@@ -145,6 +145,9 @@ export default function WalletPage({ language = "en" }) {
   // Transfer Modal
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
+  
+  // Refresh key to trigger child component reloads
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Update URL when sub-page changes
   const setSubPage = useCallback((page) => {
@@ -258,6 +261,8 @@ export default function WalletPage({ language = "en" }) {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    // Increment refresh key to trigger child component reloads (WalletHistory)
+    setRefreshKey(prev => prev + 1);
     setRefreshing(false);
   };
 
@@ -562,6 +567,7 @@ export default function WalletPage({ language = "en" }) {
                 language={language}
                 onRefresh={handleRefresh}
                 showBackButton={true}
+                refreshKey={refreshKey}
               />
             )}
           </main>

@@ -65,7 +65,7 @@ const getStatusLabel = (status, t) => {
   return t[config.label] || status;
 };
 
-export default function WalletHistory({ language = "en", onRefresh, showBackButton = false }) {
+export default function WalletHistory({ language = "en", onRefresh, showBackButton = false, refreshKey = 0 }) {
   const t = translations[language] || translations.en;
   const navigate = useNavigate();
   
@@ -134,7 +134,7 @@ export default function WalletHistory({ language = "en", onRefresh, showBackButt
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [refreshKey]);
 
   const filteredTransactions = transactions.filter((tx) => {
     if (activeTab === "all") return true;
@@ -313,5 +313,6 @@ export default function WalletHistory({ language = "en", onRefresh, showBackButt
 WalletHistory.propTypes = {
   language: PropTypes.string,
   onRefresh: PropTypes.func,
-  showBackButton: PropTypes.bool
+  showBackButton: PropTypes.bool,
+  refreshKey: PropTypes.number
 };
