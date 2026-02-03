@@ -37,21 +37,19 @@ Deno.serve(async (req) => {
       
       console.log('[NOTIFICATIONS] Found', notifications?.length || 0, 'notifications for user', user.id);
       
-      // Normalize response - flatten from nested 'data' field to top level
-      // Entity stores all props in 'data' field: {data: {read, type, title, message, priority, user_id, data: {...extra}}}
+      // Normalize response - raw response has props at top level: {read, type, title, message, priority, user_id, data: {...extra}}
       const normalized = (notifications || []).map(n => {
-        const d = n.data || n;
         return {
           id: n.id,
           created_date: n.created_date,
           updated_date: n.updated_date,
-          user_id: d.user_id || n.user_id,
-          type: d.type || n.type,
-          title: d.title || n.title,
-          message: d.message || n.message,
-          read: d.read ?? n.read ?? false,
-          priority: d.priority || n.priority || 'normal',
-          data: d.data || null
+          user_id: n.user_id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          read: n.read ?? false,
+          priority: n.priority || 'normal',
+          data: n.data || null
         };
       });
       
