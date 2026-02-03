@@ -71,6 +71,11 @@ export default function OKXAdminHub() {
   const [withdrawals, setWithdrawals] = useState([]);
   const [transfers, setTransfers] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  // Referrals tab state
+  const [refOverview, setRefOverview] = useState([]);
+  const [refDetails, setRefDetails] = useState(null);
+  const [loadingRef, setLoadingRef] = useState(false);
+  const [selectedReferrer, setSelectedReferrer] = useState(null);
   
   // Sub-data for tabs
   const [accountRequests, setAccountRequests] = useState([]);
@@ -127,6 +132,19 @@ export default function OKXAdminHub() {
   useEffect(() => {
     if (isAuthenticated && isAdmin) loadDashboard();
   }, [isAuthenticated, isAdmin, loadDashboard]);
+
+  // Load referrals when tab opens
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) return;
+    if (activeTab !== 'referrals') return;
+    (async () => {
+      setLoadingRef(true);
+      try {
+        const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'adminOverview' });
+        if (res.data?.success) setRefOverview(res.data.data || []);
+      } finally { setLoadingRef(false); }
+    })();
+  }, [activeTab, isAuthenticated, isAdmin]);
 
   const handleAddToPool = async () => {
     if (!newPool.subaccountName || !newPool.apiKey) {
@@ -283,6 +301,7 @@ export default function OKXAdminHub() {
             <TabsTrigger value="withdrawals" className="rounded-lg px-4 py-2">Withdrawals</TabsTrigger>
             <TabsTrigger value="pool" className="rounded-lg px-4 py-2">Pool</TabsTrigger>
             <TabsTrigger value="users" className="rounded-lg px-4 py-2">Users</TabsTrigger>
+            <TabsTrigger value="referrals" className="rounded-lg px-4 py-2">Referrals</TabsTrigger>
             <TabsTrigger value="finance" className="rounded-lg px-4 py-2">Finance</TabsTrigger>
           </TabsList>
 
@@ -416,6 +435,89 @@ export default function OKXAdminHub() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="referrals">
+            <Card>
+              <CardHeader>
+                <CardTitle>Referrals Overview</CardTitle>
+                <CardDescription>Per-referrer stats</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingRef ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Verified</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {refOverview.map((r) => (
+                        <TableRow key={r.referrerId}>
+                          <TableCell>{r.email}</TableCell>
+                          <TableCell>{r.referralCode || '—'}</TableCell>
+                          <TableCell>{r.total}</TableCell>
+                          <TableCell>{r.verified}</TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              setSelectedReferrer(r);
+                              setRefDetails(null);
+                              setLoadingRef(true);
+                              try {
+                                const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: r.referrerId });
+                                if (res.data?.success) setRefDetails(res.data.data);
+                              } finally { setLoadingRef(false); }
+                            }}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {refDetails && (
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Referrer Details</CardTitle>
+                  <CardDescription>{refDetails.referrer?.email} • Code: {refDetails.referrer?.referralCode || '—'}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-2">Referred by: {refDetails.referredBy?.referrer_code || '—'}</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>KYC</TableHead>
+                        <TableHead>Deposit</TableHead>
+                        <TableHead>Withdraw</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(refDetails.referrals || []).map((d) => (
+                        <TableRow key={d.id}>
+                          <TableCell>{d.email}</TableCell>
+                          <TableCell>{d.registeredAt ? new Date(d.registeredAt).toLocaleDateString() : '—'}</TableCell>
+                          <TableCell><Badge variant="outline" className={d.kycStatus==='verified'?'bg-emerald-500/10 text-emerald-600':'bg-amber-500/10 text-amber-600'}>{d.kycStatus}</Badge></TableCell>
+                          <TableCell>{d.hasDeposit ? 'Yes' : 'No'}</TableCell>
+                          <TableCell>{d.hasWithdrawal ? 'Yes' : 'No'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="users">

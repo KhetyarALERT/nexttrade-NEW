@@ -167,6 +167,37 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, data: { referrer: { id: referrerId, email: refUser?.email, referralCode: refUser?.referral_code }, referredBy, referrals: details } });
     }
 
+    // === ADMIN: Backfill missing attributions from User.referred_by (idempotent) ===
+    if (action === 'backfillMissingAttributions') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const users = await base44.asServiceRole.entities.User.list();
+      let created = 0, skipped = 0;
+      for (const u of (users || [])) {
+        const code = (u.referred_by || '').toUpperCase();
+        if (!code) { skipped++; continue; }
+        const refUsers = await base44.asServiceRole.entities.User.filter({ referral_code: code });
+        if (!refUsers?.length) { skipped++; continue; }
+        const referrer = refUsers[0];
+        // Check existing attribution
+        const exists = await base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: referrer.id, referred_user_id: u.id, level: 1 });
+        if (exists?.length) { skipped++; continue; }
+        await base44.asServiceRole.entities.ReferralAttribution.create({
+          referrer_user_id: referrer.id,
+          referrer_code: code,
+          referred_user_id: u.id,
+          referred_email: u.email,
+          level: 1,
+          status: 'registered',
+          registered_at: u.created_date || new Date().toISOString()
+        });
+        created++;
+      }
+      return Response.json({ success: true, data: { created, skipped } });
+    }
+
     // === Manual trigger for single user ===
     if (action === 'reconcileUser') {
       const user = await base44.auth.me();
