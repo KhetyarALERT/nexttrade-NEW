@@ -200,14 +200,13 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         frontUrl = result.file_url;
       }
 
-      // Use verificationService to submit (handles duplicates)
+      // Use verificationService submitHelp action (separate from KYC, does NOT change verification status)
       const res = await base44.functions.invoke("verificationService", {
-        action: "submitKyc",
+        action: "submitHelp",
         fullName: form.fullName,
         documentType: form.documentType || "passport",
         frontUrl: frontUrl,
-        helpMessage: helpMessage || (language === "ar" ? "طلب مساعدة مع إرفاق الهوية" : "Help request with ID attached"),
-        requestType: "help_request"
+        helpMessage: helpMessage || (language === "ar" ? "طلب مساعدة مع إرفاق الهوية" : "Help request with ID attached")
       });
 
       if (!res.data?.ok) {

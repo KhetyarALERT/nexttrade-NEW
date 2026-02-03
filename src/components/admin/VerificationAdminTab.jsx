@@ -49,15 +49,19 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
     v.status !== 'pending' && v.status !== 'under_review' && v.status !== 'needs_help'
   );
   
-  const runCleanup = async () => {
-    if (!confirm('Run cleanup to fix duplicate verification requests? This will consolidate data into UserVerification.')) return;
+  const runCleanup = async (dryRun = false) => {
+    if (!dryRun && !confirm('Run cleanup to fix duplicate KYC requests? This will consolidate data into UserVerification. Help requests will NOT be affected.')) return;
     
     setRunningCleanup(true);
     try {
-      const res = await base44.functions.invoke("verificationService", { action: "runCleanup" });
+      const res = await base44.functions.invoke("verificationService", { action: "runCleanup", dryRun });
       if (res.data?.ok) {
-        toast.success(`Cleanup complete: ${res.data.data?.users_processed} users processed, ${res.data.data?.requests_superseded} duplicates fixed`);
-        onRefresh();
+        const d = res.data.data;
+        const msg = dryRun 
+          ? `[DRY RUN] Would process ${d.users_processed} users, supersede ${d.kyc_requests_superseded} KYC requests, create ${d.user_verifications_created} UV records, update ${d.user_verifications_updated} UV records`
+          : `Cleanup complete: ${d.users_processed} users, ${d.kyc_requests_superseded} KYC superseded, ${d.user_verifications_created} UV created, ${d.user_verifications_updated} UV updated`;
+        toast.success(msg);
+        if (!dryRun) onRefresh();
       } else {
         throw new Error(res.data?.error || "Cleanup failed");
       }
@@ -93,14 +97,15 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
           throw new Error(res.data?.error || "Failed to reject");
         }
       } else if (reviewAction === 'respond') {
-        // Direct update for admin response (doesn't change verification status)
-        const adminUser = await base44.auth.me();
-        await base44.entities.VerificationRequest.update(selectedVerification.id, {
-          admin_response: adminResponse,
-          admin_responded_at: new Date().toISOString(),
-          status: 'under_review',
-          reviewed_by: adminUser.email
+        // Use verificationService adminRespond action (doesn't change verification status)
+        const res = await base44.functions.invoke("verificationService", {
+          action: "adminRespond",
+          requestId: selectedVerification.id,
+          response: adminResponse
         });
+        if (!res.data?.ok) {
+          throw new Error(res.data?.error || "Failed to respond");
+        }
       }
       
       // Notify user
@@ -240,15 +245,26 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
             <p className="font-semibold text-foreground">Data Cleanup Tool</p>
             <p className="text-xs text-muted-foreground">Fix duplicate verification requests and sync UserVerification status</p>
           </div>
-          <Button
-            onClick={runCleanup}
-            disabled={runningCleanup}
-            variant="outline"
-            className="bg-amber-600 hover:bg-amber-700 text-white border-0"
-          >
-            {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
-            Run Cleanup
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => runCleanup(true)}
+              disabled={runningCleanup}
+              variant="outline"
+              className="border-amber-600 text-amber-600 hover:bg-amber-50"
+            >
+              {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+              Dry Run
+            </Button>
+            <Button
+              onClick={() => runCleanup(false)}
+              disabled={runningCleanup}
+              variant="outline"
+              className="bg-amber-600 hover:bg-amber-700 text-white border-0"
+            >
+              {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+              Run Cleanup
+            </Button>
+          </div>
         </CardContent>
       </Card>
       
