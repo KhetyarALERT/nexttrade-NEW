@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Link, useNavigate } from "react-router-dom";
+import WithdrawModal from "./WithdrawModal";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,6 +104,7 @@ export default function WalletOverview({
   const t = translations[language] || translations.en;
   const navigate = useNavigate();
   const [assetView, setAssetView] = useState("total"); // total | funding | trading | staked
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   // Staking amounts (from overlay)
   const activeLockedUsdt = stakingOverlay?.activeLockedByCcy?.USDT || 0;
@@ -133,6 +135,11 @@ export default function WalletOverview({
   // OKX balances
   const tradingBalance = okxBalances?.tradingUsdt || 0;
   const fundingOkx = okxBalances?.fundingUsdt || 0;
+  
+  // Withdrawable calculation: total funding - trading (locked in positions)
+  const totalFunding = fundingBalance + fundingOkx;
+  const lockedInPositions = tradingBalance;
+  const withdrawableBalance = Math.max(0, totalFunding - lockedInPositions);
   
   // perCcy from OKX (contains funding + trading per currency)
   const perCcy = okxBalances?.perCcy || {};
@@ -242,6 +249,7 @@ export default function WalletOverview({
               <Button
                 variant="outline"
                 disabled={!isFullyUnlocked}
+                onClick={() => setWithdrawModalOpen(true)}
                 className="rounded-xl border-border flex-1 sm:flex-none"
               >
                 <ArrowUpFromLine className="h-4 w-4 mr-2" />
@@ -295,6 +303,7 @@ export default function WalletOverview({
                 size="sm"
                 variant="outline"
                 disabled={!isFullyUnlocked}
+                onClick={() => setWithdrawModalOpen(true)}
                 className="rounded-lg text-xs flex-1"
               >
                 <ArrowUpFromLine className="h-3 w-3 mr-1" />
@@ -537,6 +546,19 @@ export default function WalletOverview({
 
       {/* Recent Transfers */}
       <RecentTransfersCard language={language} limit={5} />
+      
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        open={withdrawModalOpen}
+        onOpenChange={setWithdrawModalOpen}
+        language={language}
+        onSuccess={onRefresh}
+        walletData={{
+          withdrawable: withdrawableBalance,
+          locked: lockedInPositions,
+          pending: 0
+        }}
+      />
     </div>
   );
 }
