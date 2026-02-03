@@ -28,16 +28,16 @@ Deno.serve(async (req) => {
       // Use asServiceRole because notifications are created by service role
       // which sets created_by to service email, not user email
       // Security: we filter by user_id which is the authenticated user
+      // Note: Entity stores properties in 'data' field, so we query 'data.user_id'
       const notifications = await base44.asServiceRole.entities.Notification.filter(
-        { user_id: user.id },
+        { 'data.user_id': user.id },
         '-created_date',
         limit + skip
       );
       
-      // Normalize response - some notifications may have data nested in 'data' field (legacy)
+      // Normalize response - flatten from nested 'data' field to top level
       const normalized = (notifications || []).map(n => {
-        // If notification has nested data structure, flatten it
-        if (n.data && typeof n.data === 'object' && n.data.user_id) {
+        if (n.data && typeof n.data === 'object') {
           return {
             id: n.id,
             created_date: n.created_date,
@@ -60,19 +60,13 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: 'notificationId required' }, { status: 400 });
       }
       
-      // Get the notification first
-      const allNotifs = await base44.asServiceRole.entities.Notification.filter({
-        id: notificationId
+      // Verify notification belongs to user - query by data.user_id
+      const notifications = await base44.asServiceRole.entities.Notification.filter({
+        id: notificationId,
+        'data.user_id': user.id
       });
       
-      if (!allNotifs?.length) {
-        return Response.json({ ok: false, error: 'Notification not found' }, { status: 404 });
-      }
-      
-      const notif = allNotifs[0];
-      // Check ownership - user_id can be at top level or inside data (legacy)
-      const notifUserId = notif.user_id || notif.data?.user_id;
-      if (notifUserId !== user.id) {
+      if (!notifications?.length) {
         return Response.json({ ok: false, error: 'Notification not found' }, { status: 404 });
       }
       
@@ -83,19 +77,15 @@ Deno.serve(async (req) => {
 
     // MARK ALL NOTIFICATIONS AS READ
     if (action === 'markAllRead') {
-      // Get all unread notifications for user
+      // Get all unread notifications for user - query by data.user_id and data.read
       const unread = await base44.asServiceRole.entities.Notification.filter({
-        user_id: user.id,
-        read: false
+        'data.user_id': user.id,
+        'data.read': false
       });
       
       // Mark each as read
       for (const notif of (unread || [])) {
-        // Handle legacy nested data structure
-        const isUnread = notif.read === false || notif.data?.read === false;
-        if (isUnread) {
-          await base44.asServiceRole.entities.Notification.update(notif.id, { read: true });
-        }
+        await base44.asServiceRole.entities.Notification.update(notif.id, { read: true });
       }
       
       return Response.json({ ok: true, updated: (unread || []).length });
@@ -103,17 +93,12 @@ Deno.serve(async (req) => {
 
     // GET UNREAD COUNT
     if (action === 'getUnreadCount') {
-      const all = await base44.asServiceRole.entities.Notification.filter({
-        user_id: user.id
+      const unread = await base44.asServiceRole.entities.Notification.filter({
+        'data.user_id': user.id,
+        'data.read': false
       });
       
-      // Count unread - handle legacy nested data structure
-      const unreadCount = (all || []).filter(n => {
-        const isRead = n.read === true || n.data?.read === true;
-        return !isRead;
-      }).length;
-      
-      return Response.json({ ok: true, count: unreadCount });
+      return Response.json({ ok: true, count: (unread || []).length });
     }
 
     return Response.json({ ok: false, error: 'Invalid action' }, { status: 400 });
