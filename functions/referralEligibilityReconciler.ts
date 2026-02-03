@@ -101,6 +101,72 @@ Deno.serve(async (req) => {
       return await getInviteEarnSnapshot(base44, user);
     }
 
+    // === ADMIN: Overview across users ===
+    if (action === 'adminOverview') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      // Aggregate by referrer
+      const users = await base44.asServiceRole.entities.User.list();
+      const mapById = new Map(users.map(u => [u.id, u]));
+      const attrs = await base44.asServiceRole.entities.ReferralAttribution.list();
+      const grouped = {};
+      for (const a of (attrs || [])) {
+        if (!grouped[a.referrer_user_id]) grouped[a.referrer_user_id] = [];
+        grouped[a.referrer_user_id].push(a);
+      }
+      const rows = [];
+      for (const [referrerId, list] of Object.entries(grouped)) {
+        const u = mapById.get(referrerId);
+        const total = list.length;
+        const verified = list.filter(x => !!x.kyc_verified_at).length;
+        rows.push({
+          referrerId,
+          email: u?.email || referrerId,
+          fullName: u?.full_name || null,
+          referralCode: u?.referral_code || null,
+          total,
+          verified
+        });
+      }
+      return Response.json({ success: true, data: rows });
+    }
+
+    // === ADMIN: Details for a specific referrer ===
+    if (action === 'referrerDetails') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const { referrerId } = params;
+      if (!referrerId) return Response.json({ success: false, error: 'referrerId required' }, { status: 400 });
+
+      const refUser = (await base44.asServiceRole.entities.User.filter({ id: referrerId }))?.[0] || null;
+      // Who referred this referrer (if any)
+      const referredBy = (await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: referrerId, level: 1 }))?.[0] || null;
+
+      const list = await base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: referrerId, level: 1 });
+      const details = [];
+      for (const a of (list || [])) {
+        const uv = (await base44.asServiceRole.entities.UserVerification.filter({ user_id: a.referred_user_id }))?.[0] || null;
+        const kycStatus = uv?.status || 'unverified';
+        const tx = await base44.asServiceRole.entities.WalletTransaction.filter({ user_id: a.referred_user_id });
+        const hasDeposit = (tx || []).some(t => t.type === 'deposit' && t.status === 'completed');
+        const hasWithdrawal = (tx || []).some(t => t.type === 'withdrawal' && t.status === 'completed');
+        const userRec = (await base44.asServiceRole.entities.User.filter({ id: a.referred_user_id }))?.[0] || null;
+        details.push({
+          id: a.id,
+          email: userRec?.email ? maskEmail(userRec.email) : maskEmail(a.referred_email),
+          registeredAt: a.registered_at,
+          kycStatus,
+          hasDeposit,
+          hasWithdrawal
+        });
+      }
+      return Response.json({ success: true, data: { referrer: { id: referrerId, email: refUser?.email, referralCode: refUser?.referral_code }, referredBy, referrals: details } });
+    }
+
     // === Manual trigger for single user ===
     if (action === 'reconcileUser') {
       const user = await base44.auth.me();
@@ -152,12 +218,11 @@ async function updateReferralEligibility(base44, attr, now, stats) {
   const updates = {};
   let needsUpdate = false;
 
-  // 1. Sync KYC status from referred user
+  // 1. Sync KYC status from UserVerification (single source of truth)
   try {
-    const referredUsers = await base44.asServiceRole.entities.User.filter({ id: attr.referred_user_id });
-    const referredUser = referredUsers?.[0];
-    
-    if (referredUser?.verification_status === 'verified' && !attr.kyc_verified_at) {
+    const uv = await base44.asServiceRole.entities.UserVerification.filter({ user_id: attr.referred_user_id });
+    const isVerified = uv?.[0]?.status === 'verified';
+    if (isVerified && !attr.kyc_verified_at) {
       updates.kyc_verified_at = now;
       updates.kyc_at = now;
       if (attr.status === 'registered') {
@@ -465,6 +530,10 @@ async function getInviteEarnSnapshot(base44, user) {
     vip_active: false
   };
 
+  // Determine KYC requirement from UserVerification (not User)
+  const myUv = await base44.asServiceRole.entities.UserVerification.filter({ user_id: user.id });
+  const kycRequiredFlag = (myUv?.[0]?.status !== 'verified');
+
   // Get referral attributions (L1 only)
   const attrs = await base44.asServiceRole.entities.ReferralAttribution.filter({
     referrer_user_id: user.id,
@@ -644,7 +713,7 @@ async function getInviteEarnSnapshot(base44, user) {
       // Big Deposit Bonus config for UI display
       depositBonusTiers: DEPOSIT_BONUS_TIERS,
       
-      kycRequired: user.verification_status !== 'verified'
+      kycRequired: kycRequiredFlag
     }
   });
 }
