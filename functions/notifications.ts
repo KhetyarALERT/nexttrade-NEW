@@ -36,21 +36,21 @@ Deno.serve(async (req) => {
       );
       
       // Normalize response - flatten from nested 'data' field to top level
-      // Need to extract user_id, type, title, message, read, priority, data from nested structure
+      // Entity stores all props in 'data' field: {data: {user_id, type, title, message, read, priority, data: {...}}}
       const normalized = (notifications || []).map(n => {
         if (n.data && typeof n.data === 'object') {
-          const { data: nestedData, ...fields } = n.data;
+          const d = n.data;
           return {
             id: n.id,
             created_date: n.created_date,
             updated_date: n.updated_date,
-            user_id: fields.user_id,
-            type: fields.type,
-            title: fields.title,
-            message: fields.message,
-            read: fields.read,
-            priority: fields.priority,
-            data: nestedData || null
+            user_id: d.user_id,
+            type: d.type,
+            title: d.title,
+            message: d.message,
+            read: d.read,
+            priority: d.priority,
+            data: d.data || null
           };
         }
         return n;
