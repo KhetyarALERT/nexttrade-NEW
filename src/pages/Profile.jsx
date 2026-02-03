@@ -339,19 +339,23 @@ export default function Profile({ language = "en" }) {
       if (res.data?.ok) {
         const uvData = res.data.data;
         
-        if (uvData.exists && uvData.current_request) {
+        if (uvData.exists) {
           // Map status: verified → approved for UI compatibility
-          const mappedRequest = {
-            ...uvData.current_request,
-            status: uvData.status === "verified" ? "approved" : uvData.status
-          };
-          setExistingVerification(mappedRequest);
-        } else if (uvData.exists) {
-          // UserVerification exists but no current_request
-          setExistingVerification({
-            status: uvData.status === "verified" ? "approved" : uvData.status,
-            rejection_reason: uvData.rejection_reason
-          });
+          const mappedStatus = uvData.status === "verified" ? "approved" : uvData.status;
+          
+          // If we have current request details, include them
+          if (uvData.current_request) {
+            setExistingVerification({
+              ...uvData.current_request,
+              status: mappedStatus
+            });
+          } else {
+            // No current request but status exists
+            setExistingVerification({
+              status: mappedStatus,
+              rejection_reason: uvData.rejection_reason
+            });
+          }
         } else {
           // No UserVerification record = unverified
           setExistingVerification(null);
@@ -361,6 +365,7 @@ export default function Profile({ language = "en" }) {
       }
     } catch (err) {
       console.error("Failed to load verification:", err);
+      setExistingVerification(null);
     }
   }, []);
 
@@ -1249,6 +1254,7 @@ export default function Profile({ language = "en" }) {
               onOpenChange={setVerificationModalOpen}
               language={language}
               existingRequest={existingVerification}
+              onSuccess={loadVerificationRequest}
             />
 
             {/* Copy Trading Deposit Modal */}

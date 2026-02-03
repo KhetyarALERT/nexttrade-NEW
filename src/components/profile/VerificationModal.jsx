@@ -111,7 +111,7 @@ const countries = [
   "Iran", "Afghanistan", "Bangladesh", "Malaysia", "Indonesia", "Other"
 ];
 
-export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null }) {
+export default function VerificationModal({ open, onOpenChange, language = "en", existingRequest = null, onSuccess = null }) {
   const t = translations[language] || translations.en;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -341,6 +341,10 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
       });
 
       toast.success(t.success);
+      
+      // Notify parent to refresh (dashboard/profile should refetch verification status)
+      if (onSuccess) onSuccess();
+      
       onOpenChange(false);
     } catch (err) {
       console.error("Verification submission error:", err);
@@ -366,6 +370,9 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t.title}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {language === "ar" ? "تحقق من حالة طلب التوثيق الخاص بك" : "Check your verification request status"}
+            </DialogDescription>
           </DialogHeader>
           <div className={`flex flex-col items-center gap-4 p-6 rounded-xl ${status.bg}`}>
             <Icon className={`w-12 h-12 ${status.color}`} />
@@ -692,6 +699,7 @@ VerificationModal.propTypes = {
   onOpenChange: PropTypes.func.isRequired,
   language: PropTypes.string,
   existingRequest: PropTypes.object,
+  onSuccess: PropTypes.func,
 };
 
 FileUploadBox.propTypes = {
