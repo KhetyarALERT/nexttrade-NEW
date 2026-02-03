@@ -62,7 +62,7 @@ const translations = {
     success: "Withdrawal Approved",
     successDesc: "Your withdrawal has been approved and is being processed.",
     reference: "Reference",
-    txHash: "TX Hash (Mock)",
+    txHash: "TX Hash",
     processingTime: "Processing time: 5 minutes to 24 hours.",
     disclaimer: "This is an internal ledger withdrawal request. Funds are deducted immediately after approval.",
     copied: "Copied!",
@@ -100,7 +100,7 @@ const translations = {
     success: "تمت الموافقة على السحب",
     successDesc: "تمت الموافقة على سحبك ويتم معالجته.",
     reference: "المرجع",
-    txHash: "TX Hash (وهمي)",
+    txHash: "TX Hash",
     processingTime: "وقت المعالجة: 5 دقائق إلى 24 ساعة.",
     disclaimer: "هذا طلب سحب دفتر داخلي. يتم خصم الأموال فوراً بعد الموافقة.",
     copied: "تم النسخ!",
@@ -167,6 +167,7 @@ export default function WithdrawModal({
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(null);
   const [history, setHistory] = useState([]);
+  const [mode, setMode] = useState("form"); // form | success
 
   // Get current account balance
   const currentBalance = balances[sourceAccount] || { total: 0, locked: 0, reserved: 0, withdrawable: 0 };
@@ -271,6 +272,9 @@ export default function WithdrawModal({
       
       if (res.data?.ok) {
         setResult(res.data.data);
+        setMode("success");
+        // Update history instantly
+        setHistory(prev => [res.data.data, ...prev.slice(0, 4)]);
         onSuccess?.();
       } else {
         setError(res.data?.error?.message || "Withdrawal failed");
@@ -289,12 +293,12 @@ export default function WithdrawModal({
   };
 
   const resetForm = () => {
+    setMode("form");
     setResult(null);
     setError(null);
     setAddress("");
     setAmount("");
     setAddressError(null);
-    loadData();
   };
 
   const formatAddress = (addr) => {
@@ -317,7 +321,7 @@ export default function WithdrawModal({
   const content = (
     <div className="space-y-5 pb-4">
       {/* Success State */}
-      {result ? (
+      {mode === "success" && result ? (
         <div className="space-y-4">
           <div className="flex flex-col items-center text-center py-4">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
@@ -357,27 +361,35 @@ export default function WithdrawModal({
               <span className="font-mono text-xs">{formatAddress(result.address)}</span>
             </div>
             
-            <div className="border-t border-border pt-3 mt-3 space-y-2">
+            <div className="border-t border-border pt-3 mt-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{t.reference}</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t.reference}</span>
                 <button 
                   onClick={() => copyToClipboard(result.reference, 'ref')}
-                  className="flex items-center gap-1 text-xs font-mono text-primary hover:underline"
+                  className="flex items-center gap-1.5 text-sm font-mono text-primary hover:text-primary/80 transition-colors"
+                  type="button"
                 >
                   {result.reference}
-                  <Copy className="w-3 h-3" />
-                  {copied === 'ref' && <span className="text-emerald-500">✓</span>}
+                  {copied === 'ref' ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{t.txHash}</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t.txHash}</span>
                 <button 
                   onClick={() => copyToClipboard(result.mock_tx_hash, 'tx')}
-                  className="flex items-center gap-1 text-xs font-mono text-primary hover:underline max-w-[180px] truncate"
+                  className="flex items-center gap-1.5 text-xs font-mono text-primary hover:text-primary/80 transition-colors group"
+                  type="button"
                 >
-                  {result.mock_tx_hash?.slice(0, 16)}...
-                  <Copy className="w-3 h-3 flex-shrink-0" />
-                  {copied === 'tx' && <span className="text-emerald-500">✓</span>}
+                  <span className="max-w-[140px] truncate">{result.mock_tx_hash}</span>
+                  {copied === 'tx' ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 flex-shrink-0" />
+                  )}
                 </button>
               </div>
             </div>
@@ -390,11 +402,29 @@ export default function WithdrawModal({
             </AlertDescription>
           </Alert>
           
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={resetForm}>
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              className="flex-1 rounded-xl h-11" 
+              onClick={resetForm}
+              type="button"
+            >
               New Withdrawal
             </Button>
-            <Button className="flex-1 rounded-xl bg-primary" onClick={() => onOpenChange(false)}>
+            <Button 
+              className="flex-1 rounded-xl bg-primary h-11" 
+              onClick={() => {
+                onOpenChange(false);
+                setTimeout(() => {
+                  setMode("form");
+                  setResult(null);
+                  setError(null);
+                  setAddress("");
+                  setAmount("");
+                }, 300);
+              }}
+              type="button"
+            >
               {t.close}
             </Button>
           </div>
@@ -448,26 +478,38 @@ export default function WithdrawModal({
           </div>
           
           {/* Balance Summary for Selected Account */}
-          <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-muted/50">
+          <div className="grid grid-cols-3 gap-4 p-5 rounded-xl bg-gradient-to-br from-muted/80 to-muted/50 border border-border/50">
             <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-1">{t.withdrawable}</p>
-              <p className="font-mono font-semibold text-emerald-600">
-                {balancesLoading ? "..." : currentBalance.withdrawable.toFixed(2)}
-              </p>
+              <p className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.withdrawable}</p>
+              {balancesLoading ? (
+                <div className="h-7 w-full bg-muted-foreground/20 rounded animate-pulse" />
+              ) : (
+                <p className="font-mono text-xl font-bold text-emerald-600">
+                  {currentBalance.withdrawable.toFixed(2)}
+                </p>
+              )}
             </div>
-            <div className="text-center border-x border-border">
-              <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
+            <div className="text-center border-x border-border/50">
+              <p className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center justify-center gap-1">
                 <Lock className="w-3 h-3" /> {t.locked}
               </p>
-              <p className="font-mono text-sm text-muted-foreground">
-                {balancesLoading ? "..." : currentBalance.locked.toFixed(2)}
-              </p>
+              {balancesLoading ? (
+                <div className="h-7 w-full bg-muted-foreground/20 rounded animate-pulse" />
+              ) : (
+                <p className="font-mono text-lg text-muted-foreground">
+                  {currentBalance.locked.toFixed(2)}
+                </p>
+              )}
             </div>
             <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-1">{t.pending}</p>
-              <p className="font-mono text-sm text-muted-foreground">
-                {balancesLoading ? "..." : currentBalance.reserved.toFixed(2)}
-              </p>
+              <p className="text-[11px] font-medium text-muted-foreground mb-2 uppercase tracking-wide">{t.pending}</p>
+              {balancesLoading ? (
+                <div className="h-7 w-full bg-muted-foreground/20 rounded animate-pulse" />
+              ) : (
+                <p className="font-mono text-lg text-muted-foreground">
+                  {currentBalance.reserved.toFixed(2)}
+                </p>
+              )}
             </div>
           </div>
           
@@ -550,13 +592,13 @@ export default function WithdrawModal({
           
           {/* Fee & Total */}
           {amount && parseFloat(amount) > 0 && (
-            <div className="space-y-2 p-3 rounded-xl bg-muted/30 border border-border">
+            <div className="space-y-3 p-4 rounded-xl bg-gradient-to-br from-muted/60 to-muted/30 border border-border">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t.fee} ({network})</span>
-                <span className="font-mono">{getFee().toFixed(2)} USDT</span>
+                <span className="font-mono font-medium">{getFee().toFixed(2)} USDT</span>
               </div>
-              <div className="flex justify-between text-sm font-medium pt-2 border-t border-border">
-                <span>{t.totalDeducted}</span>
+              <div className="flex justify-between text-base font-semibold pt-2 border-t border-border">
+                <span className="text-foreground">{t.totalDeducted}</span>
                 <span className="font-mono text-foreground">{getTotalDebit().toFixed(2)} USDT</span>
               </div>
             </div>
@@ -598,9 +640,9 @@ export default function WithdrawModal({
           {history.length > 0 && (
             <div className="pt-4 border-t border-border">
               <h4 className="text-sm font-medium mb-3">{t.history}</h4>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
+              <div className="space-y-2 max-h-36 overflow-y-auto scrollbar-thin">
                 {history.map(w => (
-                  <div key={w.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
+                  <div key={w.id} className="flex items-center justify-between text-xs p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors">
                     <div className="flex items-center gap-2">
                       <Badge 
                         className={`text-[10px] ${
@@ -611,14 +653,14 @@ export default function WithdrawModal({
                       >
                         {w.status}
                       </Badge>
-                      <span className="font-mono">{w.amount?.toFixed(2)}</span>
-                      <span className="text-muted-foreground">
-                        {w.source_account_type === 'COPY_TRADING' ? 'CT' : 'Fund'}
-                      </span>
+                      <span className="font-mono font-medium">{w.amount?.toFixed(2)} USDT</span>
                     </div>
-                    <span className="text-muted-foreground">
-                      {new Date(w.created_date).toLocaleDateString()}
-                    </span>
+                    <div className="text-right">
+                      <p className="text-muted-foreground">{new Date(w.created_date).toLocaleDateString()}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {w.source_account_type === 'COPY_TRADING' ? 'Copy Trading' : 'Funding'}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -632,15 +674,15 @@ export default function WithdrawModal({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader className="text-left">
+        <DrawerContent className="max-h-[92vh] flex flex-col">
+          <DrawerHeader className="text-left flex-shrink-0">
             <DrawerTitle className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-primary" />
               {t.title}
             </DrawerTitle>
             <DrawerDescription>{t.subtitle}</DrawerDescription>
           </DrawerHeader>
-          <div className="px-4 overflow-y-auto">{content}</div>
+          <div className="px-4 overflow-y-auto flex-1">{content}</div>
         </DrawerContent>
       </Drawer>
     );
@@ -648,15 +690,15 @@ export default function WithdrawModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-[520px] w-[95vw] max-h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-primary" />
             {t.title}
           </DialogTitle>
           <DialogDescription>{t.subtitle}</DialogDescription>
         </DialogHeader>
-        {content}
+        <div className="overflow-y-auto flex-1 px-1">{content}</div>
       </DialogContent>
     </Dialog>
   );

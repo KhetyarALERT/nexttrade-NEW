@@ -466,7 +466,7 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
               
               {selectedWithdrawal.mock_tx_hash && (
                 <div>
-                  <p className="text-muted-foreground text-xs mb-1">Mock TX Hash</p>
+                  <p className="text-muted-foreground text-xs mb-1">TX Hash</p>
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <p className="font-mono text-xs break-all flex-1">{selectedWithdrawal.mock_tx_hash}</p>
                     <Button
