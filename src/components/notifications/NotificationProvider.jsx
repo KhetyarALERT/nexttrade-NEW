@@ -73,14 +73,18 @@ export function NotificationProvider({ children }) {
   // Load preferences and notifications
   const loadData = useCallback(async () => {
     try {
-      // Use cached user if possible to avoid extra auth calls
-      // base44.auth.me() usually hits the server. 
-      // We can rely on the fact that if we are here, we might be logged in, 
-      // but let's just make sure we don't spam if not logged in.
-      // Better: check authentication state from context if available, but we are inside the provider.
-      // We'll proceed but safeguard against excessive calls.
+      // Check if authenticated first to avoid unnecessary calls
+      const isAuth = await base44.auth.isAuthenticated();
+      if (!isAuth) {
+        setLoading(false);
+        return;
+      }
+      
       const user = await base44.auth.me();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       // Load or create preferences
       const prefsResult = await base44.entities.UserPreferences.filter({ user_id: user.id });
@@ -133,10 +137,18 @@ export function NotificationProvider({ children }) {
       // (notifications created by service role have service email as created_by)
       try {
         const notifsRes = await base44.functions.invoke("notifications", { action: "list", limit: 50 });
-        const notifs = notifsRes.data?.ok ? (notifsRes.data.data || []) : [];
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter(n => !n.read).length || 0);
+        if (notifsRes.data?.ok) {
+          const notifs = notifsRes.data.data || [];
+          setNotifications(notifs);
+          setUnreadCount(notifs.filter(n => !n.read).length || 0);
+        } else {
+          // Server returned ok: false, check error
+          console.warn("[NotificationProvider] Server returned error:", notifsRes.data?.error);
+          setNotifications([]);
+          setUnreadCount(0);
+        }
       } catch (notifErr) {
+        // Network or other error - don't spam console, just use empty
         console.warn("[NotificationProvider] Failed to load notifications:", notifErr?.message);
         setNotifications([]);
         setUnreadCount(0);
