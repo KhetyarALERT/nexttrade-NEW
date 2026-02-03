@@ -32,8 +32,8 @@ css
   height: 100%;
 }
 
-/* Import JetBrains Mono for numerical data */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* JetBrains Mono - using system fallback stack to avoid render-blocking external font load
+   For production, bundle the font locally via @font-face if exact styling is critical */
 
 @layer base {
   :root {
@@ -162,14 +162,14 @@ css
 }
 
 @layer components {
-  /* Monospace font for all numerical/financial data */
+  /* Monospace font for all numerical/financial data - system fonts for fast load */
   .font-mono,
   [data-numeric],
   .price,
   .amount,
   .percentage,
   .balance {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
     font-feature-settings: "tnum" 1, "zero" 1; /* Tabular numbers, slashed zero */
   }
   

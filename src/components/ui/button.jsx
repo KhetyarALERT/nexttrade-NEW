@@ -58,14 +58,20 @@ import { triggerHaptic } from "@/components/mobile/haptics";
 /**
  * @type {import("react").ForwardRefRenderFunction<HTMLButtonElement, ButtonProps>}
  */
-function ButtonInner({ className, variant, size, asChild = false, onClick, hapticType = "light", ...props }, ref) {
+function ButtonInner({ className, variant, size, asChild = false, onClick, hapticType, type, ...props }, ref) {
   const Comp = asChild ? Slot : "button";
   
   const handleClick = (e) => {
-    // Use appropriate haptic based on button variant
-    const haptic = variant === "destructive" ? "warning" : 
+    // Determine haptic pattern:
+    // 1. Explicit hapticType prop takes precedence
+    // 2. Form submit buttons (type="submit") use heavy haptic
+    // 3. Variant-based defaults
+    // 4. Default to light
+    const haptic = hapticType ? hapticType :
+                   type === "submit" ? "heavy" :
+                   variant === "destructive" ? "warning" : 
                    variant === "success" ? "success" : 
-                   hapticType;
+                   "light";
     triggerHaptic(haptic);
     onClick?.(e);
   };
@@ -75,6 +81,7 @@ function ButtonInner({ className, variant, size, asChild = false, onClick, hapti
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
       onClick={handleClick}
+      type={type}
       {...props}
     />
   );

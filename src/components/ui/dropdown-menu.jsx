@@ -2,12 +2,102 @@
 import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
-
+import { Drawer, DrawerContent, DrawerPortal } from "@/components/ui/drawer"
 import { cn } from "@/lib/utils"
+import { triggerHaptic } from "@/components/mobile/haptics"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+// Hook to detect mobile viewport (<768px)
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false);
+  
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  
+  return isMobile;
+}
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+// Context to share open state for mobile drawer mode
+const DropdownMobileContext = React.createContext({ 
+  open: false, 
+  onOpenChange: () => {},
+  isMobile: false 
+});
+
+/**
+ * DropdownMenu - Uses Radix on desktop, Vaul drawer on mobile
+ */
+function DropdownMenu({ children, open: controlledOpen, onOpenChange, defaultOpen, ...props }) {
+  const isMobile = useIsMobile();
+  const [internalOpen, setInternalOpen] = React.useState(defaultOpen || false);
+  
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  
+  const handleOpenChange = React.useCallback((newOpen) => {
+    if (newOpen) triggerHaptic("light");
+    if (!isControlled) setInternalOpen(newOpen);
+    onOpenChange?.(newOpen);
+  }, [isControlled, onOpenChange]);
+
+  if (isMobile) {
+    return (
+      <DropdownMobileContext.Provider value={{ open, onOpenChange: handleOpenChange, isMobile: true }}>
+        {children}
+      </DropdownMobileContext.Provider>
+    );
+  }
+
+  return (
+    <DropdownMobileContext.Provider value={{ open, onOpenChange: handleOpenChange, isMobile: false }}>
+      <DropdownMenuPrimitive.Root open={open} onOpenChange={handleOpenChange} {...props}>
+        {children}
+      </DropdownMenuPrimitive.Root>
+    </DropdownMobileContext.Provider>
+  );
+}
+
+/**
+ * DropdownMenuTrigger - Works with both mobile drawer and desktop popover
+ */
+const DropdownMenuTrigger = React.forwardRef(({ children, asChild, ...props }, ref) => {
+  const { onOpenChange, isMobile } = React.useContext(DropdownMobileContext);
+
+  if (isMobile) {
+    const handleClick = (e) => {
+      e.preventDefault();
+      triggerHaptic("selection");
+      onOpenChange(true);
+    };
+
+    if (asChild && React.isValidElement(children)) {
+      return React.cloneElement(children, {
+        ...props,
+        ref,
+        onClick: (e) => {
+          handleClick(e);
+          children.props?.onClick?.(e);
+        },
+      });
+    }
+
+    return (
+      <button type="button" ref={ref} onClick={handleClick} {...props}>
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <DropdownMenuPrimitive.Trigger ref={ref} asChild={asChild} {...props}>
+      {children}
+    </DropdownMenuPrimitive.Trigger>
+  );
+});
+DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group
 
@@ -72,14 +162,26 @@ DropdownMenuSubContent.displayName =
   DropdownMenuPrimitive.SubContent.displayName
 
 /**
- * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.Content>} DropdownMenuContentRef
- * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & { sideOffset?: number }} DropdownMenuContentProps
+ * DropdownMenuContent - Uses drawer on mobile, popover on desktop
  */
+function DropdownMenuContentInner({ className, sideOffset = 4, children, ...props }, ref) {
+  const { open, onOpenChange, isMobile } = React.useContext(DropdownMobileContext);
 
-/**
- * @type {import("react").ForwardRefRenderFunction<DropdownMenuContentRef, DropdownMenuContentProps>}
- */
-function DropdownMenuContentInner({ className, sideOffset = 4, ...props }, ref) {
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerPortal>
+          <DrawerContent className="max-h-[85vh]">
+            <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted mb-4 mt-2" />
+            <div className="px-2 pb-6 overflow-y-auto max-h-[75vh]">
+              {children}
+            </div>
+          </DrawerContent>
+        </DrawerPortal>
+      </Drawer>
+    );
+  }
+
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -91,7 +193,9 @@ function DropdownMenuContentInner({ className, sideOffset = 4, ...props }, ref) 
           className
         )}
         {...props}
-      />
+      >
+        {children}
+      </DropdownMenuPrimitive.Content>
     </DropdownMenuPrimitive.Portal>
   );
 }
@@ -100,14 +204,35 @@ const DropdownMenuContent = React.forwardRef(DropdownMenuContentInner)
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
 /**
- * @typedef {import("react").ElementRef<typeof DropdownMenuPrimitive.Item>} DropdownMenuItemRef
- * @typedef {import("react").ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & { inset?: boolean }} DropdownMenuItemProps
+ * DropdownMenuItem - Closes drawer on mobile when clicked
  */
+function DropdownMenuItemInner({ className, inset, onSelect, ...props }, ref) {
+  const { onOpenChange, isMobile } = React.useContext(DropdownMobileContext);
 
-/**
- * @type {import("react").ForwardRefRenderFunction<DropdownMenuItemRef, DropdownMenuItemProps>}
- */
-function DropdownMenuItemInner({ className, inset, ...props }, ref) {
+  const handleSelect = (e) => {
+    triggerHaptic("selection");
+    onSelect?.(e);
+    if (isMobile) {
+      onOpenChange(false);
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <button
+        type="button"
+        ref={ref}
+        className={cn(
+          "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg px-3 py-3 text-sm outline-none transition-colors active:bg-accent [&>svg]:size-4 [&>svg]:shrink-0",
+          inset && "pl-8",
+          className
+        )}
+        onClick={handleSelect}
+        {...props}
+      />
+    );
+  }
+
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}
@@ -116,6 +241,7 @@ function DropdownMenuItemInner({ className, inset, ...props }, ref) {
         inset && "pl-8",
         className
       )}
+      onSelect={handleSelect}
       {...props}
     />
   );
@@ -195,6 +321,18 @@ DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName
  * @type {import("react").ForwardRefRenderFunction<DropdownMenuLabelRef, DropdownMenuLabelProps>}
  */
 function DropdownMenuLabelInner({ className, inset, ...props }, ref) {
+  const { isMobile } = React.useContext(DropdownMobileContext);
+  
+  if (isMobile) {
+    return (
+      <div
+        ref={ref}
+        className={cn("px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider", inset && "pl-8", className)}
+        {...props}
+      />
+    );
+  }
+  
   return (
     <DropdownMenuPrimitive.Label
       ref={ref}
@@ -216,6 +354,18 @@ DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName
  * @type {import("react").ForwardRefRenderFunction<DropdownMenuSeparatorRef, DropdownMenuSeparatorProps>}
  */
 function DropdownMenuSeparatorInner({ className, ...props }, ref) {
+  const { isMobile } = React.useContext(DropdownMobileContext);
+  
+  if (isMobile) {
+    return (
+      <div
+        ref={ref}
+        className={cn("my-2 h-px bg-border", className)}
+        {...props}
+      />
+    );
+  }
+  
   return (
     <DropdownMenuPrimitive.Separator
       ref={ref}
