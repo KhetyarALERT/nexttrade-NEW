@@ -24,6 +24,7 @@ import CopyTradingAdminTab from '@/components/admin/CopyTradingAdminTab';
 import SignalsAdminTab from '@/components/admin/SignalsAdminTab';
 import VerificationAdminTab from '@/components/admin/VerificationAdminTab';
 import AccountRequestsAdminTab from '@/components/admin/AccountRequestsAdminTab';
+import WithdrawalsAdminTab from '@/components/admin/WithdrawalsAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',
@@ -279,6 +280,7 @@ export default function OKXAdminHub() {
             <TabsTrigger value="copytrading" className="rounded-lg px-4 py-2">Copy Trading</TabsTrigger>
             <TabsTrigger value="entitlements" className="rounded-lg px-4 py-2">Entitlements</TabsTrigger>
             <TabsTrigger value="signals" className="rounded-lg px-4 py-2">Signals</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="rounded-lg px-4 py-2">Withdrawals</TabsTrigger>
             <TabsTrigger value="pool" className="rounded-lg px-4 py-2">Pool</TabsTrigger>
             <TabsTrigger value="users" className="rounded-lg px-4 py-2">Users</TabsTrigger>
             <TabsTrigger value="finance" className="rounded-lg px-4 py-2">Finance</TabsTrigger>
@@ -364,6 +366,10 @@ export default function OKXAdminHub() {
 
           <TabsContent value="signals">
             <SignalsAdminTab onRefresh={loadDashboard} />
+          </TabsContent>
+
+          <TabsContent value="withdrawals">
+            <WithdrawalsAdminTab language="en" />
           </TabsContent>
 
           <TabsContent value="pool">
