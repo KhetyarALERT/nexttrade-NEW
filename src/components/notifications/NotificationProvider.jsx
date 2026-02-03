@@ -239,26 +239,18 @@ export function NotificationProvider({ children }) {
   // Update preferences
   const updatePreferences = useCallback(async (updates) => {
     try {
+      const user = await base44.auth.me();
+      if (!user) return;
+      
       if (!preferences?.id) {
-        // No preferences record yet - try to create one
-        const user = await base44.auth.me();
-        if (!user) return;
-        
-        try {
-          const newPrefs = await base44.entities.UserPreferences.create({
-            user_id: user.id,
-            ...updates
-          });
-          setPreferences(newPrefs);
-          if (updates.timezone) {
-            const normalized = normalizeTimeZone(updates.timezone);
-            setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-          }
-          return;
-        } catch (createErr) {
-          console.warn("Failed to create preferences:", createErr?.message);
-          return;
+        // No preferences record yet - create via service (admin creates for user)
+        // For now just update local state - backend should create on first needed write
+        setPreferences(prev => ({ ...prev, ...updates }));
+        if (updates.timezone) {
+          const normalized = normalizeTimeZone(updates.timezone);
+          setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
         }
+        return;
       }
       
       await base44.entities.UserPreferences.update(preferences.id, updates);
