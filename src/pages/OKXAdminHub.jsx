@@ -468,22 +468,37 @@ export default function OKXAdminHub() {
                           <TableCell>{r.verified}</TableCell>
                           <TableCell>
                             <Button size="sm" variant="ghost" onClick={async () => {
-                              setSelectedReferrer(r);
-                              setRefDetails(null);
-                              setLoadingRef(true);
-                              try {
-                                const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: r.referrerId });
-                                if (res.data?.success) setRefDetails(res.data.data);
-                                // Load referral integrity for the referrer themselves (inbound)
-                                try {
-                                  setIntegrityLoading(true);
-                                  const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: r.referrerId });
-                                  if (integ.data?.success) setIntegrity(integ.data.data);
-                                } finally { setIntegrityLoading(false); }
-                              } finally { setLoadingRef(false); }
-                            }}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                               setSelectedReferrer(r);
+                               setRefDetails(null);
+                               setLoadingRef(true);
+                               try {
+                                 const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: r.referrerId });
+                                 if (res.data?.success) {
+                                   setRefDetails(res.data.data);
+                                 } else {
+                                   toast.error(res.data?.error || 'Failed to load details');
+                                   return;
+                                 }
+                               } catch (e) {
+                                 toast.error(e?.message || 'Failed to load details');
+                                 return;
+                               } finally {
+                                 setLoadingRef(false);
+                               }
+                               // Load referral integrity for the referrer themselves (inbound)
+                               try {
+                                 setIntegrityLoading(true);
+                                 const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: r.referrerId });
+                                 if (integ.data?.success) setIntegrity(integ.data.data);
+                                 else toast.error(integ.data?.error || 'Failed to load integrity');
+                               } catch (e) {
+                                 toast.error(e?.message || 'Failed to load integrity');
+                               } finally {
+                                 setIntegrityLoading(false);
+                               }
+                             }}>
+                               <Eye className="h-4 w-4" />
+                             </Button>
                           </TableCell>
                         </TableRow>
                       ))}
