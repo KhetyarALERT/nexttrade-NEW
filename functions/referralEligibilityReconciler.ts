@@ -157,10 +157,12 @@ Deno.serve(async (req) => {
       if (me?.role !== 'admin') {
         return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
       }
-      const { referrerId } = params;
+      const { referrerId } = params || {};
       if (!referrerId) return Response.json({ success: false, error: 'referrerId required' }, { status: 400 });
 
-      const refUser = (await base44.asServiceRole.entities.User.filter({ id: referrerId }))?.[0] || null;
+      const refUserList = await base44.asServiceRole.entities.User.filter({ id: referrerId });
+      const refUser = refUserList?.[0] || null;
+      if (!refUser) return Response.json({ success: false, error: 'Referrer not found' }, { status: 404 });
       // Who referred this referrer (if any)
       const referredBy = (await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: referrerId, level: 1 }))?.[0] || null;
 
