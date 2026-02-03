@@ -494,6 +494,7 @@ export default function OKXAdminHub() {
             </Card>
 
             {refDetails && (
+              <>
               {/* Referral Integrity Panel */}
               <Card className="mt-4">
                 <CardHeader>
