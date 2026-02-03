@@ -76,6 +76,8 @@ export default function OKXAdminHub() {
   const [refDetails, setRefDetails] = useState(null);
   const [loadingRef, setLoadingRef] = useState(false);
   const [selectedReferrer, setSelectedReferrer] = useState(null);
+  const [integrity, setIntegrity] = useState(null);
+  const [integrityLoading, setIntegrityLoading] = useState(false);
   
   // Sub-data for tabs
   const [accountRequests, setAccountRequests] = useState([]);
@@ -472,6 +474,12 @@ export default function OKXAdminHub() {
                               try {
                                 const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: r.referrerId });
                                 if (res.data?.success) setRefDetails(res.data.data);
+                                // Load referral integrity for the referrer themselves (inbound)
+                                try {
+                                  setIntegrityLoading(true);
+                                  const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: r.referrerId });
+                                  if (integ.data?.success) setIntegrity(integ.data.data);
+                                } finally { setIntegrityLoading(false); }
                               } finally { setLoadingRef(false); }
                             }}>
                               <Eye className="h-4 w-4" />
@@ -486,6 +494,67 @@ export default function OKXAdminHub() {
             </Card>
 
             {refDetails && (
+              {/* Referral Integrity Panel */}
+              <Card className="mt-4">
+                <CardHeader>
+                  <CardTitle>Referral Integrity</CardTitle>
+                  <CardDescription>Canonical vs Mirror for this user</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {integrityLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : integrity ? (
+                    <div className="space-y-2">
+                      <div className="text-sm">
+                        <div><span className="text-muted-foreground">User:</span> {integrity.user?.email} ({integrity.user?.id})</div>
+                        <div><span className="text-muted-foreground">User.referral_code:</span> {integrity.user?.referral_code || '—'}</div>
+                        <div><span className="text-muted-foreground">User.referred_by (mirror):</span> {integrity.user?.referred_by || '—'}</div>
+                        <div><span className="text-muted-foreground">Canonical inbound (L1):</span> {integrity.canonical ? `${integrity.canonical.referrer_email || integrity.canonical.referrer_user_id} • ${integrity.canonical.referrer_code}` : '—'}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Integrity Status:</span>
+                          <Badge variant={integrity.status === 'MATCH' ? 'success' : 'destructive'}>{integrity.status}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'reconcileMirrorFromCanonical', userId: refDetails.referrer.id });
+                          if (res.data?.success) {
+                            toast.success('Mirror updated from canonical');
+                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                            if (integ.data?.success) setIntegrity(integ.data.data);
+                          } else { toast.error(res.data?.error || 'Failed'); }
+                        }}>Fix Mirror</Button>
+                        <Button size="sm" variant="outline" onClick={async () => {
+                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'backfillCanonicalFromMirror', userId: refDetails.referrer.id });
+                          if (res.data?.success) {
+                            toast.success('Attribution backfilled');
+                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                            if (integ.data?.success) setIntegrity(integ.data.data);
+                          } else { toast.error(res.data?.error || 'Failed'); }
+                        }}>Backfill Attribution</Button>
+                        <Button size="sm" onClick={async () => {
+                          const code = window.prompt('Enter new referrer code');
+                          if (!code) return;
+                          const reason = window.prompt('Reason for override (optional)') || 'admin override';
+                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'adminReassignReferrer', userId: refDetails.referrer.id, newReferrerCode: code, reason });
+                          if (res.data?.success) {
+                            toast.success('Referrer reassigned');
+                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                            if (integ.data?.success) setIntegrity(integ.data.data);
+                            // refresh details
+                            const det = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: selectedReferrer.referrerId });
+                            if (det.data?.success) setRefDetails(det.data.data);
+                          } else { toast.error(res.data?.error || 'Failed'); }
+                        }}>Reassign Referrer</Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">User.referred_by is display-only. Use these tools for authoritative changes.</p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No integrity data.</p>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="mt-4">
                 <CardHeader>
                   <CardTitle>Referrer Details</CardTitle>
@@ -501,6 +570,8 @@ export default function OKXAdminHub() {
                         <TableHead>KYC</TableHead>
                         <TableHead>Deposit</TableHead>
                         <TableHead>Withdraw</TableHead>
+                        <TableHead>Mirror</TableHead>
+                        <TableHead>Integrity</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -511,6 +582,8 @@ export default function OKXAdminHub() {
                           <TableCell><Badge variant="outline" className={d.kycStatus==='verified'?'bg-emerald-500/10 text-emerald-600':'bg-amber-500/10 text-amber-600'}>{d.kycStatus}</Badge></TableCell>
                           <TableCell>{d.hasDeposit ? 'Yes' : 'No'}</TableCell>
                           <TableCell>{d.hasWithdrawal ? 'Yes' : 'No'}</TableCell>
+                          <TableCell className="text-xs font-mono">{d.mirrorReferredBy || '—'}</TableCell>
+                          <TableCell>{d.mismatch ? <Badge variant="destructive">Mismatch</Badge> : <Badge variant="success">OK</Badge>}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -35,6 +35,22 @@ function nowISO() {
   return new Date().toISOString();
 }
 
+// Helper: select canonical L1 attribution per referred_user_id (latest by created_date/registered_at)
+function selectCanonicalL1(attrs) {
+  const byReferred = new Map();
+  for (const a of (attrs || [])) {
+    if (a.level !== 1 || !a.referred_user_id) continue;
+    const key = a.referred_user_id;
+    const prev = byReferred.get(key);
+    const aTime = new Date(a.created_date || a.registered_at || 0).getTime();
+    const pTime = prev ? new Date(prev.created_date || prev.registered_at || 0).getTime() : -1;
+    if (!prev || aTime >= pTime) {
+      byReferred.set(key, a);
+    }
+  }
+  return Array.from(byReferred.values());
+}
+
 // ==================== MAIN HANDLER ====================
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
@@ -62,8 +78,9 @@ Deno.serve(async (req) => {
       const now = nowISO();
       const stats = { processed: 0, vouchersIssued: 0, depositBonusesIssued: 0, tiersUpdated: 0, errors: [] };
 
-      // Get all referral attributions (L1 only for tier calculation)
-      const allAttrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ level: 1 });
+      // Get all referral attributions and canonicalize per referred user (L1 only)
+      const allRaw = await base44.asServiceRole.entities.ReferralAttribution.filter({ level: 1 });
+      const allAttrs = selectCanonicalL1(allRaw);
       
       // Group by referrer
       const byReferrer = {};
@@ -110,7 +127,8 @@ Deno.serve(async (req) => {
       // Aggregate by referrer
       const users = await base44.asServiceRole.entities.User.list();
       const mapById = new Map(users.map(u => [u.id, u]));
-      const attrs = await base44.asServiceRole.entities.ReferralAttribution.list();
+      const attrsRaw = await base44.asServiceRole.entities.ReferralAttribution.list();
+      const attrs = selectCanonicalL1(attrsRaw);
       const grouped = {};
       for (const a of (attrs || [])) {
         if (!grouped[a.referrer_user_id]) grouped[a.referrer_user_id] = [];
@@ -155,13 +173,18 @@ Deno.serve(async (req) => {
         const hasDeposit = (tx || []).some(t => t.type === 'deposit' && t.status === 'completed');
         const hasWithdrawal = (tx || []).some(t => t.type === 'withdrawal' && t.status === 'completed');
         const userRec = (await base44.asServiceRole.entities.User.filter({ id: a.referred_user_id }))?.[0] || null;
+        const mirror = userRec?.referred_by || null;
+        const mismatch = mirror ? (String(mirror).toUpperCase() !== String(a.referrer_code).toUpperCase()) : false;
         details.push({
           id: a.id,
           email: userRec?.email ? maskEmail(userRec.email) : maskEmail(a.referred_email),
           registeredAt: a.registered_at,
           kycStatus,
           hasDeposit,
-          hasWithdrawal
+          hasWithdrawal,
+          mirrorReferredBy: mirror,
+          canonicalReferrerCode: a.referrer_code,
+          mismatch
         });
       }
       return Response.json({ success: true, data: { referrer: { id: referrerId, email: refUser?.email, referralCode: refUser?.referral_code }, referredBy, referrals: details } });
@@ -196,6 +219,134 @@ Deno.serve(async (req) => {
         created++;
       }
       return Response.json({ success: true, data: { created, skipped } });
+    }
+
+    // === ADMIN: Get referral integrity for a specific user ===
+    if (action === 'getReferralIntegrity') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const { userId } = params;
+      if (!userId) return Response.json({ success: false, error: 'userId required' }, { status: 400 });
+      const userRec = (await base44.asServiceRole.entities.User.filter({ id: userId }))?.[0] || null;
+      const mirrorCode = userRec?.referred_by || null;
+      const attrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: userId, level: 1 });
+      let status = 'MISSING_ATTRIBUTION';
+      if ((attrs?.length || 0) > 1) status = 'DUPLICATE_ATTRIBUTION';
+      const canonical = selectCanonicalL1(attrs || [])[0] || null;
+      if (canonical) {
+        if (!mirrorCode) status = 'MISMATCH';
+        else status = (String(mirrorCode).toUpperCase() === String(canonical.referrer_code).toUpperCase()) ? 'MATCH' : 'MISMATCH';
+      } else if (mirrorCode) {
+        status = 'MISSING_ATTRIBUTION';
+      }
+      let refUser = null;
+      if (canonical?.referrer_user_id) {
+        refUser = (await base44.asServiceRole.entities.User.filter({ id: canonical.referrer_user_id }))?.[0] || null;
+      }
+      return Response.json({ success: true, data: {
+        user: { id: userRec?.id, email: userRec?.email, referral_code: userRec?.referral_code, referred_by: mirrorCode },
+        canonical: canonical ? { id: canonical.id, referrer_user_id: canonical.referrer_user_id, referrer_code: canonical.referrer_code, created_at: canonical.created_date || canonical.registered_at, referrer_email: refUser?.email } : null,
+        duplicates: (attrs || []).length,
+        status
+      }});
+    }
+
+    // === ADMIN: Reconcile mirror from canonical ===
+    if (action === 'reconcileMirrorFromCanonical') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const { userId } = params;
+      if (!userId) return Response.json({ success: false, error: 'userId required' }, { status: 400 });
+      const attrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: userId, level: 1 });
+      const canonical = selectCanonicalL1(attrs || [])[0] || null;
+      if (!canonical) return Response.json({ success: false, error: 'No canonical attribution found' }, { status: 404 });
+      await base44.asServiceRole.entities.User.update(userId, { referred_by: String(canonical.referrer_code).toUpperCase() });
+      return Response.json({ success: true });
+    }
+
+    // === ADMIN: Backfill canonical from mirror (single user) ===
+    if (action === 'backfillCanonicalFromMirror') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const { userId } = params;
+      if (!userId) return Response.json({ success: false, error: 'userId required' }, { status: 400 });
+      const userRec = (await base44.asServiceRole.entities.User.filter({ id: userId }))?.[0] || null;
+      if (!userRec) return Response.json({ success: false, error: 'User not found' }, { status: 404 });
+      const code = String(userRec.referred_by || '').trim().toUpperCase();
+      if (!code) return Response.json({ success: false, error: 'Mirror code empty' }, { status: 400 });
+      const refUsers = await base44.asServiceRole.entities.User.filter({ referral_code: code });
+      if (!refUsers?.length) return Response.json({ success: false, error: 'Mirror code not found' }, { status: 404 });
+      const referrer = refUsers[0];
+      if (referrer.id === userRec.id) return Response.json({ success: false, error: 'Self referral not allowed' }, { status: 400 });
+      const exists = await base44.asServiceRole.entities.ReferralAttribution.filter({ referrer_user_id: referrer.id, referred_user_id: userRec.id, level: 1 });
+      if (exists?.length) return Response.json({ success: true, status: 'already_exists' });
+      await base44.asServiceRole.entities.ReferralAttribution.create({
+        referrer_user_id: referrer.id,
+        referrer_code: code,
+        referred_user_id: userRec.id,
+        referred_email: userRec.email,
+        level: 1,
+        status: 'registered',
+        registered_at: userRec.created_date || new Date().toISOString()
+      });
+      await base44.asServiceRole.entities.User.update(userRec.id, { referred_by: code });
+      return Response.json({ success: true, status: 'created' });
+    }
+
+    // === ADMIN: Reassign referrer (affects future only) ===
+    if (action === 'adminReassignReferrer') {
+      const me = await base44.auth.me();
+      if (me?.role !== 'admin') {
+        return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
+      }
+      const { userId, newReferrerCode, reason } = params;
+      if (!userId || !newReferrerCode) return Response.json({ success: false, error: 'userId and newReferrerCode required' }, { status: 400 });
+      const code = String(newReferrerCode).trim().toUpperCase();
+      const userRec = (await base44.asServiceRole.entities.User.filter({ id: userId }))?.[0] || null;
+      if (!userRec) return Response.json({ success: false, error: 'User not found' }, { status: 404 });
+      const refUsers = await base44.asServiceRole.entities.User.filter({ referral_code: code });
+      if (!refUsers?.length) return Response.json({ success: false, error: 'Referral code not found' }, { status: 404 });
+      const newRef = refUsers[0];
+      if (newRef.id === userRec.id) return Response.json({ success: false, error: 'Self referral not allowed' }, { status: 400 });
+
+      // Create new L1 attribution (latest becomes canonical), leave old records for history
+      const now = new Date().toISOString();
+      const newAttr = await base44.asServiceRole.entities.ReferralAttribution.create({
+        referrer_user_id: newRef.id,
+        referrer_code: code,
+        referred_user_id: userRec.id,
+        referred_email: userRec.email,
+        level: 1,
+        status: 'registered',
+        registered_at: now
+      });
+
+      // Update mirror
+      await base44.asServiceRole.entities.User.update(userRec.id, { referred_by: code });
+
+      // Audit log
+      let oldCanonical = null;
+      const oldAttrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: userRec.id, level: 1 });
+      const canonical = selectCanonicalL1(oldAttrs || []);
+      if (canonical?.length) oldCanonical = canonical[0];
+      await base44.asServiceRole.entities.ReferralAttributionAuditLog.create({
+        target_user_id: userRec.id,
+        old_referrer_user_id: oldCanonical?.referrer_user_id || null,
+        old_referrer_code: oldCanonical?.referrer_code || null,
+        new_referrer_user_id: newRef.id,
+        new_referrer_code: code,
+        admin_id: me.id,
+        reason: reason || 'admin override',
+        changed_at: now
+      });
+
+      return Response.json({ success: true, data: { newAttributionId: newAttr.id } });
     }
 
     // === Manual trigger for single user ===
