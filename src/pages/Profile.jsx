@@ -333,16 +333,30 @@ export default function Profile({ language = "en" }) {
 
   const loadVerificationRequest = useCallback(async () => {
     try {
-      const user = await base44.auth.me();
-      // Get the most recent verification request for this user
-      const requests = await base44.entities.VerificationRequest.filter({ user_id: user.id }, "-created_date", 1);
+      // Use verificationService to get status from UserVerification (single source of truth)
+      const res = await base44.functions.invoke("verificationService", { action: "getStatus" });
       
-      if (requests && requests.length > 0) {
-        const latestRequest = requests[0];
-        // Always update the verification state with the latest data
-        setExistingVerification(latestRequest);
+      if (res.data?.ok) {
+        const uvData = res.data.data;
+        
+        if (uvData.exists && uvData.current_request) {
+          // Map status: verified → approved for UI compatibility
+          const mappedRequest = {
+            ...uvData.current_request,
+            status: uvData.status === "verified" ? "approved" : uvData.status
+          };
+          setExistingVerification(mappedRequest);
+        } else if (uvData.exists) {
+          // UserVerification exists but no current_request
+          setExistingVerification({
+            status: uvData.status === "verified" ? "approved" : uvData.status,
+            rejection_reason: uvData.rejection_reason
+          });
+        } else {
+          // No UserVerification record = unverified
+          setExistingVerification(null);
+        }
       } else {
-        // No verification request exists
         setExistingVerification(null);
       }
     } catch (err) {
@@ -362,7 +376,7 @@ export default function Profile({ language = "en" }) {
     loadVerificationRequest();
   }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts, loadVerificationRequest]);
 
-  // Subscribe to verification request changes for real-time badge update
+  // Subscribe to UserVerification changes for real-time badge update
   useEffect(() => {
     if (!isAuthenticated || isLoadingAuth) return;
 
@@ -373,16 +387,16 @@ export default function Profile({ language = "en" }) {
       userId = user.id;
     }).catch(() => {});
 
-    const unsubscribe = base44.entities.VerificationRequest.subscribe((event) => {
+    const unsubscribe = base44.entities.UserVerification.subscribe((event) => {
       // Check if this update is for the current user
       if (userId && event.data?.user_id === userId) {
-        // Update verification state immediately
-        setExistingVerification(event.data);
+        // Reload verification status when UserVerification changes
+        loadVerificationRequest();
       }
     });
 
     return () => unsubscribe();
-  }, [isAuthenticated, isLoadingAuth]);
+  }, [isAuthenticated, isLoadingAuth, loadVerificationRequest]);
 
   // Poll for verification status changes as backup (every 5 seconds)
   useEffect(() => {
