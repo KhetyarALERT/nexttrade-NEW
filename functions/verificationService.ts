@@ -3,12 +3,18 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 /**
  * Verification Service - Single Source of Truth for User Verification Status
  * 
+ * Data responsibilities:
+ * - UserVerification: status + pointers ONLY (no doc URLs, no full audit)
+ * - VerificationRequest: full KYC data + help requests + audit history
+ * 
  * Actions:
- * - getStatus: Get user's verification status from UserVerification
- * - submitKyc: Submit/update KYC (creates or updates pending request)
- * - adminApprove: Admin approves verification
- * - adminReject: Admin rejects verification
- * - runCleanup: One-time cleanup to fix duplicate requests (admin only)
+ * - getStatus: Get user's verification status from UserVerification + current request details
+ * - submitKyc: Submit/update KYC (creates or updates pending KYC request)
+ * - submitHelp: Submit help request (creates separate help record, does NOT change KYC status)
+ * - adminApprove: Admin approves KYC verification
+ * - adminReject: Admin rejects KYC verification
+ * - adminRespond: Admin responds to help request (does not change verification status)
+ * - runCleanup: Consolidate duplicate KYC requests (admin only, KYC only, never deletes)
  */
 
 Deno.serve(async (req) => {
@@ -25,7 +31,6 @@ Deno.serve(async (req) => {
 
     // ========== GET STATUS ==========
     if (action === "getStatus") {
-      // Get current user's verification status
       const targetUserId = body.userId || user.id;
       
       // Only admin can query other users
@@ -33,13 +38,12 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
       }
 
-      // Check UserVerification (single source of truth)
+      // Check UserVerification (single source of truth for status)
       const verifications = await base44.asServiceRole.entities.UserVerification.filter(
         { user_id: targetUserId }
       );
 
       if (verifications.length === 0) {
-        // No record = unverified
         return Response.json({
           ok: true,
           data: {
@@ -51,7 +55,7 @@ Deno.serve(async (req) => {
 
       const uv = verifications[0];
       
-      // Optionally load current request details
+      // Load current request details (full KYC data lives here)
       let currentRequest = null;
       if (uv.current_request_id) {
         try {
@@ -60,7 +64,7 @@ Deno.serve(async (req) => {
           );
           currentRequest = requests[0] || null;
         } catch (e) {
-          // Ignore - request may have been deleted
+          // Request may have been deleted
         }
       }
 
@@ -80,13 +84,13 @@ Deno.serve(async (req) => {
 
     // ========== SUBMIT KYC ==========
     if (action === "submitKyc") {
-      const { fullName, documentType, frontUrl, backUrl, selfieUrl, dateOfBirth, country, helpMessage, requestType } = body;
+      const { fullName, documentType, frontUrl, backUrl, selfieUrl, dateOfBirth, country } = body;
 
       // Get or create UserVerification record
       let uvRecords = await base44.asServiceRole.entities.UserVerification.filter({ user_id: user.id });
       let uv = uvRecords[0];
 
-      // If already verified, block new submissions
+      // If already verified, block new KYC submissions
       if (uv?.status === "verified") {
         return Response.json({
           ok: false,
@@ -95,39 +99,40 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check for existing pending request
+      // Check for existing pending KYC request (request_type = kyc or full)
       const pendingRequests = await base44.asServiceRole.entities.VerificationRequest.filter({
         user_id: user.id,
         status: "pending"
       });
+      
+      // Filter to KYC type only
+      const pendingKycRequests = pendingRequests.filter(r => 
+        r.request_type === "kyc" || r.request_type === "full" || !r.request_type
+      );
 
       let verificationRequest;
 
-      if (pendingRequests.length > 0) {
-        // UPDATE existing pending request (no duplicate)
-        const existingRequest = pendingRequests[0];
+      if (pendingKycRequests.length > 0) {
+        // UPDATE existing pending KYC request (no duplicate)
+        const existingRequest = pendingKycRequests[0];
         
         const updateData = {
-          full_name: fullName || existingRequest.full_name,
-          document_type: documentType || existingRequest.document_type,
           submitted_at: new Date().toISOString()
         };
         
+        // Only update fields that are provided
+        if (fullName) updateData.full_name = fullName;
+        if (documentType) updateData.document_type = documentType;
         if (frontUrl) updateData.document_front_url = frontUrl;
         if (backUrl) updateData.document_back_url = backUrl;
         if (selfieUrl) updateData.selfie_url = selfieUrl;
         if (dateOfBirth) updateData.date_of_birth = dateOfBirth;
         if (country) updateData.country = country;
-        if (helpMessage) {
-          updateData.help_message = helpMessage;
-          updateData.status = "needs_help";
-          updateData.request_type = "help_request";
-        }
 
         await base44.asServiceRole.entities.VerificationRequest.update(existingRequest.id, updateData);
         verificationRequest = { ...existingRequest, ...updateData };
       } else {
-        // Create NEW request
+        // Create NEW KYC request
         verificationRequest = await base44.asServiceRole.entities.VerificationRequest.create({
           user_id: user.id,
           user_email: user.email,
@@ -138,9 +143,8 @@ Deno.serve(async (req) => {
           selfie_url: selfieUrl,
           date_of_birth: dateOfBirth,
           country: country,
-          status: helpMessage ? "needs_help" : "pending",
-          request_type: requestType || (helpMessage ? "help_request" : "full"),
-          help_message: helpMessage,
+          status: "pending",
+          request_type: "kyc",
           submitted_at: new Date().toISOString()
         });
       }
@@ -171,6 +175,40 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ========== SUBMIT HELP REQUEST ==========
+    // Help requests are SEPARATE from KYC - they do NOT change verification status
+    if (action === "submitHelp") {
+      const { helpMessage, fullName, documentType, frontUrl } = body;
+
+      if (!helpMessage) {
+        return Response.json({ ok: false, error: "helpMessage required" });
+      }
+
+      // Create a SEPARATE help request record
+      const helpRequest = await base44.asServiceRole.entities.VerificationRequest.create({
+        user_id: user.id,
+        user_email: user.email,
+        full_name: fullName || user.full_name || "",
+        document_type: documentType || "passport",
+        document_front_url: frontUrl || null,
+        status: "needs_help",
+        request_type: "help",
+        help_message: helpMessage,
+        help_requested_at: new Date().toISOString(),
+        submitted_at: new Date().toISOString()
+      });
+
+      // NOTE: Do NOT update UserVerification status - help requests don't affect KYC status
+
+      return Response.json({
+        ok: true,
+        data: {
+          request_id: helpRequest.id,
+          status: "needs_help"
+        }
+      });
+    }
+
     // ========== ADMIN APPROVE ==========
     if (action === "adminApprove") {
       if (user.role !== "admin") {
@@ -189,6 +227,11 @@ Deno.serve(async (req) => {
       }
       const vr = requests[0];
 
+      // Only approve KYC requests (not help requests)
+      if (vr.request_type === "help") {
+        return Response.json({ ok: false, error: "Cannot approve help requests - use adminRespond instead" });
+      }
+
       // Update request
       await base44.asServiceRole.entities.VerificationRequest.update(requestId, {
         status: "approved",
@@ -196,16 +239,20 @@ Deno.serve(async (req) => {
         reviewed_at: new Date().toISOString()
       });
 
-      // Mark any other pending requests for this user as superseded
+      // Mark other pending KYC requests for this user as superseded (NOT help requests)
       const otherRequests = await base44.asServiceRole.entities.VerificationRequest.filter({
         user_id: vr.user_id
       });
       for (const other of otherRequests) {
-        if (other.id !== requestId && (other.status === "pending" || other.status === "under_review" || other.status === "needs_help")) {
-          await base44.asServiceRole.entities.VerificationRequest.update(other.id, {
-            status: "superseded",
-            is_superseded: true
-          });
+        // Only supersede KYC requests, not help requests
+        const isKycRequest = other.request_type === "kyc" || other.request_type === "full" || !other.request_type;
+        if (other.id !== requestId && isKycRequest && !other.is_superseded) {
+          if (other.status === "pending" || other.status === "under_review") {
+            await base44.asServiceRole.entities.VerificationRequest.update(other.id, {
+              status: "superseded",
+              is_superseded: true
+            });
+          }
         }
       }
 
@@ -254,6 +301,11 @@ Deno.serve(async (req) => {
       }
       const vr = requests[0];
 
+      // Only reject KYC requests
+      if (vr.request_type === "help") {
+        return Response.json({ ok: false, error: "Cannot reject help requests - use adminRespond instead" });
+      }
+
       // Update request
       await base44.asServiceRole.entities.VerificationRequest.update(requestId, {
         status: "rejected",
@@ -276,11 +328,43 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, status: "rejected" });
     }
 
+    // ========== ADMIN RESPOND (for help requests) ==========
+    if (action === "adminRespond") {
+      if (user.role !== "admin") {
+        return Response.json({ ok: false, error: "Admin only" }, { status: 403 });
+      }
+
+      const { requestId, response } = body;
+      if (!requestId || !response) {
+        return Response.json({ ok: false, error: "requestId and response required" });
+      }
+
+      // Get the request
+      const requests = await base44.asServiceRole.entities.VerificationRequest.filter({ id: requestId });
+      if (requests.length === 0) {
+        return Response.json({ ok: false, error: "Request not found" });
+      }
+
+      // Update request with admin response
+      await base44.asServiceRole.entities.VerificationRequest.update(requestId, {
+        admin_response: response,
+        admin_responded_at: new Date().toISOString(),
+        reviewed_by: user.email,
+        status: "under_review"
+      });
+
+      // NOTE: Do NOT change UserVerification status - help responses don't affect verification
+
+      return Response.json({ ok: true, status: "responded" });
+    }
+
     // ========== RUN CLEANUP (Admin Only) ==========
     if (action === "runCleanup") {
       if (user.role !== "admin") {
         return Response.json({ ok: false, error: "Admin only" }, { status: 403 });
       }
+
+      const dryRun = body.dryRun === true;
 
       // Get all verification requests
       const allRequests = await base44.asServiceRole.entities.VerificationRequest.list("-created_date", 1000);
@@ -292,41 +376,55 @@ Deno.serve(async (req) => {
         byUser[req.user_id].push(req);
       }
 
-      let fixed = 0;
-      let created = 0;
+      let kycSuperseded = 0;
+      let uvCreated = 0;
+      let uvUpdated = 0;
+      const userSummaries = [];
 
       for (const [userId, requests] of Object.entries(byUser)) {
-        // Sort by created_date desc
-        requests.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+        // Separate KYC requests from help requests
+        const kycRequests = requests.filter(r => 
+          r.request_type === "kyc" || r.request_type === "full" || !r.request_type || r.request_type === "help_request"
+        ).filter(r => r.request_type !== "help"); // Exclude pure help requests
+        
+        const helpRequests = requests.filter(r => r.request_type === "help");
 
-        // Find best status
-        const approved = requests.find(r => r.status === "approved");
-        const pending = requests.find(r => r.status === "pending" || r.status === "under_review" || r.status === "needs_help");
-        const rejected = requests.find(r => r.status === "rejected");
+        // Sort KYC by created_date desc
+        kycRequests.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
-        let currentRequest = approved || pending || rejected || requests[0];
+        // Find best KYC status
+        const approved = kycRequests.find(r => r.status === "approved");
+        const pending = kycRequests.find(r => r.status === "pending" || r.status === "under_review" || r.status === "needs_help");
+        const rejected = kycRequests.find(r => r.status === "rejected");
+
+        let currentKycRequest = approved || pending || rejected || kycRequests[0];
         let finalStatus = "unverified";
 
         if (approved) {
           finalStatus = "verified";
-          currentRequest = approved;
+          currentKycRequest = approved;
         } else if (pending) {
           finalStatus = "pending";
-          currentRequest = pending;
+          currentKycRequest = pending;
         } else if (rejected) {
           finalStatus = "rejected";
-          currentRequest = rejected;
+          currentKycRequest = rejected;
+        } else if (!currentKycRequest) {
+          // No KYC requests at all
+          continue;
         }
 
-        // Mark others as superseded
-        for (const req of requests) {
-          if (req.id !== currentRequest.id && !req.is_superseded) {
-            if (req.status === "pending" || req.status === "under_review" || req.status === "needs_help") {
-              await base44.asServiceRole.entities.VerificationRequest.update(req.id, {
-                status: "superseded",
-                is_superseded: true
-              });
-              fixed++;
+        // Mark other KYC requests as superseded (NOT help requests)
+        for (const req of kycRequests) {
+          if (req.id !== currentKycRequest.id && !req.is_superseded) {
+            if (req.status === "pending" || req.status === "under_review") {
+              if (!dryRun) {
+                await base44.asServiceRole.entities.VerificationRequest.update(req.id, {
+                  status: "superseded",
+                  is_superseded: true
+                });
+              }
+              kycSuperseded++;
             }
           }
         }
@@ -334,39 +432,54 @@ Deno.serve(async (req) => {
         // Ensure UserVerification exists and is correct
         const uvRecords = await base44.asServiceRole.entities.UserVerification.filter({ user_id: userId });
         if (uvRecords.length === 0) {
-          await base44.asServiceRole.entities.UserVerification.create({
-            user_id: userId,
-            user_email: currentRequest.user_email,
-            full_name: currentRequest.full_name,
-            status: finalStatus,
-            current_request_id: currentRequest.id,
-            verified_at: finalStatus === "verified" ? currentRequest.reviewed_at : null,
-            verified_by: finalStatus === "verified" ? currentRequest.reviewed_by : null,
-            rejection_reason: finalStatus === "rejected" ? currentRequest.rejection_reason : null
-          });
-          created++;
+          if (!dryRun) {
+            await base44.asServiceRole.entities.UserVerification.create({
+              user_id: userId,
+              user_email: currentKycRequest.user_email,
+              full_name: currentKycRequest.full_name,
+              status: finalStatus,
+              current_request_id: currentKycRequest.id,
+              verified_at: finalStatus === "verified" ? currentKycRequest.reviewed_at : null,
+              verified_by: finalStatus === "verified" ? currentKycRequest.reviewed_by : null,
+              rejection_reason: finalStatus === "rejected" ? currentKycRequest.rejection_reason : null
+            });
+          }
+          uvCreated++;
         } else {
           // Update if status doesn't match
           const uv = uvRecords[0];
-          if (uv.status !== finalStatus || uv.current_request_id !== currentRequest.id) {
-            await base44.asServiceRole.entities.UserVerification.update(uv.id, {
-              status: finalStatus,
-              current_request_id: currentRequest.id,
-              verified_at: finalStatus === "verified" ? currentRequest.reviewed_at : null,
-              verified_by: finalStatus === "verified" ? currentRequest.reviewed_by : null,
-              rejection_reason: finalStatus === "rejected" ? currentRequest.rejection_reason : null
-            });
-            fixed++;
+          if (uv.status !== finalStatus || uv.current_request_id !== currentKycRequest.id) {
+            if (!dryRun) {
+              await base44.asServiceRole.entities.UserVerification.update(uv.id, {
+                status: finalStatus,
+                current_request_id: currentKycRequest.id,
+                verified_at: finalStatus === "verified" ? currentKycRequest.reviewed_at : null,
+                verified_by: finalStatus === "verified" ? currentKycRequest.reviewed_by : null,
+                rejection_reason: finalStatus === "rejected" ? currentKycRequest.rejection_reason : null
+              });
+            }
+            uvUpdated++;
           }
         }
+
+        userSummaries.push({
+          user_id: userId,
+          kyc_count: kycRequests.length,
+          help_count: helpRequests.length,
+          final_status: finalStatus,
+          current_request_id: currentKycRequest.id
+        });
       }
 
       return Response.json({
         ok: true,
         data: {
+          dry_run: dryRun,
           users_processed: Object.keys(byUser).length,
-          requests_superseded: fixed,
-          verifications_created: created
+          kyc_requests_superseded: kycSuperseded,
+          user_verifications_created: uvCreated,
+          user_verifications_updated: uvUpdated,
+          user_summaries: userSummaries.slice(0, 20) // First 20 for review
         }
       });
     }
