@@ -6,15 +6,15 @@ Deno.serve(async (req) => {
   try {
     const upgrade = req.headers.get("upgrade") || "";
     
-    // Handle standard HTTP GET for trending stats (REST fallback)
+    // Handle standard HTTP GET for trending stats (REST fallback) - PUBLIC endpoint
     if (req.method === 'GET' && !upgrade) {
          const base44 = createClientFromRequest(req);
          const url = new URL(req.url);
          const limit = parseInt(url.searchParams.get("limit") || "50");
          
-         // Try to get from cache entity first
+         // Public data - use service role to read cache (no user auth needed for public meme data)
          try {
-            const tokens = await base44.entities.MemeTokenCache.list('-trend_score', limit);
+            const tokens = await base44.asServiceRole.entities.MemeTokenCache.list('-trend_score', limit);
             return Response.json({ ok: true, data: tokens });
          } catch (e) {
             return Response.json({ ok: false, error: e.message });

@@ -2,6 +2,48 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const OKX_API_URL = 'https://www.okx.com';
 
+// Encryption helpers using APP_ENCRYPTION_KEY
+const getEncryptionKey = async (): Promise<CryptoKey> => {
+  const keyStr = Deno.env.get('APP_ENCRYPTION_KEY');
+  if (!keyStr) throw new Error('APP_ENCRYPTION_KEY not configured');
+  
+  // Derive a 256-bit key from the secret
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(keyStr);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', keyData);
+  
+  return crypto.subtle.importKey(
+    'raw', hashBuffer, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+  );
+};
+
+const encryptSecret = async (plaintext: string): Promise<string> => {
+  const key = await getEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoder = new TextEncoder();
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, encoder.encode(plaintext)
+  );
+  // Return as base64: iv:ciphertext
+  const ivB64 = btoa(String.fromCharCode(...iv));
+  const ctB64 = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  return `${ivB64}:${ctB64}`;
+};
+
+const decryptSecret = async (ciphertext: string): Promise<string> => {
+  const key = await getEncryptionKey();
+  const [ivB64, ctB64] = ciphertext.split(':');
+  if (!ivB64 || !ctB64) throw new Error('Invalid encrypted format');
+  
+  const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+  const ct = Uint8Array.from(atob(ctB64), c => c.charCodeAt(0));
+  
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv }, key, ct
+  );
+  return new TextDecoder().decode(decrypted);
+};
+
 const jsonOk = (data: any, init: ResponseInit = {}) =>
   Response.json({ ok: true, data }, init);
 const jsonError = (code: string, message: string, status = 400, extra: Record<string, unknown> = {}) =>
@@ -246,8 +288,27 @@ Deno.serve(async (req) => {
       // Generate local subaccount ID as fallback
       const localSubId = `nt_${user.id.substring(0, 8)}_${Date.now()}`;
       
-      // Create subaccount record in database
-      // Note: In production, API credentials should be ENCRYPTED before storing!
+      // Encrypt sensitive API credentials before storing
+      let encryptedSecret: string | null = null;
+      let encryptedPassphrase: string | null = null;
+      
+      if (okxApiSecret) {
+        try {
+          encryptedSecret = await encryptSecret(okxApiSecret);
+        } catch (e) {
+          console.error('[SUBACCOUNT] Failed to encrypt API secret:', e.message);
+        }
+      }
+      
+      if (okxApiPassphrase) {
+        try {
+          encryptedPassphrase = await encryptSecret(okxApiPassphrase);
+        } catch (e) {
+          console.error('[SUBACCOUNT] Failed to encrypt passphrase:', e.message);
+        }
+      }
+      
+      // Create subaccount record in database with encrypted credentials
       const subaccountRecord = await base44.asServiceRole.entities.Subaccount.create({
         user_id: user.id,
         user_email: user.email,
@@ -258,10 +319,10 @@ Deno.serve(async (req) => {
         status: 'active',
         okx_status: apiSuccess ? 'synced' : 'local',
         okx_subacct: okxSubAcct || null,
-        // Store encrypted in production - these are the sub-account's own credentials
+        // API key is not sensitive on its own, but secret and passphrase are encrypted
         okx_api_key: okxApiKey || null,
-        okx_api_secret: okxApiSecret || null, // TODO: ENCRYPT THIS!
-        okx_api_passphrase: okxApiPassphrase || null, // TODO: ENCRYPT THIS!
+        api_secret_encrypted: encryptedSecret,
+        api_passphrase_encrypted: encryptedPassphrase,
         permissions: ['trade', 'read']
       });
       
@@ -453,19 +514,31 @@ Deno.serve(async (req) => {
       
       const subaccount = subaccounts[0];
       
-      if (!subaccount.okx_api_key || !subaccount.okx_api_secret) {
+      if (!subaccount.okx_api_key || !subaccount.api_secret_encrypted) {
         return jsonError('NOT_SYNCED', 'Subaccount not synced with OKX', 400);
       }
       
       try {
+        // Decrypt credentials before use
+        let decryptedSecret: string;
+        let decryptedPassphrase: string;
+        
+        try {
+          decryptedSecret = await decryptSecret(subaccount.api_secret_encrypted);
+          decryptedPassphrase = await decryptSecret(subaccount.api_passphrase_encrypted);
+        } catch (decryptErr: any) {
+          console.error('[SUBACCOUNT] Decryption failed:', decryptErr.message);
+          return jsonError('DECRYPT_FAILED', 'Failed to decrypt credentials', 500);
+        }
+        
         // Get balance using sub-account's own API key
         const balanceResult = await okxRequest(
           'GET',
           '/api/v5/account/balance',
           null,
           subaccount.okx_api_key,
-          subaccount.okx_api_secret, // TODO: DECRYPT THIS!
-          subaccount.okx_api_passphrase // TODO: DECRYPT THIS!
+          decryptedSecret,
+          decryptedPassphrase
         );
         
         if (balanceResult.code !== '0') {

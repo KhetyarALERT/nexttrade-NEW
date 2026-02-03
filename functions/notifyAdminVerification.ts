@@ -80,8 +80,17 @@ NextTrade Platform
       return Response.json({ success: true, message: "Admin notified via automation" });
     }
 
-    // Action: notifyAdmin - Manual call to notify admin
+    // Action: notifyAdmin - Manual call to notify admin (ADMIN ONLY)
     if (action === "notifyAdmin") {
+      // Require admin role for manual admin notification trigger
+      const user = await base44.auth.me();
+      if (!user) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (user.role !== 'admin') {
+        return Response.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+      }
+      
       if (!verificationId) {
         return Response.json({ error: "Missing verificationId" }, { status: 400 });
       }
