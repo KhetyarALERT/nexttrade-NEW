@@ -37,12 +37,8 @@ const formatShortAddress = (address, start = 6, end = 4) => {
   return `${str.slice(0, start)}...${str.slice(-end)}`;
 };
 
-// Haptic feedback utility
-const triggerHaptic = () => {
-  if (typeof navigator !== "undefined" && navigator.vibrate) {
-    navigator.vibrate(10); // Light 10ms tap feedback
-  }
-};
+// Import haptic utility with patterns
+import { triggerHaptic } from "@/components/mobile/haptics";
 
 // Mobile Bottom Navigation Component
 function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location }) {
