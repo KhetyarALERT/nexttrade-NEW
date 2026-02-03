@@ -1,57 +1,49 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Lock, Crown, TrendingUp } from "lucide-react";
-
-const LEVELS = [
-  { 
-    level: 1, 
-    count: 5,
-    requirement: { en: "5 eligible friends", ar: "5 أصدقاء مؤهلين" },
-    deposit: { en: "$100+ each", ar: "$100+ لكل منهم" },
-    reward: { en: "Unlock referral rewards", ar: "فتح مكافآت الإحالة" },
-    bonus: null
-  },
-  { 
-    level: 2, 
-    count: 10,
-    requirement: { en: "10 eligible friends", ar: "10 أصدقاء مؤهلين" },
-    deposit: { en: "$200+ each", ar: "$200+ لكل منهم" },
-    reward: { en: "$50 bonus voucher", ar: "قسيمة مكافأة $50" },
-    bonus: 50
-  },
-  { 
-    level: 3, 
-    count: 20,
-    requirement: { en: "20 eligible friends", ar: "20 صديق مؤهل" },
-    deposit: { en: "$200+ each", ar: "$200+ لكل منهم" },
-    reward: { en: "$100 bonus + VIP AI", ar: "مكافأة $100 + VIP AI" },
-    bonus: 100,
-    vip: true
-  }
-];
+import { Check, Lock, Crown, ChevronRight } from "lucide-react";
 
 const t = {
   en: {
-    title: "Reward Levels",
-    subtitle: "Unlock bigger rewards as you grow",
+    howItWorks: "How You Earn",
+    step1: "Share your invite link",
+    step2: "Friend signs up & deposits",
+    step3: "You get $10 voucher",
+    levels: "Bonus Levels",
     level: "Level",
     current: "Current",
     unlocked: "Unlocked",
-    locked: "Locked",
-    perFriend: "$10 per eligible friend"
+    friends: "friends",
+    deposit: "deposit",
+    each: "each",
+    bonus: "Bonus",
+    vipAccess: "VIP Access",
+    yourProgress: "Your Progress"
   },
   ar: {
-    title: "مستويات المكافآت",
-    subtitle: "افتح مكافآت أكبر مع نموك",
+    howItWorks: "كيف تربح",
+    step1: "شارك رابط الدعوة",
+    step2: "صديقك يسجل ويودع",
+    step3: "تحصل على قسيمة $10",
+    levels: "مستويات المكافآت",
     level: "المستوى",
     current: "الحالي",
     unlocked: "مفتوح",
-    locked: "مقفل",
-    perFriend: "$10 لكل صديق مؤهل"
+    friends: "صديق",
+    deposit: "إيداع",
+    each: "لكل صديق",
+    bonus: "مكافأة",
+    vipAccess: "VIP",
+    yourProgress: "تقدمك"
   }
 };
+
+const LEVELS = [
+  { level: 1, friends: 5, minDeposit: 100, bonus: null },
+  { level: 2, friends: 10, minDeposit: 200, bonus: 50 },
+  { level: 3, friends: 20, minDeposit: 200, bonus: 100, vip: true }
+];
 
 export default function LevelProgress({ 
   currentLevel = 0, 
@@ -62,110 +54,130 @@ export default function LevelProgress({
   const txt = t[language] || t.en;
 
   return (
-    <Card className="border border-border bg-card">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-base">{txt.title}</CardTitle>
-            <p className="text-xs text-muted-foreground">{txt.subtitle}</p>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="pt-0 space-y-3">
-        {/* Per-friend reward */}
-        <div className="text-center py-2 px-4 bg-primary/5 rounded-lg border border-primary/10">
-          <span className="text-sm font-medium text-primary">{txt.perFriend}</span>
-        </div>
-
-        {/* Levels */}
-        {LEVELS.map((levelInfo) => {
-          const relevantCount = levelInfo.level === 1 ? activeEligible100 : activeEligible200;
-          const isCompleted = currentLevel >= levelInfo.level;
-          const isCurrent = currentLevel === levelInfo.level - 1;
-          const isLocked = currentLevel < levelInfo.level - 1;
-          const progress = Math.min(100, (relevantCount / levelInfo.count) * 100);
-
-          return (
-            <div 
-              key={levelInfo.level}
-              className={`p-4 rounded-xl border transition-all ${
-                isCompleted 
-                  ? "bg-primary/5 border-primary/20" 
-                  : isCurrent
-                    ? "bg-card border-primary/30 ring-1 ring-primary/20"
-                    : "bg-muted/30 border-border opacity-60"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Level indicator */}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  isCompleted 
-                    ? "bg-primary text-white" 
-                    : isCurrent
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
+    <div className="space-y-4">
+      {/* How It Works - Simple 3 Steps */}
+      <Card className="border border-border bg-card">
+        <CardContent className="p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">{txt.howItWorks}</h3>
+          
+          <div className="space-y-3">
+            {[
+              { num: 1, text: txt.step1 },
+              { num: 2, text: txt.step2 },
+              { num: 3, text: txt.step3, highlight: true }
+            ].map((step, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  step.highlight ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}>
-                  {isCompleted ? (
-                    <Check className="w-5 h-5" />
-                  ) : isLocked ? (
-                    <Lock className="w-4 h-4" />
-                  ) : (
-                    <span className="font-bold">{levelInfo.level}</span>
-                  )}
+                  {step.num}
                 </div>
+                <span className={`text-sm ${step.highlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                  {step.text}
+                </span>
+                {step.highlight && (
+                  <Badge className="ml-auto bg-primary/10 text-primary border-0">$10</Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-foreground">{txt.level} {levelInfo.level}</span>
-                    {isCompleted && (
-                      <Badge variant="secondary" className="text-[10px] h-5 bg-primary/10 text-primary">{txt.unlocked}</Badge>
-                    )}
-                    {isCurrent && (
-                      <Badge variant="outline" className="text-[10px] h-5 border-primary/50 text-primary">{txt.current}</Badge>
-                    )}
-                    {levelInfo.vip && (
-                      <Badge className="text-[10px] h-5 bg-amber-500/20 text-amber-600 border-0">
-                        <Crown className="w-3 h-3 mr-0.5" /> VIP
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground">
-                    {levelInfo.requirement[language]} ({levelInfo.deposit[language]})
-                  </p>
-                  
-                  <div className="flex items-center justify-between mt-2">
-                    <span className={`text-sm font-medium ${isCompleted ? "text-primary" : "text-foreground"}`}>
-                      {levelInfo.bonus ? `+$${levelInfo.bonus} ` : ""}{levelInfo.reward[language]}
-                    </span>
+      {/* Bonus Levels */}
+      <Card className="border border-border bg-card">
+        <CardContent className="p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">{txt.levels}</h3>
+          
+          <div className="space-y-3">
+            {LEVELS.map((lvl) => {
+              const relevantCount = lvl.level === 1 ? activeEligible100 : activeEligible200;
+              const isCompleted = currentLevel >= lvl.level;
+              const isCurrent = currentLevel === lvl.level - 1;
+              const isLocked = currentLevel < lvl.level - 1;
+              const progress = Math.min(100, (relevantCount / lvl.friends) * 100);
+
+              return (
+                <div 
+                  key={lvl.level}
+                  className={`p-4 rounded-xl border ${
+                    isCompleted 
+                      ? "bg-primary/5 border-primary/30" 
+                      : isCurrent
+                        ? "bg-card border-border ring-1 ring-primary/30"
+                        : "bg-muted/20 border-border/50 opacity-50"
+                  }`}
+                >
+                  {/* Level Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isCompleted ? "bg-primary text-white" : 
+                        isCurrent ? "bg-primary/20 text-primary" : 
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        {isCompleted ? <Check className="w-4 h-4" /> : 
+                         isLocked ? <Lock className="w-3 h-3" /> : 
+                         <span className="text-sm font-bold">{lvl.level}</span>}
+                      </div>
+                      <span className="font-semibold text-foreground">{txt.level} {lvl.level}</span>
+                      {isCurrent && (
+                        <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">{txt.current}</Badge>
+                      )}
+                      {isCompleted && (
+                        <Badge className="text-[10px] bg-primary/10 text-primary border-0">{txt.unlocked}</Badge>
+                      )}
+                    </div>
+                    
+                    {/* Reward */}
+                    <div className="text-right">
+                      {lvl.bonus && (
+                        <span className={`text-lg font-bold ${isCompleted || isCurrent ? "text-primary" : "text-muted-foreground"}`}>
+                          +${lvl.bonus}
+                        </span>
+                      )}
+                      {lvl.vip && (
+                        <Badge className="ml-2 bg-amber-500/20 text-amber-600 border-0 text-[10px]">
+                          <Crown className="w-3 h-3 mr-0.5" /> {txt.vipAccess}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Progress bar for current level */}
+                  {/* Requirements - Clean List */}
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ChevronRight className="w-3 h-3" />
+                      <span>{lvl.friends} {txt.friends}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ChevronRight className="w-3 h-3" />
+                      <span>${lvl.minDeposit}+ {txt.deposit} {txt.each}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress for current level */}
                   {isCurrent && (
-                    <div className="mt-3">
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                        <span>{txt.yourProgress}</span>
+                        <span className="font-medium">{relevantCount}/{lvl.friends}</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {relevantCount}/{levelInfo.count} friends
-                      </p>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
