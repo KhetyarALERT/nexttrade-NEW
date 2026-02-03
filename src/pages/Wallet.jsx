@@ -189,17 +189,25 @@ export default function WalletPage({ language = "en" }) {
         setHasOkxAccount(true);
         setOkxBalances(okxResult.data.data.balances);
       } else {
-        setHasOkxAccount(false);
-        // Check for pending account request
-        const requests = await base44.entities.LiveAccountRequest.filter(
-          { user_id: user.id },
-          "-created_date",
-          1
-        );
-        if (requests?.length > 0 && requests[0].status !== "rejected") {
-          setAccountRequestStatus(requests[0].status);
-        } else {
+        // Fallback: if user already has an internal TradingAccount, treat as active account
+        const myTradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
+        if (myTradingAccounts?.length > 0) {
+          setHasOkxAccount(true);
+          setOkxBalances(okxResult.data?.data?.balances || null);
           setAccountRequestStatus(null);
+        } else {
+          setHasOkxAccount(false);
+          // Check for pending account request
+          const requests = await base44.entities.LiveAccountRequest.filter(
+            { user_id: user.id },
+            "-created_date",
+            1
+          );
+          if (requests?.length > 0 && requests[0].status !== "rejected") {
+            setAccountRequestStatus(requests[0].status);
+          } else {
+            setAccountRequestStatus(null);
+          }
         }
       }
 
