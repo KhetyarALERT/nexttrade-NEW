@@ -543,12 +543,14 @@ export default function OKXAdminHub() {
                           } catch (e) { toast.error(e?.message || 'Failed'); }
                         }}>Fix Mirror</Button>
                         <Button size="sm" variant="outline" onClick={async () => {
-                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'backfillCanonicalFromMirror', userId: refDetails.referrer.id });
-                          if (res.data?.success) {
-                            toast.success('Attribution backfilled');
-                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
-                            if (integ.data?.success) setIntegrity(integ.data.data);
-                          } else { toast.error(res.data?.error || 'Failed'); }
+                          try {
+                            const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'backfillCanonicalFromMirror', userId: refDetails.referrer.id });
+                            if (res.data?.success) {
+                              toast.success('Attribution backfilled');
+                              const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                              if (integ.data?.success) setIntegrity(integ.data.data);
+                            } else { toast.error(res.data?.error || 'Failed'); }
+                          } catch (e) { toast.error(e?.message || 'Failed'); }
                         }}>Backfill Attribution</Button>
                         <Button size="sm" onClick={async () => {
                           const code = window.prompt('Enter new referrer code');
