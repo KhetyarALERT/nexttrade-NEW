@@ -49,9 +49,17 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
   const { openAssistantModal, activeTab, saveScrollPosition } = useMobileNavigation();
   const navT = tSection("nav", language);
   
-  const handleTabClick = (tabName) => {
+  const handleTabClick = (tabName, targetPath) => {
     // Haptic feedback for native feel
     triggerHaptic();
+    
+    // Check if re-selecting the active tab - scroll to top
+    const currentPath = location.pathname;
+    if (currentPath === targetPath) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    
     // Save scroll position before navigating
     saveScrollPosition(activeTab);
   };
@@ -68,7 +76,16 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
       <div className="flex items-center justify-around h-14 px-1">
         <Link
           to={createPageUrl("Dashboard")}
-          onClick={() => handleTabClick("Dashboard")}
+          onClick={(e) => {
+            const dashPath = createPageUrl("Dashboard");
+            if (location.pathname === dashPath || location.pathname === '/' || location.pathname === createPageUrl("Home")) {
+              e.preventDefault();
+              triggerHaptic();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
+            }
+            handleTabClick("Dashboard", dashPath);
+          }}
           className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home")
               ? 'text-primary bg-primary/15'
@@ -81,7 +98,16 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
 
         <Link
           to={createPageUrl("Futures")}
-          onClick={() => handleTabClick("Futures")}
+          onClick={(e) => {
+            const futPath = createPageUrl("Futures");
+            if (location.pathname === futPath) {
+              e.preventDefault();
+              triggerHaptic();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
+            }
+            handleTabClick("Futures", futPath);
+          }}
           className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname === createPageUrl("Futures")
               ? 'text-primary bg-primary/15'
@@ -94,7 +120,16 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
 
         <Link
           to={createPageUrl("Wallet")}
-          onClick={() => handleTabClick("Wallet")}
+          onClick={(e) => {
+            const walletPath = createPageUrl("Wallet");
+            if (location.pathname.includes("Wallet")) {
+              e.preventDefault();
+              triggerHaptic();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
+            }
+            handleTabClick("Wallet", walletPath);
+          }}
           className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
             location.pathname.includes("Wallet")
               ? 'text-primary bg-primary/15'
@@ -118,7 +153,14 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
           to={isAuthenticated ? createPageUrl("Profile") : '#'}
           onClick={(e) => {
             if (isAuthenticated) {
-              handleTabClick("Profile");
+              const profPath = createPageUrl("Profile");
+              if (location.pathname.includes("Profile")) {
+                e.preventDefault();
+                triggerHaptic();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              handleTabClick("Profile", profPath);
             } else {
               e.preventDefault(); 
               triggerHaptic();
@@ -249,8 +291,13 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
       if (storedLang === "en" || storedLang === "ar") setLanguage(storedLang);
 
       const storedTheme = localStorage.getItem(STORAGE_KEYS.theme);
-      if (storedTheme === "light" || storedTheme === "dark") setTheme(storedTheme);
-      else setTheme("dark");
+      if (storedTheme === "light" || storedTheme === "dark") {
+        setTheme(storedTheme);
+      } else {
+        // No saved preference - use system preference
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        setTheme(prefersDark ? "dark" : "light");
+      }
     } catch {
       // ignore storage access issues
     }
