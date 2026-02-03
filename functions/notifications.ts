@@ -65,11 +65,20 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: 'notificationId required' }, { status: 400 });
       }
       
-      // Verify notification belongs to user - query by data.user_id
-      const notifications = await base44.asServiceRole.entities.Notification.filter({
-        id: notificationId,
-        'data.user_id': user.id
-      });
+      // Verify notification belongs to user
+      // Note: Can't filter by id + data.user_id together easily, so get notification and verify
+      let notification;
+      try {
+        notification = await base44.asServiceRole.entities.Notification.get(notificationId);
+      } catch (e) {
+        notification = null;
+      }
+      
+      if (!notification || notification.user_id !== user.id) {
+        return Response.json({ ok: false, error: 'Notification not found' }, { status: 404 });
+      }
+      
+      const notifications = [notification];
       
       if (!notifications?.length) {
         return Response.json({ ok: false, error: 'Notification not found' }, { status: 404 });
@@ -82,11 +91,12 @@ Deno.serve(async (req) => {
 
     // MARK ALL NOTIFICATIONS AS READ
     if (action === 'markAllRead') {
-      // Get all unread notifications for user - query by data.user_id and data.read
-      const unread = await base44.asServiceRole.entities.Notification.filter({
-        'data.user_id': user.id,
-        'data.read': false
+      // Get all unread notifications for user
+      // Note: filter by user_id, then filter read=false in code since DB stores in nested data field
+      const allUserNotifs = await base44.asServiceRole.entities.Notification.filter({
+        'data.user_id': user.id
       });
+      const unread = (allUserNotifs || []).filter(n => n.read === false);
       
       // Mark each as read
       for (const notif of (unread || [])) {
@@ -98,12 +108,12 @@ Deno.serve(async (req) => {
 
     // GET UNREAD COUNT
     if (action === 'getUnreadCount') {
-      const unread = await base44.asServiceRole.entities.Notification.filter({
-        'data.user_id': user.id,
-        'data.read': false
+      const allUserNotifs = await base44.asServiceRole.entities.Notification.filter({
+        'data.user_id': user.id
       });
+      const unreadCount = (allUserNotifs || []).filter(n => n.read === false).length;
       
-      return Response.json({ ok: true, count: (unread || []).length });
+      return Response.json({ ok: true, count: unreadCount });
     }
 
     return Response.json({ ok: false, error: 'Invalid action' }, { status: 400 });
