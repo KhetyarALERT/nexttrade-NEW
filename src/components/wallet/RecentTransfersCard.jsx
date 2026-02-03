@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -9,14 +8,16 @@ import {
   ArrowUpFromLine,
   ArrowLeftRight,
   RefreshCw,
-  Clock,
   CheckCircle2,
   XCircle,
   TrendingUp,
   Lock,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  Loader2
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import CryptoIcon from "@/components/ui/CryptoIcon";
 
 const translations = {
   en: {
@@ -84,21 +85,29 @@ function getTransferIcon(item) {
   return ArrowLeftRight;
 }
 
-function getStatusBadge(status, t) {
+function StatusIndicator({ status, t }) {
   const configs = {
-    PENDING: { label: t.pending, className: "bg-amber-100 text-amber-700 border-amber-200" },
-    PENDING_SETTLEMENT: { label: t.pendingSettlement, className: "bg-blue-100 text-blue-700 border-blue-200" },
-    PENDING_APPROVAL: { label: t.pending, className: "bg-amber-100 text-amber-700 border-amber-200" },
-    PROCESSING: { label: t.pending, className: "bg-amber-100 text-amber-700 border-amber-200" },
-    COMPLETED: { label: t.completed, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    ACTIVE: { label: t.active, className: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-    FAILED: { label: t.failed, className: "bg-rose-100 text-rose-700 border-rose-200" },
-    CANCELED: { label: t.canceled, className: "bg-gray-100 text-gray-700 border-gray-200" },
-    CANCELLED: { label: t.canceled, className: "bg-gray-100 text-gray-700 border-gray-200" }
+    PENDING: { icon: Clock, color: "text-amber-500" },
+    PENDING_SETTLEMENT: { icon: Loader2, color: "text-blue-500", spin: true },
+    PENDING_APPROVAL: { icon: Clock, color: "text-amber-500" },
+    PROCESSING: { icon: Loader2, color: "text-amber-500", spin: true },
+    COMPLETED: { icon: CheckCircle2, color: "text-emerald-500" },
+    ACTIVE: { icon: CheckCircle2, color: "text-emerald-500" },
+    FAILED: { icon: XCircle, color: "text-rose-500" },
+    CANCELED: { icon: XCircle, color: "text-muted-foreground" },
+    CANCELLED: { icon: XCircle, color: "text-muted-foreground" },
+    APPROVED: { icon: CheckCircle2, color: "text-emerald-500" },
+    REJECTED: { icon: XCircle, color: "text-rose-500" }
   };
-  const config = configs[status] || { label: status, className: "bg-gray-100 text-gray-700" };
-  return <Badge variant="outline" className={`text-[10px] ${config.className}`}>{config.label}</Badge>;
+  const config = configs[status] || { icon: Clock, color: "text-muted-foreground" };
+  const Icon = config.icon;
+  return <Icon className={`h-4 w-4 ${config.color} ${config.spin ? "animate-spin" : ""}`} />;
 }
+
+StatusIndicator.propTypes = {
+  status: PropTypes.string,
+  t: PropTypes.object
+};
 
 export default function RecentTransfersCard({ language = "en", limit = 5, onViewAll }) {
   const t = translations[language] || translations.en;
@@ -274,39 +283,41 @@ export default function RecentTransfersCard({ language = "en", limit = 5, onView
           <div className="space-y-2">
             {transfers.map((item) => {
               const Icon = getTransferIcon(item);
-              const iconBg = item.type === "copyTrading" ? "bg-blue-100 text-blue-600" :
-                            item.type === "staking" ? "bg-amber-100 text-amber-600" :
-                            item.direction === "in" ? "bg-emerald-100 text-emerald-600" :
-                            "bg-rose-100 text-rose-600";
+              const iconBg = item.type === "copyTrading" ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
+                            item.type === "staking" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                            item.direction === "in" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                            "bg-rose-500/10 text-rose-600 dark:text-rose-400";
 
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 py-3 border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors rounded-lg px-2 -mx-2"
                 >
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${iconBg}`}>
-                    <Icon className="h-5 w-5" />
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${iconBg}`}>
+                    <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground text-sm">{item.label}</span>
-                      {getStatusBadge(item.status, t)}
+                      <StatusIndicator status={item.status} t={t} />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                       <span>{formatRelativeTime(item.date, language)}</span>
                       {item.sublabel && (
                         <>
-                          <span className="text-muted-foreground/50">•</span>
-                          <span>{item.sublabel}</span>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="text-muted-foreground/80">{item.sublabel}</span>
                         </>
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-medium font-mono text-sm ${item.direction === "in" ? "text-emerald-600" : "text-rose-600"}`}>
-                      {item.direction === "in" ? "+" : "-"}{item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{item.currency}</p>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className={`font-semibold font-mono text-sm tabular-nums ${item.direction === "in" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                        {item.direction === "in" ? "+" : "-"}{item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <CryptoIcon currency={item.currency || "USDT"} size="sm" />
                   </div>
                 </div>
               );
