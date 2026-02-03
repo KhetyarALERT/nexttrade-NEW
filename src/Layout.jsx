@@ -334,7 +334,8 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
       localStorage.setItem(STORAGE_KEYS.language, language);
 
       // Sync language to backend UserPreferences if authenticated
-      // Optimization: Debounce or check before call to avoid excessive writes
+      // Note: Don't create preferences here - let NotificationProvider handle that
+      // Only update if preferences already exist to avoid 403 errors
       if (isAuthenticated && user?.id) {
         (async () => {
           try {
@@ -344,16 +345,10 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
               if (prefs[0].language !== language) {
                 await base44.entities.UserPreferences.update(prefs[0].id, { language });
               }
-            } else {
-              // Create only if missing
-              await base44.entities.UserPreferences.create({
-                user_id: user.id,
-                language,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-              });
             }
+            // Don't create here - NotificationProvider handles creation
           } catch (e) {
-            console.warn("Failed to sync language preference", e);
+            // Silently ignore - prefs may not exist yet
           }
         })();
       }
