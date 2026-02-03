@@ -197,6 +197,7 @@ export default function WithdrawModal({
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
   const [copied, setCopied] = useState(null);
   const [history, setHistory] = useState([]);
+  const [needsRefreshAfterClose, setNeedsRefreshAfterClose] = useState(false);
 
   // Get current account balance
   const currentBalance = balances[sourceAccount] || { total: 0, locked: 0, reserved: 0, withdrawable: 0 };
@@ -307,13 +308,11 @@ export default function WithdrawModal({
         setLastWithdrawal(withdrawalData);
         // Update history instantly - prepend new item
         setHistory(prev => [withdrawalData, ...prev.filter(w => w.id !== withdrawalData.id).slice(0, 4)]);
-        // Set mode LAST to trigger render with all data ready
+        // Set mode to success
         setMode("success");
-        // Callback AFTER state is set - parent can refresh in background but won't affect this modal
-        if (onSuccess) {
-          // Use setTimeout to ensure state updates are committed before callback
-          setTimeout(() => onSuccess(), 100);
-        }
+        // Mark that we need refresh, but DON'T call it now
+        setNeedsRefreshAfterClose(true);
+        // DO NOT call onSuccess here - it triggers immediate refresh/blink
       } else {
         setError(res.data?.error?.message || "Withdrawal failed");
         setMode("form"); // Stay on form with error
@@ -340,6 +339,8 @@ export default function WithdrawModal({
     setAddress("");
     setAmount("");
     setAddressError(null);
+    // Reload balances when starting new withdrawal
+    loadData();
   };
 
   const handleClose = () => {
@@ -347,6 +348,11 @@ export default function WithdrawModal({
     // Reset state after animation
     setTimeout(() => {
       resetForm();
+      // Trigger refresh ONLY after modal is closed
+      if (needsRefreshAfterClose && onSuccess) {
+        setNeedsRefreshAfterClose(false);
+        onSuccess();
+      }
     }, 300);
   };
 
