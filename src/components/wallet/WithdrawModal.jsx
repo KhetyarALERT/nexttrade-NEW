@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import {
@@ -36,7 +36,8 @@ import {
   Clock,
   Lock,
   Info,
-  Wallet
+  Wallet,
+  TrendingUp
 } from "lucide-react";
 import { useMediaQuery } from "@/components/hooks/useMediaQuery";
 
@@ -44,6 +45,7 @@ const translations = {
   en: {
     title: "Withdraw USDT",
     subtitle: "Withdraw to external wallet",
+    fromAccount: "From Account",
     network: "Network",
     address: "Wallet Address",
     addressPlaceholder: "Enter your wallet address",
@@ -52,7 +54,7 @@ const translations = {
     fee: "Network Fee",
     totalDeducted: "Total Deducted",
     withdrawable: "Withdrawable",
-    locked: "Locked (In Positions)",
+    locked: "Locked",
     pending: "Pending",
     min: "Minimum",
     submit: "Withdraw",
@@ -67,15 +69,21 @@ const translations = {
     close: "Close",
     history: "Recent Withdrawals",
     noHistory: "No withdrawals yet",
-    comingSoon: "Coming Soon",
     insufficientBalance: "Insufficient balance",
     invalidAddress: "Invalid address format",
     minAmount: "Minimum withdrawal is",
-    networkFee: "Network fees apply"
+    fundingWallet: "Funding Wallet",
+    copyTradingWallet: "Copy Trading Wallet",
+    stakedLocked: "Staked (Locked)",
+    okxTrading: "OKX Trading (Read-only)",
+    lockedLabel: "Locked - Cannot withdraw",
+    readOnlyLabel: "External custody - Not withdrawable here",
+    noFunds: "No funds available"
   },
   ar: {
     title: "سحب USDT",
     subtitle: "السحب إلى محفظة خارجية",
+    fromAccount: "من الحساب",
     network: "الشبكة",
     address: "عنوان المحفظة",
     addressPlaceholder: "أدخل عنوان محفظتك",
@@ -84,7 +92,7 @@ const translations = {
     fee: "رسوم الشبكة",
     totalDeducted: "إجمالي الخصم",
     withdrawable: "متاح للسحب",
-    locked: "مقفل (في الصفقات)",
+    locked: "مقفل",
     pending: "معلق",
     min: "الحد الأدنى",
     submit: "سحب",
@@ -99,88 +107,130 @@ const translations = {
     close: "إغلاق",
     history: "السحوبات الأخيرة",
     noHistory: "لا توجد سحوبات بعد",
-    comingSoon: "قريباً",
     insufficientBalance: "رصيد غير كافٍ",
     invalidAddress: "تنسيق عنوان غير صالح",
     minAmount: "الحد الأدنى للسحب هو",
-    networkFee: "تطبق رسوم الشبكة"
+    fundingWallet: "محفظة التمويل",
+    copyTradingWallet: "محفظة نسخ التداول",
+    stakedLocked: "مستثمر (مقفل)",
+    okxTrading: "تداول OKX (للقراءة فقط)",
+    lockedLabel: "مقفل - لا يمكن السحب",
+    readOnlyLabel: "حفظ خارجي - غير قابل للسحب هنا",
+    noFunds: "لا توجد أموال متاحة"
   }
+};
+
+// Client-side address validation
+const validateAddressClient = (address, network) => {
+  if (!address || typeof address !== 'string') return { valid: false, error: 'Address is required' };
+  address = address.trim();
+  
+  if (network === 'TRC20') {
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)) {
+      return { valid: false, error: 'Invalid TRC20 address. Must start with T and be 34 characters.' };
+    }
+    return { valid: true };
+  }
+  
+  if (network === 'ERC20' || network === 'BEP20') {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return { valid: false, error: `Invalid ${network} address. Must start with 0x and be 42 characters.` };
+    }
+    return { valid: true };
+  }
+  
+  return { valid: false, error: 'Unsupported network' };
 };
 
 export default function WithdrawModal({ 
   open, 
   onOpenChange, 
   language = "en", 
-  onSuccess,
-  walletData = {}
+  onSuccess
 }) {
   const t = translations[language] || translations.en;
   const isMobile = useMediaQuery("(max-width: 768px)");
   
   const [loading, setLoading] = useState(false);
   const [configLoading, setConfigLoading] = useState(true);
+  const [balancesLoading, setBalancesLoading] = useState(true);
   const [config, setConfig] = useState(null);
+  const [balances, setBalances] = useState({ FUNDING: null, COPY_TRADING: null });
+  
+  // Form state
+  const [sourceAccount, setSourceAccount] = useState("FUNDING");
   const [network, setNetwork] = useState("TRC20");
   const [address, setAddress] = useState("");
   const [amount, setAmount] = useState("");
+  const [addressError, setAddressError] = useState(null);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(null);
   const [history, setHistory] = useState([]);
 
-  // Wallet balances from props
-  const withdrawable = walletData.withdrawable || 0;
-  const locked = walletData.locked || 0;
-  const pending = walletData.pending || 0;
+  // Get current account balance
+  const currentBalance = balances[sourceAccount] || { total: 0, locked: 0, reserved: 0, withdrawable: 0 };
 
-  // Load config on mount
-  useEffect(() => {
-    if (open) {
-      loadConfig();
-      loadHistory();
-    }
-  }, [open]);
-
-  const loadConfig = async () => {
+  // Load config and balances
+  const loadData = useCallback(async () => {
     setConfigLoading(true);
+    setBalancesLoading(true);
+    
     try {
-      const res = await base44.functions.invoke("ledgerWithdrawal", { action: "getConfig" });
-      if (res.data?.ok) {
-        setConfig(res.data.data);
+      const [configRes, balancesRes, historyRes] = await Promise.all([
+        base44.functions.invoke("ledgerWithdrawal", { action: "getConfig" }),
+        base44.functions.invoke("ledgerWithdrawal", { action: "getBalances" }),
+        base44.functions.invoke("ledgerWithdrawal", { action: "list", limit: 5 })
+      ]);
+      
+      if (configRes.data?.ok) {
+        setConfig(configRes.data.data);
+      }
+      if (balancesRes.data?.ok) {
+        setBalances(balancesRes.data.data);
+        // Auto-select account with funds
+        const funding = balancesRes.data.data.FUNDING;
+        const copyTrading = balancesRes.data.data.COPY_TRADING;
+        if (funding?.withdrawable <= 0 && copyTrading?.withdrawable > 0) {
+          setSourceAccount("COPY_TRADING");
+        }
+      }
+      if (historyRes.data?.ok) {
+        setHistory(historyRes.data.data || []);
       }
     } catch (e) {
-      console.error("Failed to load config:", e);
+      console.error("Failed to load data:", e);
     } finally {
       setConfigLoading(false);
+      setBalancesLoading(false);
     }
-  };
+  }, []);
 
-  const loadHistory = async () => {
-    try {
-      const res = await base44.functions.invoke("ledgerWithdrawal", { action: "list", limit: 5 });
-      if (res.data?.ok) {
-        setHistory(res.data.data || []);
-      }
-    } catch (e) {
-      console.error("Failed to load history:", e);
+  useEffect(() => {
+    if (open) {
+      loadData();
     }
-  };
+  }, [open, loadData]);
+
+  // Validate address on change
+  useEffect(() => {
+    if (address.trim()) {
+      const validation = validateAddressClient(address, network);
+      setAddressError(validation.valid ? null : validation.error);
+    } else {
+      setAddressError(null);
+    }
+  }, [address, network]);
 
   const getFee = () => {
     if (!config) return 0;
-    const networkConfig = config.networks.find(n => n.network === network);
+    const networkConfig = config.networks?.find(n => n.network === network);
     return networkConfig?.fee || 0;
   };
 
   const getTotalDebit = () => {
     const amountNum = parseFloat(amount) || 0;
     return amountNum + getFee();
-  };
-
-  const isNetworkSupported = () => {
-    if (!config) return false;
-    const networkConfig = config.networks.find(n => n.network === network);
-    return networkConfig?.supported;
   };
 
   const handleSubmit = async (e) => {
@@ -190,14 +240,10 @@ export default function WithdrawModal({
     const amountNum = parseFloat(amount);
     const totalDebit = getTotalDebit();
     
-    // Validations
-    if (!isNetworkSupported()) {
-      setError(`${network} ${t.comingSoon}`);
-      return;
-    }
-    
-    if (!address.trim()) {
-      setError(t.invalidAddress);
+    // Client-side validations
+    const addressValidation = validateAddressClient(address, network);
+    if (!addressValidation.valid) {
+      setError(addressValidation.error);
       return;
     }
     
@@ -206,7 +252,7 @@ export default function WithdrawModal({
       return;
     }
     
-    if (totalDebit > withdrawable) {
+    if (totalDebit > currentBalance.withdrawable) {
       setError(t.insufficientBalance);
       return;
     }
@@ -216,6 +262,7 @@ export default function WithdrawModal({
     try {
       const res = await base44.functions.invoke("ledgerWithdrawal", {
         action: "create",
+        sourceAccountType: sourceAccount,
         network,
         address: address.trim(),
         amount: amountNum,
@@ -246,7 +293,8 @@ export default function WithdrawModal({
     setError(null);
     setAddress("");
     setAmount("");
-    loadHistory();
+    setAddressError(null);
+    loadData();
   };
 
   const formatAddress = (addr) => {
@@ -254,8 +302,20 @@ export default function WithdrawModal({
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
   };
 
+  const getAccountLabel = (type) => {
+    if (type === 'FUNDING') return t.fundingWallet;
+    if (type === 'COPY_TRADING') return t.copyTradingWallet;
+    return type;
+  };
+
+  const getAccountIcon = (type) => {
+    if (type === 'FUNDING') return Wallet;
+    if (type === 'COPY_TRADING') return TrendingUp;
+    return Wallet;
+  };
+
   const content = (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-5 pb-4">
       {/* Success State */}
       {result ? (
         <div className="space-y-4">
@@ -271,6 +331,10 @@ export default function WithdrawModal({
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Status</span>
               <Badge className="bg-emerald-500/20 text-emerald-600 border-0">APPROVED</Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{t.fromAccount}</span>
+              <span>{getAccountLabel(result.source_account_type)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{t.amount}</span>
@@ -326,46 +390,84 @@ export default function WithdrawModal({
             </AlertDescription>
           </Alert>
           
-          <Alert className="bg-muted border-border">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-xs text-muted-foreground">
-              {t.disclaimer}
-            </AlertDescription>
-          </Alert>
-          
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              className="flex-1 rounded-xl" 
-              onClick={resetForm}
-            >
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={resetForm}>
               New Withdrawal
             </Button>
-            <Button 
-              className="flex-1 rounded-xl bg-primary" 
-              onClick={() => onOpenChange(false)}
-            >
+            <Button className="flex-1 rounded-xl bg-primary" onClick={() => onOpenChange(false)}>
               {t.close}
             </Button>
           </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Balance Summary */}
+          {/* From Account Selection */}
+          <div className="space-y-2">
+            <Label>{t.fromAccount}</Label>
+            <Select value={sourceAccount} onValueChange={setSourceAccount}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Funding Wallet */}
+                <SelectItem value="FUNDING">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-blue-600" />
+                    <span>{t.fundingWallet}</span>
+                    {balances.FUNDING && (
+                      <span className="text-xs text-emerald-600 font-mono ml-2">
+                        {balances.FUNDING.withdrawable.toFixed(2)} USDT
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+                
+                {/* Copy Trading Wallet */}
+                <SelectItem value="COPY_TRADING">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-purple-600" />
+                    <span>{t.copyTradingWallet}</span>
+                    {balances.COPY_TRADING && (
+                      <span className="text-xs text-emerald-600 font-mono ml-2">
+                        {balances.COPY_TRADING.withdrawable.toFixed(2)} USDT
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+                
+                {/* Staked - Disabled */}
+                <SelectItem value="STAKED_LOCKED" disabled>
+                  <div className="flex items-center gap-2 opacity-50">
+                    <Lock className="h-4 w-4 text-amber-600" />
+                    <span>{t.stakedLocked}</span>
+                    <Badge variant="outline" className="text-[10px] ml-2">{t.lockedLabel}</Badge>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Balance Summary for Selected Account */}
           <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-muted/50">
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">{t.withdrawable}</p>
-              <p className="font-mono font-semibold text-emerald-600">{withdrawable.toFixed(2)}</p>
+              <p className="font-mono font-semibold text-emerald-600">
+                {balancesLoading ? "..." : currentBalance.withdrawable.toFixed(2)}
+              </p>
             </div>
             <div className="text-center border-x border-border">
               <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
                 <Lock className="w-3 h-3" /> {t.locked}
               </p>
-              <p className="font-mono text-sm text-muted-foreground">{locked.toFixed(2)}</p>
+              <p className="font-mono text-sm text-muted-foreground">
+                {balancesLoading ? "..." : currentBalance.locked.toFixed(2)}
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-1">{t.pending}</p>
-              <p className="font-mono text-sm text-muted-foreground">{pending.toFixed(2)}</p>
+              <p className="font-mono text-sm text-muted-foreground">
+                {balancesLoading ? "..." : currentBalance.reserved.toFixed(2)}
+              </p>
             </div>
           </div>
           
@@ -378,19 +480,23 @@ export default function WithdrawModal({
               </SelectTrigger>
               <SelectContent>
                 {config?.networks?.map(n => (
-                  <SelectItem key={n.network} value={n.network} disabled={!n.supported}>
+                  <SelectItem key={n.network} value={n.network}>
                     <div className="flex items-center gap-2">
                       <span>{n.network}</span>
-                      {!n.supported && (
-                        <Badge variant="outline" className="text-xs">{t.comingSoon}</Badge>
-                      )}
-                      {n.supported && n.fee > 0 && (
+                      {n.fee > 0 && (
                         <span className="text-xs text-muted-foreground">Fee: {n.fee} USDT</span>
+                      )}
+                      {n.fee === 0 && (
+                        <span className="text-xs text-emerald-600">No fee</span>
                       )}
                     </div>
                   </SelectItem>
                 )) || (
-                  <SelectItem value="TRC20">TRC20</SelectItem>
+                  <>
+                    <SelectItem value="TRC20">TRC20</SelectItem>
+                    <SelectItem value="ERC20">ERC20</SelectItem>
+                    <SelectItem value="BEP20">BEP20</SelectItem>
+                  </>
                 )}
               </SelectContent>
             </Select>
@@ -402,9 +508,12 @@ export default function WithdrawModal({
             <Input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder={t.addressPlaceholder}
-              className="rounded-xl font-mono text-sm"
+              placeholder={network === 'TRC20' ? 'T...' : '0x...'}
+              className={`rounded-xl font-mono text-sm ${addressError ? 'border-red-500' : ''}`}
             />
+            {addressError && (
+              <p className="text-xs text-red-500">{addressError}</p>
+            )}
           </div>
           
           {/* Amount Input */}
@@ -420,6 +529,7 @@ export default function WithdrawModal({
                 type="number"
                 step="0.01"
                 min={config?.min_withdrawal || 5}
+                max={currentBalance.withdrawable}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={t.amountPlaceholder}
@@ -429,6 +539,13 @@ export default function WithdrawModal({
                 USDT
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setAmount(Math.max(0, currentBalance.withdrawable - getFee()).toFixed(2))}
+              className="text-xs text-primary hover:underline"
+            >
+              Max: {Math.max(0, currentBalance.withdrawable - getFee()).toFixed(2)} USDT
+            </button>
           </div>
           
           {/* Fee & Total */}
@@ -456,7 +573,7 @@ export default function WithdrawModal({
           {/* Submit */}
           <Button
             type="submit"
-            disabled={loading || configLoading || !isNetworkSupported()}
+            disabled={loading || configLoading || balancesLoading || !!addressError || currentBalance.withdrawable <= 0}
             className="w-full rounded-xl bg-primary hover:bg-primary/90 h-12"
           >
             {loading ? (
@@ -495,6 +612,9 @@ export default function WithdrawModal({
                         {w.status}
                       </Badge>
                       <span className="font-mono">{w.amount?.toFixed(2)}</span>
+                      <span className="text-muted-foreground">
+                        {w.source_account_type === 'COPY_TRADING' ? 'CT' : 'Fund'}
+                      </span>
                     </div>
                     <span className="text-muted-foreground">
                       {new Date(w.created_date).toLocaleDateString()}
@@ -546,10 +666,5 @@ WithdrawModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onOpenChange: PropTypes.func.isRequired,
   language: PropTypes.string,
-  onSuccess: PropTypes.func,
-  walletData: PropTypes.shape({
-    withdrawable: PropTypes.number,
-    locked: PropTypes.number,
-    pending: PropTypes.number
-  })
+  onSuccess: PropTypes.func
 };

@@ -66,6 +66,7 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
   // Filters
   const [statusFilter, setStatusFilter] = useState("all");
   const [networkFilter, setNetworkFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   
   // Stats
@@ -82,6 +83,7 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
       const params = { action: "adminList", limit: 200 };
       if (statusFilter !== "all") params.status = statusFilter;
       if (networkFilter !== "all") params.network = networkFilter;
+      if (sourceFilter) params.sourceAccountType = sourceFilter;
       
       const res = await base44.functions.invoke("ledgerWithdrawal", params);
       
@@ -115,7 +117,7 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, networkFilter, searchQuery]);
+  }, [statusFilter, networkFilter, sourceFilter, searchQuery]);
 
   useEffect(() => {
     loadWithdrawals();
@@ -266,6 +268,16 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
                 <SelectItem value="BEP20">BEP20</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={sourceFilter || "all"} onValueChange={(v) => setSourceFilter(v === "all" ? null : v)}>
+              <SelectTrigger className="w-full sm:w-32 rounded-xl">
+                <SelectValue placeholder="From" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="FUNDING">Funding</SelectItem>
+                <SelectItem value="COPY_TRADING">Copy Trading</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -289,6 +301,7 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
                   <TableRow className="bg-muted/50">
                     <TableHead className="font-semibold">Date</TableHead>
                     <TableHead className="font-semibold">User</TableHead>
+                    <TableHead className="font-semibold">From</TableHead>
                     <TableHead className="font-semibold text-right">Receive</TableHead>
                     <TableHead className="font-semibold text-right">Fee</TableHead>
                     <TableHead className="font-semibold text-right">Total</TableHead>
@@ -315,6 +328,13 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
                           <div className="max-w-[120px] truncate text-xs" title={w.user_email}>
                             {w.user_email}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={`text-[10px] ${
+                            w.source_account_type === 'COPY_TRADING' ? 'border-purple-500/30 text-purple-600' : 'border-blue-500/30 text-blue-600'
+                          }`}>
+                            {w.source_account_type === 'COPY_TRADING' ? 'Copy' : 'Fund'}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {w.amount?.toFixed(2)}
@@ -407,6 +427,14 @@ export default function WithdrawalsAdminTab({ language = "en" }) {
                 <div>
                   <p className="text-muted-foreground text-xs">Network</p>
                   <p>{selectedWithdrawal.network}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">From Account</p>
+                  <Badge variant="outline" className={`text-xs ${
+                    selectedWithdrawal.source_account_type === 'COPY_TRADING' ? 'border-purple-500/30 text-purple-600' : 'border-blue-500/30 text-blue-600'
+                  }`}>
+                    {selectedWithdrawal.source_account_type === 'COPY_TRADING' ? 'Copy Trading' : 'Funding'}
+                  </Badge>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Receive Amount</p>
