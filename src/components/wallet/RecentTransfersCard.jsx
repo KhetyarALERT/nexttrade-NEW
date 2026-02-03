@@ -108,19 +108,22 @@ export default function RecentTransfersCard({ language = "en", limit = 5, onView
   const loadTransfers = async () => {
     setLoading(true);
     try {
-      // Fetch copy trading allocations and staking positions
-      const [copyTradingRes, stakingRes] = await Promise.all([
+      // Fetch all recent activities in parallel (reuse existing functions)
+      const [copyTradingRes, stakingRes, walletDeposits, walletWithdrawals, ledgerRes] = await Promise.all([
         base44.functions.invoke("copyTradingUser", { action: "getAllocations" }),
-        base44.functions.invoke("stakingUser", { action: "getPositions" })
+        base44.functions.invoke("stakingUser", { action: "getPositions" }),
+        base44.functions.invoke("wallet", { action: "getTransactions", type: "deposit", status: "completed", limit: 20 }),
+        base44.functions.invoke("wallet", { action: "getTransactions", type: "withdrawal", limit: 20 }),
+        base44.functions.invoke("ledgerWithdrawal", { action: "list", limit: 20 })
       ]);
 
       const items = [];
 
-      // Add copy trading allocations
+      // Copy trading allocations
       const allocations = copyTradingRes.data?.ok ? (copyTradingRes.data.data || []) : [];
       for (const alloc of allocations.slice(0, 10)) {
         items.push({
-          id: alloc.id,
+          id: `ct_${alloc.id}`,
           type: "copyTrading",
           direction: "in",
           amount: alloc.amount,
@@ -133,11 +136,11 @@ export default function RecentTransfersCard({ language = "en", limit = 5, onView
         });
       }
 
-      // Add staking positions
+      // Staking positions
       const positions = stakingRes.data?.ok ? (stakingRes.data.positions || []) : [];
       for (const pos of positions.slice(0, 10)) {
         items.push({
-          id: pos.id,
+          id: `stk_${pos.id}`,
           type: "staking",
           direction: "in",
           amount: pos.principal_amount,
@@ -146,6 +149,54 @@ export default function RecentTransfersCard({ language = "en", limit = 5, onView
           label: t.staking,
           sublabel: pos.plan_key,
           date: pos.created_at || pos.created_date
+        });
+      }
+
+      // Wallet deposits
+      const deposits = walletDeposits.data?.success ? (walletDeposits.data.data || []) : [];
+      for (const tx of deposits.slice(0, 10)) {
+        items.push({
+          id: `wdp_${tx.id}`,
+          type: "wallet",
+          direction: "in",
+          amount: tx.amount,
+          currency: tx.currency || "USDT",
+          status: (tx.status || '').toUpperCase(),
+          label: t.deposit,
+          sublabel: tx.network || '',
+          date: tx.created_date
+        });
+      }
+
+      // Wallet withdrawals (pending/failed/completed)
+      const withdrawals = walletWithdrawals.data?.success ? (walletWithdrawals.data.data || []) : [];
+      for (const tx of withdrawals.slice(0, 10)) {
+        items.push({
+          id: `wwd_${tx.id}`,
+          type: "wallet",
+          direction: "out",
+          amount: Math.abs(tx.amount),
+          currency: tx.currency || "USDT",
+          status: (tx.status || '').toUpperCase(),
+          label: t.withdrawal,
+          sublabel: tx.network || '',
+          date: tx.created_date
+        });
+      }
+
+      // Ledger withdrawals (insider ledger mechanism) -> map APPROVED to COMPLETED for UI
+      const ledger = ledgerRes.data?.ok ? (ledgerRes.data.data || ledgerRes.data || []) : [];
+      for (const w of ledger.slice(0, 10)) {
+        items.push({
+          id: `lwd_${w.id}`,
+          type: "wallet",
+          direction: "out",
+          amount: w.amount,
+          currency: w.asset || "USDT",
+          status: (w.status === 'APPROVED' ? 'COMPLETED' : (w.status || '')).toUpperCase(),
+          label: t.withdrawal,
+          sublabel: w.network || '',
+          date: w.created_date
         });
       }
 
