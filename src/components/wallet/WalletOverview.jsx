@@ -552,7 +552,14 @@ export default function WalletOverview({
         open={withdrawModalOpen}
         onOpenChange={setWithdrawModalOpen}
         language={language}
-        onSuccess={onRefresh}
+        onSuccess={() => {
+          // Do NOT trigger full page refresh - just optionally refresh balances in background
+          // The modal handles its own history state update
+          if (onRefresh) {
+            // Delay refresh to avoid interrupting modal success state
+            setTimeout(() => onRefresh(), 500);
+          }
+        }}
       />
     </div>
   );

@@ -303,12 +303,17 @@ export default function WithdrawModal({
       
       if (res.data?.ok) {
         const withdrawalData = res.data.data;
+        // CRITICAL: Update state BEFORE any callback to ensure receipt shows
         setLastWithdrawal(withdrawalData);
-        setMode("success");
         // Update history instantly - prepend new item
         setHistory(prev => [withdrawalData, ...prev.filter(w => w.id !== withdrawalData.id).slice(0, 4)]);
-        // Callback but NO refresh
-        onSuccess?.();
+        // Set mode LAST to trigger render with all data ready
+        setMode("success");
+        // Callback AFTER state is set - parent can refresh in background but won't affect this modal
+        if (onSuccess) {
+          // Use setTimeout to ensure state updates are committed before callback
+          setTimeout(() => onSuccess(), 100);
+        }
       } else {
         setError(res.data?.error?.message || "Withdrawal failed");
         setMode("form"); // Stay on form with error

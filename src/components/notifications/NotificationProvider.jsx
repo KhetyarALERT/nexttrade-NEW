@@ -92,21 +92,40 @@ export function NotificationProvider({ children }) {
         }
       } else {
         // Create default preferences with auto-detected timezone
+        // Wrapped in try-catch to handle 403 permission errors gracefully
         const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const newPrefs = await base44.entities.UserPreferences.create({
-          user_id: user.id,
-          timezone: detectedTz,
-          timezone_auto_detected: true,
-          notifications_enabled: true,
-          notify_price_alerts: true,
-          notify_trade_executions: true,
-          notify_margin_warnings: true,
-          notify_deposits: true,
-          notify_withdrawals: true,
-          notify_staking: true,
-          price_alerts: []
-        });
-        setPreferences(newPrefs);
+        try {
+          const newPrefs = await base44.entities.UserPreferences.create({
+            user_id: user.id,
+            timezone: detectedTz,
+            timezone_auto_detected: true,
+            notifications_enabled: true,
+            notify_price_alerts: true,
+            notify_trade_executions: true,
+            notify_margin_warnings: true,
+            notify_deposits: true,
+            notify_withdrawals: true,
+            notify_staking: true,
+            price_alerts: []
+          });
+          setPreferences(newPrefs);
+        } catch (createErr) {
+          // 403 = RLS permission denied - user may not have create rights yet
+          // Silently ignore and use defaults, don't trigger rerenders
+          console.warn("[NotificationProvider] Could not create UserPreferences (may be RLS):", createErr?.message);
+          setPreferences({
+            user_id: user.id,
+            timezone: detectedTz,
+            notifications_enabled: true,
+            notify_price_alerts: true,
+            notify_trade_executions: true,
+            notify_margin_warnings: true,
+            notify_deposits: true,
+            notify_withdrawals: true,
+            notify_staking: true,
+            price_alerts: []
+          });
+        }
         setTimezone(normalizeTimeZone(detectedTz) || "UTC");
       }
 
