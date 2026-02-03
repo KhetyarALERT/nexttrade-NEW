@@ -553,11 +553,6 @@ export default function WalletOverview({
         onOpenChange={setWithdrawModalOpen}
         language={language}
         onSuccess={onRefresh}
-        walletData={{
-          withdrawable: withdrawableBalance,
-          locked: lockedInPositions,
-          pending: 0
-        }}
       />
     </div>
   );
