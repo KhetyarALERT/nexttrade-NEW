@@ -137,19 +137,27 @@ export function NotificationProvider({ children }) {
       // (notifications created by service role have service email as created_by)
       try {
         const notifsRes = await base44.functions.invoke("notifications", { action: "list", limit: 50 });
-        if (notifsRes.data?.ok) {
-          const notifs = notifsRes.data.data || [];
+        // Axios response - data is in notifsRes.data
+        const responseData = notifsRes?.data;
+        if (responseData?.ok) {
+          const notifs = responseData.data || [];
           setNotifications(notifs);
           setUnreadCount(notifs.filter(n => !n.read).length || 0);
         } else {
-          // Server returned ok: false, check error
-          console.warn("[NotificationProvider] Server returned error:", notifsRes.data?.error);
+          // Server returned ok: false - this is normal if user has no notifications
+          // Don't log as warning unless there's actually an error message
+          if (responseData?.error) {
+            console.warn("[NotificationProvider] Server returned error:", responseData.error);
+          }
           setNotifications([]);
           setUnreadCount(0);
         }
       } catch (notifErr) {
         // Network or other error - don't spam console, just use empty
-        console.warn("[NotificationProvider] Failed to load notifications:", notifErr?.message);
+        // This can happen if user is not authenticated or function doesn't exist
+        if (notifErr?.response?.status !== 401) {
+          console.warn("[NotificationProvider] Failed to load notifications:", notifErr?.message);
+        }
         setNotifications([]);
         setUnreadCount(0);
       }
