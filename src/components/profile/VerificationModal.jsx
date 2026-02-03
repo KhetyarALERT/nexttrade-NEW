@@ -186,8 +186,6 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
 
     setSendingHelp(true);
     try {
-      const user = await base44.auth.me();
-
       // Upload help document if provided
       let helpDocUrl = null;
       if (helpDocumentFile) {
@@ -202,41 +200,32 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         frontUrl = result.file_url;
       }
 
-      // Create a help request verification entry
-      const helpRequest = await base44.entities.VerificationRequest.create({
-        user_id: user.id,
-        user_email: user.email,
-        full_name: form.fullName || user.full_name || "",
-        document_type: form.documentType || "passport",
-        document_front_url: frontUrl,
-        status: "needs_help",
-        request_type: "help_request",
-        help_message: helpMessage || (language === "ar" ? "طلب مساعدة مع إرفاق الهوية" : "Help request with ID attached"),
-        help_requested_at: new Date().toISOString(),
-        submitted_at: new Date().toISOString(),
+      // Use verificationService to submit (handles duplicates)
+      const res = await base44.functions.invoke("verificationService", {
+        action: "submitKyc",
+        fullName: form.fullName,
+        documentType: form.documentType || "passport",
+        frontUrl: frontUrl,
+        helpMessage: helpMessage || (language === "ar" ? "طلب مساعدة مع إرفاق الهوية" : "Help request with ID attached"),
+        requestType: "help_request"
       });
 
-      // Update user's verification status
-      try {
-        await base44.auth.updateMe({
-          verification_status: "pending",
-          verification_request_id: helpRequest.id
-        });
-      } catch (e) {
-        console.error("Failed to update user verification status:", e);
+      if (!res.data?.ok) {
+        throw new Error(res.data?.error || "Failed to submit");
       }
 
-      // Notify admin immediately
+      // Notify admin
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyAdmin",
-          verificationId: helpRequest.id
+          verificationId: res.data.data?.request_id
         });
       } catch (e) {
         console.error("Failed to notify admin:", e);
       }
 
       // Track help request
+      const user = await base44.auth.me();
       base44.analytics.track({
         eventName: "verification_help_requested",
         properties: { user_id: user.id, user_email: user.email, has_document: Boolean(frontUrl) }
@@ -307,44 +296,40 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
         uploadFile(form.selfieFile),
       ]);
 
-      const user = await base44.auth.me();
-
-      const verificationRecord = await base44.entities.VerificationRequest.create({
-        user_id: user.id,
-        user_email: user.email,
-        full_name: form.fullName,
-        document_type: form.documentType,
-        document_front_url: frontUrl,
-        document_back_url: backUrl,
-        selfie_url: selfieUrl,
-        date_of_birth: form.dob || null,
+      // Use verificationService to submit (handles duplicates)
+      const res = await base44.functions.invoke("verificationService", {
+        action: "submitKyc",
+        fullName: form.fullName,
+        documentType: form.documentType,
+        frontUrl: frontUrl,
+        backUrl: backUrl,
+        selfieUrl: selfieUrl,
+        dateOfBirth: form.dob || null,
         country: form.country || null,
-        status: "pending",
-        request_type: "full",
-        submitted_at: new Date().toISOString(),
+        requestType: "full"
       });
 
-      // Update user's verification status
-      try {
-        await base44.auth.updateMe({
-          verification_status: "pending",
-          verification_request_id: verificationRecord.id
-        });
-      } catch (e) {
-        console.error("Failed to update user verification status:", e);
+      if (!res.data?.ok) {
+        if (res.data?.status === "already_verified") {
+          toast.info(language === "ar" ? "حسابك موثق بالفعل" : "Your account is already verified");
+          onOpenChange(false);
+          return;
+        }
+        throw new Error(res.data?.error || "Failed to submit");
       }
 
       // Notify admin
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyAdmin",
-          verificationId: verificationRecord.id
+          verificationId: res.data.data?.request_id
         });
       } catch (e) {
         console.error("Failed to notify admin:", e);
       }
 
       // Track verification completed
+      const user = await base44.auth.me();
       base44.analytics.track({
         eventName: "verification_completed",
         properties: { 

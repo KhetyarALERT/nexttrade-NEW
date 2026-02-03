@@ -50,26 +50,37 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
     
     setProcessing(true);
     try {
-      const adminUser = await base44.auth.me();
-      
-      const updateData = {
-        reviewed_by: adminUser.email,
-        reviewed_at: new Date().toISOString()
-      };
-
       if (reviewAction === 'approve') {
-        updateData.status = 'approved';
+        // Use verificationService for proper status update
+        const res = await base44.functions.invoke("verificationService", {
+          action: "adminApprove",
+          requestId: selectedVerification.id
+        });
+        if (!res.data?.ok) {
+          throw new Error(res.data?.error || "Failed to approve");
+        }
       } else if (reviewAction === 'reject') {
-        updateData.status = 'rejected';
-        updateData.rejection_reason = rejectionReason || 'Verification declined';
+        // Use verificationService for proper status update
+        const res = await base44.functions.invoke("verificationService", {
+          action: "adminReject",
+          requestId: selectedVerification.id,
+          reason: rejectionReason || 'Verification declined'
+        });
+        if (!res.data?.ok) {
+          throw new Error(res.data?.error || "Failed to reject");
+        }
       } else if (reviewAction === 'respond') {
-        updateData.admin_response = adminResponse;
-        updateData.admin_responded_at = new Date().toISOString();
-        updateData.status = 'under_review';
+        // Direct update for admin response (doesn't change verification status)
+        const adminUser = await base44.auth.me();
+        await base44.entities.VerificationRequest.update(selectedVerification.id, {
+          admin_response: adminResponse,
+          admin_responded_at: new Date().toISOString(),
+          status: 'under_review',
+          reviewed_by: adminUser.email
+        });
       }
-
-      await base44.entities.VerificationRequest.update(selectedVerification.id, updateData);
       
+      // Notify user
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyUser",
@@ -149,12 +160,35 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
     if (!selectedVerification) return;
     setProcessing(true);
     try {
-      const adminUser = await base44.auth.me();
-      await base44.entities.VerificationRequest.update(selectedVerification.id, {
-        status: newStatus,
-        reviewed_by: adminUser.email,
-        reviewed_at: new Date().toISOString()
-      });
+      if (newStatus === 'approved') {
+        // Use verificationService for proper status update
+        const res = await base44.functions.invoke("verificationService", {
+          action: "adminApprove",
+          requestId: selectedVerification.id
+        });
+        if (!res.data?.ok) {
+          throw new Error(res.data?.error || "Failed to approve");
+        }
+      } else if (newStatus === 'rejected') {
+        // Use verificationService for proper status update
+        const res = await base44.functions.invoke("verificationService", {
+          action: "adminReject",
+          requestId: selectedVerification.id,
+          reason: "Changed by admin"
+        });
+        if (!res.data?.ok) {
+          throw new Error(res.data?.error || "Failed to reject");
+        }
+      } else {
+        // For other statuses (pending), direct update
+        const adminUser = await base44.auth.me();
+        await base44.entities.VerificationRequest.update(selectedVerification.id, {
+          status: newStatus,
+          reviewed_by: adminUser.email,
+          reviewed_at: new Date().toISOString()
+        });
+      }
+      
       try {
         await base44.functions.invoke("notifyAdminVerification", {
           action: "notifyUser",
