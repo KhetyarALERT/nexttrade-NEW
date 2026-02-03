@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, CheckCircle2, Clock, DollarSign, Shield, UserPlus } from "lucide-react";
+import { Users, CheckCircle2, Clock, DollarSign, Shield, UserPlus, Gift, Lock } from "lucide-react";
 
 const t = {
   en: {
@@ -21,7 +21,12 @@ const t = {
     daysLeft: "left",
     eligible: "Eligible",
     inProgress: "In Progress",
-    waiting: "Waiting"
+    waiting: "Waiting",
+    bigDepositBonuses: "Big Deposit Bonuses",
+    bigDepositDesc: "Earn extra trade vouchers when your friend holds higher deposits for 30 days",
+    locked: "Locked",
+    achieved: "Achieved",
+    holdingPeriod: "Holding"
   },
   ar: {
     title: "إحالاتك",
@@ -38,8 +43,57 @@ const t = {
     daysLeft: "متبقي",
     eligible: "مؤهل",
     inProgress: "قيد التقدم",
-    waiting: "بانتظار"
+    waiting: "بانتظار",
+    bigDepositBonuses: "حوافز الإيداع الكبيرة",
+    bigDepositDesc: "احصل على قسائم تداول إضافية عندما يحافظ صديقك على صافي إيداع أعلى لمدة 30 يوم",
+    locked: "مقفل",
+    achieved: "تم",
+    holdingPeriod: "احتفاظ"
   }
+};
+
+// Deposit bonus tier badge component
+function DepositBonusBadge({ tier, language }) {
+  const txt = t[language] || t.en;
+  const { threshold, amount, holdingDays, isEligible, voucherIssued } = tier;
+  
+  // Determine state: achieved, holding, or locked
+  let state = 'locked';
+  if (voucherIssued || isEligible) {
+    state = 'achieved';
+  } else if (holdingDays > 0) {
+    state = 'holding';
+  }
+
+  const stateStyles = {
+    locked: "bg-muted/50 text-muted-foreground border-border/50",
+    holding: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+    achieved: "bg-primary/10 text-primary border-primary/30"
+  };
+
+  const stateIcons = {
+    locked: <Lock className="w-2.5 h-2.5" />,
+    holding: <Clock className="w-2.5 h-2.5" />,
+    achieved: <CheckCircle2 className="w-2.5 h-2.5" />
+  };
+
+  return (
+    <div className={`flex items-center gap-1 px-2 py-1 rounded-md border text-[10px] font-medium ${stateStyles[state]}`}>
+      {stateIcons[state]}
+      <span>${threshold}</span>
+      {state === 'holding' && (
+        <span className="opacity-70">({holdingDays}/30)</span>
+      )}
+      {state === 'achieved' && (
+        <span className="text-primary font-bold">+${amount}</span>
+      )}
+    </div>
+  );
+}
+
+DepositBonusBadge.propTypes = {
+  tier: PropTypes.object.isRequired,
+  language: PropTypes.string
 };
 
 export default function ReferralStatusTable({ referrals = [], language = "en" }) {
@@ -102,7 +156,7 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
                 )}
               </div>
               
-              {/* Status Grid */}
+              {/* Status Grid - Basic $10 voucher requirements */}
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="p-2 rounded-lg bg-background">
                   <Shield className={`w-4 h-4 mx-auto mb-1 ${ref.kycVerified ? "text-primary" : "text-muted-foreground/40"}`} />
@@ -132,13 +186,28 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
                 </div>
               </div>
               
-              {/* Progress bar if in progress */}
+              {/* Progress bar if in progress for $100 threshold */}
               {ref.holdingDays100 > 0 && ref.holdingDays100 < 30 && (
                 <div className="mt-3">
                   <Progress value={(ref.holdingDays100 / 30) * 100} className="h-1.5" />
                   <p className="text-xs text-muted-foreground mt-1">
                     {30 - ref.holdingDays100} {txt.days} {txt.daysLeft}
                   </p>
+                </div>
+              )}
+
+              {/* Big Deposit Bonuses Section - Only show if KYC verified and deposited */}
+              {ref.depositBonuses && ref.kycVerified && ref.netDeposit >= 100 && (
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Gift className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[10px] text-muted-foreground font-medium">{txt.bigDepositBonuses}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <DepositBonusBadge tier={ref.depositBonuses.tier500} language={language} />
+                    <DepositBonusBadge tier={ref.depositBonuses.tier1000} language={language} />
+                    <DepositBonusBadge tier={ref.depositBonuses.tier2000} language={language} />
+                  </div>
                 </div>
               )}
             </div>

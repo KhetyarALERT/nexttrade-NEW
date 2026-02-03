@@ -2,8 +2,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 // ==================== REFERRAL PROGRAM CONFIGURATION ====================
 const HOLDING_PERIOD_DAYS = 30;
-const THRESHOLD_100 = 100; // USDT for Level 1 eligibility
+const THRESHOLD_100 = 100; // USDT for Level 1 eligibility + $10 voucher
 const THRESHOLD_200 = 200; // USDT for Level 2/3 eligibility
+
+// Big Deposit Bonus Thresholds
+const DEPOSIT_BONUS_TIERS = [
+  { threshold: 500, amount: 15, key: '500' },
+  { threshold: 1000, amount: 30, key: '1000' },
+  { threshold: 2000, amount: 60, key: '2000' }
+];
 
 const LEVEL_REQUIREMENTS = {
   1: { count: 5, threshold: THRESHOLD_100 },   // 5 referrals with 100+ USDT
@@ -53,7 +60,7 @@ Deno.serve(async (req) => {
       }
 
       const now = nowISO();
-      const stats = { processed: 0, vouchersIssued: 0, tiersUpdated: 0, errors: [] };
+      const stats = { processed: 0, vouchersIssued: 0, depositBonusesIssued: 0, tiersUpdated: 0, errors: [] };
 
       // Get all referral attributions (L1 only for tier calculation)
       const allAttrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ level: 1 });
@@ -113,7 +120,7 @@ Deno.serve(async (req) => {
         level: 1
       });
 
-      const stats = { processed: 0, vouchersIssued: 0, tiersUpdated: 0, errors: [] };
+      const stats = { processed: 0, vouchersIssued: 0, depositBonusesIssued: 0, tiersUpdated: 0, errors: [] };
       await processReferrer(base44, targetUserId, attrs || [], nowISO(), stats);
 
       return Response.json({ success: true, data: stats });
@@ -162,18 +169,35 @@ async function updateReferralEligibility(base44, attr, now, stats) {
     console.error('KYC sync error:', e);
   }
 
-  // 2. Calculate net deposit from internal ledger
+  // 2. Calculate net deposit from internal ledger (deposits - withdrawals, EXCLUDING PnL)
   let netDeposit = 0;
   try {
-    // Copy Trading Wallet balance
+    // Method: Sum completed deposits minus completed withdrawals from WalletTransaction
+    const allTxns = await base44.asServiceRole.entities.WalletTransaction.filter({ 
+      user_id: attr.referred_user_id 
+    });
+    
+    for (const txn of (allTxns || [])) {
+      if (txn.status !== 'completed') continue;
+      if (txn.currency !== 'USDT' && txn.currency !== 'USDC') continue;
+      
+      if (txn.type === 'deposit') {
+        netDeposit += txn.amount || 0;
+      } else if (txn.type === 'withdrawal') {
+        netDeposit -= txn.amount || 0;
+      }
+    }
+
+    // Also count Copy Trading deposits (lifetime_deposited - lifetime_withdrawn)
     const copyWallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ 
       user_id: attr.referred_user_id 
     });
     if (copyWallets?.length) {
-      netDeposit += (copyWallets[0].available_balance || 0) + (copyWallets[0].locked_balance || 0);
+      const cw = copyWallets[0];
+      netDeposit += (cw.lifetime_deposited || 0) - (cw.lifetime_withdrawn || 0);
     }
 
-    // Staking positions (locked funds)
+    // Staking principal (counts as "held deposit")
     const stakes = await base44.asServiceRole.entities.StakingPosition.filter({
       user_id: attr.referred_user_id,
       status: 'ACTIVE'
@@ -181,19 +205,12 @@ async function updateReferralEligibility(base44, attr, now, stats) {
     for (const stake of (stakes || [])) {
       netDeposit += stake.principal_amount || 0;
     }
-
-    // Standard wallet balance
-    const wallets = await base44.asServiceRole.entities.Wallet.filter({ 
-      user_id: attr.referred_user_id 
-    });
-    for (const w of (wallets || [])) {
-      if (w.currency === 'USDT') {
-        netDeposit += (w.balance || 0) + (w.staked_balance || 0);
-      }
-    }
   } catch (e) {
     console.error('Net deposit calc error:', e);
   }
+
+  // Ensure non-negative
+  netDeposit = Math.max(0, netDeposit);
 
   if (Math.abs((attr.current_net_deposit_usdt || 0) - netDeposit) > 0.01) {
     updates.current_net_deposit_usdt = netDeposit;
@@ -203,53 +220,29 @@ async function updateReferralEligibility(base44, attr, now, stats) {
   const kycVerified = !!(attr.kyc_verified_at || updates.kyc_verified_at);
   const currentNetDeposit = updates.current_net_deposit_usdt ?? attr.current_net_deposit_usdt ?? 0;
 
-  // 3. Eligibility timer for 100 USDT threshold
-  if (kycVerified && currentNetDeposit >= THRESHOLD_100) {
-    // Start timer if not started
-    if (!attr.eligible_100_start_at && !updates.eligible_100_start_at) {
-      updates.eligible_100_start_at = now;
-      needsUpdate = true;
-    }
-    // Check if 30 days passed
-    const startAt = updates.eligible_100_start_at || attr.eligible_100_start_at;
-    if (startAt && !attr.eligible_100_at && daysDiff(startAt, now) >= HOLDING_PERIOD_DAYS) {
-      updates.eligible_100_at = now;
-      needsUpdate = true;
-    }
-  } else {
-    // Reset if conditions not met
-    if (attr.eligible_100_start_at || attr.eligible_100_at) {
-      updates.eligible_100_start_at = null;
-      // Don't reset eligible_100_at - once qualified, stays qualified for voucher purposes
-      // But we track "currently eligible" separately
-      needsUpdate = true;
-    }
+  // 3. Eligibility timer for 100 USDT threshold (existing $10 voucher)
+  const elig100Updates = processThresholdEligibility(attr, updates, kycVerified, currentNetDeposit, THRESHOLD_100, '100', now);
+  if (elig100Updates.changed) needsUpdate = true;
+  Object.assign(updates, elig100Updates.updates);
+
+  // 4. Eligibility timer for 200 USDT threshold (existing level requirements)
+  const elig200Updates = processThresholdEligibility(attr, updates, kycVerified, currentNetDeposit, THRESHOLD_200, '200', now);
+  if (elig200Updates.changed) needsUpdate = true;
+  Object.assign(updates, elig200Updates.updates);
+
+  // 5. NEW: Big Deposit Bonus thresholds (500, 1000, 2000)
+  for (const tier of DEPOSIT_BONUS_TIERS) {
+    const eligUpdates = processThresholdEligibility(attr, updates, kycVerified, currentNetDeposit, tier.threshold, tier.key, now);
+    if (eligUpdates.changed) needsUpdate = true;
+    Object.assign(updates, eligUpdates.updates);
   }
 
-  // 4. Eligibility timer for 200 USDT threshold
-  if (kycVerified && currentNetDeposit >= THRESHOLD_200) {
-    if (!attr.eligible_200_start_at && !updates.eligible_200_start_at) {
-      updates.eligible_200_start_at = now;
-      needsUpdate = true;
-    }
-    const startAt = updates.eligible_200_start_at || attr.eligible_200_start_at;
-    if (startAt && !attr.eligible_200_at && daysDiff(startAt, now) >= HOLDING_PERIOD_DAYS) {
-      updates.eligible_200_at = now;
-      needsUpdate = true;
-    }
-  } else {
-    if (attr.eligible_200_start_at) {
-      updates.eligible_200_start_at = null;
-      needsUpdate = true;
-    }
-  }
-
-  // 5. Issue $10 referral voucher when eligible_100_at is set (once per referral)
+  // 6. Issue $10 referral voucher when eligible_100_at is set (once per referral)
   const eligible100At = updates.eligible_100_at || attr.eligible_100_at;
   if (eligible100At && !attr.referral_bonus_issued) {
     const voucherKey = `refbonus:${attr.referrer_user_id}:${attr.referred_user_id}`;
     
-    // Idempotency check
+    // Idempotency check - ANY existing record with this key prevents issuance
     const existing = await base44.asServiceRole.entities.RewardLedger.filter({
       trigger_event_key: voucherKey
     });
@@ -276,10 +269,80 @@ async function updateReferralEligibility(base44, attr, now, stats) {
     needsUpdate = true;
   }
 
+  // 7. NEW: Issue Big Deposit Bonus vouchers
+  for (const tier of DEPOSIT_BONUS_TIERS) {
+    const eligAtField = `eligible_${tier.key}_at`;
+    const eligAt = updates[eligAtField] || attr[eligAtField];
+    
+    if (eligAt) {
+      const triggerKey = `refdep${tier.key}:${attr.referrer_user_id}:${attr.referred_user_id}`;
+      
+      // Idempotency: ANY existing record (even revoked) prevents re-issuance
+      const existing = await base44.asServiceRole.entities.RewardLedger.filter({
+        trigger_event_key: triggerKey
+      });
+
+      if (!existing?.length) {
+        await base44.asServiceRole.entities.RewardLedger.create({
+          user_id: attr.referrer_user_id,
+          type: 'referral_deposit_voucher',
+          subtype: `tier_${tier.key}`,
+          amount: tier.amount,
+          points: 0,
+          currency: 'USDT',
+          status: 'redeemable',
+          trigger_event_key: triggerKey,
+          source_user_id: attr.referred_user_id,
+          attribution_id: attr.id,
+          meta: { 
+            threshold: tier.threshold, 
+            referredUserId: attr.referred_user_id,
+            holding_days: HOLDING_PERIOD_DAYS
+          },
+          description: `$${tier.amount} trade voucher for $${tier.threshold} referral deposit`
+        });
+        stats.depositBonusesIssued++;
+      }
+    }
+  }
+
   // Apply updates
   if (needsUpdate && Object.keys(updates).length > 0) {
     await base44.asServiceRole.entities.ReferralAttribution.update(attr.id, updates);
   }
+}
+
+// Helper to process threshold eligibility (reusable for 100, 200, 500, 1000, 2000)
+function processThresholdEligibility(attr, existingUpdates, kycVerified, currentNetDeposit, threshold, key, now) {
+  const startField = `eligible_${key}_start_at`;
+  const completedField = `eligible_${key}_at`;
+  const updates = {};
+  let changed = false;
+
+  if (kycVerified && currentNetDeposit >= threshold) {
+    // Start timer if not started
+    const currentStart = existingUpdates[startField] || attr[startField];
+    if (!currentStart) {
+      updates[startField] = now;
+      changed = true;
+    }
+    // Check if 30 days passed
+    const startAt = updates[startField] || existingUpdates[startField] || attr[startField];
+    const currentCompleted = existingUpdates[completedField] || attr[completedField];
+    if (startAt && !currentCompleted && daysDiff(startAt, now) >= HOLDING_PERIOD_DAYS) {
+      updates[completedField] = now;
+      changed = true;
+    }
+  } else {
+    // Reset start timer if conditions not met (deposit dropped)
+    // But DO NOT reset completed field - once achieved, voucher already issued
+    if (attr[startField]) {
+      updates[startField] = null;
+      changed = true;
+    }
+  }
+
+  return { updates, changed };
 }
 
 async function updateTierStatus(base44, referrerId, attrs, now, stats) {
@@ -408,26 +471,42 @@ async function getInviteEarnSnapshot(base44, user) {
     level: 1
   });
 
-  // Build referral list with status
+  // Get all rewards for voucher checks
+  const allRewards = await base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id });
+  
+  // Build trigger key lookup for deposit bonus checks
+  const triggerKeySet = new Set((allRewards || []).map(r => r.trigger_event_key));
+
+  // Build referral list with status including deposit bonus progress
   const referralsList = (attrs || []).map(attr => {
     const kycVerified = !!attr.kyc_verified_at;
     const netDeposit = attr.current_net_deposit_usdt || 0;
     
-    // Calculate holding days
-    let holdingDays100 = 0;
-    let holdingDays200 = 0;
+    // Calculate holding days for each threshold
     const now = new Date();
     
-    if (attr.eligible_100_start_at) {
-      holdingDays100 = Math.min(30, daysDiff(attr.eligible_100_start_at, now.toISOString()));
-    }
-    if (attr.eligible_200_start_at) {
-      holdingDays200 = Math.min(30, daysDiff(attr.eligible_200_start_at, now.toISOString()));
-    }
+    const calcHoldingDays = (startAt) => {
+      if (!startAt) return 0;
+      return Math.min(30, Math.max(0, daysDiff(startAt, now.toISOString())));
+    };
+
+    const holdingDays100 = calcHoldingDays(attr.eligible_100_start_at);
+    const holdingDays200 = calcHoldingDays(attr.eligible_200_start_at);
+    const holdingDays500 = calcHoldingDays(attr.eligible_500_start_at);
+    const holdingDays1000 = calcHoldingDays(attr.eligible_1000_start_at);
+    const holdingDays2000 = calcHoldingDays(attr.eligible_2000_start_at);
+
+    // Check if vouchers already issued for this referral
+    const voucher500Issued = triggerKeySet.has(`refdep500:${user.id}:${attr.referred_user_id}`);
+    const voucher1000Issued = triggerKeySet.has(`refdep1000:${user.id}:${attr.referred_user_id}`);
+    const voucher2000Issued = triggerKeySet.has(`refdep2000:${user.id}:${attr.referred_user_id}`);
 
     // Is currently eligible at each threshold?
     const isEligible100 = !!attr.eligible_100_at && kycVerified && netDeposit >= THRESHOLD_100;
     const isEligible200 = !!attr.eligible_200_at && kycVerified && netDeposit >= THRESHOLD_200;
+    const isEligible500 = !!attr.eligible_500_at && kycVerified && netDeposit >= 500;
+    const isEligible1000 = !!attr.eligible_1000_at && kycVerified && netDeposit >= 1000;
+    const isEligible2000 = !!attr.eligible_2000_at && kycVerified && netDeposit >= 2000;
 
     return {
       id: attr.id,
@@ -435,19 +514,54 @@ async function getInviteEarnSnapshot(base44, user) {
       registeredAt: attr.registered_at,
       kycVerified,
       netDeposit: Math.round(netDeposit * 100) / 100,
+      
+      // Basic eligibility (for $10 voucher)
       holdingDays100,
-      holdingDays200,
       isEligible100,
-      isEligible200,
       voucherPaid: attr.referral_bonus_issued || false,
+      
+      // Level requirements
+      holdingDays200,
+      isEligible200,
+      
+      // Big Deposit Bonuses (NEW)
+      depositBonuses: {
+        tier500: {
+          threshold: 500,
+          amount: 15,
+          holdingDays: holdingDays500,
+          isEligible: isEligible500,
+          voucherIssued: voucher500Issued,
+          startedAt: attr.eligible_500_start_at,
+          achievedAt: attr.eligible_500_at
+        },
+        tier1000: {
+          threshold: 1000,
+          amount: 30,
+          holdingDays: holdingDays1000,
+          isEligible: isEligible1000,
+          voucherIssued: voucher1000Issued,
+          startedAt: attr.eligible_1000_start_at,
+          achievedAt: attr.eligible_1000_at
+        },
+        tier2000: {
+          threshold: 2000,
+          amount: 60,
+          holdingDays: holdingDays2000,
+          isEligible: isEligible2000,
+          voucherIssued: voucher2000Issued,
+          startedAt: attr.eligible_2000_start_at,
+          achievedAt: attr.eligible_2000_at
+        }
+      },
+      
       status: attr.status
     };
   }).sort((a, b) => new Date(b.registeredAt || 0) - new Date(a.registeredAt || 0));
 
-  // Get voucher ledger
-  const allRewards = await base44.asServiceRole.entities.RewardLedger.filter({ user_id: user.id });
+  // Categorize vouchers
   const vouchers = (allRewards || [])
-    .filter(r => r.type === 'referral_voucher' || r.type === 'level_up_voucher')
+    .filter(r => r.type === 'referral_voucher' || r.type === 'level_up_voucher' || r.type === 'referral_deposit_voucher')
     .map(r => ({
       id: r.id,
       type: r.type,
@@ -459,11 +573,17 @@ async function getInviteEarnSnapshot(base44, user) {
     }))
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-  // Calculate totals
+  // Calculate totals by category
+  const referralVouchers = vouchers.filter(v => v.type === 'referral_voucher');
+  const levelUpVouchers = vouchers.filter(v => v.type === 'level_up_voucher');
+  const depositBonusVouchers = vouchers.filter(v => v.type === 'referral_deposit_voucher');
+
   const totalVoucherValue = vouchers.reduce((sum, v) => sum + (v.amount || 0), 0);
   const redeemableValue = vouchers
     .filter(v => v.status === 'redeemable')
     .reduce((sum, v) => sum + (v.amount || 0), 0);
+  
+  const totalDepositBonusValue = depositBonusVouchers.reduce((sum, v) => sum + (v.amount || 0), 0);
 
   // Progress to next level
   let nextLevelTarget = 0;
@@ -507,9 +627,23 @@ async function getInviteEarnSnapshot(base44, user) {
       },
       referrals: referralsList,
       referralsTotal: referralsList.length,
+      
+      // Voucher categories (NEW structure)
       vouchers,
+      vouchersByCategory: {
+        referral: referralVouchers,
+        levelUp: levelUpVouchers,
+        depositBonus: depositBonusVouchers
+      },
+      
+      // Totals
       totalVoucherValue,
       redeemableValue,
+      totalDepositBonusValue,
+      
+      // Big Deposit Bonus config for UI display
+      depositBonusTiers: DEPOSIT_BONUS_TIERS,
+      
       kycRequired: user.verification_status !== 'verified'
     }
   });

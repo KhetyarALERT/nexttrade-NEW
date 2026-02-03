@@ -1,120 +1,227 @@
-import React from "react";
+import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Ticket, Crown, CheckCircle2, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Gift, Ticket, Crown, TrendingUp, DollarSign } from "lucide-react";
 
 const t = {
   en: {
     title: "Your Vouchers",
+    total: "Total Earned",
+    redeemable: "Redeemable",
     noVouchers: "No vouchers yet",
-    noVouchersDesc: "Invite friends to start earning",
-    referralBonus: "Referral Reward",
-    levelUpBonus: "Level Bonus",
+    noVouchersDesc: "Invite friends to earn vouchers",
+    all: "All",
+    referral: "Referral",
+    levelUp: "Level Bonus",
+    depositBonus: "Deposit Bonus",
     available: "Available",
     used: "Used",
     pending: "Pending",
-    totalEarned: "Total Earned"
+    revoked: "Revoked",
+    tradeVoucher: "Trade Voucher"
   },
   ar: {
     title: "قسائمك",
+    total: "إجمالي الأرباح",
+    redeemable: "قابل للاستخدام",
     noVouchers: "لا توجد قسائم بعد",
-    noVouchersDesc: "ادعُ أصدقاء لبدء الربح",
-    referralBonus: "مكافأة إحالة",
-    levelUpBonus: "مكافأة مستوى",
+    noVouchersDesc: "ادعُ أصدقاء لربح القسائم",
+    all: "الكل",
+    referral: "إحالة",
+    levelUp: "مكافأة المستوى",
+    depositBonus: "حافز الإيداع",
     available: "متاح",
     used: "مستخدم",
-    pending: "قيد المعالجة",
-    totalEarned: "إجمالي المكتسب"
+    pending: "قيد الانتظار",
+    revoked: "ملغي",
+    tradeVoucher: "قسيمة تداول"
   }
+};
+
+const voucherTypeConfig = {
+  referral_voucher: {
+    icon: Ticket,
+    labelKey: "referral",
+    color: "text-blue-600 bg-blue-500/10"
+  },
+  level_up_voucher: {
+    icon: Crown,
+    labelKey: "levelUp",
+    color: "text-amber-600 bg-amber-500/10"
+  },
+  referral_deposit_voucher: {
+    icon: TrendingUp,
+    labelKey: "depositBonus",
+    color: "text-emerald-600 bg-emerald-500/10"
+  }
+};
+
+const statusConfig = {
+  redeemable: { labelKey: "available", className: "bg-primary/10 text-primary border-primary/30" },
+  redeemed: { labelKey: "used", className: "bg-muted text-muted-foreground border-border" },
+  pending: { labelKey: "pending", className: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
+  credited: { labelKey: "available", className: "bg-primary/10 text-primary border-primary/30" },
+  revoked: { labelKey: "revoked", className: "bg-destructive/10 text-destructive border-destructive/30" },
+  expired: { labelKey: "used", className: "bg-muted text-muted-foreground border-border" }
+};
+
+function VoucherItem({ voucher, language }) {
+  const txt = t[language] || t.en;
+  const typeConfig = voucherTypeConfig[voucher.type] || voucherTypeConfig.referral_voucher;
+  const Icon = typeConfig.icon;
+  const status = statusConfig[voucher.status] || statusConfig.pending;
+
+  // Format subtype for deposit bonuses
+  let displaySubtype = voucher.subtype;
+  if (voucher.type === 'referral_deposit_voucher' && voucher.subtype) {
+    const tierMatch = voucher.subtype.match(/tier_(\d+)/);
+    if (tierMatch) {
+      displaySubtype = `$${tierMatch[1]}+ ${txt.tradeVoucher}`;
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${typeConfig.color}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{txt[typeConfig.labelKey]}</p>
+          <p className="text-xs text-muted-foreground">
+            {voucher.createdAt ? new Date(voucher.createdAt).toLocaleDateString() : "—"}
+            {displaySubtype && displaySubtype !== voucher.subtype && (
+              <span className="ml-1">• {displaySubtype}</span>
+            )}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-lg font-bold text-foreground">${voucher.amount}</p>
+        <Badge variant="outline" className={`text-[10px] ${status.className}`}>
+          {txt[status.labelKey]}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+VoucherItem.propTypes = {
+  voucher: PropTypes.object.isRequired,
+  language: PropTypes.string
 };
 
 export default function VoucherLedger({ 
   vouchers = [], 
+  vouchersByCategory = {},
   totalValue = 0, 
   redeemableValue = 0,
+  totalDepositBonusValue = 0,
   language = "en" 
 }) {
   const txt = t[language] || t.en;
+  const [activeTab, setActiveTab] = useState("all");
+
+  // Filter vouchers based on active tab
+  const getFilteredVouchers = () => {
+    switch (activeTab) {
+      case 'referral':
+        return vouchersByCategory.referral || vouchers.filter(v => v.type === 'referral_voucher');
+      case 'levelUp':
+        return vouchersByCategory.levelUp || vouchers.filter(v => v.type === 'level_up_voucher');
+      case 'depositBonus':
+        return vouchersByCategory.depositBonus || vouchers.filter(v => v.type === 'referral_deposit_voucher');
+      default:
+        return vouchers;
+    }
+  };
+
+  const filteredVouchers = getFilteredVouchers();
+
+  // Count badges
+  const referralCount = (vouchersByCategory.referral || vouchers.filter(v => v.type === 'referral_voucher')).length;
+  const levelUpCount = (vouchersByCategory.levelUp || vouchers.filter(v => v.type === 'level_up_voucher')).length;
+  const depositBonusCount = (vouchersByCategory.depositBonus || vouchers.filter(v => v.type === 'referral_deposit_voucher')).length;
 
   return (
     <Card className="border border-border bg-card">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Ticket className="w-4 h-4 text-muted-foreground" />
+        <CardTitle className="text-base flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Gift className="w-4 h-4 text-muted-foreground" />
             {txt.title}
-          </CardTitle>
-          {totalValue > 0 && (
+          </div>
+          <div className="flex items-center gap-3 text-sm">
             <div className="text-right">
-              <span className="text-xs text-muted-foreground">{txt.totalEarned}</span>
-              <span className="text-lg font-bold text-primary ml-2">${totalValue}</span>
+              <span className="text-xs text-muted-foreground block">{txt.total}</span>
+              <span className="font-bold text-foreground">${totalValue}</span>
             </div>
-          )}
-        </div>
+            {redeemableValue > 0 && (
+              <div className="text-right">
+                <span className="text-xs text-muted-foreground block">{txt.redeemable}</span>
+                <span className="font-bold text-primary">${redeemableValue}</span>
+              </div>
+            )}
+          </div>
+        </CardTitle>
       </CardHeader>
       
       <CardContent className="pt-0">
-        {vouchers.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-              <Gift className="w-7 h-7 text-muted-foreground/40" />
-            </div>
-            <p className="font-medium text-foreground mb-1">{txt.noVouchers}</p>
-            <p className="text-sm text-muted-foreground">{txt.noVouchersDesc}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {vouchers.map((voucher) => {
-              const isReferral = voucher.type === 'referral_voucher';
-              const isAvailable = voucher.status === 'redeemable';
-              const isUsed = voucher.status === 'redeemed';
+        {/* Category Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-4">
+            <TabsTrigger value="all" className="text-xs">
+              {txt.all}
+              {vouchers.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{vouchers.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="referral" className="text-xs">
+              {txt.referral}
+              {referralCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{referralCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="levelUp" className="text-xs">
+              {txt.levelUp}
+              {levelUpCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{levelUpCount}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="depositBonus" className="text-xs">
+              {txt.depositBonus}
+              {depositBonusCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{depositBonusCount}</Badge>}
+            </TabsTrigger>
+          </TabsList>
 
-              return (
-                <div 
-                  key={voucher.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border ${
-                    isAvailable ? "bg-primary/5 border-primary/20" : "bg-muted/30 border-border"
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    isReferral ? "bg-primary/10" : "bg-amber-500/10"
-                  }`}>
-                    {isReferral ? (
-                      <Gift className="w-5 h-5 text-primary" />
-                    ) : (
-                      <Crown className="w-5 h-5 text-amber-600" />
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm">
-                      {isReferral ? txt.referralBonus : txt.levelUpBonus}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {voucher.createdAt ? new Date(voucher.createdAt).toLocaleDateString() : ""}
-                    </p>
-                  </div>
-                  
-                  <div className="text-right">
-                    <span className={`text-lg font-bold ${isUsed ? "text-muted-foreground" : "text-primary"}`}>
-                      ${voucher.amount}
-                    </span>
-                    <Badge 
-                      variant="outline" 
-                      className={`block mt-1 text-[10px] ${
-                        isAvailable ? "border-primary/50 text-primary" : 
-                        isUsed ? "text-muted-foreground" : "border-amber-500/50 text-amber-600"
-                      }`}
-                    >
-                      {isAvailable ? txt.available : isUsed ? txt.used : txt.pending}
-                    </Badge>
-                  </div>
+          {/* Deposit Bonus Summary (only on deposit bonus tab) */}
+          {activeTab === 'depositBonus' && totalDepositBonusValue > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {txt.depositBonus}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <span className="text-lg font-bold text-emerald-600">${totalDepositBonusValue}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Voucher List */}
+          {filteredVouchers.length === 0 ? (
+            <div className="p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                <Gift className="w-6 h-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">{txt.noVouchers}</p>
+              <p className="text-xs text-muted-foreground">{txt.noVouchersDesc}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredVouchers.map((voucher) => (
+                <VoucherItem key={voucher.id} voucher={voucher} language={language} />
+              ))}
+            </div>
+          )}
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -122,7 +229,9 @@ export default function VoucherLedger({
 
 VoucherLedger.propTypes = {
   vouchers: PropTypes.array,
+  vouchersByCategory: PropTypes.object,
   totalValue: PropTypes.number,
   redeemableValue: PropTypes.number,
+  totalDepositBonusValue: PropTypes.number,
   language: PropTypes.string
 };
