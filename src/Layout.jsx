@@ -46,8 +46,8 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
   const navT = tSection("nav", language);
   
   const handleTabClick = (tabName, targetPath) => {
-    // Haptic feedback for native feel
-    triggerHaptic();
+    // Haptic feedback for native feel - use selection for tabs
+    triggerHaptic("selection");
     
     // Check if re-selecting the active tab - scroll to top
     const currentPath = location.pathname;
@@ -61,8 +61,8 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
   };
 
   const handleSupportClick = () => {
-    // Haptic feedback
-    triggerHaptic();
+    // Haptic feedback - medium for modal open
+    triggerHaptic("medium");
     // Open assistant modal without page reload
     openAssistantModal();
   };
@@ -76,7 +76,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
             const dashPath = createPageUrl("Dashboard");
             if (location.pathname === dashPath || location.pathname === '/' || location.pathname === createPageUrl("Home")) {
               e.preventDefault();
-              triggerHaptic();
+              triggerHaptic("selection");
               window.scrollTo({ top: 0, behavior: "smooth" });
               return;
             }
@@ -98,7 +98,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
             const futPath = createPageUrl("Futures");
             if (location.pathname === futPath) {
               e.preventDefault();
-              triggerHaptic();
+              triggerHaptic("selection");
               window.scrollTo({ top: 0, behavior: "smooth" });
               return;
             }
@@ -120,7 +120,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
             const walletPath = createPageUrl("Wallet");
             if (location.pathname.includes("Wallet")) {
               e.preventDefault();
-              triggerHaptic();
+              triggerHaptic("selection");
               window.scrollTo({ top: 0, behavior: "smooth" });
               return;
             }
@@ -152,14 +152,14 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               const profPath = createPageUrl("Profile");
               if (location.pathname.includes("Profile")) {
                 e.preventDefault();
-                triggerHaptic();
+                triggerHaptic("selection");
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 return;
               }
               handleTabClick("Profile", profPath);
             } else {
               e.preventDefault(); 
-              triggerHaptic();
+              triggerHaptic("medium");
               const refCode = getStoredReferralCode();
               const currentUrl = new URL(window.location.href);
               if (refCode && !currentUrl.searchParams.has('ref')) {
