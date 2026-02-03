@@ -229,9 +229,11 @@ Deno.serve(async (req) => {
       if (me?.role !== 'admin') {
         return Response.json({ success: false, error: 'Admin only' }, { status: 403 });
       }
-      const { userId } = params;
+      const { userId } = params || {};
       if (!userId) return Response.json({ success: false, error: 'userId required' }, { status: 400 });
-      const userRec = (await base44.asServiceRole.entities.User.filter({ id: userId }))?.[0] || null;
+      const userList = await base44.asServiceRole.entities.User.filter({ id: userId });
+      const userRec = userList?.[0] || null;
+      if (!userRec) return Response.json({ success: false, error: 'User not found' }, { status: 404 });
       const mirrorCode = userRec?.referred_by || null;
       const attrs = await base44.asServiceRole.entities.ReferralAttribution.filter({ referred_user_id: userId, level: 1 });
       let status = 'MISSING_ATTRIBUTION';
