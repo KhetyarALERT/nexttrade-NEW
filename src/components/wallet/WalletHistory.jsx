@@ -51,11 +51,18 @@ const translations = {
 };
 
 const STATUS_CONFIG = {
-  pending: { color: "text-amber-600 border-amber-300 bg-amber-50", label: "pending" },
-  confirming: { color: "text-blue-600 border-blue-300 bg-blue-50", label: "processing" },
-  completed: { color: "text-emerald-600 border-emerald-300 bg-emerald-50", label: "completed" },
-  failed: { color: "text-rose-600 border-rose-300 bg-rose-50", label: "failed" },
-  cancelled: { color: "text-slate-600 border-slate-300 bg-slate-50", label: "failed" }
+  pending: { color: "text-amber-600 border-amber-300 bg-amber-500/10", label: "pending" },
+  confirming: { color: "text-blue-600 border-blue-300 bg-blue-500/10", label: "processing" },
+  completed: { color: "text-emerald-600 border-emerald-300 bg-emerald-500/10", label: "completed" },
+  failed: { color: "text-rose-600 border-rose-300 bg-rose-500/10", label: "failed" },
+  cancelled: { color: "text-slate-600 border-slate-300 bg-slate-500/10", label: "failed" }
+};
+
+// User-friendly status labels
+const getStatusLabel = (status, t) => {
+  const config = STATUS_CONFIG[status];
+  if (!config) return status;
+  return t[config.label] || status;
 };
 
 export default function WalletHistory({ language = "en", onRefresh, showBackButton = false }) {
@@ -71,14 +78,53 @@ export default function WalletHistory({ language = "en", onRefresh, showBackButt
     try {
       const user = await base44.auth.me();
       
-      // Load wallet transactions from entity
-      const txs = await base44.entities.WalletTransaction.filter(
-        { user_id: user.id },
-        "-created_date",
-        50
+      // Load ONLY user deposits and withdrawals (not internal ledger movements)
+      const [walletTxs, ledgerWithdrawals] = await Promise.all([
+        // Wallet transactions: filter only deposits/withdrawals
+        base44.entities.WalletTransaction.filter(
+          { user_id: user.id },
+          "-created_date",
+          50
+        ),
+        // Ledger withdrawals (user-initiated)
+        base44.entities.LedgerWithdrawal.filter(
+          { user_id: user.id },
+          "-created_date",
+          30
+        )
+      ]);
+      
+      // Filter wallet transactions to only show deposits and withdrawals
+      const filteredWalletTxs = (walletTxs || []).filter(tx => 
+        tx.type === 'deposit' || tx.type === 'withdrawal'
       );
       
-      setTransactions(txs || []);
+      // Convert ledger withdrawals to unified format
+      const withdrawalTxs = (ledgerWithdrawals || []).map(wd => ({
+        id: wd.id,
+        type: 'withdrawal',
+        amount: wd.amount,
+        currency: 'USDT',
+        network: wd.network,
+        status: wd.status === 'APPROVED' ? 'completed' : 
+                wd.status === 'FAILED' ? 'failed' : 'pending',
+        external_txid: wd.mock_tx_hash,
+        created_date: wd.created_date,
+        reference: wd.reference,
+        source: 'ledger'
+      }));
+      
+      // Merge and deduplicate (prefer ledger withdrawals)
+      const ledgerIds = new Set(withdrawalTxs.map(tx => tx.reference));
+      const uniqueWalletTxs = filteredWalletTxs.filter(tx => 
+        tx.type !== 'withdrawal' || !ledgerIds.has(tx.reference_id)
+      );
+      
+      // Combine and sort by date
+      const combined = [...uniqueWalletTxs, ...withdrawalTxs];
+      combined.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      
+      setTransactions(combined.slice(0, 50));
     } catch (err) {
       console.error("[WalletHistory] Load error:", err);
     } finally {
@@ -221,15 +267,16 @@ export default function WalletHistory({ language = "en", onRefresh, showBackButt
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {formatDate(tx.created_date)}
+                            {tx.network && <span className="ml-1 text-muted-foreground/70">• {tx.network}</span>}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge
-                          variant="outline"
-                          className={`text-xs ${statusConfig.color}`}
+                        variant="outline"
+                        className={`text-xs ${statusConfig.color}`}
                         >
-                          {t[statusConfig.label]}
+                        {getStatusLabel(tx.status, t)}
                         </Badge>
                         {tx.external_txid && (
                           <Button
