@@ -556,15 +556,17 @@ export default function OKXAdminHub() {
                           const code = window.prompt('Enter new referrer code');
                           if (!code) return;
                           const reason = window.prompt('Reason for override (optional)') || 'admin override';
-                          const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'adminReassignReferrer', userId: refDetails.referrer.id, newReferrerCode: code, reason });
-                          if (res.data?.success) {
-                            toast.success('Referrer reassigned');
-                            const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
-                            if (integ.data?.success) setIntegrity(integ.data.data);
-                            // refresh details
-                            const det = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: selectedReferrer.referrerId });
-                            if (det.data?.success) setRefDetails(det.data.data);
-                          } else { toast.error(res.data?.error || 'Failed'); }
+                          try {
+                            const res = await base44.functions.invoke('referralEligibilityReconciler', { action: 'adminReassignReferrer', userId: refDetails.referrer.id, newReferrerCode: code, reason });
+                            if (res.data?.success) {
+                              toast.success('Referrer reassigned');
+                              const integ = await base44.functions.invoke('referralEligibilityReconciler', { action: 'getReferralIntegrity', userId: refDetails.referrer.id });
+                              if (integ.data?.success) setIntegrity(integ.data.data);
+                              // refresh details
+                              const det = await base44.functions.invoke('referralEligibilityReconciler', { action: 'referrerDetails', referrerId: selectedReferrer.referrerId });
+                              if (det.data?.success) setRefDetails(det.data.data);
+                            } else { toast.error(res.data?.error || 'Failed'); }
+                          } catch (e) { toast.error(e?.message || 'Failed'); }
                         }}>Reassign Referrer</Button>
                       </div>
                       <p className="text-xs text-muted-foreground">User.referred_by is display-only. Use these tools for authoritative changes.</p>
