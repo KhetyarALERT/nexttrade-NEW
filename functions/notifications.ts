@@ -36,47 +36,23 @@ Deno.serve(async (req) => {
       );
       
       console.log('[NOTIFICATIONS] Found', notifications?.length || 0, 'notifications for user', user.id);
-      if (notifications?.length > 0) {
-        console.log('[NOTIFICATIONS] Sample raw notification:', JSON.stringify(notifications[0], null, 2));
-      }
       
       // Normalize response - flatten from nested 'data' field to top level
-      // Entity stores all props in 'data' field: {data: {user_id, type, title, message, read, priority, data: {...}}}
+      // Entity stores all props in 'data' field: {data: {read, type, title, message, priority, user_id, data: {...extra}}}
       const normalized = (notifications || []).map(n => {
-        // Check if notification has nested structure (data.data.title) or flat (data.title)
-        const d = n.data || {};
-        // If d has a nested 'data' object with title, it's double-nested
-        const hasNestedData = d.data && typeof d.data === 'object' && (d.data.title || d.data.withdrawalId);
-        
-        if (hasNestedData) {
-          // Double nested: {data: {user_id, type, title, ..., data: {...extra...}}}
-          return {
-            id: n.id,
-            created_date: n.created_date,
-            updated_date: n.updated_date,
-            user_id: d.user_id,
-            type: d.type,
-            title: d.title,
-            message: d.message,
-            read: d.read,
-            priority: d.priority,
-            data: d.data
-          };
-        } else {
-          // Single nested or flat structure: {data: {user_id, type, title, ...}}
-          return {
-            id: n.id,
-            created_date: n.created_date,
-            updated_date: n.updated_date,
-            user_id: d.user_id,
-            type: d.type,
-            title: d.title,
-            message: d.message,
-            read: d.read,
-            priority: d.priority,
-            data: d.data || null
-          };
-        }
+        const d = n.data || n;
+        return {
+          id: n.id,
+          created_date: n.created_date,
+          updated_date: n.updated_date,
+          user_id: d.user_id || n.user_id,
+          type: d.type || n.type,
+          title: d.title || n.title,
+          message: d.message || n.message,
+          read: d.read ?? n.read ?? false,
+          priority: d.priority || n.priority || 'normal',
+          data: d.data || null
+        };
       });
       
       const result = normalized.slice(skip, skip + limit);
