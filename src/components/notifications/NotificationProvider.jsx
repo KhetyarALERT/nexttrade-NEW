@@ -173,7 +173,7 @@ export function NotificationProvider({ children }) {
     });
   }, []);
 
-  // Create notification
+  // Create notification - now only shows toast, backend creates the record
   const createNotification = useCallback(async (data) => {
     try {
       const user = await base44.auth.me();
@@ -196,14 +196,8 @@ export function NotificationProvider({ children }) {
 
       if (typePrefs[data.type] === false) return;
 
-      const notification = await base44.entities.Notification.create({
-        user_id: user.id,
-        ...data,
-        read: false
-      });
-
-      setNotifications(prev => [notification, ...prev]);
-      setUnreadCount(prev => prev + 1);
+      // Just show toast - actual notification record is created by backend/service
+      const notification = { ...data, id: `temp_${Date.now()}`, user_id: user.id, read: false };
       showToast(notification);
 
       return notification;
