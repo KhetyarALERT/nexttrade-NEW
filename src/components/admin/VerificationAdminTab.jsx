@@ -26,12 +26,16 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
   const [selectedVerification, setSelectedVerification] = useState(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [reviewAction, setReviewAction] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminResponse, setAdminResponse] = useState('');
   const [processing, setProcessing] = useState(false);
   const [runningCleanup, setRunningCleanup] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [overrideUserId, setOverrideUserId] = useState('');
+  const [overrideStatus, setOverrideStatus] = useState('verified');
+  const [overrideReason, setOverrideReason] = useState('');
   const [editForm, setEditForm] = useState({
     full_name: '',
     date_of_birth: '',
@@ -69,6 +73,37 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
       toast.error('Cleanup failed: ' + err.message);
     } finally {
       setRunningCleanup(false);
+    }
+  };
+
+  const handleAdminOverride = async () => {
+    if (!overrideUserId || !overrideStatus) {
+      toast.error('User ID and status required');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const res = await base44.functions.invoke("verificationService", {
+        action: "adminSetStatus",
+        userId: overrideUserId,
+        newStatus: overrideStatus,
+        reason: overrideReason || "Admin override"
+      });
+      
+      if (!res.data?.ok) {
+        throw new Error(res.data?.error || "Failed to set status");
+      }
+
+      toast.success(`User ${overrideUserId} status set to ${overrideStatus}`);
+      setOverrideDialogOpen(false);
+      setOverrideUserId('');
+      setOverrideReason('');
+      onRefresh();
+    } catch (err) {
+      toast.error('Override failed: ' + err.message);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -238,35 +273,55 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
 
   return (
     <div className="space-y-6">
-      {/* Cleanup Button */}
-      <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div>
-            <p className="font-semibold text-foreground">Data Cleanup Tool</p>
-            <p className="text-xs text-muted-foreground">Fix duplicate verification requests and sync UserVerification status</p>
-          </div>
-          <div className="flex gap-2">
+      {/* Admin Tools */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Cleanup Tool */}
+        <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4">
+            <p className="font-semibold text-foreground mb-1">Data Cleanup Tool</p>
+            <p className="text-xs text-muted-foreground mb-3">Fix duplicate KYC requests and sync UserVerification status</p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => runCleanup(true)}
+                disabled={runningCleanup}
+                variant="outline"
+                size="sm"
+                className="border-amber-600 text-amber-600 hover:bg-amber-50"
+              >
+                {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+                Dry Run
+              </Button>
+              <Button
+                onClick={() => runCleanup(false)}
+                disabled={runningCleanup}
+                variant="outline"
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white border-0"
+              >
+                {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+                Run Cleanup
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Admin Override Tool */}
+        <Card className="border-blue-500/30 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="p-4">
+            <p className="font-semibold text-foreground mb-1">Manual Status Override</p>
+            <p className="text-xs text-muted-foreground mb-3">Directly set UserVerification status for any user</p>
             <Button
-              onClick={() => runCleanup(true)}
-              disabled={runningCleanup}
+              onClick={() => setOverrideDialogOpen(true)}
               variant="outline"
-              className="border-amber-600 text-amber-600 hover:bg-amber-50"
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white border-0"
             >
-              {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
-              Dry Run
+              <Shield className="h-4 w-4 mr-2" />
+              Override Status
             </Button>
-            <Button
-              onClick={() => runCleanup(false)}
-              disabled={runningCleanup}
-              variant="outline"
-              className="bg-amber-600 hover:bg-amber-700 text-white border-0"
-            >
-              {runningCleanup ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
-              Run Cleanup
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
       
       {/* Pending/Help Requests */}
       <Card className={pendingVerifications.length > 0 ? 'border-orange-500/30' : ''}>
@@ -565,9 +620,63 @@ export default function VerificationAdminTab({ verifications, onRefresh, formatD
         </DialogContent>
       </Dialog>
 
+      {/* Admin Override Dialog */}
+      <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manual Status Override</DialogTitle>
+            <DialogDescription>Directly set UserVerification status for any user</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>User ID</Label>
+              <Input
+                value={overrideUserId}
+                onChange={(e) => setOverrideUserId(e.target.value)}
+                placeholder="Enter user ID"
+              />
+            </div>
+            <div>
+              <Label>New Status</Label>
+              <Select value={overrideStatus} onValueChange={setOverrideStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="verified">Verified</SelectItem>
+                  <SelectItem value="unverified">Unverified</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {overrideStatus === 'rejected' && (
+              <div>
+                <Label>Reason (optional)</Label>
+                <Textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Reason for rejection..."
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAdminOverride} disabled={processing || !overrideUserId}>
+              {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Set Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Image Preview */}
       <Dialog open={!!imagePreviewUrl} onOpenChange={() => setImagePreviewUrl(null)}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-none" aria-describedby={undefined}>
+          <DialogHeader className="sr-only">
+            <DialogTitle>Document Preview</DialogTitle>
+          </DialogHeader>
           {imagePreviewUrl && (
             <div className="relative flex justify-center items-center h-[80vh]">
               <img src={imagePreviewUrl} alt="Document" className="max-h-full max-w-full object-contain" />

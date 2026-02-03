@@ -71,19 +71,20 @@ export function useUserReadiness({ enabled = true } = {}) {
       }
       
       // === No active account - check onboarding status (NON-BLOCKING for viewing) ===
-      // These checks determine WHAT ACTION to show, but don't block the Futures page
-      const [verifications, requests] = await Promise.all([
-        base44.entities.VerificationRequest.filter({ user_id: user.id }, '-submitted_at', 1),
+      // Use UserVerification as single source of truth
+      const [uvRes, requests] = await Promise.all([
+        base44.functions.invoke("verificationService", { action: "getStatus" }),
         base44.entities.LiveAccountRequest.filter({ user_id: user.id }, '-created_date', 1)
       ]);
       
-      const verification = verifications?.[0] || null;
+      const uvData = uvRes.data?.ok && uvRes.data.data?.exists ? uvRes.data.data : null;
       const request = requests?.[0] || null;
       
-      // KYC status
-      const kycApproved = verification?.status === 'approved';
-      const kycRejected = verification?.status === 'rejected';
-      const kycPending = verification && !kycApproved && !kycRejected;
+      // KYC status from UserVerification only
+      const kycApproved = uvData?.status === 'verified';
+      const kycRejected = uvData?.status === 'rejected';
+      const kycPending = uvData?.status === 'pending';
+      const kycUnverified = !uvData || uvData.status === 'unverified';
       
       // Request status
       const hasRequest = !!request;
@@ -96,7 +97,7 @@ export function useUserReadiness({ enabled = true } = {}) {
       // IMPORTANT: blocking=false means Futures page is accessible (for viewing/demo)
       // User just sees a prompt to complete onboarding for full trading
       
-      if (!verification || kycRejected) {
+      if (kycUnverified || kycRejected) {
         // Need KYC
         setIsReady(false);
         setNextAction({
@@ -106,9 +107,9 @@ export function useUserReadiness({ enabled = true } = {}) {
             ar: kycRejected ? "إعادة تقديم التحقق" : "أكمل التحقق" 
           },
           reason: kycRejected 
-            ? (verification?.rejection_reason || "KYC verification was rejected") 
+            ? (uvData?.rejection_reason || "KYC verification was rejected") 
             : "Identity verification required for live trading",
-          blocking: false // Allow viewing Futures but show prompt
+          blocking: false
         });
         setLoading(false);
         return;

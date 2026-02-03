@@ -484,6 +484,62 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ========== ADMIN SET STATUS (Direct Override) ==========
+    if (action === "adminSetStatus") {
+      if (user.role !== "admin") {
+        return Response.json({ ok: false, error: "Admin only" }, { status: 403 });
+      }
+
+      const { userId, newStatus, reason } = body;
+      if (!userId || !newStatus) {
+        return Response.json({ ok: false, error: "userId and newStatus required" });
+      }
+
+      const validStatuses = ["unverified", "pending", "verified", "rejected"];
+      if (!validStatuses.includes(newStatus)) {
+        return Response.json({ ok: false, error: "Invalid status" });
+      }
+
+      // Get or create UserVerification
+      const uvRecords = await base44.asServiceRole.entities.UserVerification.filter({ user_id: userId });
+      
+      const updateData = {
+        status: newStatus
+      };
+
+      if (newStatus === "verified") {
+        updateData.verified_at = new Date().toISOString();
+        updateData.verified_by = user.email;
+        updateData.rejection_reason = null;
+        updateData.rejected_at = null;
+      } else if (newStatus === "rejected") {
+        updateData.rejection_reason = reason || "Admin override";
+        updateData.rejected_at = new Date().toISOString();
+        updateData.verified_at = null;
+        updateData.verified_by = null;
+      } else if (newStatus === "unverified") {
+        updateData.verified_at = null;
+        updateData.verified_by = null;
+        updateData.rejection_reason = null;
+        updateData.rejected_at = null;
+      }
+
+      if (uvRecords.length === 0) {
+        // Create new record
+        const targetUser = await base44.asServiceRole.entities.User.filter({ id: userId });
+        await base44.asServiceRole.entities.UserVerification.create({
+          user_id: userId,
+          user_email: targetUser[0]?.email || "",
+          ...updateData
+        });
+      } else {
+        // Update existing
+        await base44.asServiceRole.entities.UserVerification.update(uvRecords[0].id, updateData);
+      }
+
+      return Response.json({ ok: true, status: newStatus });
+    }
+
     return Response.json({ ok: false, error: "Unknown action" });
 
   } catch (error) {
