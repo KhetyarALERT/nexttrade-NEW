@@ -253,7 +253,28 @@ export function NotificationProvider({ children }) {
   // Update preferences
   const updatePreferences = useCallback(async (updates) => {
     try {
-      if (!preferences) return;
+      if (!preferences?.id) {
+        // No preferences record yet - try to create one
+        const user = await base44.auth.me();
+        if (!user) return;
+        
+        try {
+          const newPrefs = await base44.entities.UserPreferences.create({
+            user_id: user.id,
+            ...updates
+          });
+          setPreferences(newPrefs);
+          if (updates.timezone) {
+            const normalized = normalizeTimeZone(updates.timezone);
+            setTimezone(normalized || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+          }
+          return;
+        } catch (createErr) {
+          console.warn("Failed to create preferences:", createErr?.message);
+          return;
+        }
+      }
+      
       await base44.entities.UserPreferences.update(preferences.id, updates);
       setPreferences(prev => ({ ...prev, ...updates }));
       if (updates.timezone) {
@@ -262,6 +283,7 @@ export function NotificationProvider({ children }) {
       }
     } catch (err) {
       console.error("Failed to update preferences:", err);
+      throw err; // Re-throw so UI can show error
     }
   }, [preferences, normalizeTimeZone]);
 
