@@ -643,7 +643,9 @@ Deno.serve(async (req) => {
       if (type) query.type = type;
       if (status) query.status = status;
       
-      let transactions = await base44.entities.WalletTransaction.filter(query, '-created_date', limit + skip);
+      // Use asServiceRole to bypass RLS issues (records created by service have service email as created_by)
+      // Security: we explicitly filter by user.id which is already authenticated
+      let transactions = await base44.asServiceRole.entities.WalletTransaction.filter(query, '-created_date', limit + skip);
       transactions = transactions.slice(skip, skip + limit);
       
       return Response.json({ success: true, data: transactions || [] });

@@ -129,14 +129,18 @@ export function NotificationProvider({ children }) {
         setTimezone(normalizeTimeZone(detectedTz) || "UTC");
       }
 
-      // Load notifications
-      const notifs = await base44.entities.Notification.filter(
-        { user_id: user.id },
-        '-created_date',
-        50
-      );
-      setNotifications(notifs || []);
-      setUnreadCount(notifs?.filter(n => !n.read).length || 0);
+      // Load notifications via backend function to bypass RLS issues
+      // (notifications created by service role have service email as created_by)
+      try {
+        const notifsRes = await base44.functions.invoke("notifications", { action: "list", limit: 50 });
+        const notifs = notifsRes.data?.ok ? (notifsRes.data.data || []) : [];
+        setNotifications(notifs);
+        setUnreadCount(notifs.filter(n => !n.read).length || 0);
+      } catch (notifErr) {
+        console.warn("[NotificationProvider] Failed to load notifications:", notifErr?.message);
+        setNotifications([]);
+        setUnreadCount(0);
+      }
     } catch (err) {
       console.error("Failed to load notifications:", err);
     } finally {
@@ -205,7 +209,7 @@ export function NotificationProvider({ children }) {
   // Mark as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
-      await base44.entities.Notification.update(notificationId, { read: true });
+      await base44.functions.invoke("notifications", { action: "markRead", notificationId });
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
@@ -218,16 +222,13 @@ export function NotificationProvider({ children }) {
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
     try {
-      const unread = notifications.filter(n => !n.read);
-      await Promise.all(unread.map(n => 
-        base44.entities.Notification.update(n.id, { read: true })
-      ));
+      await base44.functions.invoke("notifications", { action: "markAllRead" });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
       console.error("Failed to mark all as read:", err);
     }
-  }, [notifications]);
+  }, []);
 
   // Update preferences
   const updatePreferences = useCallback(async (updates) => {
