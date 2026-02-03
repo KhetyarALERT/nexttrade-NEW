@@ -440,8 +440,10 @@ export default function Rewards({ language = "en" }) {
             {/* Voucher Ledger */}
             <VoucherLedger
               vouchers={ieData.vouchers || []}
+              vouchersByCategory={ieData.vouchersByCategory || {}}
               totalValue={ieData.totalVoucherValue || 0}
               redeemableValue={ieData.redeemableValue || 0}
+              totalDepositBonusValue={ieData.totalDepositBonusValue || 0}
               language={language}
             />
 
