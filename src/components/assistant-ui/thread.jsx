@@ -152,7 +152,15 @@ export function Thread({ language = "en", isRtl = false }) {
   const [isDragging, setIsDragging] = React.useState(false);
   const [attachments, setAttachments] = React.useState([]);
   const [conversationId, setConversationId] = React.useState(null);
+  const [showQuickActions, setShowQuickActions] = React.useState(true);
+  const [videoModal, setVideoModal] = React.useState({ open: false, youtubeId: null, title: "" });
   const fileInputRef = React.useRef(null);
+  const messagesEndRef = React.useRef(null);
+
+  // Scroll to bottom when messages change
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
   
   // Initialize conversation with agent
   React.useEffect(() => {
