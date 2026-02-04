@@ -545,7 +545,7 @@ export function Thread({ language = "en", isRtl = false }) {
         ) : null}
       </div>
 
-      <div className="border-t border-border/70 bg-background/80 px-4 py-3">
+      <div className="border-t border-border/70 bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         {/* Quick Actions - show when no messages yet */}
         {showQuickActions && messages.length === 0 && (
           <QuickActions 
