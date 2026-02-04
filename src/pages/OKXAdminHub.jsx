@@ -305,6 +305,7 @@ export default function OKXAdminHub() {
             <TabsTrigger value="pool" className="rounded-lg px-4 py-2">Pool</TabsTrigger>
             <TabsTrigger value="users" className="rounded-lg px-4 py-2">Users</TabsTrigger>
             <TabsTrigger value="referrals" className="rounded-lg px-4 py-2">Referrals</TabsTrigger>
+            <TabsTrigger value="support" className="rounded-lg px-4 py-2">Support</TabsTrigger>
             <TabsTrigger value="finance" className="rounded-lg px-4 py-2">Finance</TabsTrigger>
           </TabsList>
 
