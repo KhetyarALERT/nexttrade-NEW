@@ -414,8 +414,8 @@ export function Thread({ language = "en", isRtl = false }) {
   return (
     <div
       className={cn(
-        "flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-background via-background to-muted/20",
-        isDragging && "border-primary/70 ring-2 ring-primary/30"
+        "flex h-full flex-col overflow-hidden bg-background",
+        isDragging && "ring-2 ring-primary/30"
       )}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
