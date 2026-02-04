@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     const validCategories = ['kyc', 'deposit', 'withdraw', 'trading', 'copy_trading', 'staking', 'rewards', 'general'];
     const safeCategory = validCategories.includes(category) ? category : 'general';
 
-    // Create the ticket using service role to ensure it always succeeds
+    // Create the ticket - user can create their own tickets per RLS
     const ticketData = {
       user_id: user.id,
       user_email: user.email,
@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
       priority: 'normal',
     };
 
-    const ticket = await base44.asServiceRole.entities.SupportTicket.create(ticketData);
+    // Use regular user context (RLS allows user to create tickets with their own user_id)
+    const ticket = await base44.entities.SupportTicket.create(ticketData);
 
     // The entity automation will trigger supportTicketNotify automatically
     // But we can also call it directly for immediate notification
