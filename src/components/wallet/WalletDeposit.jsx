@@ -239,7 +239,7 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">{t.selectNetwork}</label>
               <Select value={selectedChain} onValueChange={setSelectedChain}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" data-pf="deposit-network-select">
                   <SelectValue placeholder={t.selectNetwork} />
                 </SelectTrigger>
                 <SelectContent>
@@ -286,6 +286,7 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
                     variant="ghost"
                     onClick={() => handleCopy(selectedAddress.address)}
                     className="h-7 px-2"
+                    data-pf="deposit-address-copy"
                   >
                     {copied ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" />

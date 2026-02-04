@@ -500,6 +500,7 @@ export default function WithdrawModal({
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">{t.address}</Label>
           <Input
+            data-pf="withdraw-address-input"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder={network === 'TRC20' ? 'T...' : '0x...'}
@@ -546,6 +547,7 @@ export default function WithdrawModal({
           </div>
           <div className="relative">
             <Input
+              data-pf="withdraw-amount-input"
               type="number"
               step="0.01"
               min={MIN_WITHDRAWAL}
@@ -601,6 +603,7 @@ export default function WithdrawModal({
           onClick={handleWithdraw}
           disabled={!canSubmit}
           className="w-full rounded-xl h-12 bg-primary hover:bg-primary/90"
+          data-pf="withdraw-submit"
         >
           {isSubmitting ? (
             <>

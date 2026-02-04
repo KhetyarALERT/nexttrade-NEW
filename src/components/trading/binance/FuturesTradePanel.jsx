@@ -1789,6 +1789,7 @@ export default function FuturesTradePanel({
               disabled={botsBusy}
               onClick={() => submitOpenTrade("LONG", demoMode)}
               className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "btn-long opacity-60 cursor-not-allowed" : "btn-long text-white hover:opacity-90"}`}
+              data-pf="trade-buy-long"
             >
               {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
               {demoMode ? labels.demoOpenLong : labels.openLong}
@@ -1798,6 +1799,7 @@ export default function FuturesTradePanel({
               disabled={botsBusy}
               onClick={() => submitOpenTrade("SHORT", demoMode)}
               className={`py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${botsBusy ? "btn-short opacity-60 cursor-not-allowed" : "btn-short text-white hover:opacity-90"}`}
+              data-pf="trade-sell-short"
             >
               {botsBusy && <Loader2 className="w-4 h-4 animate-spin" />}
               {demoMode ? labels.demoOpenShort : labels.openShort}

@@ -103,7 +103,8 @@ export default function CopyTradingSettingsForm({ language }) {
           </div>
           <Switch 
             checked={settings.auto_enabled} 
-            onCheckedChange={(v) => setSettings({...settings, auto_enabled: v})} 
+            onCheckedChange={(v) => setSettings({...settings, auto_enabled: v})}
+            data-pf="copytrade-auto-toggle"
           />
         </CardContent>
       </Card>
@@ -254,6 +255,7 @@ export default function CopyTradingSettingsForm({ language }) {
           onClick={handleSave} 
           disabled={saving}
           className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px]"
+          data-pf="copytrade-save"
         >
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           {language === "ar" ? "حفظ التغييرات" : "Save Changes"}

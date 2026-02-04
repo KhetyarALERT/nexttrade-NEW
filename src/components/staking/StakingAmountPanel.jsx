@@ -193,6 +193,7 @@ export default function StakingAmountPanel({
             <UsdtIcon size="sm" language={language} />
           </div>
           <Input
+            data-pf="stake-amount-input"
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -319,6 +320,7 @@ export default function StakingAmountPanel({
           onClick={() => onStake(useCopyTrading ? 'COPY_TRADING' : 'MAIN')} 
           disabled={processing || !isValidAmount}
           className="flex-1 h-11"
+          data-pf="stake-confirm"
         >
           {processing ? (
             <>

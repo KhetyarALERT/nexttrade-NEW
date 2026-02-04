@@ -1159,6 +1159,7 @@ export default function Profile({ language = "en" }) {
                   {/* Hide button when verified */}
                   {existingVerification?.status !== 'approved' && (
                     <Button
+                      data-pf="verify-button"
                       onClick={() => setVerificationModalOpen(true)}
                       className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-lg"
                     >

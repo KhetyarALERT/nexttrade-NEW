@@ -37,6 +37,95 @@ const formatShortAddress = (address, start = 6, end = 4) => {
   return `${str.slice(0, start)}...${str.slice(-end)}`;
 };
 
+// Product Fruits Integration - CRITICAL: Script-based, not npm package
+function useProductFruits({ user, language, isAuthenticated }) {
+  const pfInitializedRef = useRef(false);
+  const workspaceCode = import.meta.env.VITE_PF_WORKSPACE_CODE;
+
+  useEffect(() => {
+    // Only load if workspace code is set and user is authenticated
+    if (!workspaceCode || !isAuthenticated || !user?.id) {
+      return;
+    }
+
+    // Load Product Fruits script if not already loaded
+    if (!window.productFruits && !document.getElementById('product-fruits-script')) {
+      const script = document.createElement('script');
+      script.id = 'product-fruits-script';
+      script.src = 'https://app.productfruits.com/static/script.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
+
+    // Initialize Product Fruits once script is loaded
+    const initializePF = () => {
+      if (window.productFruits && !pfInitializedRef.current) {
+        window.productFruits.init(
+          workspaceCode,
+          language || 'en',
+          {
+            username: String(user.id),
+            email: user.email,
+            firstname: user.full_name,
+            role: user.role,
+          }
+        );
+        pfInitializedRef.current = true;
+      }
+    };
+
+    // If script already loaded, init immediately
+    if (window.productFruits) {
+      initializePF();
+    } else {
+      // Wait for script to load
+      const checkInterval = setInterval(() => {
+        if (window.productFruits) {
+          clearInterval(checkInterval);
+          initializePF();
+        }
+      }, 100);
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [workspaceCode, isAuthenticated, user?.id, user?.email, user?.full_name, user?.role, language]);
+
+  // Cleanup on logout or user change
+  useEffect(() => {
+    return () => {
+      if (pfInitializedRef.current && window.productFruits?.services?.destroy) {
+        window.productFruits.services.destroy();
+        pfInitializedRef.current = false;
+      }
+    };
+  }, [user?.id]);
+
+  // Re-initialize on language change
+  useEffect(() => {
+    if (pfInitializedRef.current && window.productFruits && user?.id && isAuthenticated) {
+      // Destroy and re-init with new language
+      window.productFruits.services?.destroy?.();
+      pfInitializedRef.current = false;
+      
+      setTimeout(() => {
+        if (window.productFruits) {
+          window.productFruits.init(
+            workspaceCode,
+            language || 'en',
+            {
+              username: String(user.id),
+              email: user.email,
+              firstname: user.full_name,
+              role: user.role,
+            }
+          );
+          pfInitializedRef.current = true;
+        }
+      }, 100);
+    }
+  }, [language, workspaceCode, user?.id, user?.email, user?.full_name, user?.role, isAuthenticated]);
+}
+
 // Import haptic utility with patterns
 import { triggerHaptic } from "@/components/mobile/haptics";
 
@@ -257,6 +346,9 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
   const location = useLocation();
   const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
   const solWallet = useSolanaWallet();
+
+  // Initialize Product Fruits for authenticated users
+  useProductFruits({ user, language, isAuthenticated });
 
   const STORAGE_KEYS = {
     language: "app_language",
