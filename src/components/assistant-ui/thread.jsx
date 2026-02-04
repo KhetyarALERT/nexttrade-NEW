@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
 import QuickActions from "./QuickActions";
-import SuggestionChips, { getSuggestionsForConversation } from "./SuggestionChips";
+import SuggestionChips, { getSuggestionsForConversation, createTicketDirect } from "./SuggestionChips";
 import VideoModal from "@/components/help/VideoModal";
 
 const AGENT_NAME = "supportAssistant";
@@ -74,6 +74,8 @@ export function Thread({ language = "en", isRtl = false }) {
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [videoModal, setVideoModal] = useState({ open: false, youtubeId: null, title: "" });
   const [streamingContent, setStreamingContent] = useState("");
+  const [ticketStatus, setTicketStatus] = useState(null); // { loading, success, error, reference }
+  const [hasGreeted, setHasGreeted] = useState(false);
   
   // Refs
   const fileInputRef = useRef(null);
@@ -240,6 +242,47 @@ export function Thread({ language = "en", isRtl = false }) {
 
   const handleSuggestionVideo = (youtubeId, title) => {
     setVideoModal({ open: true, youtubeId, title });
+  };
+
+  // Handle "Talk to support" - create ticket directly
+  const handleCreateTicket = async () => {
+    setTicketStatus({ loading: true });
+    
+    // Build message from recent conversation
+    const recentMessages = messages.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n');
+    const message = recentMessages || (language === "ar" ? "طلب دعم بشري" : "Request for human support");
+    
+    // Detect category from conversation
+    const conversationText = messages.map(m => m.content || '').join(' ').toLowerCase();
+    let category = 'general';
+    if (conversationText.includes('kyc') || conversationText.includes('توثيق') || conversationText.includes('verify')) category = 'kyc';
+    else if (conversationText.includes('deposit') || conversationText.includes('إيداع')) category = 'deposit';
+    else if (conversationText.includes('withdraw') || conversationText.includes('سحب')) category = 'withdraw';
+    else if (conversationText.includes('trade') || conversationText.includes('تداول') || conversationText.includes('futures')) category = 'trading';
+    else if (conversationText.includes('copy') || conversationText.includes('نسخ') || conversationText.includes('signal')) category = 'copy_trading';
+    else if (conversationText.includes('stake') || conversationText.includes('ستيكينغ')) category = 'staking';
+    else if (conversationText.includes('reward') || conversationText.includes('مكافأ')) category = 'rewards';
+    
+    const result = await createTicketDirect(category, message, window.location.pathname, language);
+    
+    if (result.ok) {
+      setTicketStatus({ success: true, reference: result.reference });
+      // Add confirmation message to chat
+      const confirmMsg = language === "ar" 
+        ? `✅ تم فتح تذكرة ${result.reference}. فريقنا سيتواصل معك خلال 24 ساعة.`
+        : `✅ Ticket ${result.reference} created. Our team will contact you within 24 hours.`;
+      setMessages(prev => [...prev, {
+        id: `ticket-confirm-${Date.now()}`,
+        role: 'assistant',
+        content: confirmMsg,
+        time: new Date().toISOString(),
+      }]);
+    } else {
+      setTicketStatus({ error: result.error || 'Failed to create ticket' });
+    }
+    
+    // Clear status after 5 seconds
+    setTimeout(() => setTicketStatus(null), 5000);
   };
 
   // Core send message function
@@ -462,8 +505,25 @@ export function Thread({ language = "en", isRtl = false }) {
                 onSelect={handleSuggestionSelect}
                 onRoute={handleSuggestionRoute}
                 onVideo={handleSuggestionVideo}
-                disabled={isLoading}
+                onTicket={handleCreateTicket}
+                disabled={isLoading || ticketStatus?.loading}
               />
+            </div>
+          )}
+          
+          {/* Ticket status toast */}
+          {ticketStatus?.loading && (
+            <div className={cn("flex", isRtl ? "justify-end" : "justify-start")}>
+              <div className="rounded-xl bg-muted px-4 py-2 text-sm text-muted-foreground animate-pulse">
+                {language === "ar" ? "جاري فتح التذكرة..." : "Creating ticket..."}
+              </div>
+            </div>
+          )}
+          {ticketStatus?.error && (
+            <div className={cn("flex", isRtl ? "justify-end" : "justify-start")}>
+              <div className="rounded-xl bg-destructive/10 text-destructive px-4 py-2 text-sm">
+                {language === "ar" ? "فشل فتح التذكرة. حاول مرة أخرى." : "Failed to create ticket. Please try again."}
+              </div>
             </div>
           )}
 
