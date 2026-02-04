@@ -60,7 +60,8 @@ export default function Trading({ language = "en" }) {
     } else {
       newParams.delete('tab'); // default to trade
     }
-    setSearchParams(newParams);
+    // Use replace to avoid stacking history entries when switching modes
+    setSearchParams(newParams, { replace: true });
   };
   const { isReady, nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated && !isLoadingAuth });
   const isAr = language === "ar";
@@ -81,13 +82,16 @@ export default function Trading({ language = "en" }) {
     return normalizeOkxSymbol(stored || "BTC-USDT-SWAP") || "BTC-USDT-SWAP";
   });
   
-  // Apply deep-link instId on mount if present
+  // Apply deep-link instId on mount if present (no navigation side effects)
   useEffect(() => {
     if (urlInstId) {
       const normalized = normalizeOkxSymbol(urlInstId);
-      if (normalized) setSelectedSymbol(normalized);
+      if (normalized && normalized !== selectedSymbol) {
+        setSelectedSymbol(normalized);
+      }
     }
-  }, [urlInstId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlInstId]); // Only run when urlInstId changes, not selectedSymbol
 
   // Market data state
   const [lastPrice, setLastPrice] = useState(0);
