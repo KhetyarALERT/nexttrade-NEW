@@ -929,6 +929,10 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                             properties: { method: "manual" }
                           });
                         }
+                        // Destroy Product Fruits before logout
+                        if (window.productFruits?.services?.destroy) {
+                          window.productFruits.services.destroy();
+                        }
                         logout(true);
                       }}
                       className="text-rose-600 focus:text-rose-700"
