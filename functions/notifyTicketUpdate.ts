@@ -128,3 +128,4 @@ function getStatusLabel(status, lang) {
   };
   return labels[status]?.[lang] || labels.open[lang];
 }
+// Trigger redeploy
