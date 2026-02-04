@@ -1,10 +1,12 @@
 import React from "react";
-import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X } from "lucide-react";
+import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X, ExternalLink, Play } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
+import QuickActions from "./QuickActions";
+import VideoModal from "@/components/help/VideoModal";
 
 const AGENT_NAME = "supportAssistant";
 
