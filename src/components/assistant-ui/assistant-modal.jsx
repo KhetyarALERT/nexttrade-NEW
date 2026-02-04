@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, ShieldCheck, AlertCircle } from "lucide-react";
 import { AssistantModalPrimitive } from "@/lib/assistant-ui/react";
 import { useLocation } from "react-router-dom";
 
@@ -7,6 +7,9 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { tAssistant } from "@/components/i18n/translations";
 import { cn } from "@/lib/utils";
 import { useMobileNavigation } from "@/components/mobile/MobileNavigationContext";
+import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/base44Client";
+import { Badge } from "@/components/ui/badge";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 
