@@ -16,20 +16,11 @@ const COINS = [
   { id: "cardano", binance: "adausdt", bingx: "ADA-USDT" },
 ];
 
-// Commodities - Gold & Silver (via tether-gold and pax-gold for gold exposure)
+// Commodities - Gold & Silver from CoinGecko
 const COMMODITIES = [
   { id: "tether-gold", symbol: "XAUT", name: "Gold (XAU)", isCommodity: true },
-  { id: "pax-gold", symbol: "PAXG", name: "Gold (PAXG)", isCommodity: true, hidden: true }, // backup
+  { id: "silver-token", symbol: "XAG", name: "Silver (XAG)", isCommodity: true },
 ];
-
-// Silver commodity proxy (no direct CoinGecko, use static or fetch from metals API)
-const SILVER_FALLBACK = {
-  id: "silver",
-  symbol: "XAG",
-  name: "Silver (XAG)",
-  isCommodity: true,
-  image: "https://cdn-icons-png.flaticon.com/512/3135/3135706.png" // Silver icon
-};
 
 // Memoized Sparkline component to prevent unnecessary re-renders
 const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 }) {
@@ -97,8 +88,8 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
               isCommodity: false
             }));
           
-          // Map commodities (gold tokens)
-          const goldData = data
+          // Map commodities (gold & silver tokens)
+          const commodityData = data
             .filter(coin => COMMODITIES.some(c => c.id === coin.id))
             .map(coin => {
               const config = COMMODITIES.find(c => c.id === coin.id);
@@ -111,40 +102,10 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
               };
             });
           
-          // Fetch silver price from metals API (free tier)
-          let silverData = null;
-          try {
-            const silverRes = await fetch(
-              "https://api.metals.live/v1/spot/silver",
-              { signal: abortControllerRef.current.signal }
-            );
-            if (silverRes.ok) {
-              const silverJson = await silverRes.json();
-              // metals.live returns array with price per oz
-              const silverPrice = silverJson?.[0]?.price || null;
-              if (silverPrice) {
-                silverData = {
-                  id: "silver",
-                  symbol: "XAG",
-                  name: "Silver (XAG)",
-                  current_price: silverPrice,
-                  price_change_percentage_24h: null, // API doesn't provide this
-                  image: "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
-                  isCommodity: true,
-                  sparkline_in_7d: null,
-                  binanceSymbol: null
-                };
-              }
-            }
-          } catch {
-            // Silver API failed, skip silently
-          }
-          
           // Combine all data: crypto first, then commodities
           const combined = [
             ...cryptoData,
-            ...goldData,
-            ...(silverData ? [silverData] : [])
+            ...commodityData
           ];
           
           setMarketData(combined);
