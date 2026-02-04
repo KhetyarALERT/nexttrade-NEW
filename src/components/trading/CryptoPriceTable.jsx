@@ -22,10 +22,10 @@ const COMMODITIES = [
   { id: "kinesis-silver", symbol: "KAG", name: "Silver (XAG)", isCommodity: true, displaySymbol: "XAG" },
 ];
 
-// Official commodity icon URLs
+// Official commodity icon URLs - using well-known trading platform icons
 const COMMODITY_ICONS = {
-  XAU: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png", // Gold bar icon
-  XAG: "https://cdn-icons-png.flaticon.com/512/2489/2489753.png", // Silver bar icon
+  XAU: "https://s2.coinmarketcap.com/static/img/coins/64x64/5176.png", // Tether Gold (XAUT) official logo
+  XAG: "https://s2.coinmarketcap.com/static/img/coins/64x64/24478.png", // Kinesis Silver (KAG) official logo
 };
 
 // Memoized Sparkline component to prevent unnecessary re-renders
