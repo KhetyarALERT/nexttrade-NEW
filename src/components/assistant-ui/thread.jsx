@@ -519,6 +519,7 @@ export function Thread({ language = "en", isRtl = false }) {
               </div>
             </div>
           ) : null}
+          <div ref={messagesEndRef} />
         </div>
         {isDragging ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 text-sm font-medium text-muted-foreground">
