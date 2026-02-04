@@ -127,7 +127,11 @@ function AssistantMarkdown({ content, navigate, language }) {
   );
 }
 
-export function Thread({ language = "en", isRtl = false }) {
+// Storage keys for persistence
+const STORAGE_KEY_CONV_ID = "support_chat_conversation_id";
+const STORAGE_KEY_MESSAGES = "support_chat_messages";
+
+export function Thread({ language = "en", isRtl = false, onNavigate }) {
   const navigate = useNavigate();
   const t = useMemo(() => tAssistant(language), [language]);
   
@@ -143,6 +147,7 @@ export function Thread({ language = "en", isRtl = false }) {
   const [streamingContent, setStreamingContent] = useState("");
   const [ticketStatus, setTicketStatus] = useState(null); // { loading, success, error, reference }
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   
   // Refs
   const fileInputRef = useRef(null);
@@ -151,18 +156,57 @@ export function Thread({ language = "en", isRtl = false }) {
   const conversationRef = useRef(null);
 
   const isLoading = chatState === CHAT_STATE.SENDING_USER || chatState === CHAT_STATE.ASSISTANT_TYPING;
+  
+  // SPA Navigation helper - navigates without reloading page
+  const navigateFromWidget = useCallback((path) => {
+    // Use passed callback or direct navigate
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      navigate(path);
+    }
+  }, [navigate, onNavigate]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent, isLoading]);
 
-  // Initialize conversation
+  // Initialize or restore conversation with persistence
   useEffect(() => {
     let mounted = true;
     
     const initConversation = async () => {
       try {
+        // Try to restore existing conversation from localStorage
+        const savedConvId = localStorage.getItem(STORAGE_KEY_CONV_ID);
+        const savedMessages = localStorage.getItem(STORAGE_KEY_MESSAGES);
+        
+        if (savedConvId && savedMessages) {
+          try {
+            // Verify conversation still exists
+            const existingConv = await base44.agents.getConversation(savedConvId);
+            if (mounted && existingConv) {
+              setConversationId(savedConvId);
+              conversationRef.current = existingConv;
+              
+              // Restore messages from local storage for instant display
+              const parsedMessages = JSON.parse(savedMessages);
+              if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+                setMessages(parsedMessages);
+                setShowQuickActions(false);
+              }
+              setInitialized(true);
+              return;
+            }
+          } catch {
+            // Conversation no longer valid, clear and create new
+            localStorage.removeItem(STORAGE_KEY_CONV_ID);
+            localStorage.removeItem(STORAGE_KEY_MESSAGES);
+          }
+        }
+        
+        // Create new conversation
         const conversation = await base44.agents.createConversation({
           agent_name: AGENT_NAME,
           metadata: { name: "Support Chat", language }
@@ -170,9 +214,12 @@ export function Thread({ language = "en", isRtl = false }) {
         if (mounted) {
           setConversationId(conversation.id);
           conversationRef.current = conversation;
+          localStorage.setItem(STORAGE_KEY_CONV_ID, conversation.id);
+          setInitialized(true);
         }
       } catch (err) {
-        console.error("[CHAT] Failed to create conversation:", err.message);
+        console.error("[CHAT] Failed to init conversation:", err.message);
+        setInitialized(true);
       }
     };
     
@@ -219,6 +266,13 @@ export function Thread({ language = "en", isRtl = false }) {
         if (validMessages.length > 0) {
           setMessages(validMessages);
           lastMessageCountRef.current = validMessages.length;
+          
+          // Persist messages to localStorage
+          try {
+            localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(validMessages));
+          } catch {
+            // Ignore storage errors
+          }
           
           // Check if last message is a complete assistant reply
           const finalMsg = validMessages[validMessages.length - 1];
@@ -304,8 +358,35 @@ export function Thread({ language = "en", isRtl = false }) {
   };
 
   const handleSuggestionRoute = (route) => {
-    navigate(route);
+    // Use SPA navigation - no page reload
+    navigateFromWidget(route);
   };
+  
+  // Clear conversation handler
+  const handleClearConversation = useCallback(async () => {
+    try {
+      // Clear local storage
+      localStorage.removeItem(STORAGE_KEY_CONV_ID);
+      localStorage.removeItem(STORAGE_KEY_MESSAGES);
+      
+      // Reset state
+      setMessages([]);
+      setShowQuickActions(true);
+      setChatState(CHAT_STATE.IDLE);
+      setStreamingContent("");
+      
+      // Create new conversation
+      const conversation = await base44.agents.createConversation({
+        agent_name: AGENT_NAME,
+        metadata: { name: "Support Chat", language }
+      });
+      setConversationId(conversation.id);
+      conversationRef.current = conversation;
+      localStorage.setItem(STORAGE_KEY_CONV_ID, conversation.id);
+    } catch (err) {
+      console.error("[CHAT] Failed to clear conversation:", err.message);
+    }
+  }, [language]);
 
   const handleSuggestionVideo = (youtubeId, title) => {
     setVideoModal({ open: true, youtubeId, title });
@@ -369,7 +450,16 @@ export function Thread({ language = "en", isRtl = false }) {
       time: new Date().toISOString(),
       attachments: [...attachments],
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => {
+      const updated = [...prev, userMessage];
+      // Persist immediately
+      try {
+        localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
+      } catch {
+        // Ignore
+      }
+      return updated;
+    });
     setAttachments([]);
 
     try {
@@ -494,7 +584,7 @@ export function Thread({ language = "en", isRtl = false }) {
                     ) : (
                       <AssistantMarkdown 
                         content={message.content} 
-                        navigate={navigate}
+                        navigate={navigateFromWidget}
                         language={language}
                       />
                     )}
@@ -597,6 +687,18 @@ export function Thread({ language = "en", isRtl = false }) {
 
       {/* Input Area */}
       <div className="border-t border-border/70 bg-background px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        {/* Clear conversation button - only show if messages exist */}
+        {messages.length > 0 && !isLoading && (
+          <div className="flex justify-center mb-2">
+            <button
+              type="button"
+              onClick={handleClearConversation}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {language === "ar" ? "مسح المحادثة" : "Clear conversation"}
+            </button>
+          </div>
+        )}
         {/* Quick Actions - only when empty */}
         {showQuickActions && messages.length === 0 && (
           <QuickActions
@@ -678,7 +780,7 @@ export function Thread({ language = "en", isRtl = false }) {
             )}
           </Button>
         </div>
-      </div>
+      </div></div>
 
       {/* Video Modal */}
       {videoModal.open && (

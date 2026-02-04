@@ -38,15 +38,23 @@ export default function VideoModal({ open, onClose, youtubeId, title }) {
   const [loadState, setLoadState] = useState("loading"); // loading | loaded | error
   const iframeRef = useRef(null);
   const loadTimeoutRef = useRef(null);
+  const loadStateRef = useRef(loadState);
+  
+  // Keep ref in sync
+  useEffect(() => {
+    loadStateRef.current = loadState;
+  }, [loadState]);
 
   // Reset load state when video changes
   useEffect(() => {
     if (open && youtubeId) {
       setLoadState("loading");
+      loadStateRef.current = "loading";
       
       // Fallback timeout - if iframe doesn't load in 5s, show fallback
       loadTimeoutRef.current = setTimeout(() => {
-        if (loadState === "loading") {
+        // Use ref to check current state (avoid stale closure)
+        if (loadStateRef.current === "loading") {
           setLoadState("error");
         }
       }, 5000);
@@ -73,9 +81,9 @@ export default function VideoModal({ open, onClose, youtubeId, title }) {
 
   if (!open) return null;
 
-  // Use youtube-nocookie.com for better embed compatibility + proper params
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(origin)}`;
+  // Use standard youtube.com/embed - youtube-nocookie can cause issues in some contexts
+  // Do NOT use autoplay=1 as it can trigger playback errors in restricted contexts
+  const embedUrl = `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 
   return (
     <div

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { X, ShieldCheck, AlertCircle, MessageCircle } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { tAssistant } from "@/components/i18n/translations";
@@ -19,6 +19,7 @@ export function AssistantModal({ language = "en" }) {
   const t = tAssistant(language);
   const isRtl = language === "ar";
   const location = useLocation();
+  const navigate = useNavigate();
   const { assistantModalOpen, closeAssistantModal, openAssistantModal } = useMobileNavigation();
   const { user, isAuthenticated } = useAuth();
   const [kycStatus, setKycStatus] = useState(null);
@@ -136,7 +137,14 @@ export function AssistantModal({ language = "en" }) {
 
           {/* Chat Body - fills remaining space */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <Thread language={language} isRtl={isRtl} />
+            <Thread 
+              language={language} 
+              isRtl={isRtl} 
+              onNavigate={(path) => {
+                // Navigate using SPA router, keep widget open
+                navigate(path);
+              }}
+            />
           </div>
         </SheetContent>
       </Sheet>
