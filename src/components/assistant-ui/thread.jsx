@@ -274,6 +274,64 @@ export function Thread({ language = "en", isRtl = false }) {
     };
   }, [attachments]);
 
+  // Handle quick action selection
+  const handleQuickAction = async (actionKey, label) => {
+    setShowQuickActions(false);
+    // Send the query as if user typed it
+    const query = language === "ar" 
+      ? `أريد مساعدة في: ${label}`
+      : `I need help with: ${label}`;
+    setComposerValue(query);
+    // Auto-send after a brief delay for UX
+    setTimeout(() => {
+      const syntheticEvent = { target: { value: query } };
+      setComposerValue(query);
+      handleSendWithContent(query);
+    }, 100);
+  };
+
+  const handleSendWithContent = async (content) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+
+    const time = new Date().toISOString();
+    const userMessage = {
+      id: `${Date.now()}-user`,
+      role: "user",
+      content: trimmed,
+      attachments: [],
+      time,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setComposerValue("");
+    setShowQuickActions(false);
+    setIsLoading(true);
+
+    try {
+      if (conversationId) {
+        const conversation = await base44.agents.getConversation(conversationId);
+        await base44.agents.addMessage(conversation, {
+          role: "user",
+          content: trimmed
+        });
+      }
+    } catch (err) {
+      console.error("[CHAT] Send error:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-error`,
+          role: "assistant",
+          content: t.errorMessage,
+          time: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSend = async () => {
     const trimmed = composerValue.trim();
     if (!trimmed && attachments.length === 0) return;
@@ -290,6 +348,7 @@ export function Thread({ language = "en", isRtl = false }) {
     setMessages((prev) => [...prev, userMessage]);
     setComposerValue("");
     setAttachments([]);
+    setShowQuickActions(false);
     setIsLoading(true);
 
     try {
