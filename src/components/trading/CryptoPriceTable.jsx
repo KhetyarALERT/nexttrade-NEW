@@ -19,7 +19,7 @@ const COINS = [
 // Commodities - Gold & Silver from CoinGecko
 const COMMODITIES = [
   { id: "tether-gold", symbol: "XAUT", name: "Gold (XAU)", isCommodity: true },
-  { id: "silver-token", symbol: "XAG", name: "Silver (XAG)", isCommodity: true },
+  { id: "kinesis-silver", symbol: "KAG", name: "Silver (XAG)", isCommodity: true },
 ];
 
 // Memoized Sparkline component to prevent unnecessary re-renders
