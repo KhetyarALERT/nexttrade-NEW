@@ -603,6 +603,16 @@ export function Thread({ language = "en", isRtl = false }) {
           </Button>
         </div>
       </div>
+
+      {/* Video Modal */}
+      {videoModal.open && (
+        <VideoModal
+          open={videoModal.open}
+          onClose={() => setVideoModal({ open: false, youtubeId: null, title: "" })}
+          youtubeId={videoModal.youtubeId}
+          title={videoModal.title}
+        />
+      )}
     </div>
   );
 }
