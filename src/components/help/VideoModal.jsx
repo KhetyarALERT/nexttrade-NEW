@@ -81,9 +81,9 @@ export default function VideoModal({ open, onClose, youtubeId, title }) {
 
   if (!open) return null;
 
-  // Use standard youtube.com/embed - youtube-nocookie can cause issues in some contexts
+  // Use youtube-nocookie.com for privacy-enhanced embed (reduces tracking/ad noise)
   // Do NOT use autoplay=1 as it can trigger playback errors in restricted contexts
-  const embedUrl = `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
 
   return (
     <div

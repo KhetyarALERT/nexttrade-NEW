@@ -9,7 +9,7 @@ import { useMobileNavigation } from "@/components/mobile/MobileNavigationContext
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 // @ts-ignore
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
@@ -100,6 +100,9 @@ export function AssistantModal({ language = "en" }) {
                 <SheetTitle className="text-base font-semibold text-foreground">
                   {language === "ar" ? "الدعم" : "Support"}
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  {language === "ar" ? "مساعد الدعم الفني" : "Support assistant chat"}
+                </SheetDescription>
                 {isAuthenticated && displayName ? (
                   <div className={cn("flex items-center gap-1.5 flex-wrap", isRtl && "flex-row-reverse justify-end")}>
                     <span className="text-xs text-muted-foreground truncate max-w-[120px]">{displayName}</span>

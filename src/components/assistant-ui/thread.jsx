@@ -62,25 +62,58 @@ function filterValidMessages(messages) {
 }
 
 /**
+ * Check if URL is internal (should use SPA navigation)
+ */
+function isInternalUrl(href) {
+  if (!href) return false;
+  // route: protocol is always internal
+  if (href.startsWith("route:")) return true;
+  // Relative paths are internal
+  if (href.startsWith("/")) return true;
+  // Same-origin URLs are internal
+  try {
+    const url = new URL(href, window.location.origin);
+    return url.origin === window.location.origin;
+  } catch {
+    // Invalid URL, treat as internal path
+    return !href.startsWith("http") && !href.startsWith("mailto:");
+  }
+}
+
+/**
+ * Extract path from href for navigation
+ */
+function extractPath(href) {
+  if (!href) return "/";
+  if (href.startsWith("route:")) return href.replace("route:", "");
+  if (href.startsWith("/")) return href;
+  try {
+    const url = new URL(href, window.location.origin);
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return href;
+  }
+}
+
+/**
  * Custom markdown renderer for assistant messages
- * Handles route: links for internal navigation
+ * ALL internal links use SPA navigation (no page refresh)
  */
 function AssistantMarkdown({ content, navigate, language }) {
   const handleLinkClick = useCallback((e, href) => {
-    // Handle route: protocol for internal navigation
-    if (href?.startsWith("route:")) {
-      e.preventDefault();
-      const path = href.replace("route:", "");
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const internal = isInternalUrl(href);
+    
+    if (internal) {
+      // SPA navigation - no reload
+      const path = extractPath(href);
       navigate(path);
-      return;
+    } else {
+      // External: open in new tab
+      window.open(href, "_blank", "noopener,noreferrer");
     }
-    // Handle internal page references like Page?tab=X
-    if (href && !href.startsWith("http") && !href.startsWith("mailto:")) {
-      e.preventDefault();
-      navigate(href);
-      return;
-    }
-    // External links open in new tab (handled by target="_blank")
   }, [navigate]);
 
   return (
@@ -88,33 +121,18 @@ function AssistantMarkdown({ content, navigate, language }) {
       className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
       components={{
         a: ({ children, href, ...props }) => {
-          const isRouteLink = href?.startsWith("route:");
-          const isExternal = href?.startsWith("http");
+          const internal = isInternalUrl(href);
           
-          if (isRouteLink) {
-            return (
-              <button
-                type="button"
-                onClick={(e) => handleLinkClick(e, href)}
-                className="text-primary hover:underline font-medium inline-flex items-center gap-1"
-              >
-                {children}
-              </button>
-            );
-          }
-          
+          // ALL links become buttons to ensure no accidental navigation
           return (
-            <a 
-              {...props} 
-              href={href}
-              target={isExternal ? "_blank" : undefined}
-              rel={isExternal ? "noopener noreferrer" : undefined}
-              onClick={isExternal ? undefined : (e) => handleLinkClick(e, href)}
-              className="text-primary hover:underline inline-flex items-center gap-1"
+            <button
+              type="button"
+              onClick={(e) => handleLinkClick(e, href)}
+              className="text-primary hover:underline font-medium inline-flex items-center gap-1"
             >
               {children}
-              {isExternal && <ExternalLink className="h-3 w-3" />}
-            </a>
+              {!internal && <ExternalLink className="h-3 w-3" />}
+            </button>
           );
         },
         code: ({ children }) => (

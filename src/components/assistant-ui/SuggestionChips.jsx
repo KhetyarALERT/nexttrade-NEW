@@ -33,7 +33,7 @@ const TOPIC_SUGGESTIONS = {
     keywords: ["withdraw", "سحب", "withdrawal", "cash out", "send funds"],
     suggestions: [
       { key: "withdraw_steps", label_en: "Withdraw steps", label_ar: "خطوات السحب", type: "prompt" },
-      { key: "open_wallet", label_en: "Go to Wallet", label_ar: "فتح المحفظة", type: "route", route: "Wallet" },
+      { key: "open_withdraw", label_en: "Open Withdraw", label_ar: "فتح صفحة السحب", type: "route", route: "Wallet?page=withdraw" },
       { key: "withdraw_status", label_en: "Check pending", label_ar: "حالة السحب", type: "prompt" },
       { key: "talk_human", label_en: "Talk to support", label_ar: "تحدث مع الدعم", type: "ticket" },
     ],
