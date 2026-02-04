@@ -1,5 +1,6 @@
 import React from "react";
 import { Check, Clock, Image as ImageIcon, Paperclip, Rocket, SendHorizontal, X, ExternalLink, Play } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -478,13 +479,29 @@ export function Thread({ language = "en", isRtl = false }) {
               >
                 <div className="max-w-[80%] space-y-2">
                   <div
-                    className={cn(
-                      "rounded-2xl px-4 py-2 text-sm shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)]",
-                      isUser ? "bg-foreground text-background" : "bg-card text-foreground"
-                    )}
-                  >
-                    {message.content}
-                  </div>
+                                    className={cn(
+                                      "rounded-2xl px-4 py-2 text-sm shadow-[0_14px_30px_-24px_rgba(15,23,42,0.45)]",
+                                      isUser ? "bg-foreground text-background" : "bg-card text-foreground"
+                                    )}
+                                  >
+                                    {isUser ? (
+                                      message.content
+                                    ) : (
+                                      <ReactMarkdown
+                                        className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5"
+                                        components={{
+                                          a: ({ children, ...props }) => (
+                                            <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{children}</a>
+                                          ),
+                                          code: ({ children }) => (
+                                            <code className="px-1 py-0.5 rounded bg-muted text-xs">{children}</code>
+                                          ),
+                                        }}
+                                      >
+                                        {message.content}
+                                      </ReactMarkdown>
+                                    )}
+                                  </div>
                   {message.attachments?.length ? (
                     <div className={cn("flex flex-wrap gap-2", isUser && !isRtl && "justify-end")}>
                       {message.attachments.map((file) => (
