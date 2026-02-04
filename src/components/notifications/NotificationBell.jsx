@@ -12,6 +12,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications } from "./NotificationProvider";
 
+import { Headphones } from "lucide-react";
+
 const NOTIFICATION_ICONS = {
   price_alert: TrendingUp,
   trade_executed: TrendingUp,
@@ -22,7 +24,11 @@ const NOTIFICATION_ICONS = {
   withdrawal_confirmed: Wallet,
   withdrawal_failed: AlertTriangle,
   staking_reward: Lock,
-  system: Info
+  system: Info,
+  ticket_created: Headphones,
+  ticket_updated: Headphones,
+  ticket_admin_reply: Headphones,
+  signal_new: TrendingUp
 };
 
 const NOTIFICATION_COLORS = {
@@ -35,7 +41,11 @@ const NOTIFICATION_COLORS = {
   withdrawal_confirmed: "bg-emerald-500/10 text-emerald-500",
   withdrawal_failed: "bg-red-500/10 text-red-500",
   staking_reward: "bg-purple-500/10 text-purple-500",
-  system: "bg-slate-500/10 text-slate-500"
+  system: "bg-slate-500/10 text-slate-500",
+  ticket_created: "bg-blue-500/10 text-blue-500",
+  ticket_updated: "bg-blue-500/10 text-blue-500",
+  ticket_admin_reply: "bg-emerald-500/10 text-emerald-500",
+  signal_new: "bg-blue-500/10 text-blue-500"
 };
 
 export default function NotificationBell({ onSettingsClick, language = "en" }) {
@@ -59,6 +69,13 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
     if (notification.data?.signalId) {
       setOpen(false);
       navigate(`${createPageUrl("Futures")}?tab=bots&signalId=${notification.data.signalId}`);
+      return;
+    }
+    
+    // Handle ticket notifications - route to appropriate page
+    if (notification.type?.startsWith('ticket_') && notification.data?.link) {
+      setOpen(false);
+      navigate(notification.data.link);
       return;
     }
     

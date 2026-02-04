@@ -142,6 +142,52 @@ NextTrade Support Team
       console.error('Failed to send user confirmation:', emailErr);
     }
 
+    // Create in-app notification for user (confirmation)
+    try {
+      const isArabic = language === 'ar';
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: user.id,
+        type: 'ticket_created',
+        title: isArabic ? `تم استلام تذكرتك ${ticketRef}` : `Ticket ${ticketRef} Received`,
+        message: isArabic 
+          ? 'سيقوم فريقنا بمراجعة طلبك والرد خلال 24 ساعة.' 
+          : 'Our team will review and respond within 24 hours.',
+        data: {
+          ticket_id: ticket.id,
+          reference: ticketRef,
+          category: safeCategory,
+          link: '/Profile?tab=support'
+        },
+        priority: 'normal'
+      });
+    } catch (notifErr) {
+      console.error('Failed to create user notification:', notifErr);
+    }
+
+    // Create in-app notification for admins (new ticket alert)
+    try {
+      // Get admin users to notify
+      const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+      for (const admin of (admins || [])) {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: admin.id,
+          type: 'ticket_created',
+          title: `[Support] New Ticket ${ticketRef}`,
+          message: `${user.email} - ${safeCategory}: ${cleanMessage.substring(0, 80)}${cleanMessage.length > 80 ? '...' : ''}`,
+          data: {
+            ticket_id: ticket.id,
+            reference: ticketRef,
+            category: safeCategory,
+            user_email: user.email,
+            link: '/OKXAdminHub?tab=support'
+          },
+          priority: 'high'
+        });
+      }
+    } catch (adminNotifErr) {
+      console.error('Failed to create admin notifications:', adminNotifErr);
+    }
+
     return Response.json({
       ok: true,
       ticket_id: ticket.id,

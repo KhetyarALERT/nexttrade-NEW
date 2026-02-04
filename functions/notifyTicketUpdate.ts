@@ -106,6 +106,34 @@ NextTrade Support Team
       from_name: 'NextTrade Support'
     });
 
+    // Create in-app notification for user
+    try {
+      const notifType = ticket.admin_response ? 'ticket_admin_reply' : 'ticket_updated';
+      const notifTitle = isArabic
+        ? (ticket.status === 'closed' ? `تم حل تذكرتك ${ticketRef}` : `تحديث على تذكرتك ${ticketRef}`)
+        : (ticket.status === 'closed' ? `Ticket ${ticketRef} Resolved` : `Update on Ticket ${ticketRef}`);
+      const notifMessage = isArabic
+        ? (ticket.admin_response ? 'تم الرد على تذكرتك من فريق الدعم.' : `الحالة: ${statusLabel}`)
+        : (ticket.admin_response ? 'Support team has replied to your ticket.' : `Status: ${statusLabel}`);
+      
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: ticket.user_id,
+        type: notifType,
+        title: notifTitle,
+        message: notifMessage,
+        data: {
+          ticket_id: ticket.id,
+          reference: ticketRef,
+          status: ticket.status,
+          has_response: !!ticket.admin_response,
+          link: '/Profile?tab=support'
+        },
+        priority: ticket.status === 'closed' ? 'normal' : 'high'
+      });
+    } catch (notifErr) {
+      console.error('Failed to create in-app notification:', notifErr);
+    }
+
     // Log the notification
     console.log(`Ticket update notification sent: ${ticketRef} -> ${ticket.user_email}`);
 
