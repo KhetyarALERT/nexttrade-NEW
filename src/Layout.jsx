@@ -1185,6 +1185,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
         onOpenChange={setNotificationSettingsOpen} 
         language={language}
       />
+      {/* Support Modal - rendered at layout level for global access */}
       {!isAdminHub && <AssistantModal language={language} />}
     </div>
     </NotificationProvider>
