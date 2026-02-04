@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { ExternalLink, Play, MessageCircle, HelpCircle, Headphones } from "lucide-react";
+import { Play, HelpCircle, Headphones, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -14,7 +14,7 @@ const TOPIC_SUGGESTIONS = {
   kyc: {
     keywords: ["kyc", "توثيق", "verify", "verification", "identity", "هوية", "document", "وثيقة", "passport", "جواز"],
     suggestions: [
-      { key: "watch_kyc_video", label_en: "Watch KYC guide", label_ar: "شاهد شرح التوثيق", type: "video", youtubeId: "kyc_guide" },
+      { key: "watch_kyc_video", label_en: "Watch KYC guide", label_ar: "شاهد شرح التوثيق", type: "video", youtubeId: "R7IeJxSWkP8" },
       { key: "open_security", label_en: "Go to Security", label_ar: "فتح الأمان", type: "route", route: "Profile?tab=security" },
       { key: "kyc_docs", label_en: "What documents?", label_ar: "ما المستندات المطلوبة؟", type: "prompt" },
       { key: "talk_human", label_en: "Talk to support", label_ar: "تحدث مع الدعم", type: "ticket" },
@@ -185,7 +185,7 @@ export default function SuggestionChips({
   const getIcon = (type, key) => {
     if (key === "talk_human") return Headphones;
     switch (type) {
-      case "route": return ExternalLink;
+      case "route": return ArrowRight; // Use arrow instead of external link (SPA navigation)
       case "video": return Play;
       case "ticket": return Headphones;
       default: return HelpCircle;
