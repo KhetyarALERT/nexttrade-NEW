@@ -70,6 +70,7 @@ export function AssistantModal({ language = "en" }) {
       <Sheet open={assistantModalOpen} onOpenChange={(open) => !open && closeAssistantModal()}>
         <SheetContent 
           side={isRtl ? "left" : "right"}
+          hideCloseButton={true}
           className={cn(
             "p-0 flex flex-col",
             // Desktop: fixed width drawer
