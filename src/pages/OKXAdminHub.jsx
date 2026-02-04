@@ -618,6 +618,10 @@ export default function OKXAdminHub() {
             )}
           </TabsContent>
 
+          <TabsContent value="support">
+            <SupportTicketsAdminTab onRefresh={loadDashboard} />
+          </TabsContent>
+
           <TabsContent value="users">
             <Card>
               <CardHeader>
