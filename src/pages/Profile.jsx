@@ -1299,6 +1299,15 @@ export default function Profile({ language = "en" }) {
                 title={language === "en" ? "Verify account (KYC)" : "توثيق الحساب (KYC)"}
               />
             )}
+
+            {/* Change Password Modal */}
+            <ChangePasswordModal
+              open={changePasswordOpen}
+              onOpenChange={setChangePasswordOpen}
+              language={language}
+              userId={formState?.uuid}
+              userEmail={formState?.email}
+            />
           </TabsContent>
 
           {/* Referrals Tab - Link to Rewards Hub */}
