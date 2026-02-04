@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { BookOpen, CheckCircle2, GraduationCap, ShieldCheck, Sparkles, Loader2, Trophy, ArrowRight } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { BookOpen, CheckCircle2, GraduationCap, ShieldCheck, Sparkles, Loader2, Trophy, ArrowRight, PlayCircle, Video } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
+import VideoModal from "@/components/help/VideoModal";
+import { getEnabledVideos } from "@/components/help/helpVideos";
 
 const STORAGE_KEY = "learn_earn_progress_v1";
 
@@ -23,6 +26,8 @@ export default function LearnEarn({ language = "en" }) {
   const [syncing, setSyncing] = useState(false);
   const [state, setState] = useState({ points: 0, courses: {} });
   const [progressRecordId, setProgressRecordId] = useState(null);
+  const [activeTab, setActiveTab] = useState("courses");
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const t = useMemo(() => {
     const en = {
@@ -351,6 +356,7 @@ export default function LearnEarn({ language = "en" }) {
   };
 
   const courseKeys = Object.keys(t.courses);
+  const helpVideos = getEnabledVideos();
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20 pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
@@ -390,6 +396,83 @@ export default function LearnEarn({ language = "en" }) {
           </div>
         </div>
 
+        {/* Tabs: Courses / Academy */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="courses" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
+              <BookOpen className="h-4 w-4 mr-2" />
+              {language === "ar" ? "الدورات" : "Courses"}
+            </TabsTrigger>
+            <TabsTrigger value="academy" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm px-4 py-2">
+              <Video className="h-4 w-4 mr-2" />
+              {language === "ar" ? "الأكاديمية" : "Academy"}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Academy Tab Content */}
+          <TabsContent value="academy" className="mt-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-foreground">
+                {language === "ar" ? "فيديوهات تعليمية" : "Help Videos"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {language === "ar" 
+                  ? "شروحات خطوة بخطوة لمساعدتك على البدء"
+                  : "Step-by-step guides to help you get started"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {helpVideos.map((video) => (
+                <Card 
+                  key={video.key}
+                  className="border-border hover:border-blue-300 dark:hover:border-blue-700 transition-all hover:shadow-md cursor-pointer group"
+                  onClick={() => setSelectedVideo(video)}
+                >
+                  <CardContent className="p-4">
+                    {/* Thumbnail placeholder with play icon */}
+                    <div className="relative aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                      <div className="absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors" />
+                      <PlayCircle className="h-12 w-12 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                    </div>
+                    
+                    {/* Category badge */}
+                    <Badge variant="secondary" className="text-[10px] mb-2">
+                      {language === "ar" ? video.category_ar : video.category_en}
+                    </Badge>
+                    
+                    {/* Title */}
+                    <h3 className="font-semibold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {language === "ar" ? video.title_ar : video.title_en}
+                    </h3>
+                    
+                    {/* Watch button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-3 w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVideo(video);
+                      }}
+                    >
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                      {language === "ar" ? "شاهد" : "Watch"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {helpVideos.length === 0 && (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  {language === "ar" ? "لا توجد فيديوهات متاحة حالياً" : "No videos available yet"}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Courses Tab Content */}
+          <TabsContent value="courses" className="mt-6">
         {/* Content Grid */}
         {loading ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -523,6 +606,18 @@ export default function LearnEarn({ language = "en" }) {
               );
             })}
           </div>
+        )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Video Modal */}
+        {selectedVideo && (
+          <VideoModal
+            open={!!selectedVideo}
+            onClose={() => setSelectedVideo(null)}
+            youtubeId={selectedVideo.youtube_id}
+            title={language === "ar" ? selectedVideo.title_ar : selectedVideo.title_en}
+          />
         )}
       </div>
     </div>

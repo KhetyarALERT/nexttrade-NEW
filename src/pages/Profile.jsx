@@ -28,8 +28,11 @@ import {
   BarChart3,
   Shield,
   Wallet,
-  ArrowDownToLine
+  ArrowDownToLine,
+  PlayCircle
 } from "lucide-react";
+import VideoModal from "@/components/help/VideoModal";
+import { getHelpVideo } from "@/components/help/helpVideos";
 import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
@@ -268,6 +271,7 @@ export default function Profile({ language = "en" }) {
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [existingVerification, setExistingVerification] = useState(null);
   const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
+  const [kycVideoOpen, setKycVideoOpen] = useState(false);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -1119,9 +1123,20 @@ export default function Profile({ language = "en" }) {
                       <ShieldCheck className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-foreground">
-                        {language === "en" ? "Identity Verification (KYC)" : "التحقق من الهوية (KYC)"}
-                      </h3>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-lg font-bold text-foreground">
+                          {language === "en" ? "Identity Verification (KYC)" : "التحقق من الهوية (KYC)"}
+                        </h3>
+                        {/* Watch How Button */}
+                        <button
+                          type="button"
+                          onClick={() => setKycVideoOpen(true)}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-100/80 dark:bg-blue-900/30 px-2.5 py-1 rounded-full transition-colors"
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          {language === "en" ? "Watch how" : "شاهد الشرح"}
+                        </button>
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {existingVerification?.status === 'approved'
                           ? (language === "en" 
@@ -1265,6 +1280,16 @@ export default function Profile({ language = "en" }) {
               language={language}
               onSuccess={loadTradingAccounts}
             />
+
+            {/* KYC Help Video Modal */}
+            {kycVideoOpen && (
+              <VideoModal
+                open={kycVideoOpen}
+                onClose={() => setKycVideoOpen(false)}
+                youtubeId={getHelpVideo("kyc_verification")?.youtube_id || "R7IeJxSWkP8"}
+                title={language === "en" ? "Verify account (KYC)" : "توثيق الحساب (KYC)"}
+              />
+            )}
           </TabsContent>
 
           {/* Referrals Tab - Link to Rewards Hub */}
