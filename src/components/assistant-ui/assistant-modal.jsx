@@ -18,6 +18,25 @@ export function AssistantModal({ language = "en" }) {
   const isRtl = language === "ar";
   const location = useLocation();
   const { assistantModalOpen, closeAssistantModal } = useMobileNavigation();
+  const { user, isAuthenticated } = useAuth();
+  const [kycStatus, setKycStatus] = useState(null);
+
+  // Fetch KYC status for authenticated users
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+    
+    const fetchKycStatus = async () => {
+      try {
+        const verifications = await base44.entities.UserVerification.filter({ user_id: user.id });
+        if (verifications?.length > 0) {
+          setKycStatus(verifications[0].status);
+        }
+      } catch (err) {
+        // Silently ignore - not critical
+      }
+    };
+    fetchKycStatus();
+  }, [isAuthenticated, user?.id]);
   
   // Hide completely on futures/trading/memecoins pages
   const isTradingPage = location.pathname.includes("Futures") || location.pathname.includes("Trading") || location.pathname.includes("MemeCoins");
@@ -25,6 +44,9 @@ export function AssistantModal({ language = "en" }) {
   if (isTradingPage) {
     return null;
   }
+
+  const displayName = user?.full_name || user?.email?.split("@")[0] || null;
+  const displayEmail = user?.email ? `${user.email.slice(0, 3)}...${user.email.slice(user.email.indexOf("@"))}` : null;
 
   return (
     <AssistantModalPrimitive.Root open={assistantModalOpen} onOpenChange={(open) => !open && closeAssistantModal()}>
