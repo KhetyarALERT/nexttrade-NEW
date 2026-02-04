@@ -1189,60 +1189,67 @@ export default function Profile({ language = "en" }) {
               </CardContent>
             </Card>
 
+            {/* Password Management Card */}
             <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
               <CardHeader className="border-b border-border bg-muted/30 p-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-red-600 to-red-700 shadow-lg">
-                    <Shield className="h-5 w-5 text-white" />
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
+                    <Lock className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl font-bold text-foreground">{t.security}</CardTitle>
+                    <CardTitle className="text-xl font-bold text-foreground">{t.passwordLabel}</CardTitle>
                     <CardDescription className="text-sm text-muted-foreground">
-                      {language === "en" ? "Manage your account security settings" : "إدارة إعدادات أمان حسابك"}
+                      {language === "en" ? "Manage your password" : "إدارة كلمة المرور"}
                     </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="divide-y divide-border p-0">
-                {[
-                  { 
-                    title: t.passwordLabel, 
-                    status: language === "en" ? "Last changed 3 months ago" : "آخر تغيير قبل 3 أشهر", 
-                    icon: Lock, 
-                    action: t.managePassword,
-                    gradient: "from-blue-500 to-blue-600",
-                    bgGradient: "from-blue-50 to-blue-50"
-                  },
-                  { 
-                    title: t.twoFactor, 
-                    status: formState.twoFactorEnabled 
-                      ? (language === "en" ? "Enabled" : "مفعل") 
-                      : (language === "en" ? "Disabled" : "معطل"), 
-                    icon: ShieldCheck, 
-                    action: language === "en" ? "Setup" : "إعداد",
-                    gradient: "from-indigo-500 to-blue-600",
-                    bgGradient: "from-indigo-50 to-blue-50"
-                  }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-6 hover:bg-muted/50 transition-colors duration-200">
-                    <div className="flex items-center gap-4">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.bgGradient} border border-border shadow-sm`}>
-                        <item.icon className={`h-6 w-6 text-transparent bg-gradient-to-r ${item.gradient} bg-clip-text`} style={{WebkitTextFillColor: 'transparent', backgroundClip: 'text'}} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.status}</p>
-                      </div>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-blue-50 border border-border shadow-sm">
+                      <Lock className="h-6 w-6 text-blue-600" />
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className={`text-transparent bg-gradient-to-r ${item.gradient} bg-clip-text hover:bg-muted rounded-xl transition-all duration-300`}
-                    >
-                      {item.action} <ChevronRight className="ml-1 h-4 w-4" />
-                    </Button>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{t.passwordLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {language === "en" ? "Manage your password" : "إدارة كلمة المرور"}
+                      </p>
+                    </div>
                   </div>
-                ))}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setChangePasswordOpen(true)}
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
+                  >
+                    {t.managePassword} <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 2FA Section - Coming Soon */}
+            <Card className="border-border shadow-xl rounded-3xl overflow-hidden opacity-60">
+              <CardHeader className="border-b border-border bg-muted/30 p-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 shadow-lg">
+                    <ShieldCheck className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-bold text-foreground">{t.twoFactor}</CardTitle>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {language === "en" ? "Coming Soon" : "قريباً"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  {language === "en" 
+                    ? "Two-factor authentication adds an extra layer of security to your account. This feature is coming soon."
+                    : "المصادقة الثنائية تضيف طبقة إضافية من الأمان لحسابك. هذه الميزة قادمة قريباً."}
+                </p>
               </CardContent>
             </Card>
 
