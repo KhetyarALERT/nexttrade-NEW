@@ -92,9 +92,27 @@ export function AssistantModal({ language = "en" }) {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background">
               <img src={nextTradeLogo} alt="NextTrade" className="h-5 w-5 object-contain" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-foreground">{t.support}</div>
-              <div className="text-xs text-emerald-500">{t.online}</div>
+              {isAuthenticated && displayName ? (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground truncate max-w-[100px]">{displayName}</span>
+                  {kycStatus === "verified" && (
+                    <Badge variant="success" className="text-[9px] px-1.5 py-0 h-4">
+                      <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
+                      {language === "ar" ? "موثق" : "Verified"}
+                    </Badge>
+                  )}
+                  {kycStatus === "pending" && (
+                    <Badge variant="warning" className="text-[9px] px-1.5 py-0 h-4">
+                      <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                      {language === "ar" ? "قيد المراجعة" : "Pending"}
+                    </Badge>
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs text-emerald-500">{t.online}</div>
+              )}
             </div>
           </div>
           <AssistantModalPrimitive.Close asChild>
