@@ -22,11 +22,7 @@ const COMMODITIES = [
   { id: "kinesis-silver", symbol: "KAG", name: "Silver (XAG)", isCommodity: true, displaySymbol: "XAG" },
 ];
 
-// Official commodity icon URLs - using well-known trading platform icons
-const COMMODITY_ICONS = {
-  XAU: "https://s2.coinmarketcap.com/static/img/coins/64x64/5176.png", // Tether Gold (XAUT) official logo
-  XAG: "https://s2.coinmarketcap.com/static/img/coins/64x64/24478.png", // Kinesis Silver (KAG) official logo
-};
+
 
 // Memoized Sparkline component to prevent unnecessary re-renders
 const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 }) {
@@ -268,19 +264,11 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
                 const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
                 const hasChange = coin.price_change_percentage_24h != null;
                 const displaySymbol = coin.displaySymbol || coin.symbol;
-                const iconUrl = COMMODITY_ICONS[displaySymbol];
-                const isGold = displaySymbol === "XAU";
                 return (
                   <tr key={coin.id} className="hover:bg-gray-900/50 transition-colors">
                     <td className="py-3 sm:py-4 px-2 sm:px-3">
                       <div className="flex items-center gap-2 sm:gap-3">
-                        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center p-1 ${isGold ? 'bg-gradient-to-br from-amber-400 to-yellow-600' : 'bg-gradient-to-br from-slate-300 to-slate-500'}`}>
-                          {iconUrl ? (
-                            <img src={iconUrl} alt={displaySymbol} className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="text-[10px] sm:text-xs font-bold text-white">{isGold ? 'Au' : 'Ag'}</span>
-                          )}
-                        </div>
+                        <img src={coin.image} alt={displaySymbol} className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0" />
                         <div className="overflow-hidden min-w-0">
                           <div className="font-semibold text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">{coin.name}</div>
                           <div className="text-[10px] sm:text-[11px] text-amber-500/70 uppercase">{displaySymbol}</div>
