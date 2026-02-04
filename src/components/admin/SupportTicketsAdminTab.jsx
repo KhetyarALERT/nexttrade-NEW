@@ -72,7 +72,16 @@ export default function SupportTicketsAdminTab({ onRefresh }) {
         updateData.resolved_at = new Date().toISOString();
       }
       await base44.entities.SupportTicket.update(selectedTicket.id, updateData);
-      toast.success("Ticket updated");
+      
+      // Notify user via email
+      try {
+        await base44.functions.invoke("notifyTicketUpdate", { ticket_id: selectedTicket.id });
+      } catch (notifyErr) {
+        console.error("Failed to send notification:", notifyErr);
+        // Don't fail the whole operation
+      }
+      
+      toast.success("Ticket updated and user notified");
       setResponseDialogOpen(false);
       loadTickets();
       onRefresh?.();
@@ -123,7 +132,8 @@ export default function SupportTicketsAdminTab({ onRefresh }) {
                   <TableHead>User</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Message</TableHead>
-                  <TableHead>Route</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Topic</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -145,10 +155,28 @@ export default function SupportTicketsAdminTab({ onRefresh }) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <p className="text-sm max-w-[200px] truncate">{ticket.message}</p>
+                      <p className="text-sm max-w-[180px] truncate" title={ticket.message}>{ticket.message}</p>
                     </TableCell>
                     <TableCell>
-                      <code className="text-xs text-muted-foreground">{ticket.page_route || "—"}</code>
+                      {ticket.source_route || ticket.page_route ? (
+                        <code className="text-xs text-muted-foreground">{ticket.source_route || ticket.page_route}</code>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {ticket.topic_route ? (
+                        <a 
+                          href={ticket.topic_route} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          {ticket.topic_route}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={priorityColors[ticket.priority] || priorityColors.normal}>
@@ -174,38 +202,19 @@ export default function SupportTicketsAdminTab({ onRefresh }) {
         </CardContent>
       </Card>
 
-      {/* Response Dialog */}
+      {/* Response Dialog - Redesigned for clarity */}
       <Dialog open={responseDialogOpen} onOpenChange={setResponseDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Ticket Details</DialogTitle>
-            <DialogDescription>
-              From: {selectedTicket?.user_email} • Category: {selectedTicket?.category || "general"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium mb-1">User Message:</p>
-              <div className="bg-muted rounded-lg p-3 text-sm">{selectedTicket?.message}</div>
-            </div>
-            {selectedTicket?.page_route && (
-              <div className="text-xs text-muted-foreground">
-                Route: <code>{selectedTicket.page_route}</code>
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium mb-1">Admin Response:</p>
-              <Textarea
-                value={adminResponse}
-                onChange={(e) => setAdminResponse(e.target.value)}
-                placeholder="Type your response..."
-                rows={4}
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium mb-1">Status:</p>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-3">
+                Ticket #{selectedTicket?.id?.slice(-6).toUpperCase()}
+                <Badge variant="secondary" className="capitalize">
+                  {selectedTicket?.category || "general"}
+                </Badge>
+              </DialogTitle>
               <Select value={newStatus} onValueChange={setNewStatus}>
-                <SelectTrigger>
+                <SelectTrigger className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,14 +224,87 @@ export default function SupportTicketsAdminTab({ onRefresh }) {
                 </SelectContent>
               </Select>
             </div>
+            <DialogDescription className="text-left">
+              <span className="font-medium">{selectedTicket?.user_name || "User"}</span>
+              {" · "}
+              <span>{selectedTicket?.user_email}</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            {/* User Message Section */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">User Message</p>
+              <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-wrap">
+                {selectedTicket?.message}
+              </div>
+            </div>
+
+            {/* Context Section */}
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-muted-foreground">Source Page:</span>
+                {selectedTicket?.source_route || selectedTicket?.page_route ? (
+                  <a 
+                    href={selectedTicket.source_route || selectedTicket.page_route}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-primary hover:underline"
+                  >
+                    {selectedTicket.source_route || selectedTicket.page_route}
+                  </a>
+                ) : (
+                  <span className="ml-2 text-muted-foreground">Not specified</span>
+                )}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Topic Page:</span>
+                {selectedTicket?.topic_route ? (
+                  <a 
+                    href={selectedTicket.topic_route}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-primary hover:underline"
+                  >
+                    {selectedTicket.topic_route}
+                  </a>
+                ) : (
+                  <span className="ml-2 text-muted-foreground">Not specified</span>
+                )}
+              </div>
+            </div>
+            
+            {/* Admin Response Section */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">Admin Response</p>
+              <Textarea
+                value={adminResponse}
+                onChange={(e) => setAdminResponse(e.target.value)}
+                placeholder="Type your response to the user..."
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                User will be notified by email when you update this ticket.
+              </p>
+            </div>
+
+            {/* Timestamps */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3">
+              <span>Created: {formatDate(selectedTicket?.created_date)}</span>
+              {selectedTicket?.resolved_at && (
+                <span>Resolved: {formatDate(selectedTicket.resolved_at)}</span>
+              )}
+            </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setResponseDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleSubmitResponse} disabled={submitting}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Update Ticket
+              Update & Notify User
             </Button>
           </DialogFooter>
         </DialogContent>

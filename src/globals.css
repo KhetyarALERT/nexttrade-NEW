@@ -129,6 +129,8 @@ css
     font-feature-settings: "rlig" 1, "calt" 1;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    -webkit-text-size-adjust: 100%; /* Prevent iOS auto-zoom on inputs */
+    text-size-adjust: 100%;
   }
   
   /* Smooth scrolling */

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { Clock, Paperclip, SendHorizontal, Loader2 } from "lucide-react";
+import { Clock, Paperclip, SendHorizontal, Loader2, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,72 @@ function filterValidMessages(messages) {
     }
     return true;
   });
+}
+
+/**
+ * Custom markdown renderer for assistant messages
+ * Handles route: links for internal navigation
+ */
+function AssistantMarkdown({ content, navigate, language }) {
+  const handleLinkClick = useCallback((e, href) => {
+    // Handle route: protocol for internal navigation
+    if (href?.startsWith("route:")) {
+      e.preventDefault();
+      const path = href.replace("route:", "");
+      navigate(path);
+      return;
+    }
+    // Handle internal page references like Page?tab=X
+    if (href && !href.startsWith("http") && !href.startsWith("mailto:")) {
+      e.preventDefault();
+      navigate(href);
+      return;
+    }
+    // External links open in new tab (handled by target="_blank")
+  }, [navigate]);
+
+  return (
+    <ReactMarkdown
+      className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
+      components={{
+        a: ({ children, href, ...props }) => {
+          const isRouteLink = href?.startsWith("route:");
+          const isExternal = href?.startsWith("http");
+          
+          if (isRouteLink) {
+            return (
+              <button
+                type="button"
+                onClick={(e) => handleLinkClick(e, href)}
+                className="text-primary hover:underline font-medium inline-flex items-center gap-1"
+              >
+                {children}
+              </button>
+            );
+          }
+          
+          return (
+            <a 
+              {...props} 
+              href={href}
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
+              onClick={isExternal ? undefined : (e) => handleLinkClick(e, href)}
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
+              {children}
+              {isExternal && <ExternalLink className="h-3 w-3" />}
+            </a>
+          );
+        },
+        code: ({ children }) => (
+          <code className="px-1 py-0.5 rounded bg-muted text-xs font-mono">{children}</code>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export function Thread({ language = "en", isRtl = false }) {
@@ -425,21 +492,11 @@ export function Thread({ language = "en", isRtl = false }) {
                     {isUser ? (
                       message.content
                     ) : (
-                      <ReactMarkdown
-                        className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
-                        components={{
-                          a: ({ children, ...props }) => (
-                            <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                              {children}
-                            </a>
-                          ),
-                          code: ({ children }) => (
-                            <code className="px-1 py-0.5 rounded bg-muted text-xs font-mono">{children}</code>
-                          ),
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+                      <AssistantMarkdown 
+                        content={message.content} 
+                        navigate={navigate}
+                        language={language}
+                      />
                     )}
                   </div>
                   
@@ -594,9 +651,12 @@ export function Thread({ language = "en", isRtl = false }) {
               onKeyDown={handleKeyDown}
               placeholder={t.composerPlaceholder}
               className={cn(
-                "min-h-[52px] w-full resize-none rounded-2xl border border-border/70 bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                "min-h-[52px] w-full resize-none rounded-2xl border border-border/70 bg-background px-4 py-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                // CRITICAL: font-size >= 16px prevents iOS Safari auto-zoom on focus
+                "text-base sm:text-sm",
                 isRtl && "text-right"
               )}
+              style={{ fontSize: "16px" }} // Explicit fallback for iOS
               rows={1}
               disabled={isLoading}
             />

@@ -17,15 +17,30 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
     const { route, tab, language } = payload;
 
-    // Get KYC status
+    // Get KYC status - SINGLE SOURCE OF TRUTH: UserVerification entity
+    // Status enum: unverified | pending | verified | rejected
     let kycStatus = 'unverified';
+    let kycSource = 'default';
     try {
-      const verifications = await base44.entities.UserVerification.filter({ user_id: user.id });
+      // Use service role to ensure we always get the record
+      const verifications = await base44.asServiceRole.entities.UserVerification.filter({ user_id: user.id });
       if (verifications?.length > 0) {
-        kycStatus = verifications[0].status || 'unverified';
+        // Sort by updated_date descending to get latest
+        const sorted = verifications.sort((a, b) => 
+          new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date)
+        );
+        const latest = sorted[0];
+        kycStatus = latest.status || 'unverified';
+        kycSource = 'UserVerification';
+        console.log(`KYC status for user ${user.id}: ${kycStatus} (from ${kycSource})`);
+      } else {
+        console.log(`No UserVerification record for user ${user.id}, defaulting to unverified`);
       }
-    } catch {
-      // Ignore - default to unverified
+    } catch (kycErr) {
+      console.error('Failed to get KYC status:', kycErr.message);
+      // Explicitly set to unknown if we can't determine
+      kycStatus = 'unknown';
+      kycSource = 'error';
     }
 
     // Get feature statuses
@@ -101,6 +116,7 @@ Deno.serve(async (req) => {
         route: route || null,
         tab: tab || null,
         kyc_status: kycStatus,
+        kyc_source: kycSource, // For debugging: where did we get the status from
         features,
         account_summary: accountSummary,
       },

@@ -1,6 +1,6 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import PropTypes from "prop-types";
-import { X } from "lucide-react";
+import { X, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -35,9 +35,47 @@ export default function VideoModal({ open, onClose, youtubeId, title }) {
     if (e.target === e.currentTarget) onClose();
   }, [onClose]);
 
+  const [loadState, setLoadState] = useState("loading"); // loading | loaded | error
+  const iframeRef = useRef(null);
+  const loadTimeoutRef = useRef(null);
+
+  // Reset load state when video changes
+  useEffect(() => {
+    if (open && youtubeId) {
+      setLoadState("loading");
+      
+      // Fallback timeout - if iframe doesn't load in 5s, show fallback
+      loadTimeoutRef.current = setTimeout(() => {
+        if (loadState === "loading") {
+          setLoadState("error");
+        }
+      }, 5000);
+    }
+    
+    return () => {
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+    };
+  }, [open, youtubeId]);
+
+  const handleIframeLoad = useCallback(() => {
+    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+    setLoadState("loaded");
+  }, []);
+
+  const handleIframeError = useCallback(() => {
+    if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+    setLoadState("error");
+  }, []);
+
+  const handleOpenYouTube = useCallback(() => {
+    window.open(`https://youtu.be/${youtubeId}`, "_blank", "noopener,noreferrer");
+  }, [youtubeId]);
+
   if (!open) return null;
 
-  const embedUrl = `https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1&autoplay=1`;
+  // Use youtube-nocookie.com for better embed compatibility + proper params
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(origin)}`;
 
   return (
     <div
@@ -70,13 +108,39 @@ export default function VideoModal({ open, onClose, youtubeId, title }) {
 
         {/* Video Container - 16:9 aspect ratio */}
         <div className="flex-1 sm:flex-none relative w-full sm:aspect-video">
+          {/* Loading state */}
+          {loadState === "loading" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+              <Loader2 className="h-8 w-8 animate-spin text-white/60" />
+            </div>
+          )}
+          
+          {/* Error/Fallback state */}
+          {loadState === "error" && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10 gap-4 p-6">
+              <p className="text-white/80 text-center text-sm">
+                Video couldn't load in the app.
+              </p>
+              <Button
+                onClick={handleOpenYouTube}
+                className="bg-red-600 hover:bg-red-700 text-white gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open on YouTube
+              </Button>
+            </div>
+          )}
+          
           {/* Mobile: fill available space, Desktop: 16:9 */}
           <div className="absolute inset-0 sm:relative sm:w-full sm:h-0 sm:pb-[56.25%]">
             <iframe
+              ref={iframeRef}
               src={embedUrl}
               title={title || "Video"}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
               allowFullScreen
+              onLoad={handleIframeLoad}
+              onError={handleIframeError}
               className="absolute inset-0 w-full h-full sm:absolute sm:top-0 sm:left-0"
             />
           </div>
