@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { X, ShieldCheck, AlertCircle } from "lucide-react";
-import { AssistantModalPrimitive } from "@/lib/assistant-ui/react";
+import { useEffect } from "react";
+import { X, ShieldCheck, AlertCircle, MessageCircle } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 import { Thread } from "@/components/assistant-ui/thread";
@@ -10,14 +9,17 @@ import { useMobileNavigation } from "@/components/mobile/MobileNavigationContext
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { Badge } from "@/components/ui/badge";
-// @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+// @ts-ignore
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
+import { useState } from "react";
 
 export function AssistantModal({ language = "en" }) {
   const t = tAssistant(language);
   const isRtl = language === "ar";
   const location = useLocation();
-  const { assistantModalOpen, closeAssistantModal } = useMobileNavigation();
+  const { assistantModalOpen, closeAssistantModal, openAssistantModal } = useMobileNavigation();
   const { user, isAuthenticated } = useAuth();
   const [kycStatus, setKycStatus] = useState(null);
 
@@ -46,90 +48,97 @@ export function AssistantModal({ language = "en" }) {
   }
 
   const displayName = user?.full_name || user?.email?.split("@")[0] || null;
-  const displayEmail = user?.email ? `${user.email.slice(0, 3)}...${user.email.slice(user.email.indexOf("@"))}` : null;
 
   return (
-    <AssistantModalPrimitive.Root open={assistantModalOpen} onOpenChange={(open) => !open && closeAssistantModal()}>
-      {/* Floating trigger - HIDDEN on mobile (bottom nav has Support button instead) */}
-      <AssistantModalPrimitive.Anchor className="fixed bottom-6 right-6 z-50 hidden sm:block">
-        <AssistantModalPrimitive.Trigger asChild>
-          <button
-            type="button"
-            data-support-trigger="true"
-            className={cn(
-              "relative flex items-center justify-center rounded-full h-14 w-14",
-              "border border-border/70 bg-background",
-              "shadow-lg shadow-black/10 transition duration-200",
-              "hover:scale-[1.04] hover:shadow-xl hover:shadow-black/15",
-              "active:scale-[0.98]"
-            )}
-            aria-label={t.support}
-          >
-            <span className="absolute inset-0 rounded-full bg-white/10 blur-md" />
-            <img src={nextTradeLogo} alt="NextTrade" className="relative h-8 w-8 object-contain" />
-          </button>
-        </AssistantModalPrimitive.Trigger>
-      </AssistantModalPrimitive.Anchor>
-
-      <AssistantModalPrimitive.Content
-        sideOffset={16}
+    <>
+      {/* Desktop Floating Trigger Button - always visible on desktop for logged-in users */}
+      <Button
+        onClick={openAssistantModal}
         className={cn(
-          "fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50",
-          "flex h-[min(70vh,580px)] w-[min(380px,calc(100vw-2rem))] flex-col",
-          "rounded-2xl border border-border/70 bg-popover shadow-2xl shadow-black/20",
-          "data-[state=open]:translate-y-0 data-[state=closed]:translate-y-2",
-          "data-[state=open]:duration-200 data-[state=closed]:duration-150",
-          "max-sm:right-4 max-sm:left-4 max-sm:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] max-sm:h-[85vh]"
+          "fixed z-[100] hidden sm:flex",
+          "bottom-6 right-6",
+          "h-14 w-14 rounded-full p-0",
+          "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/30",
+          "transition-transform hover:scale-105 active:scale-95"
         )}
+        aria-label={t.support}
       >
-        <div
+        <MessageCircle className="h-6 w-6 text-primary-foreground" />
+      </Button>
+
+      {/* Support Sheet/Drawer - works on both desktop and mobile */}
+      <Sheet open={assistantModalOpen} onOpenChange={(open) => !open && closeAssistantModal()}>
+        <SheetContent 
+          side={isRtl ? "left" : "right"}
           className={cn(
-            "flex items-center justify-between border-b border-border/70 px-4 py-3",
-            isRtl && "flex-row-reverse"
+            "p-0 flex flex-col",
+            // Desktop: fixed width drawer
+            "sm:w-[420px] sm:max-w-[420px]",
+            // Mobile: full screen
+            "w-full max-w-full",
+            // Full height with safe area
+            "h-full",
+            // High z-index but below critical modals
+            "z-[150]"
           )}
+          // Prevent body scroll when open
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className={cn("flex items-center gap-3", isRtl && "flex-row-reverse text-right")}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-background">
-              <img src={nextTradeLogo} alt="NextTrade" className="h-5 w-5 object-contain" />
+          {/* Header */}
+          <SheetHeader className={cn(
+            "flex-shrink-0 border-b border-border/70 px-4 py-3",
+            "flex flex-row items-center justify-between gap-3",
+            isRtl && "flex-row-reverse"
+          )}>
+            <div className={cn("flex items-center gap-3 flex-1 min-w-0", isRtl && "flex-row-reverse")}>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-background flex-shrink-0">
+                <img src={nextTradeLogo} alt="NextTrade" className="h-6 w-6 object-contain" />
+              </div>
+              <div className={cn("flex-1 min-w-0", isRtl && "text-right")}>
+                <SheetTitle className="text-base font-semibold text-foreground">
+                  {language === "ar" ? "الدعم" : "Support"}
+                </SheetTitle>
+                {isAuthenticated && displayName ? (
+                  <div className={cn("flex items-center gap-1.5 flex-wrap", isRtl && "flex-row-reverse justify-end")}>
+                    <span className="text-xs text-muted-foreground truncate max-w-[120px]">{displayName}</span>
+                    {kycStatus === "verified" && (
+                      <Badge variant="success" className="text-[9px] px-1.5 py-0 h-4">
+                        <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
+                        {language === "ar" ? "موثق" : "Verified"}
+                      </Badge>
+                    )}
+                    {kycStatus === "pending" && (
+                      <Badge variant="warning" className="text-[9px] px-1.5 py-0 h-4">
+                        <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                        {language === "ar" ? "قيد المراجعة" : "Pending"}
+                      </Badge>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs text-emerald-600">{language === "ar" ? "متصل" : "Online"}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-foreground">{t.support}</div>
-              {isAuthenticated && displayName ? (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-muted-foreground truncate max-w-[100px]">{displayName}</span>
-                  {kycStatus === "verified" && (
-                    <Badge variant="success" className="text-[9px] px-1.5 py-0 h-4">
-                      <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
-                      {language === "ar" ? "موثق" : "Verified"}
-                    </Badge>
-                  )}
-                  {kycStatus === "pending" && (
-                    <Badge variant="warning" className="text-[9px] px-1.5 py-0 h-4">
-                      <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                      {language === "ar" ? "قيد المراجعة" : "Pending"}
-                    </Badge>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xs text-emerald-500">{t.online}</div>
-              )}
-            </div>
-          </div>
-          <AssistantModalPrimitive.Close asChild>
-            <button
-              type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/60 bg-muted text-muted-foreground transition hover:text-foreground"
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={closeAssistantModal}
+              className="h-9 w-9 rounded-xl flex-shrink-0"
               aria-label={t.closeLabel}
             >
               <X className="h-4 w-4" />
-            </button>
-          </AssistantModalPrimitive.Close>
-        </div>
+            </Button>
+          </SheetHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col p-4">
-          <Thread language={language} isRtl={isRtl} />
-        </div>
-      </AssistantModalPrimitive.Content>
-    </AssistantModalPrimitive.Root>
+          {/* Chat Body - fills remaining space */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Thread language={language} isRtl={isRtl} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
