@@ -780,7 +780,7 @@ export function Thread({ language = "en", isRtl = false, onNavigate }) {
             )}
           </Button>
         </div>
-      </div></div>
+      </div>
 
       {/* Video Modal */}
       {videoModal.open && (
