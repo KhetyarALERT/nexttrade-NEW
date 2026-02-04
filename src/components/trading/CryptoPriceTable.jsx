@@ -14,8 +14,22 @@ const COINS = [
   { id: "binance-coin", binance: "bnbusdt", bingx: "BNB-USDT" },
   { id: "ripple", binance: "xrpusdt", bingx: "XRP-USDT" },
   { id: "cardano", binance: "adausdt", bingx: "ADA-USDT" },
-  // add more if needed
 ];
+
+// Commodities - Gold & Silver (via tether-gold and pax-gold for gold exposure)
+const COMMODITIES = [
+  { id: "tether-gold", symbol: "XAUT", name: "Gold (XAU)", isCommodity: true },
+  { id: "pax-gold", symbol: "PAXG", name: "Gold (PAXG)", isCommodity: true, hidden: true }, // backup
+];
+
+// Silver commodity proxy (no direct CoinGecko, use static or fetch from metals API)
+const SILVER_FALLBACK = {
+  id: "silver",
+  symbol: "XAG",
+  name: "Silver (XAG)",
+  isCommodity: true,
+  image: "https://cdn-icons-png.flaticon.com/512/3135/3135706.png" // Silver icon
+};
 
 // Memoized Sparkline component to prevent unnecessary re-renders
 const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 }) {
@@ -60,19 +74,80 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
     
     // Initial fetch from CoinGecko
     const fetchInitial = async () => {
-      const ids = COINS.map(c => c.id).join(",");
+      const cryptoIds = COINS.map(c => c.id).join(",");
+      const commodityIds = COMMODITIES.filter(c => !c.hidden).map(c => c.id).join(",");
+      const allIds = `${cryptoIds},${commodityIds}`;
+      
       try {
+        // Fetch crypto and gold-backed tokens
         const res = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`,
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${allIds}&order=market_cap_desc&sparkline=true&price_change_percentage=24h`,
           { signal: abortControllerRef.current.signal }
         );
+        
         if (res.ok) {
           const data = await res.json();
-          const mapped = data.map(coin => ({
-            ...coin,
-            binanceSymbol: COINS.find(c => c.id === coin.id)?.binance || null
-          }));
-          setMarketData(mapped);
+          
+          // Map crypto coins
+          const cryptoData = data
+            .filter(coin => COINS.some(c => c.id === coin.id))
+            .map(coin => ({
+              ...coin,
+              binanceSymbol: COINS.find(c => c.id === coin.id)?.binance || null,
+              isCommodity: false
+            }));
+          
+          // Map commodities (gold tokens)
+          const goldData = data
+            .filter(coin => COMMODITIES.some(c => c.id === coin.id))
+            .map(coin => {
+              const config = COMMODITIES.find(c => c.id === coin.id);
+              return {
+                ...coin,
+                name: config?.name || coin.name,
+                symbol: config?.symbol || coin.symbol,
+                isCommodity: true,
+                binanceSymbol: null
+              };
+            });
+          
+          // Fetch silver price from metals API (free tier)
+          let silverData = null;
+          try {
+            const silverRes = await fetch(
+              "https://api.metals.live/v1/spot/silver",
+              { signal: abortControllerRef.current.signal }
+            );
+            if (silverRes.ok) {
+              const silverJson = await silverRes.json();
+              // metals.live returns array with price per oz
+              const silverPrice = silverJson?.[0]?.price || null;
+              if (silverPrice) {
+                silverData = {
+                  id: "silver",
+                  symbol: "XAG",
+                  name: "Silver (XAG)",
+                  current_price: silverPrice,
+                  price_change_percentage_24h: null, // API doesn't provide this
+                  image: "https://cdn-icons-png.flaticon.com/512/3135/3135706.png",
+                  isCommodity: true,
+                  sparkline_in_7d: null,
+                  binanceSymbol: null
+                };
+              }
+            }
+          } catch {
+            // Silver API failed, skip silently
+          }
+          
+          // Combine all data: crypto first, then commodities
+          const combined = [
+            ...cryptoData,
+            ...goldData,
+            ...(silverData ? [silverData] : [])
+          ];
+          
+          setMarketData(combined);
           setError(null);
         } else {
           setError("Failed to load market data");
@@ -138,8 +213,12 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
     );
   }
 
+  // Separate crypto and commodities for display
+  const cryptoAssets = marketData.filter(c => !c.isCommodity);
+  const commodityAssets = marketData.filter(c => c.isCommodity);
+
   return (
-    <Card className="border-0 shadow-2xl bg-gray-950 text-white overflow-hidden">
+    <Card className="border-0 shadow-2xl bg-gray-950 text-white overflow-hidden rounded-2xl">
       <CardContent className="p-0">
         <div className="p-4 bg-gray-900/80 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -147,50 +226,122 @@ export default function CryptoPriceTable({ language: _language = "en" }) {
               <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold">Live Crypto Markets</h3>
+              <h3 className="text-base sm:text-lg font-bold">Live Markets</h3>
+              <p className="text-[11px] text-gray-500">Crypto & Commodities</p>
             </div>
           </div>
         </div>
 
-        <div className="overflow-hidden">
-          <table className="w-full table-auto">
-            <thead className="bg-gray-900/50">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[400px]">
+            <thead className="bg-gray-900/50 sticky top-0">
               <tr>
-                <th className="py-3 px-3 text-left text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Name</th>
-                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Price</th>
-                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">24h</th>
-                <th className="hidden md:table-cell py-3 px-3 text-center text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Chart</th>
-                <th className="py-3 px-3 text-right text-[11px] sm:text-xs font-medium text-gray-400 uppercase">Action</th>
+                <th className="py-3 px-2 sm:px-3 text-left text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide">Asset</th>
+                <th className="py-3 px-2 sm:px-3 text-right text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide">Price</th>
+                <th className="py-3 px-2 sm:px-3 text-right text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide">24h</th>
+                <th className="hidden lg:table-cell py-3 px-3 text-center text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide">7d Chart</th>
+                <th className="py-3 px-2 sm:px-3 text-right text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wide"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
-              {marketData.map((coin) => {
+            <tbody className="divide-y divide-gray-800/50">
+              {/* Crypto Assets */}
+              {cryptoAssets.map((coin) => {
                 const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
                 return (
                   <tr key={coin.id} className="hover:bg-gray-900/50 transition-colors">
-                    <td className="py-4 px-3">
-                      <div className="flex items-center gap-2">
-                        <img src={coin.image} alt={coin.symbol} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0" />
+                    <td className="py-3 sm:py-4 px-2 sm:px-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <img src={coin.image} alt={coin.symbol} className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0" />
                         <div className="overflow-hidden min-w-0">
-                          <div className="font-semibold text-sm truncate">{coin.name}</div>
-                          <div className="text-[11px] text-gray-400 uppercase">{coin.symbol}</div>
+                          <div className="font-semibold text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">{coin.name}</div>
+                          <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase">{coin.symbol}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-right font-bold text-sm">{formatPrice(coin.current_price)}</td>
-                    <td className="py-4 px-3 text-right">
-                      <span className={`font-bold text-sm ${isPositive ? "text-green-500" : "text-red-500"}`}>
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
+                      <span className="font-bold text-xs sm:text-sm font-mono tabular-nums">{formatPrice(coin.current_price)}</span>
+                    </td>
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
+                      <span className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                         {formatPercent(coin.price_change_percentage_24h)}
                       </span>
                     </td>
-                    <td className="hidden md:table-cell py-4 px-3">
+                    <td className="hidden lg:table-cell py-3 sm:py-4 px-3">
                       <div className="flex justify-center">
-                        <Sparkline data={coin.sparkline_in_7d?.price} width={100} height={30} />
+                        <Sparkline data={coin.sparkline_in_7d?.price} width={80} height={28} />
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-right">
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
                       <Link to={createPageUrl("Futures")}>
-                        <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-xs sm:text-sm w-full">
+                        <button className="px-2.5 sm:px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-[11px] sm:text-xs whitespace-nowrap">
+                          Trade
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+              
+              {/* Commodities Section Divider */}
+              {commodityAssets.length > 0 && (
+                <tr className="bg-amber-500/5">
+                  <td colSpan={5} className="py-2 px-3">
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs text-amber-400/80 font-medium uppercase tracking-wider">
+                      <span className="w-4 h-px bg-amber-500/30" />
+                      Precious Metals
+                      <span className="flex-1 h-px bg-amber-500/30" />
+                    </div>
+                  </td>
+                </tr>
+              )}
+              
+              {/* Commodity Assets */}
+              {commodityAssets.map((coin) => {
+                const isPositive = (coin.price_change_percentage_24h || 0) >= 0;
+                const hasChange = coin.price_change_percentage_24h != null;
+                return (
+                  <tr key={coin.id} className="hover:bg-gray-900/50 transition-colors">
+                    <td className="py-3 sm:py-4 px-2 sm:px-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-amber-400 to-yellow-600">
+                          {coin.symbol === "XAG" ? (
+                            <span className="text-[10px] sm:text-xs font-bold text-white">Ag</span>
+                          ) : (
+                            <span className="text-[10px] sm:text-xs font-bold text-white">Au</span>
+                          )}
+                        </div>
+                        <div className="overflow-hidden min-w-0">
+                          <div className="font-semibold text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">{coin.name}</div>
+                          <div className="text-[10px] sm:text-[11px] text-amber-500/70 uppercase">{coin.symbol}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
+                      <span className="font-bold text-xs sm:text-sm font-mono tabular-nums">{formatPrice(coin.current_price)}</span>
+                    </td>
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
+                      {hasChange ? (
+                        <span className={`font-semibold text-xs sm:text-sm font-mono tabular-nums ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+                          {formatPercent(coin.price_change_percentage_24h)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500">—</span>
+                      )}
+                    </td>
+                    <td className="hidden lg:table-cell py-3 sm:py-4 px-3">
+                      <div className="flex justify-center">
+                        {coin.sparkline_in_7d?.price ? (
+                          <Sparkline data={coin.sparkline_in_7d.price} width={80} height={28} />
+                        ) : (
+                          <div className="w-[80px] h-[28px] bg-gray-800/30 rounded flex items-center justify-center">
+                            <span className="text-[9px] text-gray-600">—</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 sm:py-4 px-2 sm:px-3 text-right">
+                      <Link to={createPageUrl("Futures")}>
+                        <button className="px-2.5 sm:px-4 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium text-[11px] sm:text-xs whitespace-nowrap">
                           Trade
                         </button>
                       </Link>
