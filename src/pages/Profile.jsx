@@ -73,6 +73,7 @@ import AllocationModal from "@/components/copytrading/AllocationModal";
 import CopyTradingDepositHistory from "@/components/copytrading/CopyTradingDepositHistory.jsx";
 import CopyTradingSettingsForm from "@/components/copytrading/CopyTradingSettingsForm.jsx";
 import DangerZone from "@/components/profile/DangerZone";
+import ChangePasswordModal from "@/components/profile/ChangePasswordModal";
 
 const translations = {
   en: {
@@ -272,6 +273,7 @@ export default function Profile({ language = "en" }) {
   const [existingVerification, setExistingVerification] = useState(null);
   const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
   const [kycVideoOpen, setKycVideoOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
