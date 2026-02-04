@@ -25,6 +25,7 @@ import SignalsAdminTab from '@/components/admin/SignalsAdminTab';
 import VerificationAdminTab from '@/components/admin/VerificationAdminTab';
 import AccountRequestsAdminTab from '@/components/admin/AccountRequestsAdminTab';
 import WithdrawalsAdminTab from '@/components/admin/WithdrawalsAdminTab';
+import SupportTicketsAdminTab from '@/components/admin/SupportTicketsAdminTab';
 
 const statusColors = {
   AVAILABLE: 'bg-green-500/10 text-green-500 border-green-500/20',
