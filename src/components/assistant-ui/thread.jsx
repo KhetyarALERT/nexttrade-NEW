@@ -529,6 +529,15 @@ export function Thread({ language = "en", isRtl = false }) {
       </div>
 
       <div className="border-t border-border/70 bg-background/80 px-4 py-3">
+        {/* Quick Actions - show when no messages yet */}
+        {showQuickActions && messages.length === 0 && (
+          <QuickActions 
+            language={language} 
+            onSelect={handleQuickAction}
+            disabled={isLoading}
+          />
+        )}
+
         {attachments.length ? (
           <div className="mb-3">
             <div className={cn("text-xs font-semibold text-muted-foreground", isRtl && "text-right")}>
