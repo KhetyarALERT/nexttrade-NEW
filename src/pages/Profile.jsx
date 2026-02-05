@@ -29,7 +29,8 @@ import {
   Shield,
   Wallet,
   ArrowDownToLine,
-  PlayCircle
+  PlayCircle,
+  HelpCircle
 } from "lucide-react";
 import VideoModal from "@/components/help/VideoModal";
 import { getHelpVideo } from "@/components/help/helpVideos";
@@ -900,19 +901,31 @@ export default function Profile({ language = "en" }) {
                       <CardTitle className="text-lg font-bold text-foreground">{t.support}</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-4">
+                  <CardContent className="p-6 space-y-3">
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {language === "en" 
-                        ? "Need help? Our team is available 24/7 to assist you."
-                        : "تحتاج مساعدة؟ فريقنا متاح على مدار الساعة لمساعدتك."}
+                        ? "Need help? Check our guides or contact support."
+                        : "تحتاج مساعدة؟ اطلع على أدلتنا أو اتصل بالدعم."}
                     </p>
                     <Button 
                       variant="outline" 
                       className="w-full rounded-xl border-border text-foreground hover:bg-muted transition-all duration-300 hover:scale-105" 
-                      onClick={() => navigate(createPageUrl("Contact"))}
+                      asChild
                     >
-                      <LifeBuoy className="mr-2 h-4 w-4" /> 
-                      {language === "en" ? "Contact Support" : "اتصل بالدعم"}
+                      <Link to={createPageUrl("Help")}>
+                        <HelpCircle className="mr-2 h-4 w-4" /> 
+                        {language === "en" ? "Help Center" : "مركز المساعدة"}
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full rounded-xl border-border text-foreground hover:bg-muted transition-all duration-300 hover:scale-105" 
+                      asChild
+                    >
+                      <Link to={createPageUrl("Contact")}>
+                        <LifeBuoy className="mr-2 h-4 w-4" /> 
+                        {language === "en" ? "Contact Support" : "اتصل بالدعم"}
+                      </Link>
                     </Button>
                   </CardContent>
                 </Card>
