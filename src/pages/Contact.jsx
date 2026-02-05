@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -12,418 +16,550 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Mail,
-  MapPin,
+  Headphones,
   Send,
-  Clock,
   CheckCircle,
+  MessageCircle,
+  Users,
+  Mail,
+  Briefcase,
+  HelpCircle,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
-import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+
+// Telegram links
+const TELEGRAM_SUPPORT = "https://t.me/NextTradeSupport";
+const TELEGRAM_COMMUNITY = "https://t.me/NextTradeCommunity";
 
 export default function Contact({ language = "en" }) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    accountType: "",
+  const { user, isAuthenticated, isLoadingAuth } = useAuth();
+  
+  // Support ticket form state
+  const [supportForm, setSupportForm] = useState({
+    category: "",
     message: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [supportSubmitting, setSupportSubmitting] = useState(false);
+  const [ticketCreated, setTicketCreated] = useState(null); // { reference: "#ABC123" }
 
-  const emailAddress = "info@nexttrade.exchange";
+  // Business form state
+  const [businessForm, setBusinessForm] = useState({
+    name: "",
+    email: "",
+    company: "",
+    type: "",
+    message: "",
+  });
+  const [businessSubmitting, setBusinessSubmitting] = useState(false);
+  const [businessSuccess, setBusinessSuccess] = useState(false);
 
-  const content = {
+  const isAr = language === "ar";
+
+  const t = {
     en: {
       hero: {
-        title: "Get Started with NextTrade",
-        subtitle: "Open your NextTrade account today and access intelligent trading with zero commission",
+        title: "Support & Contact",
+        subtitle: "Get help with your account or reach out for partnerships",
       },
-      form: {
-        title: "Open Your Trading Account",
-        subtitle: "Fill in the form below and our team will contact you within 24 hours",
+      support: {
+        title: "Need Help?",
+        subtitle: "Create a support ticket and we'll respond within 24 hours",
+        category: "Category",
+        categoryPlaceholder: "Select category",
+        categories: {
+          kyc: "KYC / Verification",
+          deposit: "Deposits",
+          withdraw: "Withdrawals",
+          trading: "Trading",
+          copy_trading: "Copy Trading",
+          staking: "Staking",
+          rewards: "Rewards",
+          general: "General Question",
+        },
+        message: "Message",
+        messagePlaceholder: "Describe your issue in detail...",
+        submit: "Submit Ticket",
+        submitting: "Submitting...",
+        loginRequired: "Please login to submit a support ticket",
+        loginButton: "Login",
+        success: "Ticket Created!",
+        successDesc: "Your ticket has been created. We'll respond within 24 hours.",
+        reference: "Reference",
+        viewTickets: "View My Tickets",
+        newTicket: "New Ticket",
+      },
+      telegram: {
+        title: "Quick Support",
+        subtitle: "Get faster help via Telegram",
+        supportBot: "Support Bot",
+        supportDesc: "Direct chat with our support team",
+        community: "Community",
+        communityDesc: "Join our trading community",
+      },
+      business: {
+        title: "Business & Partnerships",
+        subtitle: "For enterprise inquiries, partnerships, and media",
         name: "Full Name",
         namePlaceholder: "John Doe",
         email: "Email Address",
-        emailPlaceholder: "john@example.com",
-        phone: "Phone Number",
-        phonePlaceholder: "+963 XXX XXX XXX",
-        accountType: "Account Type",
-        accountTypePlaceholder: "Select account type",
-        accountTypes: {
-          demo: "Demo Account",
-          live: "Live Account",
-          islamic: "Islamic Account",
+        emailPlaceholder: "john@company.com",
+        company: "Company",
+        companyPlaceholder: "Company name",
+        type: "Inquiry Type",
+        typePlaceholder: "Select type",
+        types: {
+          partnership: "Partnership",
+          enterprise: "Enterprise Solutions",
+          media: "Media Inquiry",
+          listing: "Token Listing",
+          other: "Other",
         },
-        message: "Message (Optional)",
-        messagePlaceholder: "Tell us about your trading experience...",
-        submit: "Open Account",
-        submitting: "Processing...",
+        message: "Message",
+        messagePlaceholder: "Tell us about your inquiry...",
+        submit: "Send Message",
+        submitting: "Sending...",
+        success: "Message sent! We'll be in touch soon.",
+        error: "Please fill in all required fields.",
       },
-      info: [
-        {
-          icon: Mail,
-          title: "Email",
-          content: emailAddress,
-          desc: "We'll respond within 24 hours",
-        },
-        {
-          icon: MapPin,
-          title: "Office",
-          content: "Istanbul, Turkey",
-          desc: "Multiple branches across Turkey",
-        },
-        {
-          icon: Clock,
-          title: "Trading Hours",
-          content: "24/5 Market Access",
-          desc: "Sunday 10PM - Friday 10PM GMT",
-        },
-      ],
-      benefits: {
-        title: "Why Open an Account with Us?",
-        items: [
-          "Zero commission on all trades",
-          "Ultra-low spreads from 0.1 pips",
-          "Islamic swap-free accounts",
-          "Instant deposits and withdrawals",
-          "Dedicated account manager",
-          "Free educational resources",
-        ],
+      helpCenter: {
+        title: "Self-Service",
+        subtitle: "Find answers in our Help Center",
+        button: "Visit Help Center",
       },
-      success: "Thank you! We'll contact you within 24 hours.",
-      error: "Please fill in all required fields.",
     },
     ar: {
       hero: {
-        title: "ابدأ مع NextTrade",
-        subtitle: "افتح حساب NextTrade اليوم وتمتع بتداول ذكي بدون عمولة",
+        title: "الدعم والتواصل",
+        subtitle: "احصل على مساعدة بحسابك أو تواصل معنا للشراكات",
       },
-      form: {
-        title: "افتح حساب التداول الخاص بك",
-        subtitle: "املأ النموذج أدناه وسيتصل بك فريقنا خلال 24 ساعة",
+      support: {
+        title: "تحتاج مساعدة؟",
+        subtitle: "أنشئ تذكرة دعم وسنرد خلال 24 ساعة",
+        category: "التصنيف",
+        categoryPlaceholder: "اختر التصنيف",
+        categories: {
+          kyc: "التوثيق / KYC",
+          deposit: "الإيداعات",
+          withdraw: "السحوبات",
+          trading: "التداول",
+          copy_trading: "نسخ التداول",
+          staking: "الستيكينغ",
+          rewards: "المكافآت",
+          general: "سؤال عام",
+        },
+        message: "الرسالة",
+        messagePlaceholder: "اشرح مشكلتك بالتفصيل...",
+        submit: "إرسال التذكرة",
+        submitting: "جاري الإرسال...",
+        loginRequired: "يرجى تسجيل الدخول لإرسال تذكرة دعم",
+        loginButton: "تسجيل الدخول",
+        success: "تم إنشاء التذكرة!",
+        successDesc: "تم إنشاء تذكرتك. سنرد خلال 24 ساعة.",
+        reference: "الرقم المرجعي",
+        viewTickets: "عرض تذاكري",
+        newTicket: "تذكرة جديدة",
+      },
+      telegram: {
+        title: "دعم سريع",
+        subtitle: "احصل على مساعدة أسرع عبر تيليجرام",
+        supportBot: "بوت الدعم",
+        supportDesc: "محادثة مباشرة مع فريق الدعم",
+        community: "المجتمع",
+        communityDesc: "انضم لمجتمع التداول",
+      },
+      business: {
+        title: "الأعمال والشراكات",
+        subtitle: "للاستفسارات المؤسسية والشراكات والإعلام",
         name: "الاسم الكامل",
         namePlaceholder: "أحمد محمد",
         email: "البريد الإلكتروني",
-        emailPlaceholder: "ahmad@example.com",
-        phone: "رقم الهاتف",
-        phonePlaceholder: "+963 XXX XXX XXX",
-        accountType: "نوع الحساب",
-        accountTypePlaceholder: "اختر نوع الحساب",
-        accountTypes: {
-          demo: "حساب تجريبي",
-          live: "حساب حقيقي",
-          islamic: "حساب إسلامي",
+        emailPlaceholder: "ahmad@company.com",
+        company: "الشركة",
+        companyPlaceholder: "اسم الشركة",
+        type: "نوع الاستفسار",
+        typePlaceholder: "اختر النوع",
+        types: {
+          partnership: "شراكة",
+          enterprise: "حلول المؤسسات",
+          media: "استفسار إعلامي",
+          listing: "إدراج عملة",
+          other: "أخرى",
         },
-        message: "رسالة (اختياري)",
-        messagePlaceholder: "أخبرنا عن خبرتك في التداول...",
-        submit: "فتح حساب",
-        submitting: "جاري المعالجة...",
+        message: "الرسالة",
+        messagePlaceholder: "أخبرنا عن استفسارك...",
+        submit: "إرسال",
+        submitting: "جاري الإرسال...",
+        success: "تم إرسال الرسالة! سنتواصل معك قريباً.",
+        error: "يرجى ملء جميع الحقول المطلوبة.",
       },
-      info: [
-        {
-          icon: Mail,
-          title: "البريد الإلكتروني",
-          content: emailAddress,
-          desc: "سنرد عليك خلال 24 ساعة",
-        },
-        {
-          icon: MapPin,
-          title: "المكتب",
-          content: "اسطنبول، تركيا",
-          desc: "فروع متعددة في أنحاء تركيا",
-        },
-        {
-          icon: Clock,
-          title: "ساعات التداول",
-          content: "الوصول إلى السوق 24/5",
-          desc: "الأحد 10 مساءً - الجمعة 10 مساءً GMT",
-        },
-      ],
-      benefits: {
-        title: "لماذا تفتح حساباً معنا؟",
-        items: [
-          "بدون عمولة على جميع الصفقات",
-          "فروقات أسعار منخفضة جداً من 0.1 نقطة",
-          "حسابات إسلامية خالية من الفوائد",
-          "إيداعات وسحوبات فورية",
-          "مدير حساب متخصص",
-          "موارد تعليمية مجانية",
-        ],
+      helpCenter: {
+        title: "الخدمة الذاتية",
+        subtitle: "ابحث عن إجابات في مركز المساعدة",
+        button: "زيارة مركز المساعدة",
       },
-      success: "شكراً لك! سنتصل بك خلال 24 ساعة.",
-      error: "يرجى ملء جميع الحقول المطلوبة.",
     },
-  };
+  }[language];
 
-  const t = content[language];
-
-  const handleSubmit = async (e) => {
+  // Handle support ticket submission
+  const handleSupportSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.phone || !formData.accountType) {
-      toast.error(t.error);
+    if (!supportForm.category || !supportForm.message.trim()) {
+      toast.error(language === "ar" ? "يرجى ملء جميع الحقول" : "Please fill in all fields");
       return;
     }
 
-    setIsSubmitting(true);
+    setSupportSubmitting(true);
+    
+    try {
+      const res = await base44.functions.invoke("createSupportTicket", {
+        category: supportForm.category,
+        user_message: supportForm.message.trim(),
+        source_route: "/Contact",
+        language,
+      });
+      
+      if (res.data?.ok) {
+        setTicketCreated({ reference: res.data.reference });
+        setSupportForm({ category: "", message: "" });
+        toast.success(t.support.success);
+      } else {
+        throw new Error(res.data?.error || "Failed to create ticket");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to submit ticket");
+    } finally {
+      setSupportSubmitting(false);
+    }
+  };
+
+  // Handle business form submission
+  const handleBusinessSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!businessForm.name || !businessForm.email || !businessForm.type || !businessForm.message) {
+      toast.error(t.business.error);
+      return;
+    }
+
+    setBusinessSubmitting(true);
 
     try {
-      // Send email with form data
       await base44.integrations.Core.SendEmail({
-        to: emailAddress,
-        subject: `New Account Request - ${formData.name}`,
+        to: "partnerships@nexttrade.exchange",
+        subject: `[Business Inquiry] ${businessForm.type} - ${businessForm.company || businessForm.name}`,
         body: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="text-align: center; padding: 24px; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: white;">
-              <h1 style="margin: 0; font-size: 26px; font-weight: 700;">NextTrade</h1>
-              <p style="margin: 8px 0 0; font-size: 16px;">New Account Request</p>
-            </div>
-            <div style="padding: 30px; background: #f9fafb;">
-              <h2 style="color: #1f2937; margin-bottom: 20px;">Client Information</h2>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                  <td style="padding: 12px 0; font-weight: bold; color: #4b5563;">Name:</td>
-                  <td style="padding: 12px 0; color: #1f2937;">${formData.name}</td>
-                </tr>
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                  <td style="padding: 12px 0; font-weight: bold; color: #4b5563;">Email:</td>
-                  <td style="padding: 12px 0; color: #1f2937;">${formData.email}</td>
-                </tr>
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                  <td style="padding: 12px 0; font-weight: bold; color: #4b5563;">Phone:</td>
-                  <td style="padding: 12px 0; color: #1f2937;">${formData.phone}</td>
-                </tr>
-                <tr style="border-bottom: 1px solid #e5e7eb;">
-                  <td style="padding: 12px 0; font-weight: bold; color: #4b5563;">Account Type:</td>
-                  <td style="padding: 12px 0; color: #1f2937;">${formData.accountType}</td>
-                </tr>
-                ${formData.message ? `
-                <tr>
-                  <td style="padding: 12px 0; font-weight: bold; color: #4b5563; vertical-align: top;">Message:</td>
-                  <td style="padding: 12px 0; color: #1f2937;">${formData.message}</td>
-                </tr>
-                ` : ''}
-              </table>
-            </div>
-            <div style="text-align: center; padding: 20px; background: #f3f4f6; color: #6b7280; font-size: 12px;">
-              <p>This email was sent from the NextTrade contact form.</p>
-            </div>
+            <h2>Business Inquiry</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Name:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${businessForm.name}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Email:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${businessForm.email}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Company:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${businessForm.company || "-"}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Type:</td><td style="padding: 8px; border-bottom: 1px solid #eee;">${businessForm.type}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; vertical-align: top;">Message:</td><td style="padding: 8px;">${businessForm.message}</td></tr>
+            </table>
           </div>
-        `
+        `,
       });
 
-      toast.success(t.success);
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        accountType: "",
-        message: "",
-      });
+      toast.success(t.business.success);
+      setBusinessSuccess(true);
+      setBusinessForm({ name: "", email: "", company: "", type: "", message: "" });
     } catch (err) {
-      toast.error(err?.message || "Failed to submit form. Please try again.");
+      toast.error(err?.message || "Failed to send message");
     } finally {
-      setIsSubmitting(false);
+      setBusinessSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Hero Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute w-96 h-96 bg-blue-500 rounded-full blur-3xl top-0 left-0 animate-pulse" />
-          <div className="absolute w-96 h-96 bg-cyan-500 rounded-full blur-3xl bottom-0 right-0 animate-pulse" />
-        </div>
-
-        <div className="relative max-w-4xl mx-auto text-center">
-          <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center mx-auto mb-6 p-3 shadow-lg">
-            <img src={nextTradeLogo} alt="NextTrade" className="w-full h-full object-contain" />
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">{t.hero.title}</h1>
-          <p className="text-xl text-gray-300">{t.hero.subtitle}</p>
+    <div className={`min-h-screen bg-background ${isAr ? "rtl" : "ltr"}`} dir={isAr ? "rtl" : "ltr"}>
+      {/* Hero */}
+      <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-16 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">{t.hero.title}</h1>
+          <p className="text-lg text-white/70">{t.hero.subtitle}</p>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="border-border bg-card shadow-2xl">
-                <CardContent className="p-8">
-                  <h2 className="text-3xl font-bold mb-2 text-foreground">{t.form.title}</h2>
-                  <p className="text-muted-foreground mb-8">{t.form.subtitle}</p>
+      <section className="max-w-6xl mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-2 gap-8">
+          
+          {/* Left Column - Support */}
+          <div className="space-y-6">
+            {/* Help Center Quick Link */}
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="h-8 w-8 text-primary" />
+                  <div>
+                    <h3 className="font-semibold text-foreground">{t.helpCenter.title}</h3>
+                    <p className="text-sm text-muted-foreground">{t.helpCenter.subtitle}</p>
+                  </div>
+                </div>
+                <Button asChild variant="outline">
+                  <Link to={createPageUrl("Help")}>
+                    {t.helpCenter.button}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
 
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                      <Label htmlFor="name" className="text-base font-medium">
-                        {t.form.name} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="name"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder={t.form.namePlaceholder}
-                        className="mt-2 h-12"
-                        required
-                      />
+            {/* Support Ticket Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Headphones className="h-5 w-5 text-primary" />
+                  {t.support.title}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{t.support.subtitle}</p>
+              </CardHeader>
+              <CardContent>
+                {!isAuthenticated && !isLoadingAuth ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">{t.support.loginRequired}</p>
+                    <Button onClick={() => base44.auth.redirectToLogin()}>
+                      {t.support.loginButton}
+                    </Button>
+                  </div>
+                ) : ticketCreated ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-8"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="h-8 w-8 text-emerald-500" />
                     </div>
-
-                    <div>
-                      <Label htmlFor="email" className="text-base font-medium">
-                        {t.form.email} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        placeholder={t.form.emailPlaceholder}
-                        className="mt-2 h-12"
-                        required
-                      />
+                    <h3 className="text-xl font-semibold text-foreground mb-2">{t.support.success}</h3>
+                    <p className="text-muted-foreground mb-4">{t.support.successDesc}</p>
+                    <Badge variant="outline" className="text-lg px-4 py-2 mb-6">
+                      {t.support.reference}: {ticketCreated.reference}
+                    </Badge>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Button asChild variant="outline">
+                        <Link to={`${createPageUrl("Profile")}?tab=support`}>
+                          {t.support.viewTickets}
+                        </Link>
+                      </Button>
+                      <Button onClick={() => setTicketCreated(null)}>
+                        {t.support.newTicket}
+                      </Button>
                     </div>
-
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleSupportSubmit} className="space-y-4">
                     <div>
-                      <Label htmlFor="phone" className="text-base font-medium">
-                        {t.form.phone} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder={t.form.phonePlaceholder}
-                        className="mt-2 h-12"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="accountType" className="text-base font-medium">
-                        {t.form.accountType} <span className="text-red-500">*</span>
-                      </Label>
+                      <Label>{t.support.category} *</Label>
                       <Select
-                        value={formData.accountType}
-                        onValueChange={(value) => setFormData({ ...formData, accountType: value })}
+                        value={supportForm.category}
+                        onValueChange={(v) => setSupportForm({ ...supportForm, category: v })}
                       >
-                        <SelectTrigger className="mt-2 h-12">
-                          <SelectValue placeholder={t.form.accountTypePlaceholder} />
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder={t.support.categoryPlaceholder} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="demo">{t.form.accountTypes.demo}</SelectItem>
-                          <SelectItem value="live">{t.form.accountTypes.live}</SelectItem>
-                          <SelectItem value="islamic">{t.form.accountTypes.islamic}</SelectItem>
+                          {Object.entries(t.support.categories).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="message" className="text-base font-medium">
-                        {t.form.message}
-                      </Label>
+                      <Label>{t.support.message} *</Label>
                       <Textarea
-                        id="message"
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        placeholder={t.form.messagePlaceholder}
-                        className="mt-2 min-h-[120px]"
+                        value={supportForm.message}
+                        onChange={(e) => setSupportForm({ ...supportForm, message: e.target.value })}
+                        placeholder={t.support.messagePlaceholder}
+                        className="mt-1.5 min-h-[120px]"
+                        style={{ fontSize: "16px" }}
                       />
                     </div>
 
-                    <Button
-                      type="submit"
-                      size="lg"
-                      disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      {isSubmitting ? (
-                        t.form.submitting
+                    <Button type="submit" className="w-full" disabled={supportSubmitting}>
+                      {supportSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t.support.submitting}
+                        </>
                       ) : (
                         <>
-                          <Send className="w-5 h-5 mr-2" />
-                          {t.form.submit}
+                          <Send className="h-4 w-4 mr-2" />
+                          {t.support.submit}
                         </>
                       )}
                     </Button>
                   </form>
-                </CardContent>
-              </Card>
-            </motion.div>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Contact Info & Benefits */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-6"
-            >
-              {/* Contact Info Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {t.info.map((item, idx) => {
-                  const Icon = item.icon;
-                  const isEmail = item.icon === Mail;
-                  
-                  return (
-                    <Card key={idx} className="border-0 shadow-lg hover:shadow-xl transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-4">
-                          <Icon className="w-6 h-6 text-white" />
-                        </div>
-                        <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
-                        
-                        {isEmail ? (
-                          <div>
-                            <a href={`mailto:${emailAddress}`} className="text-blue-600 font-medium mb-1 hover:underline">
-                              {item.content}
-                            </a>
-                          </div>
-                        ) : (
-                          <p className="text-blue-600 font-medium mb-1">{item.content}</p>
-                        )}
-                        
-                        <p className="text-sm text-gray-600">{item.desc}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {/* Benefits */}
-              <Card className="border-0 shadow-2xl bg-gradient-to-br from-slate-50 to-blue-50">
-                <CardContent className="p-8">
-                  <h3 className="text-2xl font-bold mb-6 text-gray-900">{t.benefits.title}</h3>
-                  <div className="space-y-4">
-                    {t.benefits.items.map((benefit, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className="flex items-center gap-3"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-4 h-4 text-white" />
-                        </div>
-                        <p className="text-gray-700 font-medium">{benefit}</p>
-                      </motion.div>
-                    ))}
+            {/* Telegram Quick Links */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-[#0088cc]" />
+                  {t.telegram.title}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{t.telegram.subtitle}</p>
+              </CardHeader>
+              <CardContent className="grid sm:grid-cols-2 gap-4">
+                <a
+                  href={TELEGRAM_SUPPORT}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-[#0088cc]/50 hover:bg-[#0088cc]/5 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#0088cc]/10 flex items-center justify-center">
+                    <Headphones className="h-5 w-5 text-[#0088cc]" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">{t.telegram.supportBot}</div>
+                    <div className="text-sm text-muted-foreground">{t.telegram.supportDesc}</div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                </a>
+
+                <a
+                  href={TELEGRAM_COMMUNITY}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-[#0088cc]/50 hover:bg-[#0088cc]/5 transition-colors"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#0088cc]/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-[#0088cc]" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">{t.telegram.community}</div>
+                    <div className="text-sm text-muted-foreground">{t.telegram.communityDesc}</div>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                </a>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Business */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  {t.business.title}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{t.business.subtitle}</p>
+              </CardHeader>
+              <CardContent>
+                {businessSuccess ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-center py-12"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="h-8 w-8 text-emerald-500" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">{t.business.success}</h3>
+                    <Button onClick={() => setBusinessSuccess(false)} variant="outline" className="mt-4">
+                      {language === "ar" ? "إرسال استفسار آخر" : "Send Another Inquiry"}
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleBusinessSubmit} className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label>{t.business.name} *</Label>
+                        <Input
+                          value={businessForm.name}
+                          onChange={(e) => setBusinessForm({ ...businessForm, name: e.target.value })}
+                          placeholder={t.business.namePlaceholder}
+                          className="mt-1.5"
+                          style={{ fontSize: "16px" }}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t.business.email} *</Label>
+                        <Input
+                          type="email"
+                          value={businessForm.email}
+                          onChange={(e) => setBusinessForm({ ...businessForm, email: e.target.value })}
+                          placeholder={t.business.emailPlaceholder}
+                          className="mt-1.5"
+                          style={{ fontSize: "16px" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>{t.business.company}</Label>
+                      <Input
+                        value={businessForm.company}
+                        onChange={(e) => setBusinessForm({ ...businessForm, company: e.target.value })}
+                        placeholder={t.business.companyPlaceholder}
+                        className="mt-1.5"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>{t.business.type} *</Label>
+                      <Select
+                        value={businessForm.type}
+                        onValueChange={(v) => setBusinessForm({ ...businessForm, type: v })}
+                      >
+                        <SelectTrigger className="mt-1.5">
+                          <SelectValue placeholder={t.business.typePlaceholder} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(t.business.types).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>{t.business.message} *</Label>
+                      <Textarea
+                        value={businessForm.message}
+                        onChange={(e) => setBusinessForm({ ...businessForm, message: e.target.value })}
+                        placeholder={t.business.messagePlaceholder}
+                        className="mt-1.5 min-h-[120px]"
+                        style={{ fontSize: "16px" }}
+                      />
+                    </div>
+
+                    <Button type="submit" className="w-full" disabled={businessSubmitting}>
+                      {businessSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t.business.submitting}
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          {t.business.submit}
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
     </div>
   );
 }
+
+Contact.propTypes = {
+  language: PropTypes.string,
+};

@@ -67,6 +67,9 @@ import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
+import Help from './pages/Help';
+import HelpArticle from './pages/HelpArticle';
+import FAQ from './pages/FAQ';
 import __Layout from './Layout.jsx';
 
 
@@ -91,6 +94,9 @@ export const PAGES = {
     "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
+    "Help": Help,
+    "HelpArticle": HelpArticle,
+    "FAQ": FAQ,
 }
 
 export const pagesConfig = {
