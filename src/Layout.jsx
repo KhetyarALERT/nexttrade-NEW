@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { MobileNavigationProvider, useMobileNavigation, isRootPath as checkIsRootPath } from "@/components/mobile/MobileNavigationContext";
 import PageTransition from "@/components/mobile/PageTransition";
 import { createPageUrl } from "@/utils";
-import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle } from "lucide-react";
+import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle, HelpCircle, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { tSection } from "@/components/i18n/translations";
 // @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
@@ -495,8 +495,9 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
         { name: { en: "Wallet", ar: "المحفظة" }, url: createPageUrl("Wallet") },
         { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
         { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
+        { name: { en: "Help Center", ar: "مركز المساعدة" }, url: createPageUrl("Help") },
+        { name: { en: "Contact", ar: "تواصل معنا" }, url: createPageUrl("Contact") },
         { name: { en: "About Us", ar: "من نحن" }, url: createPageUrl("About") },
-        { name: { en: "Open Account", ar: "فتح حساب" }, url: createPageUrl("Contact") },
       ];
 
   const accountEmail = user?.email;
@@ -909,6 +910,21 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                       <Link to={createPageUrl("Rewards") + "?tab=referrals"}>
                         <Users className="h-4 w-4" />
                         {language === "ar" ? "دعوة واربح" : "Invite & Earn"}
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "المساعدة" : "Help"}</div>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Help")}>
+                        <HelpCircle className="h-4 w-4" />
+                        {language === "ar" ? "مركز المساعدة" : "Help Center"}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl("Contact")}>
+                        <Headphones className="h-4 w-4" />
+                        {language === "ar" ? "الدعم" : "Contact Support"}
                       </Link>
                     </DropdownMenuItem>
 
