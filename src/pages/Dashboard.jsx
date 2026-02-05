@@ -16,7 +16,8 @@ import {
   Copy,
   CheckCircle,
   ChevronRight,
-  Zap
+  Zap,
+  HelpCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -608,6 +609,26 @@ export default function Dashboard({ language = "en" }) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Quick Actions - Help Center */}
+        <Card className="border-border/50 shadow-sm bg-gradient-to-r from-blue-500/5 via-transparent to-cyan-500/5 rounded-2xl">
+        <CardContent className="flex items-center justify-between p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
+              <HelpCircle className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">{language === 'ar' ? 'تحتاج مساعدة؟' : 'Need Help?'}</h3>
+              <p className="text-xs text-muted-foreground">{language === 'ar' ? 'اطلع على أدلة البدء والأسئلة الشائعة' : 'Check our guides and FAQs'}</p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link to={createPageUrl("Help")}>
+              {language === 'ar' ? 'مركز المساعدة' : 'Help Center'}
+            </Link>
+          </Button>
+        </CardContent>
+        </Card>
 
         {/* Referrals & Vouchers */}
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
