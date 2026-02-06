@@ -231,20 +231,22 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
               </div>
             ) : (
               <div className="space-y-2">
-                {ledgerEntries.map((entry) => (
+                {ledgerEntries
+                  .filter((entry) => entry.kind !== 'COMMISSION' && entry.kind !== 'COMMISSION_OPEN' && entry.kind !== 'COMMISSION_CLOSE')
+                  .map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between text-sm bg-muted/30 rounded-lg px-3 py-2">
-                    <div className="flex flex-col gap-1">
-                      <Badge className={ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} variant="outline">
+                    <div className="flex flex-col gap-1 min-w-0 flex-1 mr-3">
+                      <Badge className={`${ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} shrink-0 w-fit`} variant="outline">
                         {getLedgerLabel(entry.kind)}
                       </Badge>
-                      <span className="text-muted-foreground text-[10px]">
+                      <span className="text-muted-foreground text-[10px] truncate">
                         {formatDate(entry.created_at || entry.created_date)}
                       </span>
                     </div>
-                    <span className={`font-mono font-medium text-sm ${
+                    <span className={`font-mono font-medium text-sm shrink-0 ${
                       entry.kind === 'CREDIT' || entry.kind === 'TOPUP_OKX' || entry.kind === 'TOPUP_ADMIN' || entry.kind === 'PNL' 
                         ? 'text-green-500' 
-                        : entry.kind === 'DEBIT' || entry.kind === 'COMMISSION_OPEN' || entry.kind === 'COMMISSION_CLOSE'
+                        : entry.kind === 'DEBIT'
                         ? 'text-red-500' 
                         : 'text-foreground'
                     }`}>
