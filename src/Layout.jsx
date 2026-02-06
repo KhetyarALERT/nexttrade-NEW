@@ -157,7 +157,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
   };
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] glass-effect border-t border-border safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] glass-effect border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} role="navigation" aria-label={language === "ar" ? "القائمة الرئيسية" : "Main navigation"}>
       <div className="flex items-center justify-around h-14 px-1">
         <Link
           to={createPageUrl("Dashboard")}
@@ -604,7 +604,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
   return (
     <WalletProvider>
     <NotificationProvider>
-    <div className={`min-h-screen overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-[100dvh] overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
         :root {
           --gradient-primary: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
@@ -660,6 +660,8 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled ? 'glass-effect shadow-lg' : 'bg-transparent'}`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        role="navigation"
+        aria-label={language === "ar" ? "التنقل الرئيسي" : "Main navigation"}
         >
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1098,7 +1100,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
       )}
 
       {/* Main Content */}
-      <main className={`${isTradingPage ? 'pt-0' : 'pt-16'} md:pb-0 pb-20`}>
+      <main className={`${isTradingPage ? 'pt-0' : 'pt-[calc(4rem+env(safe-area-inset-top))]'} md:pb-0 pb-[calc(5rem+env(safe-area-inset-bottom))]`}>
         <PageTransition>
           {React.cloneElement(children, { language })}
         </PageTransition>
