@@ -115,7 +115,7 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full">
+        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={isAr ? `${unreadCount} إشعار غير مقروء` : `${unreadCount} unread notifications`}>
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
@@ -144,7 +144,7 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
         
         <ScrollArea className="h-[300px]">
           {notifications.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">
+            <div className="p-8 text-center text-muted-foreground text-sm">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
               {t.noNotifications}
             </div>
@@ -157,22 +157,25 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
                 
                 return (
                   <div
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`p-3 cursor-pointer hover:bg-slate-50 transition-colors ${
-                      !notification.read ? 'bg-blue-50/50' : ''
-                    }`}
+                   key={notification.id}
+                   onClick={() => handleNotificationClick(notification)}
+                   role="button"
+                   tabIndex={0}
+                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNotificationClick(notification); }}
+                   className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
+                     !notification.read ? 'bg-primary/5' : ''
+                   }`}
                   >
-                    <div className="flex gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${!notification.read ? 'text-slate-900' : 'text-slate-700'}`}>
-                          {title}
-                        </p>
-                        <p className="text-xs text-slate-500 line-clamp-2">{message}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">
+                   <div className="flex gap-3">
+                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+                       <Icon className="h-4 w-4" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <p className={`text-sm font-medium truncate ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                         {title}
+                       </p>
+                       <p className="text-xs text-muted-foreground line-clamp-2">{message}</p>
+                       <p className="text-[10px] text-muted-foreground/70 mt-1">
                           {formatDate(notification.created_date, { 
                             month: 'short', 
                             day: 'numeric', 
