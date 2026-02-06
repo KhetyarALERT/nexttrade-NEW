@@ -106,48 +106,48 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
     }
 
     return (
-      <div className="space-y-3 pb-20 p-4" dir={isAr ? "rtl" : "ltr"}>
+      <div className="space-y-3 pb-20 px-3 py-3" dir={isAr ? "rtl" : "ltr"}>
         {positions.map(pos => {
           const { pnl, pnlPct } = calculatePnL(pos);
           return (
             <Card 
               key={pos.id} 
-              className="p-3 border-l-4 border-l-primary/50 cursor-pointer hover:bg-muted/50 transition-colors"
+              className="p-3 border-l-4 border-l-primary/50 cursor-pointer hover:bg-muted/50 transition-colors overflow-hidden"
               onClick={() => onPositionClick?.(pos)}
             >
               <div className="flex justify-between items-start mb-2 gap-2">
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-sm truncate">{pos.symbol}</span>
-                    <Badge variant="outline" className={`shrink-0 ${pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}`}>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-sm truncate max-w-[120px]">{pos.symbol}</span>
+                    <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 h-5 ${pos.side === 'LONG' ? 'text-green-500 border-green-500/20' : 'text-red-500 border-red-500/20'}`}>
                       {pos.side} {pos.leverage}x
                     </Badge>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className={`font-mono font-medium text-sm whitespace-nowrap ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <div className="text-right shrink-0 max-w-[45%]">
+                  <div className={`font-mono font-medium text-xs whitespace-nowrap ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)
                   </div>
                   <div className="text-[10px] text-muted-foreground">USDT {t.pnl}</div>
                 </div>
               </div>
             
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="min-w-0">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+              <div className="min-w-0 overflow-hidden">
                 <span className="text-muted-foreground block text-[10px]">{t.size}</span>
-                <span className="font-mono truncate block" title={`${pos.notional_usdt.toFixed(0)} USDT`}>{pos.notional_usdt.toFixed(0)} USDT</span>
+                <span className="font-mono truncate block text-xs" title={`${pos.notional_usdt?.toFixed(0)} USDT`}>{pos.notional_usdt?.toFixed(0) || '0'} USDT</span>
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 overflow-hidden">
                 <span className="text-muted-foreground block text-[10px]">{t.entry}</span>
-                <span className="font-mono truncate block" title={pos.entry_price}>{pos.entry_price}</span>
+                <span className="font-mono truncate block text-xs" title={pos.entry_price}>{pos.entry_price}</span>
               </div>
-              <div className="min-w-0">
-                <span className="text-muted-foreground block text-green-600/80 text-[10px]">{t.tp}</span>
-                <span className="font-mono truncate block" title={pos.tp1}>{pos.tp1}</span>
+              <div className="min-w-0 overflow-hidden">
+                <span className="text-green-600/80 block text-[10px]">{t.tp}</span>
+                <span className="font-mono truncate block text-xs" title={pos.tp1}>{pos.tp1 || '—'}</span>
               </div>
-              <div className="min-w-0">
-                <span className="text-muted-foreground block text-red-600/80 text-[10px]">{t.sl}</span>
-                <span className="font-mono truncate block" title={pos.stop_loss}>{pos.stop_loss}</span>
+              <div className="min-w-0 overflow-hidden">
+                <span className="text-red-600/80 block text-[10px]">{t.sl}</span>
+                <span className="font-mono truncate block text-xs" title={pos.stop_loss}>{pos.stop_loss || '—'}</span>
               </div>
             </div>
           </Card>
