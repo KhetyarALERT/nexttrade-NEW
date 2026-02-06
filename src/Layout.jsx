@@ -161,6 +161,8 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
       <div className="flex items-center justify-around h-14 px-1">
         <Link
           to={createPageUrl("Dashboard")}
+          aria-label={navT.overview}
+          aria-current={location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home") ? "page" : undefined}
           onClick={(e) => {
             const dashPath = createPageUrl("Dashboard");
             if (location.pathname === dashPath || location.pathname === '/' || location.pathname === createPageUrl("Home")) {
@@ -177,12 +179,14 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               : 'text-muted-foreground'
           }`}
         >
-          <Home className="w-4 h-4" />
+          <Home className="w-4 h-4" aria-hidden="true" />
           <span className="text-[9px] font-medium">{navT.overview}</span>
         </Link>
 
         <Link
           to={createPageUrl("Futures")}
+          aria-label={navT.trade}
+          aria-current={location.pathname === createPageUrl("Futures") ? "page" : undefined}
           onClick={(e) => {
             const futPath = createPageUrl("Futures");
             if (location.pathname === futPath) {
@@ -199,12 +203,14 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               : 'text-muted-foreground'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
+          <TrendingUp className="w-4 h-4" aria-hidden="true" />
           <span className="text-[9px] font-medium">{navT.trade}</span>
         </Link>
 
         <Link
           to={createPageUrl("Wallet")}
+          aria-label={navT.wallet}
+          aria-current={location.pathname.includes("Wallet") ? "page" : undefined}
           onClick={(e) => {
             const walletPath = createPageUrl("Wallet");
             if (location.pathname.includes("Wallet")) {
@@ -221,21 +227,24 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               : 'text-muted-foreground'
           }`}
         >
-          <WalletIcon className="w-4 h-4" />
+          <WalletIcon className="w-4 h-4" aria-hidden="true" />
           <span className="text-[9px] font-medium">{navT.wallet}</span>
         </Link>
 
         <button
           type="button"
           onClick={handleSupportClick}
+          aria-label={navT.support}
           className="flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all text-muted-foreground active:text-primary active:bg-primary/15 active:scale-95"
         >
-          <MessageCircle className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4" aria-hidden="true" />
           <span className="text-[9px] font-medium">{navT.support}</span>
         </button>
 
         <Link
           to={isAuthenticated ? createPageUrl("Profile") : '#'}
+          aria-label={navT.account}
+          aria-current={location.pathname.includes("Profile") ? "page" : undefined}
           onClick={(e) => {
             if (isAuthenticated) {
               const profPath = createPageUrl("Profile");
@@ -263,7 +272,7 @@ function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location 
               : 'text-muted-foreground'
           }`}
         >
-          <User className="w-4 h-4" />
+          <User className="w-4 h-4" aria-hidden="true" />
           <span className="text-[9px] font-medium">{navT.account}</span>
         </Link>
       </div>
