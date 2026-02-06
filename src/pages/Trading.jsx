@@ -583,7 +583,7 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Right: Wallet Panel */}
-          <div className="w-[280px] border-l border-border/50 bg-background flex flex-col shrink-0">
+          <div className="w-[280px] border-l border-border/50 bg-background flex flex-col shrink-0 overflow-hidden">
              <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>

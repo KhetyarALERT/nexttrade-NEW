@@ -159,7 +159,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
 
   // Desktop Table View
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-background/50 backdrop-blur shrink-0 sticky top-0 z-10">
         <h3 className="text-sm font-semibold">Open Positions</h3>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={loadPositions}>
