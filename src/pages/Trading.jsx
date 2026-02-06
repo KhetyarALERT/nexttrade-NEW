@@ -368,7 +368,7 @@ export default function Trading({ language = "en" }) {
     // 1A. MOBILE COPY TRADING
     if (isMobile) {
       return (
-        <div className="flex h-screen flex-col bg-background overflow-hidden">
+        <div className="flex h-[100dvh] flex-col bg-background overflow-hidden">
           {/* Mobile Header with Mode Toggle */}
           <div className="border-b border-border px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur z-50 sticky top-0">
             <div className="flex items-center justify-between mb-3 relative">
@@ -464,7 +464,7 @@ export default function Trading({ language = "en" }) {
             )}
 
             {copyMobileTab === 'positions' && (
-              <div className="h-full overflow-y-auto">
+              <div className="h-full overflow-y-auto pb-4">
                 <CopyPositionsTable 
                   refreshTrigger={isRefreshing} 
                   isMobile={true}
@@ -480,12 +480,12 @@ export default function Trading({ language = "en" }) {
             )}
           </div>
 
-          {/* Wallet Drawer/Sheet Stub (using simple absolute overlay for now to save complexity, or could use Sheet) */}
+          {/* Wallet Drawer/Sheet */}
           {walletOpen && (
-            <div className="absolute inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom-full duration-200">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="font-semibold">Copy Trading Wallet</h2>
-                <Button variant="ghost" size="icon" onClick={() => setWalletOpen(false)}>
+            <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom-full duration-200">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
+                <h2 className="font-semibold text-sm">Copy Trading Wallet</h2>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setWalletOpen(false)}>
                   <XCircle className="h-5 w-5" />
                 </Button>
               </div>
