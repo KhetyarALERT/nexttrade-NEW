@@ -163,39 +163,39 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
       </div>
 
       {/* Balance Cards */}
-      <div className="px-4 py-3 space-y-3 shrink-0 border-b border-border">
+      <div className="px-3 py-3 space-y-2 shrink-0 border-b border-border">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] text-muted-foreground">{labels.available}</span>
+              <Wallet className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-[10px] text-muted-foreground truncate">{labels.available}</span>
             </div>
-            <p className="text-xl font-bold text-foreground font-mono">
-              {formatUsdt(availableBalance)} <span className="text-xs text-muted-foreground">USDT</span>
+            <p className="text-lg font-bold text-foreground font-mono truncate">
+              {formatUsdt(availableBalance)} <span className="text-[10px] text-muted-foreground">USDT</span>
             </p>
           </CardContent>
         </Card>
 
         <div className="grid grid-cols-2 gap-2">
-          <Card className="bg-card/50">
+          <Card className="bg-card/50 overflow-hidden">
             <CardContent className="p-2">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Lock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[9px] text-muted-foreground">{labels.locked}</span>
+              <div className="flex items-center gap-1 mb-1">
+                <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-[9px] text-muted-foreground truncate">{labels.locked}</span>
               </div>
-              <p className="text-sm font-bold text-foreground font-mono">
+              <p className="text-sm font-bold text-foreground font-mono truncate">
                 {formatUsdt(lockedBalance)}
               </p>
             </CardContent>
           </Card>
 
-          <Card className={`${lifetimePnl >= 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
+          <Card className={`overflow-hidden ${lifetimePnl >= 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
             <CardContent className="p-2">
-              <div className="flex items-center gap-1.5 mb-1">
-                <TrendingUp className={`w-3 h-3 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
-                <span className="text-[9px] text-muted-foreground">{labels.totalPnl}</span>
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp className={`w-3 h-3 shrink-0 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
+                <span className="text-[9px] text-muted-foreground truncate">{labels.totalPnl}</span>
               </div>
-              <p className={`text-sm font-bold font-mono ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              <p className={`text-sm font-bold font-mono truncate ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                 {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
               </p>
             </CardContent>
@@ -224,7 +224,7 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ledger" className="flex-1 overflow-y-auto px-4 py-2 mt-0">
+          <TabsContent value="ledger" className="flex-1 overflow-y-auto px-3 py-2 mt-0">
             {ledgerEntries.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">
                 No activity yet
@@ -258,7 +258,7 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
             )}
           </TabsContent>
 
-          <TabsContent value="allocations" className="flex-1 overflow-y-auto px-4 py-2 mt-0">
+          <TabsContent value="allocations" className="flex-1 overflow-y-auto px-3 py-2 mt-0">
             {allocations.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">
                 {labels.noAllocations}
@@ -266,17 +266,17 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
             ) : (
               <div className="space-y-2">
                 {allocations.map((alloc) => (
-                  <Card key={alloc.id} className="bg-card/50">
+                  <Card key={alloc.id} className="bg-card/50 overflow-hidden">
                     <CardContent className="p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant={alloc.status === 'APPROVED' ? 'success' : alloc.status === 'PENDING' ? 'warning' : 'outline'}>
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <Badge className="shrink-0" variant={alloc.status === 'APPROVED' ? 'success' : alloc.status === 'PENDING' ? 'warning' : 'outline'}>
                           {alloc.status}
                         </Badge>
-                        <span className="font-mono text-sm font-bold">
+                        <span className="font-mono text-sm font-bold truncate">
                           {formatUsdt(alloc.amount_usdt)} USDT
                         </span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-[10px] text-muted-foreground truncate">
                         {formatDate(alloc.created_at)}
                       </div>
                     </CardContent>
