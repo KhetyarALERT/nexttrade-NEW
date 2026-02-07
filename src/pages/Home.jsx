@@ -338,144 +338,148 @@ export default function Home({ language = "en" }) {
       </section>
 
       {/* Desktop Hero Section (Hidden on Mobile) */}
-      <section className="hidden md:flex relative min-h-[85vh] items-center overflow-hidden bg-slate-950">
-        {/* Subtle background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+      <section className="hidden md:flex relative min-h-[90vh] items-center overflow-hidden">
+        {/* Premium background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(16,185,129,0.08),transparent)]" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '60px 60px'
+        }} />
         
-        {/* Content */}
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 z-10 w-full">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            {/* Left Content - Text */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 z-10 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Left Content */}
             <motion.div
               initial={fadeInUp.initial}
               animate={fadeInUp.animate}
               transition={{ duration: shouldReduceMotion ? 0.2 : 0.6 }}
-              className="order-2 lg:order-1 text-center lg:text-left"
+              className="order-2 lg:order-1"
             >
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-[1.1] tracking-tight">
-                {t.hero.title}
+              <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold text-white mb-6 leading-[1.08] tracking-tight">
+                {language === 'en' ? (
+                  <>Trade Smarter.<br/><span className="bg-gradient-to-r from-primary to-emerald-300 bg-clip-text text-transparent">Invest Safer.</span></>
+                ) : (
+                  <>تداول أذكى.<br/><span className="bg-gradient-to-r from-primary to-emerald-300 bg-clip-text text-transparent">استثمر بأمان.</span></>
+                )}
               </h1>
 
-              <p className="text-base sm:text-lg text-white/60 mb-6 sm:mb-8 max-w-lg mx-auto lg:mx-0 leading-relaxed">
-                {t.hero.subtitle}
+              <p className="text-lg text-white/50 mb-10 max-w-lg leading-relaxed">
+                {language === "en"
+                  ? "Futures trading with AI signals, automated copy trading bots, and secure staking with up to 33% APY — all in one institutional-grade platform."
+                  : "تداول العقود بإشارات ذكية، روبوتات نسخ تداول تلقائية، وستاكينغ آمن بعائد يصل إلى 33% سنوياً — كلها في منصة واحدة بمستوى مؤسسي."
+                }
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-12">
+              <div className="flex flex-row gap-4 mb-10">
                 <Button
                   size="lg"
-                  className="bg-white text-slate-900 hover:bg-white/90 rounded-lg px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg font-semibold transition-all hover:scale-[1.02]"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-8 py-6 text-base font-bold shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 transition-all"
                   asChild={isAuthenticated && !!nextAction?.route}
                   onClick={!isAuthenticated ? navigateToLogin : undefined}
                   disabled={loadingReadiness}
                 >
                   {isAuthenticated && nextAction?.route ? (
                     <Link to={nextAction.route}>
-                      {nextAction.label?.[language] || t.hero.cta1}
+                      {nextAction.label?.[language] || (language === "en" ? "Get Started" : "ابدأ الآن")}
                     </Link>
                   ) : (
-                    <span>{t.hero.cta1}</span>
+                    <span>{language === "en" ? "Get Started" : "ابدأ الآن"}</span>
                   )}
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10 rounded-lg px-6 sm:px-8 py-5 sm:py-6 text-base sm:text-lg font-semibold transition-all"
+                  className="border-white/15 text-white hover:bg-white/5 rounded-xl px-8 py-6 text-base font-bold bg-transparent"
                   asChild
                 >
                   <Link to={createPageUrl("Dashboard")}>{t.hero.cta2}</Link>
                 </Button>
               </div>
 
-              {/* Trust indicators - minimal */}
-              <div className="flex flex-wrap justify-center lg:justify-start gap-4 sm:gap-6 text-white/40 text-xs sm:text-sm">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  <span>{language === "en" ? "Secure" : "آمن"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  <span>{language === "en" ? "Fast" : "سريع"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  <span>{language === "en" ? "24/7" : "على مدار الساعة"}</span>
-                </div>
+              {/* Trust indicators */}
+              <div className="flex items-center gap-6 text-white/30 text-sm">
+                <span className="flex items-center gap-2"><Shield className="w-4 h-4" /> {language === "en" ? "Bank-grade Security" : "أمان بمستوى البنوك"}</span>
+                <span className="w-px h-4 bg-white/10" />
+                <span className="flex items-center gap-2"><Zap className="w-4 h-4" /> {language === "en" ? "Instant Execution" : "تنفيذ فوري"}</span>
+                <span className="w-px h-4 bg-white/10" />
+                <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> 24/7</span>
               </div>
             </motion.div>
 
-            {/* Right Content - Feature Cards */}
+            {/* Right Content - Product Cards */}
             <motion.div
               initial={fadeInScale.initial}
               animate={fadeInScale.animate}
               transition={{ duration: shouldReduceMotion ? 0.2 : 0.8, delay: shouldReduceMotion ? 0 : 0.2 }}
-              className="order-1 lg:order-2 flex justify-center"
+              className="order-1 lg:order-2"
             >
-              <div className="grid grid-cols-1 gap-5 w-full max-w-md">
-                {/* Copy Trading Card */}
+              <div className="space-y-4 w-full max-w-md mx-auto">
+                {/* Copy Trading */}
                 <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group">
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-600/15 to-cyan-600/10 border border-blue-500/20 hover:border-blue-500/40 transition-all">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-blue-400" />
-                          </div>
-                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">
-                            {language === "en" ? "AUTO" : "تلقائي"}
-                          </Badge>
-                        </div>
-                        <h3 className="text-white font-bold text-lg mb-1">
-                          {language === "en" ? "Copy Trading" : "نسخ التداول"}
-                        </h3>
-                        <p className="text-white/50 text-sm leading-relaxed">
-                          {language === "en" 
-                            ? "Mirror top traders automatically. Earn while you sleep." 
-                            : "انسخ أفضل المتداولين تلقائياً. اربح وأنت نائم."}
-                        </p>
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Bot className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-white font-bold text-base">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/15 px-2 py-0.5 rounded-full">
+                          {language === "en" ? "AUTOMATED" : "آلي"}
+                        </span>
                       </div>
-                      <ArrowUpRight className="w-5 h-5 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <p className="text-white/40 text-sm">{language === "en" ? "Mirror top traders automatically. Earn while you sleep." : "انسخ أفضل المتداولين تلقائياً. اربح وأنت نائم."}</p>
                     </div>
-                    <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
-                      <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-blue-400" /> {language === "en" ? "AI Signals" : "إشارات ذكية"}</span>
-                      <span className="flex items-center gap-1"><Users className="w-3 h-3 text-blue-400" /> {language === "en" ? "Pro Traders" : "متداولون محترفون"}</span>
-                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-blue-400 transition-colors flex-shrink-0" />
                   </div>
                 </Link>
 
-                {/* Staking Card */}
+                {/* Staking */}
                 <Link to={createPageUrl("Investing")} className="block group">
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-600/15 to-green-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                            <Lock className="w-5 h-5 text-emerald-400" />
-                          </div>
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
-                            {language === "en" ? "SAFE" : "آمن"}
-                          </Badge>
-                        </div>
-                        <h3 className="text-white font-bold text-lg mb-1">
-                          {language === "en" ? "Staking" : "الستاكينغ"}
-                        </h3>
-                        <p className="text-white/50 text-sm leading-relaxed">
-                          {language === "en" 
-                            ? "Lock USDT, earn up to 33% APY. Safe and predictable." 
-                            : "اقفل USDT، واربح حتى 33% سنوياً. آمن وموثوق."}
-                        </p>
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Lock className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-white font-bold text-base">{language === "en" ? "Staking" : "الستاكينغ"}</h3>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                          {language === "en" ? "UP TO 33% APY" : "حتى 33%"}
+                        </span>
                       </div>
-                      <ArrowUpRight className="w-5 h-5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <p className="text-white/40 text-sm">{language === "en" ? "Lock USDT, earn daily rewards. Safe and predictable." : "اقفل USDT، واربح مكافآت يومية. آمن وموثوق."}</p>
                     </div>
-                    <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
-                      <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-emerald-400" /> {language === "en" ? "Secured" : "مؤمّن"}</span>
-                      <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-emerald-400" /> {language === "en" ? "Daily Rewards" : "مكافآت يومية"}</span>
-                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-emerald-400 transition-colors flex-shrink-0" />
                   </div>
                 </Link>
 
-                {/* Phone Mockup below the cards */}
-                <div className="hidden xl:block">
-                  <PhoneMockup language={language} />
+                {/* Futures Trading */}
+                <Link to={createPageUrl("Futures")} className="block group">
+                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <LineChart className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-white font-bold text-base">{language === "en" ? "Futures Trading" : "تداول العقود"}</h3>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
+                          100x
+                        </span>
+                      </div>
+                      <p className="text-white/40 text-sm">{language === "en" ? "Trade BTC, ETH & 200+ pairs with AI-powered signals." : "تداول BTC و ETH و200+ زوج بإشارات مدعومة بالذكاء الاصطناعي."}</p>
+                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-amber-400 transition-colors flex-shrink-0" />
+                  </div>
+                </Link>
+
+                {/* Live stats strip */}
+                <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-[11px] text-white/25 font-medium">
+                  <span>{language === "en" ? "200+ Trading Pairs" : "200+ زوج تداول"}</span>
+                  <span className="w-px h-3 bg-white/10" />
+                  <span>{language === "en" ? "Instant Withdrawals" : "سحب فوري"}</span>
+                  <span className="w-px h-3 bg-white/10" />
+                  <span>{language === "en" ? "24/7 Support" : "دعم 24/7"}</span>
                 </div>
               </div>
             </motion.div>
