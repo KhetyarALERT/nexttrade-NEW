@@ -235,7 +235,14 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       });
 
       if (res.data?.ok) {
-        toast.success('Signal accepted! Position opened.');
+        // Show balance summary in toast
+        const trade = res.data.trade;
+        const summaryMsg = trade 
+          ? (language === 'ar' 
+            ? `استخدام: ${trade.margin} USDT · المتبقي: ${trade.balanceAfter?.toFixed(2)} USDT`
+            : `Used: ${trade.margin} USDT · Remaining: ${trade.balanceAfter?.toFixed(2)} USDT`)
+          : (language === 'ar' ? 'تم فتح الصفقة!' : 'Position opened!');
+        toast.success(summaryMsg);
         setAcceptDialogOpen(false);
         setSignals(prev => prev.filter(s => s.id !== selectedSignal.id));
         
