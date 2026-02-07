@@ -592,16 +592,21 @@ export default function Trading({ language = "en" }) {
                   refreshTrigger={isRefreshing} 
                   isMobile={true}
                   language={language}
-                  onPositionClick={(pos) => {
-                    if (pos?.symbol) {
-                      setSelectedSymbol(pos.symbol);
-                      setCopyMobileTab('chart');
-                    }
-                  }}
+                  selectedPositionId={selectedPosition?.id}
+                  onPositionClick={handlePositionClick}
                 />
               </div>
             )}
           </div>
+
+          {/* Position Detail Drawer - Mobile */}
+          <PositionDetailDrawer
+            position={selectedPosition}
+            open={positionDrawerOpen}
+            onClose={handlePositionDrawerClose}
+            isMobile={true}
+            language={language}
+          />
 
           {/* Wallet Drawer/Sheet */}
           {walletOpen && (
