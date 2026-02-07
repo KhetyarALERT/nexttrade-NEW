@@ -392,9 +392,20 @@ export default function Trading({ language = "en" }) {
 
   // Chart component (shared between mobile and desktop)
   // In Copy Mode, show paper position on chart. In Live Mode, show real position.
-  const activePosition = isCopyMode 
-    ? paperPositions.find(p => p.symbol === selectedSymbol)
-    : livePositions.find(p => p.instId === selectedSymbol);
+  // When deep-linked to a specific positionId, use that; otherwise match symbol+side
+  const activePosition = useMemo(() => {
+    if (isCopyMode) {
+      if (urlPositionId) return paperPositions.find(p => p.id === urlPositionId) || paperPositions.find(p => p.symbol === selectedSymbol);
+      return paperPositions.find(p => p.symbol === selectedSymbol);
+    }
+    // For live: if multiple positions on same symbol (long+short), prefer the one matching urlPositionId
+    if (urlPositionId) {
+      const exact = livePositions.find(p => p.id === urlPositionId);
+      if (exact) return exact;
+    }
+    // Return first match on symbol (could be long or short)
+    return livePositions.find(p => p.instId === selectedSymbol);
+  }, [isCopyMode, selectedSymbol, paperPositions, livePositions, urlPositionId]);
 
   const chartComponent = (
     <div className="h-full w-full min-h-[250px]">
