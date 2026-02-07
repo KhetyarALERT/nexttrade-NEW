@@ -696,9 +696,9 @@ export default function Trading({ language = "en" }) {
       <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </Link>
             <h1 className="text-lg font-semibold text-foreground">
               {isAr ? "التداول" : "Trading"}
             </h1>
