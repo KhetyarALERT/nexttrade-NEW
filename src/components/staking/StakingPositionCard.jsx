@@ -1,9 +1,10 @@
+import { useState } from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Clock, Gift, AlertCircle, CheckCircle2, XCircle, Loader2, Calendar } from "lucide-react";
+import { Clock, Gift, AlertCircle, CheckCircle2, XCircle, Loader2, Calendar, ArrowRight, Coins } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 // Shared formatters with Latin digits
 function getLocale(lang) {
@@ -74,7 +75,7 @@ function formatDaysRemaining(endsAt) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export default function StakingPositionCard({ position, onCancel, language = "en" }) {
+export default function StakingPositionCard({ position, onCancel, onClaim, language = "en" }) {
   const labels = t[language] || t.en;
   const statusConfig = STATUS_CONFIG[position.status] || STATUS_CONFIG.PENDING_APPROVAL;
   const StatusIcon = statusConfig.icon;
@@ -182,7 +183,38 @@ export default function StakingPositionCard({ position, onCancel, language = "en
           </div>
         )}
 
-        {/* Rewards badge */}
+        {/* Claimable rewards - actionable */}
+        {position.status === "ACTIVE" && (position.claimableAmount > 0.01 || position.payoutStatus === "REQUESTED") && (
+          <div className="flex items-center justify-between pt-1 border-t border-border/40">
+            <div className="flex items-center gap-1.5 text-sm">
+              <Coins className="w-4 h-4 text-emerald-500" />
+              <span className="text-muted-foreground">
+                {language === "ar" ? "قابل للمطالبة" : "Claimable"}:
+              </span>
+              <span className="font-semibold text-emerald-600">
+                {formatUsdt(position.claimableAmount || 0, language)} USDT
+              </span>
+            </div>
+            {position.payoutStatus === "REQUESTED" ? (
+              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+                <Clock className="w-3 h-3 ltr:mr-0.5 rtl:ml-0.5" />
+                {language === "ar" ? "مطلوب" : "Requested"}
+              </Badge>
+            ) : position.claimableAmount > 0.01 && onClaim ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                onClick={(e) => { e.stopPropagation(); onClaim(position.id); }}
+              >
+                {language === "ar" ? "مطالبة" : "Claim"}
+                <ArrowRight className="w-3 h-3 ltr:ml-1 rtl:mr-1" />
+              </Button>
+            ) : null}
+          </div>
+        )}
+
+        {/* Bonus points badge */}
         {position.rewardsGranted > 0 && (
           <div className="flex items-center gap-1.5 text-primary text-sm">
             <Gift className="w-4 h-4" />
@@ -205,10 +237,14 @@ StakingPositionCard.propTypes = {
     startedAt: PropTypes.string,
     endsAt: PropTypes.string,
     accruedAmount: PropTypes.number,
+    paidAmount: PropTypes.number,
+    claimableAmount: PropTypes.number,
+    payoutStatus: PropTypes.string,
     lastAccrualAt: PropTypes.string,
     rewardsGranted: PropTypes.number,
     rejectReason: PropTypes.string
   }).isRequired,
   onCancel: PropTypes.func,
+  onClaim: PropTypes.func,
   language: PropTypes.oneOf(["en", "ar"])
 };
