@@ -578,9 +578,11 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
         hasCopyTrading: copyTradingData !== null && (copyTradingAvailableUsdt > 0 || copyTradingLockedUsdt > 0 || (copyTradingData?.lifetime_deposited || 0) > 0),
       });
     } catch (err) {
-      console.error("Failed to load wallet totals:", err);
-      setAccountTotals({ totalUsd: 0, totalUsdt: 0 });
-      setAccountBalances({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0, hasCopyTrading: false });
+      console.error("[Layout] Failed to load wallet totals:", err);
+      // Keep existing values on error — do NOT reset to 0 which would show fake zeros
+      // Only reset to null if we never loaded successfully (totals are still null)
+      setAccountTotals((prev) => prev.totalUsdt === null ? { totalUsd: null, totalUsdt: null, mainWalletTotal: null } : prev);
+      setAccountBalances((prev) => prev.fundingUsdt === null ? { fundingUsdt: null, spotUsdt: null, futuresUsdt: null, wealthUsdt: null, stakedActiveUsdt: null, stakedPendingUsdt: null, nextUnlockAt: null, copyTradingAvailableUsdt: null, copyTradingLockedUsdt: null, hasCopyTrading: false } : prev);
     } finally {
       setLoadingAccountTotals(false);
     }
