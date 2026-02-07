@@ -55,41 +55,41 @@ export default function MobileTradeView({
 
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-2 mt-2 bg-muted/50 h-10 p-1 rounded-xl shrink-0">
+        <TabsList className="mx-2.5 mt-2 bg-muted/25 h-10 p-[3px] rounded-xl shrink-0">
           <TabsTrigger 
             value="chart" 
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs gap-1.5"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold gap-1.5"
           >
             <BarChart3 className="h-3.5 w-3.5" />
             {labels.chart}
           </TabsTrigger>
           <TabsTrigger 
             value="trade" 
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs gap-1.5"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold gap-1.5"
           >
             <Wallet className="h-3.5 w-3.5" />
             {labels.trade}
           </TabsTrigger>
           <TabsTrigger 
             value="positions" 
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs gap-1.5"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold gap-1.5"
           >
             <TrendingUp className="h-3.5 w-3.5" />
             {labels.positions}
             {positionCount > 0 && (
-              <span className="ml-0.5 bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+              <span className="ml-0.5 bg-primary/15 text-primary text-[10px] px-1.5 py-0.5 rounded-lg font-bold">
                 {positionCount}
               </span>
             )}
           </TabsTrigger>
           <TabsTrigger 
             value="activity" 
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs gap-1.5"
+            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold gap-1.5"
           >
             <List className="h-3.5 w-3.5" />
             {labels.activity}
             {orderCount > 0 && (
-              <span className="ml-0.5 bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+              <span className="ml-0.5 bg-amber-500/15 text-amber-500 text-[10px] px-1.5 py-0.5 rounded-lg font-bold">
                 {orderCount}
               </span>
             )}

@@ -54,16 +54,16 @@ export default function AccountBalanceBar({
 
   if (compact) {
     return (
-      <div className="bg-card/50 border border-border rounded-xl p-2">
+      <div className="bg-card/60 backdrop-blur-sm border border-border/30 rounded-2xl p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div>
-              <div className="text-[10px] text-muted-foreground">{labels.equity}</div>
-              <div className="font-mono text-sm font-semibold text-foreground">{formatNumber(equity)} USDT</div>
+              <div className="text-[9px] text-muted-foreground/50 uppercase tracking-wider font-semibold">{labels.equity}</div>
+              <div className="font-mono text-[13px] font-bold text-foreground tracking-tight">{formatNumber(equity)} <span className="text-[9px] text-muted-foreground/40">USDT</span></div>
             </div>
-            <div className={`text-right ${isPnlPositive ? "text-emerald-400" : "text-rose-400"}`}>
-              <div className="text-[10px] text-muted-foreground">PnL</div>
-              <div className="font-mono text-sm font-semibold">
+            <div className={`text-right ${isPnlPositive ? "text-emerald-500" : "text-rose-500"}`}>
+              <div className="text-[9px] text-muted-foreground/50 uppercase tracking-wider font-semibold">PnL</div>
+              <div className="font-mono text-[13px] font-bold tracking-tight">
                 {isPnlPositive ? "+" : ""}{formatNumber(unrealizedPnl)}
               </div>
             </div>
@@ -72,7 +72,7 @@ export default function AccountBalanceBar({
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              className="p-1.5 rounded-xl text-muted-foreground/40 hover:text-foreground hover:bg-muted/30 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             </button>

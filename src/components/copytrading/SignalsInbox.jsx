@@ -288,11 +288,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   return (
     <div className="h-full flex flex-col bg-background" dir={isRTL ? "rtl" : "ltr"}>
-      <div className="px-4 py-3 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{labels.newSignals}</h3>
+      <div className="px-4 py-3.5 border-b border-border/20 shrink-0 bg-background/95 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-[13px] font-semibold tracking-tight">{labels.newSignals}</h3>
           {signals.length > 0 && (
-            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center font-medium">
+            <span className="bg-primary/90 text-primary-foreground text-[10px] px-2 py-0.5 rounded-lg min-w-[1.25rem] text-center font-bold shadow-sm shadow-primary/20">
               {signals.length}
             </span>
           )}
@@ -300,7 +300,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
         <button 
           onClick={manualRefresh} 
           disabled={loading}
-          className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 p-1"
+          className="text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-50 p-1.5 rounded-lg hover:bg-muted/30"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -313,17 +313,19 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
         </div>
 
         {loading && signals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
-            <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary" />
-            <span className="text-sm">{labels.checking}</span>
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50">
+            <Loader2 className="w-7 h-7 animate-spin mb-3 text-primary/60" />
+            <span className="text-[12px] font-medium">{labels.checking}</span>
           </div>
         ) : signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
-            <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl bg-muted/10 w-full max-w-xs">
-              <Inbox className="w-10 h-10 text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium text-foreground">{labels.noSignals}</p>
-              <p className="text-xs text-muted-foreground mt-1">{labels.waiting}</p>
-              <Button variant="outline" size="sm" className="mt-4" onClick={manualRefresh}>
+            <div className="flex flex-col items-center justify-center py-10 w-full max-w-xs">
+              <div className="w-14 h-14 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
+                <Inbox className="w-6 h-6 text-muted-foreground/30" />
+              </div>
+              <p className="text-[13px] font-semibold text-foreground/70">{labels.noSignals}</p>
+              <p className="text-[11px] text-muted-foreground/40 mt-1">{labels.waiting}</p>
+              <Button variant="outline" size="sm" className="mt-5 rounded-xl text-[11px] h-8" onClick={manualRefresh}>
                 {labels.refresh}
               </Button>
             </div>
