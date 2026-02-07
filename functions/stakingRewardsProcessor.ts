@@ -309,19 +309,13 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Missing position_id' } }, { status: 400 });
       }
 
-      // Get position via serviceRole and verify ownership
-      const positions = await base44.asServiceRole.entities.StakingPosition.filter({ id: position_id, user_id: user.id });
+      // Get position and verify ownership
+      const positions = await base44.entities.StakingPosition.filter({ id: position_id, user_id: user.id });
       if (!positions?.length) {
         return Response.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Position not found' } }, { status: 404 });
       }
 
       const position = positions[0];
-      
-      // Prevent duplicate requests
-      if (position.payout_status === 'REQUESTED') {
-        return Response.json({ ok: false, error: { code: 'ALREADY_REQUESTED', message: 'Payout already requested for this position' } }, { status: 400 });
-      }
-
       const claimable = (position.accrued_amount || 0) - (position.paid_amount || 0);
 
       if (claimable < 0.01) {
@@ -329,12 +323,11 @@ Deno.serve(async (req) => {
       }
 
       const requestAmount = amount ? Math.min(amount, claimable) : claimable;
-      const nowIso = new Date().toISOString();
 
-      // Update position to REQUESTED status (use serviceRole since RLS requires admin for updates)
-      await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+      // Update position to REQUESTED status
+      await base44.entities.StakingPosition.update(position.id, {
         payout_status: 'REQUESTED',
-        updated_at: nowIso
+        updated_at: new Date().toISOString()
       });
 
       // Notify ALL admins
@@ -352,16 +345,16 @@ Deno.serve(async (req) => {
           });
         }
       } catch (e) {
-        console.log(`[STAKING_REWARDS] Failed to notify admins:`, e.message);
+        console.log(`[STAKING_REWARDS] Failed to notify admin:`, e.message);
       }
 
-      // Notify user of successful request
+      // Notify user (confirmation)
       try {
         await base44.asServiceRole.entities.Notification.create({
           user_id: user.id,
           type: 'staking_reward',
           title: 'Claim Request Submitted',
-          message: `Your claim of $${requestAmount.toFixed(2)} USDT is being processed. You'll be notified when it's approved.`,
+          message: `Your claim of $${requestAmount.toFixed(2)} USDT is being processed. You'll be notified when it's complete.`,
           data: { stakingPositionId: position.id, amount: requestAmount, action: 'payout_requested' },
           read: false,
           priority: 'normal'
@@ -376,7 +369,7 @@ Deno.serve(async (req) => {
           positionId: position.id,
           requestedAmount: requestAmount,
           payoutStatus: 'REQUESTED',
-          message: 'Payout request submitted. You will be notified when processed.'
+          message: 'Payout request submitted. Admin will process manually.'
         }
       });
     }
@@ -466,33 +459,14 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.Notification.create({
           user_id: position.user_id,
           type: 'staking_reward',
-          title: 'Staking Rewards Claimed! 💰',
-          message: `$${amount.toFixed(2)} USDT has been credited to your account from staking rewards.`,
+          title: 'Staking Rewards Paid! 💰',
+          message: `$${amount.toFixed(2)} USDT has been paid out from your staking rewards.`,
           data: { stakingPositionId: position.id, amount, action: 'payout_processed' },
           read: false,
           priority: 'normal'
         });
       } catch (e) {
         console.log(`[STAKING_REWARDS] Failed to notify user:`, e.message);
-      }
-
-      // Notify all admins of payout completion
-      try {
-        const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
-        for (const admin of (admins || []).slice(0, 5)) {
-          if (admin.id === user.id) continue; // Don't self-notify admin who processed it
-          await base44.asServiceRole.entities.Notification.create({
-            user_id: admin.id,
-            type: 'system',
-            title: 'Staking Payout Processed',
-            message: `${user.email} processed $${amount.toFixed(2)} payout for ${position.user_email || position.user_id}`,
-            data: { stakingPositionId: position.id, amount, action: 'payout_processed', processedBy: user.email },
-            read: false,
-            priority: 'normal'
-          });
-        }
-      } catch (e) {
-        console.log(`[STAKING_REWARDS] Failed to notify admins:`, e.message);
       }
 
       return Response.json({
