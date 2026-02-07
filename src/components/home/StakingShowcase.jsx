@@ -7,7 +7,8 @@ import {
   Sparkles, 
   CheckCircle2, 
   Lock,
-  ArrowRight
+  ArrowRight,
+  Info
 } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 export default function StakingShowcase({ language = "en" }) {
   const [step, setStep] = useState(0);
 
-  // Simulation steps - keeping simple loop
+  // Simulation steps
   const SIMULATION = [
     { type: "plan", isSelected: false },
     { type: "plan", isSelected: true },
@@ -37,6 +38,7 @@ export default function StakingShowcase({ language = "en" }) {
   const t = {
     en: {
       days: "days",
+      day: "day",
       bonusRewards: "Bonus Rewards",
       perDollar: "/USDT staked",
       perks: "Perks while active",
@@ -52,12 +54,13 @@ export default function StakingShowcase({ language = "en" }) {
     },
     ar: {
       days: "أيام",
+      day: "يوم",
       bonusRewards: "مكافآت إضافية",
       perDollar: "/USDT مستثمر",
       perks: "المزايا",
       firstStakeBonus: "مكافأة أول مرة",
       select: "اختر الخطة",
-      apy: "العائد",
+      apy: "عائد سنوي",
       activePosition: "صفقة نشطة",
       principal: "رأس المال",
       accrued: "الأرباح المتراكمة",
@@ -71,66 +74,74 @@ export default function StakingShowcase({ language = "en" }) {
   if (isPlanView) {
     return (
       <Card className={cn(
-        "relative overflow-hidden transition-all duration-300 group h-full border-0 bg-card/50 backdrop-blur-sm",
+        "relative overflow-hidden transition-all duration-300 group h-full bg-card/50 backdrop-blur-sm",
         current.isSelected 
           ? "ring-2 ring-primary border-primary shadow-xl scale-[1.02]" 
-          : "hover:shadow-lg shadow-md"
+          : "hover:border-primary/50 hover:shadow-md border-border/50"
       )}>
-        <CardContent className="p-5 space-y-4">
+        <CardContent className="p-4 space-y-3">
           {/* Header: Title + APY */}
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <h3 className="font-bold text-foreground text-lg tracking-tight">Growth Plus</h3>
-              <p className="text-sm text-muted-foreground font-medium">30 {labels.days}</p>
+          <div className="flex items-start justify-between pt-1">
+            <div>
+              <h3 className="font-semibold text-foreground text-base">Growth Plus</h3>
+              <p className="text-xs text-muted-foreground">30 {labels.days}</p>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-extrabold text-emerald-500 tracking-tighter">25%</div>
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{labels.apy}</p>
+            <div className={language === "ar" ? "text-left" : "text-right"}>
+              <div className="text-2xl font-bold text-emerald-500">25%</div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{labels.apy}</p>
             </div>
           </div>
 
           <div className="h-px bg-border/50" />
 
-          {/* Perks Section - Enhanced visual appeal */}
-          <div className="space-y-3">
-            {/* First Stake Bonus - Highlighted */}
-            <div className="flex items-center gap-3 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <div className="p-1 bg-amber-500/20 rounded-lg">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <span className="text-sm text-amber-700 dark:text-amber-400 font-semibold">{labels.firstStakeBonus}</span>
+          {/* Bonus Rewards */}
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5">
+              <Gift className="w-4 h-4 text-primary" />
+              <span className="text-muted-foreground">{labels.bonusRewards}</span>
             </div>
+            <span className="font-medium text-emerald-500">+0.5{labels.perDollar}</span>
+          </div>
 
-            {/* Standard Perks */}
-            <div className="space-y-2 pl-1">
-              <div className="flex items-center gap-2.5 text-sm font-medium text-foreground/80">
-                <CheckCircle2 className="w-4 h-4 text-primary/80" />
-                <span>VIP Signal Access</span>
+          {/* First Stake Bonus - Highlighted */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">{labels.firstStakeBonus}</span>
+          </div>
+
+          {/* Perks */}
+          <div className="pt-1">
+            <p className="text-xs text-muted-foreground mb-1.5">{labels.perks}</p>
+            <div className="space-y-1">
+              <div className="flex items-start gap-1.5 text-xs text-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                <span className="line-clamp-1">VIP Signal Access</span>
               </div>
-              <div className="flex items-center gap-2.5 text-sm font-medium text-foreground/80">
-                <Gift className="w-4 h-4 text-primary/80" />
-                <span>{labels.bonusRewards} +0.5{labels.perDollar}</span>
+              <div className="flex items-start gap-1.5 text-xs text-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                <span className="line-clamp-1">Fee Discounts</span>
               </div>
             </div>
           </div>
 
-          {/* CTA Button */}
+          {/* Select CTA */}
           <Button 
             variant={current.isSelected ? "default" : "outline"}
+            size="sm"
             className={cn(
-              "w-full mt-2 h-10 font-bold transition-all pointer-events-none rounded-xl",
-              current.isSelected ? "shadow-lg shadow-primary/25" : "border-2 bg-transparent"
+              "w-full mt-2 transition-all pointer-events-none rounded-xl",
+              current.isSelected ? "shadow-lg shadow-primary/25" : ""
             )}
           >
+            {current.isSelected && <CheckCircle2 className="w-4 h-4 ltr:mr-1 rtl:ml-1" />}
             {labels.select}
-            {current.isSelected && <ArrowRight className="w-4 h-4 ml-2" />}
           </Button>
         </CardContent>
       </Card>
     );
   }
 
-  // Active Position View - Enhanced
+  // Active Position View
   return (
     <Card className="relative overflow-hidden h-full border-primary/20 bg-gradient-to-b from-primary/5 to-transparent backdrop-blur-sm">
       <CardContent className="p-5 space-y-5">
@@ -188,26 +199,32 @@ export default function StakingShowcase({ language = "en" }) {
         <div className={cn(
           "p-4 rounded-xl transition-all duration-500 border",
           current.progress >= 100 
-            ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20" 
-            : "bg-primary/10 border-primary/20"
+            ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" 
+            : "bg-emerald-500/10 border-emerald-500/20"
         )}>
           <div className="flex justify-between items-end">
             <div>
               <p className={cn(
-                "text-[10px] uppercase font-bold tracking-wider mb-0.5",
-                current.progress >= 100 ? "text-primary-foreground/80" : "text-primary/70"
+                "text-[10px] uppercase font-bold tracking-wider mb-1",
+                current.progress >= 100 ? "text-white/90" : "text-emerald-600 dark:text-emerald-400"
               )}>
                 {labels.accrued}
               </p>
-              <p className={cn(
-                "font-mono font-extrabold text-xl",
-                current.progress >= 100 ? "text-white" : "text-emerald-500"
-              )}>
-                +{(current.progress * 0.68).toFixed(2)} USDT
-              </p>
+              <div className="flex items-center gap-1.5">
+                <UsdtIcon 
+                  size="sm" 
+                  className={current.progress >= 100 ? "text-white" : "text-emerald-500"} 
+                />
+                <p className={cn(
+                  "font-mono font-extrabold text-xl",
+                  current.progress >= 100 ? "text-white" : "text-emerald-500"
+                )}>
+                  +{(current.progress * 0.68).toFixed(2)}
+                </p>
+              </div>
             </div>
             {current.progress >= 100 && (
-              <Button size="sm" variant="secondary" className="h-8 text-xs font-bold shadow-sm pointer-events-none">
+              <Button size="sm" variant="secondary" className="h-8 text-xs font-bold shadow-sm pointer-events-none bg-white text-emerald-600 hover:bg-white/90">
                 {labels.claim}
               </Button>
             )}
