@@ -194,7 +194,12 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/30 bg-background/80 backdrop-blur-sm shrink-0 sticky top-0 z-10">
-        <h3 className="text-[13px] font-semibold tracking-tight">Open Positions</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-[13px] font-semibold tracking-tight">{isAr ? "المراكز المفتوحة" : "Open Positions"}</h3>
+          {positions.length > 0 && (
+            <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-md tabular-nums">{positions.length}</span>
+          )}
+        </div>
         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={loadPositions}>
           <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
         </Button>
