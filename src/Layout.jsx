@@ -625,11 +625,40 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
     <NotificationProvider>
     <div className={`min-h-[100dvh] overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
         :root {
+          --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          --font-arabic: 'IBM Plex Sans Arabic', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
           --gradient-primary: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
           --gradient-gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
-        
+
+        /* Global font override */
+        body, html {
+          font-family: var(--font-sans) !important;
+        }
+
+        /* Arabic font when RTL is active */
+        [dir="rtl"], [dir="rtl"] *, .rtl, .rtl * {
+          font-family: var(--font-arabic) !important;
+        }
+
+        /* Monospace numbers override - always use JetBrains Mono for numbers */
+        .font-mono, [class*="font-mono"], [class*="tabular-nums"] {
+          font-family: var(--font-mono) !important;
+          font-feature-settings: 'tnum' 1, 'lnum' 1;
+        }
+
+        /* RTL monospace: keep JetBrains for numbers even in Arabic mode */
+        [dir="rtl"] .font-mono, [dir="rtl"] [class*="font-mono"],
+        [dir="rtl"] [class*="tabular-nums"],
+        .rtl .font-mono, .rtl [class*="font-mono"],
+        .rtl [class*="tabular-nums"] {
+          font-family: var(--font-mono) !important;
+        }
+
         .glass-effect {
           background: hsl(var(--background) / 0.85);
           backdrop-filter: blur(16px);
