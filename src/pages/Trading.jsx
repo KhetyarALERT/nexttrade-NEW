@@ -433,11 +433,12 @@ export default function Trading({ language = "en" }) {
   // When deep-linked to a specific positionId, use that; otherwise match symbol+side
   const activePosition = useMemo(() => {
     if (isCopyMode) {
+      // Priority: selectedCopyPosition (from click) > urlPositionId > symbol match
       let pos = null;
-      if (urlPositionId) pos = paperPositions.find(p => p.id === urlPositionId);
+      if (selectedCopyPosition?.symbol === selectedSymbol) pos = selectedCopyPosition;
+      if (!pos && urlPositionId) pos = paperPositions.find(p => p.id === urlPositionId);
       if (!pos) pos = paperPositions.find(p => p.symbol === selectedSymbol);
-      // Normalize copy position fields so chart overlay finds TP/SL:
-      // CopyPosition uses tp1/tp2/stop_loss; chart reads take_profit/tp and stop_loss/sl
+      // Normalize copy position fields so chart overlay finds TP/SL
       if (pos) {
         return {
           ...pos,
@@ -451,13 +452,12 @@ export default function Trading({ language = "en" }) {
       }
       return null;
     }
-    // For live: if multiple positions on same symbol (long+short), prefer the one matching urlPositionId
     if (urlPositionId) {
       const exact = livePositions.find(p => p.id === urlPositionId);
       if (exact) return exact;
     }
     return livePositions.find(p => p.instId === selectedSymbol);
-  }, [isCopyMode, selectedSymbol, paperPositions, livePositions, urlPositionId]);
+  }, [isCopyMode, selectedSymbol, paperPositions, livePositions, urlPositionId, selectedCopyPosition]);
 
   const chartComponent = (
     <div className="h-full w-full min-h-[250px]">
