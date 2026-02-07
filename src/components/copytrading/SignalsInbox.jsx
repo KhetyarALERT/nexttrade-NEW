@@ -281,16 +281,22 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   return (
     <div className="h-full flex flex-col bg-background" dir={isRTL ? "rtl" : "ltr"}>
-      <div className="p-4 border-b border-border/50 shrink-0 bg-background/50 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          {labels.newSignals}
-          <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-            {signals.length}
-          </span>
-        </h3>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={manualRefresh}>
-          <Loader2 className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+      <div className="px-4 py-3 border-b border-border/50 shrink-0 bg-background/95 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">{labels.newSignals}</h3>
+          {signals.length > 0 && (
+            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center font-medium">
+              {signals.length}
+            </span>
+          )}
+        </div>
+        <button 
+          onClick={manualRefresh} 
+          disabled={loading}
+          className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 p-1"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+        </button>
       </div>
       
       <ScrollArea className="flex-1 h-full">
