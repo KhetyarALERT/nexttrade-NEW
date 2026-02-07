@@ -632,14 +632,14 @@ export default function WithdrawModal({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[90vh] flex flex-col rounded-t-2xl">
+        <DrawerContent className="max-h-[85vh] flex flex-col rounded-t-2xl" style={{ marginBottom: 0, zIndex: 110 }}>
           <DrawerHeader className="text-left flex-shrink-0 border-b border-border pb-3">
             <DrawerTitle className="flex items-center gap-2">
               <ArrowUpFromLine className="w-5 h-5 text-primary" />
               {t.title}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 overflow-y-auto flex-1 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">{content}</div>
+          <div className="px-4 overflow-y-auto flex-1 pt-4 pb-24">{content}</div>
         </DrawerContent>
       </Drawer>
     );
