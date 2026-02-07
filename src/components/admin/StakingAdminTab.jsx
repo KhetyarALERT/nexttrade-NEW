@@ -395,6 +395,75 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
           )}
         </TabsContent>
 
+        {/* Payouts Tab */}
+        <TabsContent value="payouts" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold">Reward Payouts</h3>
+              <p className="text-sm text-muted-foreground">Manage user payout requests from staking rewards</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={loadPayoutSummary} disabled={payoutLoading}>
+              {payoutLoading ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <RotateCcw className="w-3 h-3 mr-2" />}
+              Refresh
+            </Button>
+          </div>
+
+          {payoutSummary && (
+            <div className="grid grid-cols-3 gap-4">
+              <StakingStatCard title="Total Claimable" value={`$${formatUsdt(payoutSummary.totalClaimable)}`} icon={DollarSign} colorClass="bg-emerald-500/5 border-emerald-500/20 text-emerald-600" />
+              <StakingStatCard title="Requested" value={`$${formatUsdt(payoutSummary.totalRequested)}`} icon={Clock} colorClass="bg-orange-500/5 border-orange-500/20 text-orange-600" />
+              <StakingStatCard title="Pending Count" value={payoutSummary.pendingPayoutsCount} icon={Gift} colorClass="bg-amber-500/5 border-amber-500/20 text-amber-600" />
+            </div>
+          )}
+
+          {!payoutSummary?.pendingPayouts?.length ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border-2 border-dashed border-muted rounded-xl">
+              <CheckCircle2 className="h-10 w-10 mb-3 opacity-20" />
+              <p>No pending payout requests</p>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Principal</TableHead>
+                      <TableHead>Accrued</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Claimable</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payoutSummary.pendingPayouts.map((p) => (
+                      <TableRow key={p.positionId}>
+                        <TableCell className="font-medium text-sm">{p.userEmail}</TableCell>
+                        <TableCell>{p.planKey}</TableCell>
+                        <TableCell className="font-mono">{formatUsdt(p.principal)}</TableCell>
+                        <TableCell className="font-mono text-emerald-600">{formatUsdt(p.accrued)}</TableCell>
+                        <TableCell className="font-mono">{formatUsdt(p.paid)}</TableCell>
+                        <TableCell className="font-mono font-semibold text-primary">{formatUsdt(p.claimable)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-8" onClick={() => {
+                            setSelectedPayout(p);
+                            setPayoutAmount(String(p.claimable.toFixed(2)));
+                            setPayoutNote('');
+                            setPayoutDialogOpen(true);
+                          }}>
+                            <DollarSign className="w-3 h-3 mr-1" /> Pay
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* Positions Tab */}
         <TabsContent value="positions">
           <Card>
