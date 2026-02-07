@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Inbox, Wallet as WalletIcon, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Inbox, Wallet as WalletIcon, AlertCircle, RefreshCw, Search } from "lucide-react";
 import SignalCard from './SignalCard';
 import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,8 +17,18 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSignal, setSelectedSignal] = useState(null);
+  const [detailSignal, setDetailSignal] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [symbolFilter, setSymbolFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const autoOpenedRef = useRef(new Set());
+  const inFlightRef = useRef(false);
+  const pollTimeoutRef = useRef(null);
+  const pollErrorRef = useRef(0);
+  const signalsRef = useRef(signals);
+  const actionStateRef = useRef(new Map());
+  const [actionState, setActionState] = useState({});
   
   // Accept Form
   const [amount, setAmount] = useState('');
@@ -28,6 +38,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const [config, setConfig] = useState(null);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [maxLevError, setMaxLevError] = useState('');
+  const authRef = useRef({ checked: false, authed: false });
 
   // Translations
   const t = {
@@ -63,7 +74,15 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       ignored: "Ignored",
       failReject: "Error",
       estimates: "Est. PnL",
-      roi: "ROI"
+      roi: "ROI",
+      details: "Details",
+      filters: "Filters",
+      all: "All",
+      active: "Active",
+      history: "History",
+      search: "Search symbol",
+      autoTitle: "Copy Trading (Signals)",
+      autoDesc: "Auto-accept executes new signals using your saved rules."
     },
     ar: {
       accept: "قبول الإشارة",
@@ -97,11 +116,23 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       ignored: "تجاهل",
       failReject: "خطأ",
       estimates: "الربح المتوقع",
-      roi: "العائد"
+      roi: "العائد",
+      details: "تفاصيل",
+      filters: "فلاتر",
+      all: "الكل",
+      active: "نشطة",
+      history: "سجل",
+      search: "بحث عن الرمز",
+      autoTitle: "نسخ التداول (الإشارات)",
+      autoDesc: "القبول التلقائي ينفذ الإشارات الجديدة حسب إعداداتك."
     }
   };
   const labels = t[language] || t.en;
   const isRTL = language === "ar";
+
+  useEffect(() => {
+    signalsRef.current = signals;
+  }, [signals]);
 
   const invokeWithRetry = async (action, extra = {}, retries = 2) => {
     for (let i = 0; i <= retries; i++) {
@@ -117,13 +148,28 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     }
   };
 
-  const loadSignals = async () => {
-    if(signals.length === 0) setLoading(true);
+  const checkAuth = useCallback(async () => {
+    if (authRef.current.checked) return authRef.current.authed;
+    try {
+      const user = await base44.auth.me().catch(() => null);
+      const authed = Boolean(user);
+      authRef.current = { checked: true, authed };
+      return authed;
+    } catch {
+      authRef.current = { checked: true, authed: false };
+      return false;
+    }
+  }, []);
+
+  const loadSignals = useCallback(async () => {
+    if (signalsRef.current.length === 0) setLoading(true);
+    let success = false;
     try {
       // Stagger: signals first, then wallet+config
       const sigsRes = await invokeWithRetry('getSignals');
       if (sigsRes?.data?.ok) {
         setSignals(sigsRes.data.data || []);
+        success = true;
       }
 
       const [walletRes, configRes] = await Promise.all([
@@ -137,26 +183,52 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     } finally {
       setLoading(false);
     }
-  };
+    return success;
+  }, []);
+
+  const scheduleNextPoll = useCallback((delayMs) => {
+    if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    pollTimeoutRef.current = setTimeout(() => runPoll(), delayMs);
+  }, []);
+
+  const runPoll = useCallback(async (force = false) => {
+    if (document.hidden && !force) {
+      scheduleNextPoll(60000);
+      return;
+    }
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      const authed = await checkAuth();
+      if (!authed) return;
+      const ok = await loadSignals();
+      pollErrorRef.current = ok ? 0 : pollErrorRef.current + 1;
+    } catch (e) {
+      console.error(e);
+      pollErrorRef.current += 1;
+    } finally {
+      inFlightRef.current = false;
+      const backoff = Math.min(3, pollErrorRef.current);
+      scheduleNextPoll(60000 * (backoff ? 1 + backoff * 0.5 : 1));
+    }
+  }, [checkAuth, loadSignals, scheduleNextPoll]);
 
   useEffect(() => {
-    // Auth guard & Visibility guard
-    const runLoad = async () => {
-      if (document.hidden) return;
-      
-      // Explicit auth check before fetching
-      try {
-        const user = await base44.auth.me().catch(() => null);
-        if (!user) return; 
-      } catch { return; }
-
-      loadSignals();
+    runPoll(true);
+    const handleVisibility = () => {
+      if (!document.hidden) runPoll(true);
     };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, [runPoll]);
 
-    runLoad();
-    const interval = setInterval(runLoad, 60000); 
-    return () => clearInterval(interval);
-  }, []);
+  const updateActionState = (signalId, next) => {
+    actionStateRef.current.set(signalId, next);
+    setActionState(Object.fromEntries(actionStateRef.current.entries()));
+  };
 
   const handleAcceptClick = (signal) => {
     setSelectedSignal(signal);
@@ -185,20 +257,24 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
           // We could try force refresh once
           if (!autoOpenedRef.current.has('refresh_' + preSelectedSignalId)) {
             autoOpenedRef.current.add('refresh_' + preSelectedSignalId);
-            loadSignals();
+            runPoll(true);
           }
         }
       } else if (!loading) {
-        // Signals empty and not loading -> refresh
-        loadSignals();
+        const emptyKey = `empty_${preSelectedSignalId}`;
+        if (!autoOpenedRef.current.has(emptyKey)) {
+          autoOpenedRef.current.add(emptyKey);
+          runPoll(true);
+        }
       }
     }
-  }, [signals, preSelectedSignalId, loading]);
+  }, [signals, preSelectedSignalId, loading, runPoll]);
 
   const handleRejectClick = async (signal) => {
     // Optimistic UI
     const originalSignals = [...signals];
     setSignals(prev => prev.filter(s => s.id !== signal.id));
+    updateActionState(signal.id, { rejecting: true });
     
     try {
       const res = await base44.functions.invoke('copyTradingUser', { 
@@ -213,6 +289,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     } catch(e) {
       setSignals(originalSignals); // Revert
       toast.error('Failed to reject');
+    } finally {
+      updateActionState(signal.id, { rejecting: false });
     }
   };
 
@@ -226,6 +304,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     }
     
     setProcessing(true);
+    updateActionState(selectedSignal.id, { accepting: true });
     try {
       const res = await base44.functions.invoke('copyTradingUser', {
         action: 'acceptSignal',
@@ -278,28 +357,54 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       toast.error('Failed to accept signal: ' + e.message);
     } finally {
       setProcessing(false);
+      updateActionState(selectedSignal.id, { accepting: false });
     }
   };
 
   const manualRefresh = () => {
     setLoading(true);
-    loadSignals();
+    runPoll(true);
   };
+
+  const filters = [
+    { key: "all", label: labels.all },
+    { key: "new", label: labels.newSignals },
+    { key: "active", label: labels.active },
+    { key: "history", label: labels.history },
+  ];
+
+  const filteredSignals = useMemo(() => {
+    const query = symbolFilter.trim().toUpperCase();
+    return signals.filter((signal) => {
+      const status = String(signal.status || "NEW").toUpperCase();
+      const matchesSymbol = query ? String(signal.symbol || "").toUpperCase().includes(query) : true;
+      if (!matchesSymbol) return false;
+      if (statusFilter === "all") return true;
+      if (statusFilter === "new") return ["NEW", "PENDING", "OPEN"].includes(status);
+      if (statusFilter === "active") return ["ACTIVE", "EXECUTED"].includes(status);
+      if (statusFilter === "history") return ["EXPIRED", "REJECTED", "CANCELED", "CLOSED", "FILLED"].includes(status);
+      return true;
+    });
+  }, [signals, symbolFilter, statusFilter]);
 
   return (
     <div className="h-full flex flex-col bg-background" dir={isRTL ? "rtl" : "ltr"}>
       <div className="px-4 py-3.5 border-b border-border/20 shrink-0 bg-background/95 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
         <div className="flex items-center gap-2.5">
-          <h3 className="text-[13px] font-semibold tracking-tight">{labels.newSignals}</h3>
-          {signals.length > 0 && (
+          <div>
+            <h3 className="text-[13px] font-semibold tracking-tight">{labels.autoTitle}</h3>
+            <p className="text-[10px] text-muted-foreground/70">{labels.autoDesc}</p>
+          </div>
+          {filteredSignals.length > 0 && (
             <span className="bg-primary/90 text-primary-foreground text-[10px] px-2 py-0.5 rounded-lg min-w-[1.25rem] text-center font-bold shadow-sm shadow-primary/20">
-              {signals.length}
+              {filteredSignals.length}
             </span>
           )}
         </div>
         <button 
           onClick={manualRefresh} 
           disabled={loading}
+          type="button"
           className="text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-50 p-1.5 rounded-lg hover:bg-muted/30"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -312,12 +417,40 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
           <AutoTradeSettings language={language} />
         </div>
 
+        <div className="px-4 pt-4 space-y-3">
+          <div className="flex items-center gap-2 rounded-lg bg-muted/20 border border-border/30 px-3 py-2">
+            <Search className="h-4 w-4 text-muted-foreground/60" />
+            <Input
+              value={symbolFilter}
+              onChange={(e) => setSymbolFilter(e.target.value)}
+              placeholder={labels.search}
+              className="h-7 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {filters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setStatusFilter(filter.key)}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors ${
+                  statusFilter === filter.key
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {loading && signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50">
             <Loader2 className="w-7 h-7 animate-spin mb-3 text-primary/60" />
             <span className="text-[12px] font-medium">{labels.checking}</span>
           </div>
-        ) : signals.length === 0 ? (
+        ) : filteredSignals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
             <div className="flex flex-col items-center justify-center py-10 w-full max-w-xs">
               <div className="w-14 h-14 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
@@ -332,12 +465,18 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
           </div>
         ) : (
           <div className="p-4 space-y-3 pb-20">
-            {signals.map(signal => (
+            {filteredSignals.map(signal => (
               <SignalCard 
                 key={signal.id} 
                 signal={signal} 
                 onAccept={handleAcceptClick}
                 onReject={handleRejectClick}
+                onView={(s) => {
+                  setDetailSignal(s);
+                  setDetailsOpen(true);
+                }}
+                isAccepting={Boolean(actionState[signal.id]?.accepting)}
+                isRejecting={Boolean(actionState[signal.id]?.rejecting)}
                 language={language}
               />
             ))}
@@ -598,13 +737,82 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
         </DialogContent>
       </Dialog>
 
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 gap-0" dir={isRTL ? "rtl" : "ltr"}>
+          <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
+            <DialogTitle className="text-base">{labels.details} {detailSignal?.symbol}</DialogTitle>
+            <DialogDescription className="text-xs">
+              {detailSignal?.side} · {detailSignal?.status || "NEW"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3 text-xs text-muted-foreground">
+            <div className="flex justify-between">
+              <span>{labels.entryEst}</span>
+              <span className="font-mono text-foreground">{detailSignal?.entry_price || "--"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>TP1</span>
+              <span className="font-mono text-emerald-500">{detailSignal?.tp1 || "--"}</span>
+            </div>
+            {!!Number(detailSignal?.tp2) && (
+              <div className="flex justify-between">
+                <span>TP2</span>
+                <span className="font-mono text-emerald-500/70">{detailSignal?.tp2}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>SL</span>
+              <span className="font-mono text-rose-500">{detailSignal?.stop_loss || "--"}</span>
+            </div>
+            {detailSignal?.notes && (
+              <div className="rounded-lg bg-muted/30 border border-border/30 p-3 text-[11px] text-foreground/80">
+                {detailSignal.notes}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="p-5 border-t border-border/50 mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className={`flex gap-3 w-full ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  if (!detailSignal) return;
+                  setDetailsOpen(false);
+                  handleRejectClick(detailSignal);
+                }}
+                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.rejecting) : false}
+              >
+                {detailSignal && actionState[detailSignal.id]?.rejecting && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                {labels.ignored}
+              </Button>
+              <Button
+                className="flex-[2] bg-primary"
+                onClick={() => {
+                  if (!detailSignal) return;
+                  setDetailsOpen(false);
+                  handleAcceptClick(detailSignal);
+                }}
+                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.accepting) : false}
+              >
+                {detailSignal && actionState[detailSignal.id]?.accepting && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                {labels.accept}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Transfer Modal */}
       <AllocationModal
         open={transferModalOpen}
         onOpenChange={setTransferModalOpen}
         onSuccess={async () => {
           // Reload wallet after transfer
-          await loadSignals();
+          await runPoll(true);
           toast.success('Funds transferred successfully');
         }}
         liveAccount={liveAccount}
