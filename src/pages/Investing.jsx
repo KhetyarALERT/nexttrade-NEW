@@ -592,7 +592,9 @@ export default function Investing({ language = "en" }) {
               </Card>
             ) : (
               <div className="grid sm:grid-cols-2 gap-4">
-                {filteredPositions.map((pos) => (
+                {filteredPositions
+                  .filter(pos => !(positionsFilter === "active" && pos.status === "COMPLETED"))
+                  .map((pos) => (
                   <StakingPositionCard
                     key={pos.id}
                     position={pos}
