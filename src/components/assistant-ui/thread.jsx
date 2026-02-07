@@ -732,11 +732,11 @@ export function Thread({ language = "en", isRtl = false, onNavigate }) {
               <div className="max-w-[85%] space-y-1.5">
                 <div className="rounded-2xl bg-card border border-border/50 px-4 py-2.5 text-sm text-foreground">
                   {streamingContent ? (
-                    <ReactMarkdown
-                      className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                    >
-                      {streamingContent}
-                    </ReactMarkdown>
+                    <AssistantMarkdown
+                      content={streamingContent}
+                      navigate={navigateFromWidget}
+                      language={language}
+                    />
                   ) : (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
