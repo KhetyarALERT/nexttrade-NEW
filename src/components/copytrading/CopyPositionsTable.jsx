@@ -104,7 +104,13 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   };
 
   if (loading && positions.length === 0) {
-    return <div className="p-6 text-center text-muted-foreground/60 text-xs font-medium">{t.loading}</div>;
+    return (
+      <div className="p-4 space-y-2">
+        {[1,2,3].map(i => (
+          <div key={i} className="h-16 rounded-xl bg-muted/30 animate-pulse" />
+        ))}
+      </div>
+    );
   }
 
   // Mobile List View
