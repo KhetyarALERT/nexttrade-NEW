@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
+// useNavigate removed - back buttons use deterministic Link to Dashboard
 import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff, Wallet as WalletIcon } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
