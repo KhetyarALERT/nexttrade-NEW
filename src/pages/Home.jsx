@@ -220,17 +220,18 @@ export default function Home({ language = "en" }) {
     <MotionConfig reducedMotion="user">
     <div className="overflow-hidden bg-background text-foreground">
       {/* Mobile Hero */}
-      <section className="md:hidden relative pt-20 pb-6 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(16,185,129,0.12),transparent)]" />
+      <section className="md:hidden relative pt-20 pb-8 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(16,185,129,0.15),transparent)]" />
         
-        <div className="relative z-10 px-5 flex flex-col gap-5">
-          <div className="space-y-2.5 pt-4">
-            <h1 className="text-[26px] font-extrabold text-white tracking-tight leading-[1.15]">
+        <div className="relative z-10 px-5 flex flex-col gap-6">
+          {/* Headline */}
+          <div className="space-y-3 pt-4">
+            <h1 className="text-[28px] font-extrabold text-white tracking-tight leading-[1.12]">
               {language === 'en' ? (
-                <>Trade Smarter.<br/><span className="text-primary">Invest Safer.</span></>
+                <>Trade Smarter.<br/><span className="bg-gradient-to-r from-primary to-emerald-300 bg-clip-text text-transparent">Invest Safer.</span></>
               ) : (
-                <>تداول أذكى.<br/><span className="text-primary">استثمر بأمان.</span></>
+                <>تداول أذكى.<br/><span className="bg-gradient-to-r from-primary to-emerald-300 bg-clip-text text-transparent">استثمر بأمان.</span></>
               )}
             </h1>
             <p className="text-[13px] text-white/50 leading-relaxed max-w-[320px]">
@@ -241,32 +242,41 @@ export default function Home({ language = "en" }) {
             </p>
           </div>
 
-          {/* Showcase: real screenshots side by side */}
+          {/* Screenshots with labels OUTSIDE */}
           <div className="grid grid-cols-2 gap-3">
-            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block">
-              <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl">
+            {/* Signal screenshot */}
+            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block space-y-2">
+              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-blue-500/5 bg-white">
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
                   alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
-                  className="w-full h-auto"
+                  className="w-full h-auto block"
                   loading="eager"
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                  <p className="text-[10px] font-bold text-white">{language === "en" ? "Live Trading Signals" : "إشارات تداول مباشرة"}</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-1">
+                <div className="w-5 h-5 rounded-md bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-3 h-3 text-blue-400" />
                 </div>
+                <span className="text-[11px] font-semibold text-white/70">{language === "en" ? "AI Trading Signals" : "إشارات التداول"}</span>
               </div>
             </Link>
-            <Link to={createPageUrl("Investing")} className="block">
-              <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl">
+            
+            {/* Earnings screenshot */}
+            <Link to={createPageUrl("Investing")} className="block space-y-2">
+              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-emerald-500/5 bg-white">
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
                   alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
-                  className="w-full h-auto"
+                  className="w-full h-auto block"
                   loading="eager"
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                  <p className="text-[10px] font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-1">
+                <div className="w-5 h-5 rounded-md bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <Lock className="w-3 h-3 text-emerald-400" />
                 </div>
+                <span className="text-[11px] font-semibold text-white/70">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</span>
               </div>
             </Link>
           </div>
@@ -297,10 +307,12 @@ export default function Home({ language = "en" }) {
           </div>
 
           {/* Trust strip */}
-          <div className="flex items-center justify-center gap-5 text-[11px] text-white/30 font-medium">
-            <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> {language === 'en' ? "Bank-grade Security" : "أمان بمستوى البنوك"}</span>
+          <div className="flex items-center justify-center gap-4 py-3 px-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+            <span className="flex items-center gap-1.5 text-[11px] text-white/40 font-medium"><Shield className="w-3.5 h-3.5 text-primary/60" /> {language === 'en' ? "Secure" : "آمن"}</span>
             <span className="w-px h-3 bg-white/10" />
-            <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> {language === 'en' ? "Instant Execution" : "تنفيذ فوري"}</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-white/40 font-medium"><Zap className="w-3.5 h-3.5 text-primary/60" /> {language === 'en' ? "Instant" : "فوري"}</span>
+            <span className="w-px h-3 bg-white/10" />
+            <span className="flex items-center gap-1.5 text-[11px] text-white/40 font-medium"><Globe className="w-3.5 h-3.5 text-primary/60" /> 24/7</span>
           </div>
         </div>
       </section>
@@ -385,55 +397,59 @@ export default function Home({ language = "en" }) {
             >
               <div className="relative w-full max-w-lg mx-auto">
                 {/* Glow behind */}
-                <div className="absolute -inset-8 bg-primary/5 blur-3xl rounded-full" />
+                <div className="absolute -inset-10 bg-primary/[0.07] blur-[60px] rounded-full" />
                 
-                <div className="relative grid grid-cols-2 gap-5">
-                  {/* Signal Card */}
-                  <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group">
-                    <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 bg-white/[0.02]">
+                <div className="relative grid grid-cols-2 gap-6">
+                  {/* Signal Card - clean, no overlay */}
+                  <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group space-y-3">
+                    <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-blue-500/10 bg-white group-hover:-translate-y-2 transition-all duration-300">
                       <img
                         src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
                         alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
-                        className="w-full h-auto"
+                        className="w-full h-auto block"
                         loading="eager"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
-                        <div className="flex items-center gap-2">
-                          <Bot className="w-4 h-4 text-blue-400" />
-                          <p className="text-xs font-bold text-white">{language === "en" ? "Live Trading Signals" : "إشارات تداول مباشرة"}</p>
-                        </div>
-                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "AI-powered, auto-executed" : "مدعومة بالذكاء الاصطناعي"}</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">{language === "en" ? "AI Trading Signals" : "إشارات التداول"}</p>
+                        <p className="text-[10px] text-white/40">{language === "en" ? "Auto-executed by bots" : "تنفيذ آلي"}</p>
                       </div>
                     </div>
                   </Link>
 
-                  {/* Earnings Card */}
-                  <Link to={createPageUrl("Investing")} className="block group mt-8">
-                    <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1 bg-white/[0.02]">
+                  {/* Earnings Card - offset, clean, no overlay */}
+                  <Link to={createPageUrl("Investing")} className="block group space-y-3 mt-10">
+                    <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-emerald-500/10 bg-white group-hover:-translate-y-2 transition-all duration-300">
                       <img
                         src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
                         alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
-                        className="w-full h-auto"
+                        className="w-full h-auto block"
                         loading="eager"
                       />
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
-                        <div className="flex items-center gap-2">
-                          <Lock className="w-4 h-4 text-emerald-400" />
-                          <p className="text-xs font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
-                        </div>
-                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "Up to 33% APY, daily accrual" : "حتى 33% ، احتساب يومي"}</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-1">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <Lock className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
+                        <p className="text-[10px] text-white/40">{language === "en" ? "Up to 33% APY" : "حتى 33%"}</p>
                       </div>
                     </div>
                   </Link>
                 </div>
 
                 {/* Stats strip below */}
-                <div className="mt-6 flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-[11px] text-white/25 font-medium">
-                  <span>{language === "en" ? "200+ Trading Pairs" : "200+ زوج تداول"}</span>
-                  <span className="w-px h-3 bg-white/10" />
-                  <span>{language === "en" ? "Instant Withdrawals" : "سحب فوري"}</span>
-                  <span className="w-px h-3 bg-white/10" />
-                  <span>{language === "en" ? "24/7 Support" : "دعم 24/7"}</span>
+                <div className="mt-8 flex items-center justify-between px-5 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                  <span className="text-xs text-white/50 font-medium">{language === "en" ? "200+ Pairs" : "200+ زوج"}</span>
+                  <span className="w-px h-4 bg-white/10" />
+                  <span className="text-xs text-white/50 font-medium">{language === "en" ? "Instant Withdrawals" : "سحب فوري"}</span>
+                  <span className="w-px h-4 bg-white/10" />
+                  <span className="text-xs text-white/50 font-medium">{language === "en" ? "24/7 Support" : "دعم 24/7"}</span>
                 </div>
               </div>
             </motion.div>

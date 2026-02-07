@@ -56,6 +56,7 @@ import Futures from './pages/Futures';
 import Help from './pages/Help';
 import HelpArticle from './pages/HelpArticle';
 import Home from './pages/Home';
+import Investing from './pages/Investing';
 import Invite from './pages/Invite';
 import LearnEarn from './pages/LearnEarn';
 import MemeCoins from './pages/MemeCoins';
@@ -69,7 +70,6 @@ import TermsOfService from './pages/TermsOfService';
 import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
-import Investing from './pages/Investing';
 import __Layout from './Layout.jsx';
 
 
@@ -83,6 +83,7 @@ export const PAGES = {
     "Help": Help,
     "HelpArticle": HelpArticle,
     "Home": Home,
+    "Investing": Investing,
     "Invite": Invite,
     "LearnEarn": LearnEarn,
     "MemeCoins": MemeCoins,
@@ -96,7 +97,6 @@ export const PAGES = {
     "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
-    "Investing": Investing,
 }
 
 export const pagesConfig = {
