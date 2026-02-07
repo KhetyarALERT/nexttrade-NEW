@@ -337,10 +337,35 @@ export default function Investing({ language = "en" }) {
         position_id: positionId
       });
       if (res.data?.ok) {
-        toast.success(language === "ar" ? "تم تقديم طلب المطالبة!" : "Claim request submitted!");
+        if (res.data.data?.autoProcessed) {
+          toast.success(language === "ar" ? "تم تحصيل المكافآت!" : "Rewards collected!");
+        } else {
+          toast.success(language === "ar" ? "تم تقديم طلب المطالبة!" : "Claim request submitted!");
+        }
         await loadData();
       } else {
         toast.error(res.data?.error?.message || "Failed to claim");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const handleEarlyClaim = async (positionId) => {
+    setClaimingId(positionId);
+    try {
+      const res = await base44.functions.invoke("stakingRewardsProcessor", {
+        action: "requestPayout",
+        position_id: positionId,
+        early: true
+      });
+      if (res.data?.ok) {
+        toast.success(language === "ar" ? "تم تقديم طلب التحصيل المبكر!" : "Early claim request submitted for admin review!");
+        await loadData();
+      } else {
+        toast.error(res.data?.error?.message || "Failed");
       }
     } catch (err) {
       toast.error(err.message);
