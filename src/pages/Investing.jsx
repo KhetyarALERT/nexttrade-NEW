@@ -19,7 +19,7 @@ import { Link } from "react-router-dom";
 import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
-import StakingEarnedPanel from "@/components/staking/StakingEarnedPanel.jsx";
+import StakingEarnedPanel from "@/components/staking/StakingEarnedPanel";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 // Shared formatters with Latin digits
 function getLocale(lang) {
@@ -567,6 +567,7 @@ export default function Investing({ language = "en" }) {
                     key={pos.id}
                     position={pos}
                     onCancel={pos.status === "PENDING_APPROVAL" ? handleCancelPosition : null}
+                    onClaim={pos.status === "ACTIVE" && (pos.claimableAmount || 0) > 0.01 ? handleClaimRewards : null}
                     language={language}
                   />
                 ))}
@@ -576,7 +577,7 @@ export default function Investing({ language = "en" }) {
         )}
       </div>
 
-      {/* Mobile: Bottom Sheet for Staking */}
+      {/* Mobile: Stake Amount Sheet */}
       {isMobile && (
         <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
           <DrawerContent className="max-h-[90vh]">
