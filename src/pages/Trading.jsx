@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff, Wallet as WalletIcon } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
 import BinanceSymbolSelector from "@/components/trading/binance/BinanceSymbolSelector";
 import FuturesTradePanel from "@/components/trading/binance/FuturesTradePanel";
