@@ -592,7 +592,8 @@ export default function Investing({ language = "en" }) {
                     key={pos.id}
                     position={pos}
                     onCancel={pos.status === "PENDING_APPROVAL" ? handleCancelPosition : null}
-                    onClaim={pos.status === "ACTIVE" && (pos.claimableAmount || 0) > 0.01 ? handleClaimRewards : null}
+                    onClaim={handleClaimRewards}
+                    onEarlyClaim={handleEarlyClaim}
                     language={language}
                   />
                 ))}
