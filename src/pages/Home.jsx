@@ -220,14 +220,12 @@ export default function Home({ language = "en" }) {
     <MotionConfig reducedMotion="user">
     <div className="overflow-hidden bg-background text-foreground">
       {/* Mobile Hero */}
-      <section className="md:hidden relative pt-20 pb-8 overflow-hidden">
-        {/* Premium dark gradient background */}
+      <section className="md:hidden relative pt-20 pb-6 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(16,185,129,0.12),transparent)]" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-background" />
         
-        <div className="relative z-10 px-5 flex flex-col gap-6">
-          {/* Hero headline */}
-          <div className="space-y-3 pt-4">
+        <div className="relative z-10 px-5 flex flex-col gap-5">
+          <div className="space-y-2.5 pt-4">
             <h1 className="text-[26px] font-extrabold text-white tracking-tight leading-[1.15]">
               {language === 'en' ? (
                 <>Trade Smarter.<br/><span className="text-primary">Invest Safer.</span></>
@@ -237,68 +235,38 @@ export default function Home({ language = "en" }) {
             </h1>
             <p className="text-[13px] text-white/50 leading-relaxed max-w-[320px]">
               {language === "en"
-                ? "Futures trading with AI signals, copy trading bots, and secure staking — all in one platform."
-                : "تداول العقود بإشارات ذكية، نسخ تداول آلي، وستاكينغ آمن — كلها في منصة واحدة."
+                ? "AI-powered signals, copy trading bots, and secure staking — all in one platform."
+                : "إشارات ذكية، نسخ تداول آلي، وستاكينغ آمن — كلها في منصة واحدة."
               }
             </p>
           </div>
 
-          {/* Product cards */}
-          <div className="space-y-3">
-            {/* Futures / Copy Trading */}
+          {/* Showcase: real screenshots side by side */}
+          <div className="grid grid-cols-2 gap-3">
             <Link to={createPageUrl("Futures") + "?tab=bots"} className="block">
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm active:scale-[0.98] transition-transform">
-                <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-5 h-5 text-blue-400" />
+              <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
+                  alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
+                  className="w-full h-auto"
+                  loading="eager"
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                  <p className="text-[10px] font-bold text-white">{language === "en" ? "Live Trading Signals" : "إشارات تداول مباشرة"}</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-white font-semibold text-sm">{language === "en" ? "Copy Trading" : "نسخ التداول"}</p>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded">
-                      {language === "en" ? "AUTO" : "آلي"}
-                    </span>
-                  </div>
-                  <p className="text-white/40 text-[11px] mt-0.5">{language === "en" ? "Mirror top traders automatically" : "انسخ أفضل المتداولين تلقائياً"}</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-white/20 flex-shrink-0" />
               </div>
             </Link>
-
-            {/* Staking */}
             <Link to={createPageUrl("Investing")} className="block">
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm active:scale-[0.98] transition-transform">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-                  <Lock className="w-5 h-5 text-emerald-400" />
+              <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl">
+                <img
+                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
+                  alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
+                  className="w-full h-auto"
+                  loading="eager"
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                  <p className="text-[10px] font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-white font-semibold text-sm">{language === "en" ? "Staking" : "الستاكينغ"}</p>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded">
-                      {language === "en" ? "UP TO 33% APY" : "حتى 33%"}
-                    </span>
-                  </div>
-                  <p className="text-white/40 text-[11px] mt-0.5">{language === "en" ? "Lock USDT and earn daily rewards" : "اقفل USDT واربح مكافآت يومية"}</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-white/20 flex-shrink-0" />
-              </div>
-            </Link>
-
-            {/* Futures trading */}
-            <Link to={createPageUrl("Futures")} className="block">
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm active:scale-[0.98] transition-transform">
-                <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
-                  <LineChart className="w-5 h-5 text-amber-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-white font-semibold text-sm">{language === "en" ? "Futures Trading" : "تداول العقود"}</p>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded">
-                      100x
-                    </span>
-                  </div>
-                  <p className="text-white/40 text-[11px] mt-0.5">{language === "en" ? "Trade BTC, ETH & more with leverage" : "تداول BTC و ETH والمزيد مع رافعة"}</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-white/20 flex-shrink-0" />
               </div>
             </Link>
           </div>
@@ -408,73 +376,59 @@ export default function Home({ language = "en" }) {
               </div>
             </motion.div>
 
-            {/* Right Content - Product Cards */}
+            {/* Right Content - Real Screenshots Showcase */}
             <motion.div
               initial={fadeInScale.initial}
               animate={fadeInScale.animate}
               transition={{ duration: shouldReduceMotion ? 0.2 : 0.8, delay: shouldReduceMotion ? 0 : 0.2 }}
               className="order-1 lg:order-2"
             >
-              <div className="space-y-4 w-full max-w-md mx-auto">
-                {/* Copy Trading */}
-                <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group">
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                      <Bot className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-bold text-base">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/15 px-2 py-0.5 rounded-full">
-                          {language === "en" ? "AUTOMATED" : "آلي"}
-                        </span>
+              <div className="relative w-full max-w-lg mx-auto">
+                {/* Glow behind */}
+                <div className="absolute -inset-8 bg-primary/5 blur-3xl rounded-full" />
+                
+                <div className="relative grid grid-cols-2 gap-5">
+                  {/* Signal Card */}
+                  <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group">
+                    <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 bg-white/[0.02]">
+                      <img
+                        src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
+                        alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
+                        className="w-full h-auto"
+                        loading="eager"
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
+                        <div className="flex items-center gap-2">
+                          <Bot className="w-4 h-4 text-blue-400" />
+                          <p className="text-xs font-bold text-white">{language === "en" ? "Live Trading Signals" : "إشارات تداول مباشرة"}</p>
+                        </div>
+                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "AI-powered, auto-executed" : "مدعومة بالذكاء الاصطناعي"}</p>
                       </div>
-                      <p className="text-white/40 text-sm">{language === "en" ? "Mirror top traders automatically. Earn while you sleep." : "انسخ أفضل المتداولين تلقائياً. اربح وأنت نائم."}</p>
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-blue-400 transition-colors flex-shrink-0" />
-                  </div>
-                </Link>
+                  </Link>
 
-                {/* Staking */}
-                <Link to={createPageUrl("Investing")} className="block group">
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                      <Lock className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-bold text-base">{language === "en" ? "Staking" : "الستاكينغ"}</h3>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                          {language === "en" ? "UP TO 33% APY" : "حتى 33%"}
-                        </span>
+                  {/* Earnings Card */}
+                  <Link to={createPageUrl("Investing")} className="block group mt-8">
+                    <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-1 bg-white/[0.02]">
+                      <img
+                        src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
+                        alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
+                        className="w-full h-auto"
+                        loading="eager"
+                      />
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-8">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-emerald-400" />
+                          <p className="text-xs font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
+                        </div>
+                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "Up to 33% APY, daily accrual" : "حتى 33% سنوياً، احتساب يومي"}</p>
                       </div>
-                      <p className="text-white/40 text-sm">{language === "en" ? "Lock USDT, earn daily rewards. Safe and predictable." : "اقفل USDT، واربح مكافآت يومية. آمن وموثوق."}</p>
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-emerald-400 transition-colors flex-shrink-0" />
-                  </div>
-                </Link>
+                  </Link>
+                </div>
 
-                {/* Futures Trading */}
-                <Link to={createPageUrl("Futures")} className="block group">
-                  <div className="flex items-center gap-5 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                      <LineChart className="w-6 h-6 text-amber-400" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-white font-bold text-base">{language === "en" ? "Futures Trading" : "تداول العقود"}</h3>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
-                          100x
-                        </span>
-                      </div>
-                      <p className="text-white/40 text-sm">{language === "en" ? "Trade BTC, ETH & 200+ pairs with AI-powered signals." : "تداول BTC و ETH و200+ زوج بإشارات مدعومة بالذكاء الاصطناعي."}</p>
-                    </div>
-                    <ArrowUpRight className="w-5 h-5 text-white/10 group-hover:text-amber-400 transition-colors flex-shrink-0" />
-                  </div>
-                </Link>
-
-                {/* Live stats strip */}
-                <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-[11px] text-white/25 font-medium">
+                {/* Stats strip below */}
+                <div className="mt-6 flex items-center justify-between px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.04] text-[11px] text-white/25 font-medium">
                   <span>{language === "en" ? "200+ Trading Pairs" : "200+ زوج تداول"}</span>
                   <span className="w-px h-3 bg-white/10" />
                   <span>{language === "en" ? "Instant Withdrawals" : "سحب فوري"}</span>

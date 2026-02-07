@@ -761,10 +761,16 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLanguage("en")}>
+                  <DropdownMenuItem onClick={() => setLanguage("en")} className={language === "en" ? "bg-accent" : ""}>
+                    <span className="inline-block w-5 h-4 rounded-sm overflow-hidden mr-2 flex-shrink-0" aria-hidden="true">
+                      <svg viewBox="0 0 60 30" width="20" height="16"><clipPath id="uk"><rect width="60" height="30"/></clipPath><g clipPath="url(#uk)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="M0 0l60 30m0-30L0 30" stroke="#fff" strokeWidth="6"/><path d="M0 0l60 30m0-30L0 30" stroke="#C8102E" strokeWidth="4" clipPath="url(#uk)"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="6"/></g></svg>
+                    </span>
                     English
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLanguage("ar")}>
+                  <DropdownMenuItem onClick={() => setLanguage("ar")} className={language === "ar" ? "bg-accent" : ""}>
+                    <span className="inline-block w-5 h-4 rounded-sm overflow-hidden mr-2 flex-shrink-0" aria-hidden="true">
+                      <svg viewBox="0 0 60 40" width="20" height="16"><rect width="60" height="13.3" fill="#006C35"/><rect y="13.3" width="60" height="13.4" fill="#fff"/><rect y="26.7" width="60" height="13.3" fill="#000"/></svg>
+                    </span>
                     العربية
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -1015,22 +1021,22 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                 {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </Button>
 
-              {/* Language Switcher for Mobile */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Globe className="w-5 h-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLanguage("en")}>
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLanguage("ar")}>
-                    العربية
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Language Switcher for Mobile - toggle directly */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+                aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
+              >
+                <span className="inline-block w-5 h-4 rounded-sm overflow-hidden" aria-hidden="true">
+                  {language === "en" ? (
+                    <svg viewBox="0 0 60 40" width="20" height="16"><rect width="60" height="13.3" fill="#006C35"/><rect y="13.3" width="60" height="13.4" fill="#fff"/><rect y="26.7" width="60" height="13.3" fill="#000"/></svg>
+                  ) : (
+                    <svg viewBox="0 0 60 30" width="20" height="16"><clipPath id="ukm"><rect width="60" height="30"/></clipPath><g clipPath="url(#ukm)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="M0 0l60 30m0-30L0 30" stroke="#fff" strokeWidth="6"/><path d="M0 0l60 30m0-30L0 30" stroke="#C8102E" strokeWidth="4" clipPath="url(#ukm)"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="6"/></g></svg>
+                  )}
+                </span>
+              </Button>
             </div>
           </div>
         </div>
