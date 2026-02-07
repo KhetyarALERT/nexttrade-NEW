@@ -245,12 +245,12 @@ export default function Home({ language = "en" }) {
           </div>
 
           {/* Animated showcase cards */}
-          <div className="grid grid-cols-2 gap-3">
-            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block">
-              <SignalShowcase language={language} compact />
+          <div className="flex flex-col gap-4 px-1">
+            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block w-full shadow-lg rounded-2xl overflow-hidden">
+              <SignalShowcase language={language} />
             </Link>
-            <Link to={createPageUrl("Investing")} className="block">
-              <StakingShowcase language={language} compact />
+            <Link to={createPageUrl("Investing")} className="block w-full shadow-lg rounded-2xl overflow-hidden">
+              <StakingShowcase language={language} />
             </Link>
           </div>
 

@@ -84,7 +84,7 @@ export default function StakingShowcase({ language = "en" }) {
               <p className="text-sm text-muted-foreground font-medium">30 {labels.days}</p>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-extrabold text-primary tracking-tighter">25%</div>
+              <div className="text-3xl font-extrabold text-emerald-500 tracking-tighter">25%</div>
               <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{labels.apy}</p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function StakingShowcase({ language = "en" }) {
           </div>
           <div className="bg-card/50 p-3 rounded-xl border border-border/50">
             <p className="text-xs font-medium text-muted-foreground mb-1">{labels.apy}</p>
-            <p className="font-mono font-bold text-base text-primary">25%</p>
+            <p className="font-mono font-bold text-base text-emerald-500">25%</p>
           </div>
         </div>
 
@@ -201,7 +201,7 @@ export default function StakingShowcase({ language = "en" }) {
               </p>
               <p className={cn(
                 "font-mono font-extrabold text-xl",
-                current.progress >= 100 ? "text-white" : "text-primary"
+                current.progress >= 100 ? "text-white" : "text-emerald-500"
               )}>
                 +{(current.progress * 0.68).toFixed(2)} USDT
               </p>
