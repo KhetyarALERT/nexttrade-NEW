@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
         return Response.json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }, { status: 401 });
       }
 
-      const { position_id, amount } = payload;
+      const { position_id, amount, early } = payload;
       if (!position_id) {
         return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Missing position_id' } }, { status: 400 });
       }
@@ -323,11 +323,99 @@ Deno.serve(async (req) => {
       }
 
       const requestAmount = amount ? Math.min(amount, claimable) : claimable;
+      const nowIso = new Date().toISOString();
+      const dateKey = getTodayDateKey();
 
+      // Check if period is finished (mature claim = auto-process)
+      const endsAt = position.ends_at ? new Date(position.ends_at) : null;
+      const isPeriodFinished = endsAt && endsAt.getTime() <= Date.now();
+
+      if (isPeriodFinished && !early) {
+        // === AUTO-PROCESS: Period is over, credit directly ===
+        console.log(`[STAKING_REWARDS] [${runId}] Auto-processing mature claim for position ${position.id}: $${requestAmount.toFixed(6)}`);
+
+        // Handle payout destination based on source
+        if (position.source_account === 'COPY_TRADING') {
+          const wallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: position.user_id });
+          if (wallets?.[0]) {
+            const wallet = wallets[0];
+            await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+              available_balance: wallet.available_balance + requestAmount,
+              updated_at: nowIso
+            });
+            await base44.asServiceRole.entities.CopyTradingLedger.create({
+              user_id: position.user_id,
+              kind: 'STAKING_REWARD',
+              amount: requestAmount,
+              currency: 'USDT',
+              status: 'POSTED',
+              ref_type: 'STAKING',
+              ref_id: position.id,
+              balance_before: wallet.available_balance,
+              balance_after: wallet.available_balance + requestAmount,
+              description: `Mature Staking Reward Claim`,
+              created_at: nowIso
+            });
+          }
+        }
+        // For MAIN source - credit to internal wallet if exists, otherwise just mark as paid
+        // (The admin payout flow handles actual OKX transfers for MAIN)
+
+        // Create payout ledger entry
+        await base44.asServiceRole.entities.StakingRewardsLedger.create({
+          user_id: position.user_id,
+          staking_position_id: position.id,
+          kind: 'PAYOUT',
+          amount: -requestAmount,
+          date_key: dateKey,
+          status: 'POSTED',
+          run_id: runId,
+          note: `Auto-payout (period completed) by ${user.email}`,
+          created_at: nowIso
+        });
+
+        // Update position
+        const newPaid = (position.paid_amount || 0) + requestAmount;
+        const remaining = (position.accrued_amount || 0) - newPaid;
+        await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+          paid_amount: newPaid,
+          payout_status: remaining > 0.01 ? 'CLAIMABLE' : 'PAID',
+          last_payout_at: nowIso,
+          updated_at: nowIso
+        });
+
+        // Notify user
+        try {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: user.id,
+            type: 'staking_reward',
+            title: 'Staking Rewards Collected! 💰',
+            message: `$${requestAmount.toFixed(2)} USDT rewards have been collected from your completed staking position.`,
+            data: { stakingPositionId: position.id, amount: requestAmount, action: 'mature_claim' },
+            read: false,
+            priority: 'normal'
+          });
+        } catch (e) {
+          console.log(`[STAKING_REWARDS] Failed to notify user:`, e.message);
+        }
+
+        return Response.json({
+          ok: true,
+          data: {
+            positionId: position.id,
+            paidAmount: requestAmount,
+            payoutStatus: remaining > 0.01 ? 'CLAIMABLE' : 'PAID',
+            autoProcessed: true,
+            message: 'Rewards collected automatically (period completed).'
+          }
+        });
+      }
+
+      // === EARLY CLAIM: Period not finished, needs admin approval ===
       // Update position to REQUESTED status
       await base44.entities.StakingPosition.update(position.id, {
         payout_status: 'REQUESTED',
-        updated_at: new Date().toISOString()
+        updated_at: nowIso
       });
 
       // Notify ALL admins
@@ -337,9 +425,9 @@ Deno.serve(async (req) => {
           await base44.asServiceRole.entities.Notification.create({
             user_id: admin.id,
             type: 'system',
-            title: 'Staking Payout Requested',
-            message: `${user.email} requested payout of $${requestAmount.toFixed(2)} USDT from staking rewards`,
-            data: { stakingPositionId: position.id, amount: requestAmount, action: 'payout_requested', userEmail: user.email },
+            title: 'Early Claim Requested',
+            message: `${user.email} requested early claim of $${requestAmount.toFixed(2)} USDT (period still active)`,
+            data: { stakingPositionId: position.id, amount: requestAmount, action: 'early_claim_requested', userEmail: user.email },
             read: false,
             priority: 'high'
           });
@@ -353,9 +441,9 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.Notification.create({
           user_id: user.id,
           type: 'staking_reward',
-          title: 'Claim Request Submitted',
-          message: `Your claim of $${requestAmount.toFixed(2)} USDT is being processed. You'll be notified when it's complete.`,
-          data: { stakingPositionId: position.id, amount: requestAmount, action: 'payout_requested' },
+          title: 'Early Claim Request Submitted',
+          message: `Your early claim of $${requestAmount.toFixed(2)} USDT is pending admin approval.`,
+          data: { stakingPositionId: position.id, amount: requestAmount, action: 'early_claim_requested' },
           read: false,
           priority: 'normal'
         });
@@ -369,7 +457,8 @@ Deno.serve(async (req) => {
           positionId: position.id,
           requestedAmount: requestAmount,
           payoutStatus: 'REQUESTED',
-          message: 'Payout request submitted. Admin will process manually.'
+          autoProcessed: false,
+          message: 'Early claim request submitted. Admin will review and process.'
         }
       });
     }
