@@ -194,9 +194,22 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
     return Response.json({ ok: false, error: { code: 'INVALID_INPUT', message: 'Invalid input' } });
   }
 
-  // 1. Check idempotency
+  // 1. Check idempotency (both SignalAction AND CopyPosition)
   const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: targetUserId, signal_id: signalId });
   if (existingAction.length > 0) {
+    console.log(`[COPY_ACCEPT] IDEMPOTENCY: user=${targetUserId} signal=${signalId} already has SignalAction`);
+    const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: targetUserId });
+    const wallet = walletRes?.[0];
+    return Response.json({ 
+      ok: true, 
+      success: true,
+      wallet: wallet ? { available: wallet.available_balance, locked: wallet.locked_balance } : null,
+      message: 'Already processed'
+    });
+  }
+  const existingPosition = await base44.asServiceRole.entities.CopyPosition.filter({ user_id: targetUserId, signal_id: signalId });
+  if (existingPosition.length > 0) {
+    console.log(`[COPY_ACCEPT] IDEMPOTENCY: user=${targetUserId} signal=${signalId} already has CopyPosition`);
     const walletRes = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: targetUserId });
     const wallet = walletRes?.[0];
     return Response.json({ 
