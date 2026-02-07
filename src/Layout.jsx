@@ -517,10 +517,10 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
     setLoadingAccountTotals(true);
     try {
       const [walletsResult, okxAccountResult, stakingResult, copyTradingResult] = await Promise.all([
-        base44.functions.invoke("wallet", { action: "list" }),
-        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }),
-        base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }).catch(() => ({ data: { ok: false } })),
+        base44.functions.invoke("wallet", { action: "list" }).catch((e) => { console.error("[Layout] wallet fetch failed:", e); return { data: { success: false } }; }),
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch((e) => { console.error("[Layout] okx fetch failed:", e); return { data: { ok: false } }; }),
+        base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }).catch((e) => { console.error("[Layout] staking fetch failed:", e); return { data: { ok: false } }; }),
+        base44.functions.invoke("copyTradingUser", { action: "getWallet" }).catch((e) => { console.error("[Layout] copyTrading fetch failed:", e); return { data: { ok: false } }; }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
