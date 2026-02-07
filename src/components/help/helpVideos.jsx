@@ -24,7 +24,16 @@ export const HELP_VIDEOS = [
     is_enabled: true,
     sort_order: 1,
   },
-  // Add more videos here as needed
+  {
+    key: "platform_overview",
+    title_en: "Deposit, Withdraw & Copy Trading overview",
+    title_ar: "نظرة عامة: الإيداع والسحب ونسخ التداول",
+    category_en: "Getting Started",
+    category_ar: "البدء",
+    youtube_id: "pIo7fPRzU2Q",
+    is_enabled: true,
+    sort_order: 2,
+  },
 ];
 
 /**

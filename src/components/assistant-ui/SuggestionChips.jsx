@@ -23,18 +23,18 @@ const TOPIC_SUGGESTIONS = {
   deposit: {
     keywords: ["deposit", "إيداع", "add funds", "إضافة رصيد", "تحويل", "transfer in"],
     suggestions: [
+      { key: "watch_overview_video", label_en: "Watch guide", label_ar: "شاهد الشرح", type: "video", youtubeId: "pIo7fPRzU2Q" },
       { key: "deposit_steps", label_en: "Deposit steps", label_ar: "خطوات الإيداع", type: "prompt" },
       { key: "open_deposit", label_en: "Go to Deposit", label_ar: "فتح الإيداع", type: "route", route: "Wallet?page=deposit" },
-      { key: "deposit_fees", label_en: "Fees & limits", label_ar: "الرسوم والحدود", type: "prompt" },
       { key: "talk_human", label_en: "Talk to support", label_ar: "تحدث مع الدعم", type: "ticket" },
     ],
   },
   withdraw: {
     keywords: ["withdraw", "سحب", "withdrawal", "cash out", "send funds"],
     suggestions: [
+      { key: "watch_overview_video", label_en: "Watch guide", label_ar: "شاهد الشرح", type: "video", youtubeId: "pIo7fPRzU2Q" },
       { key: "withdraw_steps", label_en: "Withdraw steps", label_ar: "خطوات السحب", type: "prompt" },
       { key: "open_withdraw", label_en: "Open Withdraw", label_ar: "فتح صفحة السحب", type: "route", route: "Wallet?page=withdraw" },
-      { key: "withdraw_status", label_en: "Check pending", label_ar: "حالة السحب", type: "prompt" },
       { key: "talk_human", label_en: "Talk to support", label_ar: "تحدث مع الدعم", type: "ticket" },
     ],
   },
@@ -50,9 +50,9 @@ const TOPIC_SUGGESTIONS = {
   copy_trading: {
     keywords: ["copy", "نسخ", "signal", "إشارة", "bot", "auto", "تلقائي"],
     suggestions: [
+      { key: "watch_overview_video", label_en: "Watch guide", label_ar: "شاهد الشرح", type: "video", youtubeId: "pIo7fPRzU2Q" },
       { key: "copy_enable", label_en: "Enable Copy Trading", label_ar: "تفعيل نسخ التداول", type: "prompt" },
       { key: "open_copy", label_en: "Go to Copy Trading", label_ar: "فتح نسخ التداول", type: "route", route: "Futures?tab=bots" },
-      { key: "copy_settings", label_en: "Copy settings", label_ar: "إعدادات النسخ", type: "prompt" },
       { key: "talk_human", label_en: "Talk to support", label_ar: "تحدث مع الدعم", type: "ticket" },
     ],
   },
