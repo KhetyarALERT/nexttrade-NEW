@@ -1,135 +1,216 @@
-import { useState, useEffect } from "react";
-import { Wallet, ShieldCheck, ArrowRight, Coins, Lock, TrendingUp } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { 
+  Gift, 
+  Info, 
+  Sparkles, 
+  CheckCircle2, 
+  ChevronRight,
+  Wallet,
+  Lock,
+  ArrowRight
+} from "lucide-react";
+import UsdtIcon from "@/components/ui/UsdtIcon";
+import { cn } from "@/lib/utils";
 
 export default function StakingShowcase({ language = "en" }) {
-  const [balance, setBalance] = useState(1000.00);
-  const [isStaking, setIsStaking] = useState(false);
-  
-  const isEn = language === "en";
+  const [step, setStep] = useState(0);
+
+  // Simulation steps
+  const SIMULATION = [
+    { type: "plan", isSelected: false },
+    { type: "plan", isSelected: true },
+    { type: "active", progress: 0 },
+    { type: "active", progress: 50 },
+    { type: "active", progress: 100 }
+  ];
 
   useEffect(() => {
-    let interval;
-    const cycle = async () => {
-      // Reset
-      setBalance(1000.00);
-      setIsStaking(false);
-      
-      await new Promise(r => setTimeout(r, 1500));
-      
-      // Start Staking
-      setIsStaking(true);
-      
-      // Simulate rapid earnings
-      const startTime = Date.now();
-      const duration = 4000;
-      const targetGain = 145.20;
-      
-      return new Promise(resolve => {
-        interval = setInterval(() => {
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          
-          // Non-linear ease out for realism
-          const ease = 1 - Math.pow(1 - progress, 3);
-          
-          setBalance(1000 + (targetGain * ease));
-          
-          if (progress >= 1) {
-            clearInterval(interval);
-            setTimeout(() => {
-              resolve();
-            }, 3000); // Show final balance for a bit
-          }
-        }, 30);
-      }).then(cycle);
-    };
-
-    cycle();
-    return () => clearInterval(interval);
+    const timer = setInterval(() => {
+      setStep((prev) => (prev + 1) % SIMULATION.length);
+    }, 3000);
+    return () => clearInterval(timer);
   }, []);
 
-  return (
-    <div className="relative w-full h-[220px] rounded-2xl bg-[#0B0E11] border border-white/10 overflow-hidden flex flex-col shadow-2xl">
-      {/* Decorative Gradient Background */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+  const current = SIMULATION[step];
+  const isPlanView = current.type === "plan";
 
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-white/[0.02] relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Coins className="w-4 h-4 text-white" />
+  const t = {
+    en: {
+      recommended: "Recommended",
+      days: "days",
+      bonusRewards: "Bonus Rewards",
+      perDollar: "/USDT staked",
+      perks: "Perks while active",
+      viewAllPerks: "View all perks",
+      firstStakeBonus: "First stake bonus",
+      select: "Select Plan",
+      apy: "APY",
+      min: "Min",
+      activePosition: "Active Position",
+      principal: "Principal",
+      accrued: "Accrued Interest",
+      term: "30 Days",
+      status: "Active",
+      maturity: "Maturity",
+      claim: "Claim Rewards"
+    },
+    ar: {
+      recommended: "موصى به",
+      days: "أيام",
+      bonusRewards: "مكافآت إضافية",
+      perDollar: "/USDT مستثمر",
+      perks: "المزايا",
+      viewAllPerks: "عرض الكل",
+      firstStakeBonus: "مكافأة أول مرة",
+      select: "اختر الخطة",
+      apy: "العائد",
+      min: "الحد الأدنى",
+      activePosition: "صفقة نشطة",
+      principal: "رأس المال",
+      accrued: "الأرباح المتراكمة",
+      term: "30 يوم",
+      status: "نشط",
+      maturity: "الاستحقاق",
+      claim: "سحب المكافآت"
+    }
+  };
+  const labels = t[language] || t.en;
+
+  if (isPlanView) {
+    return (
+      <Card className={cn(
+        "relative overflow-hidden transition-all duration-300 group h-full",
+        current.isSelected 
+          ? "ring-2 ring-primary border-primary shadow-xl scale-[1.02]" 
+          : "hover:border-primary/50 hover:shadow-md"
+      )}>
+        {/* Recommended Badge */}
+        <div className="absolute -top-px inset-x-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-primary" />
+        <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-2 py-0.5">
+          {labels.recommended}
+        </Badge>
+
+        <CardContent className="p-4 space-y-3">
+          {/* Header */}
+          <div className="flex items-start justify-between pt-1">
+            <div>
+              <h3 className="font-semibold text-foreground text-base">Growth Plus</h3>
+              <p className="text-xs text-muted-foreground">30 {labels.days}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-primary">25%</div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{labels.apy}</p>
+            </div>
+          </div>
+
+          {/* Min Deposit */}
+          <div className="flex items-center justify-between text-sm py-2 border-y border-border/50">
+            <span className="text-muted-foreground">{labels.min}</span>
+            <div className="flex items-center gap-1.5">
+              <UsdtIcon size="xs" />
+              <span className="font-mono font-medium">1,000 USDT</span>
+            </div>
+          </div>
+
+          {/* Bonus */}
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5">
+              <Gift className="w-4 h-4 text-primary" />
+              <span className="text-muted-foreground">{labels.bonusRewards}</span>
+            </div>
+            <span className="font-medium text-primary">+0.5{labels.perDollar}</span>
+          </div>
+
+          {/* First Stake Bonus */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">{labels.firstStakeBonus}</span>
+          </div>
+
+          {/* Perks */}
+          <div className="pt-1 space-y-1">
+            <p className="text-xs text-muted-foreground mb-1">{labels.perks}</p>
+            <div className="flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+              <span>VIP Signal Access</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+              <span>Fee Discounts</span>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <Button 
+            variant={current.isSelected ? "default" : "outline"}
+            size="sm"
+            className="w-full mt-2 transition-all pointer-events-none"
+          >
+            {current.isSelected && <CheckCircle2 className="w-4 h-4 mr-1" />}
+            {labels.select}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Active Position View
+  return (
+    <Card className="relative overflow-hidden h-full border-primary/20 bg-primary/5">
+      <CardContent className="p-4 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="p-1.5 rounded-lg bg-primary/20">
+            <Lock className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-100">{isEn ? "USDT Saver" : "مخزون USDT"}</div>
-            <div className="text-[10px] text-emerald-400 font-medium">{isEn ? "Fixed APY" : "عائد ثابت"}</div>
+            <h3 className="font-semibold text-sm">{labels.activePosition}</h3>
+            <p className="text-[10px] text-primary">{labels.status}: Active</p>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs font-bold text-amber-400">25.0%</div>
-          <div className="text-[9px] text-slate-500 font-medium">APY</div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-5 flex flex-col justify-center relative z-10">
-        <div className="text-center mb-6">
-          <div className="text-xs text-slate-400 font-medium mb-1.5 flex items-center justify-center gap-1.5">
-            <Wallet className="w-3.5 h-3.5 text-slate-500" />
-            {isEn ? "Total Balance" : "إجمالي الرصيد"}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-background/50 p-2 rounded-lg">
+            <p className="text-[10px] text-muted-foreground">{labels.principal}</p>
+            <p className="font-mono font-bold text-sm">1,000 USDT</p>
           </div>
-          <div className="relative inline-block">
-             <div className="text-4xl font-mono font-bold text-white tracking-tight">
-               ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-             </div>
-             {/* Glowing effect behind numbers when staking */}
-             {isStaking && (
-               <div className="absolute inset-0 bg-emerald-500/20 blur-xl animate-pulse rounded-full opacity-50" />
-             )}
+          <div className="bg-background/50 p-2 rounded-lg">
+            <p className="text-[10px] text-muted-foreground">{labels.apy}</p>
+            <p className="font-mono font-bold text-sm text-primary">25%</p>
           </div>
-          
-          <div className={`mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors duration-300 ${isStaking ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"}`}>
-            {isStaking ? (
-              <>
-                <TrendingUp className="w-3 h-3" />
-                <span>{isEn ? "Earning Rewards..." : "جاري ربح المكافآت..."}</span>
-              </>
-            ) : (
-              <>
-                <Lock className="w-3 h-3" />
-                <span>{isEn ? "Waiting to Stake" : "بانتظار الإيداع"}</span>
-              </>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">{labels.maturity}</span>
+            <span className="font-mono">Day {Math.floor(current.progress * 0.3)} / 30</span>
+          </div>
+          <div className="h-2 bg-background/50 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary transition-all duration-1000 ease-out" 
+              style={{ width: `${current.progress}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-[10px] text-primary/80 uppercase">{labels.accrued}</p>
+              <p className="font-mono font-bold text-lg text-primary">
+                +{(current.progress * 0.68).toFixed(2)} USDT
+              </p>
+            </div>
+            {current.progress >= 100 && (
+              <Button size="sm" className="h-7 text-xs animate-pulse pointer-events-none">
+                {labels.claim}
+              </Button>
             )}
           </div>
         </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-white/5 rounded-full h-1.5 mb-2 overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-amber-400 to-emerald-400 transition-all duration-100 ease-out"
-            style={{ width: isStaking ? `${((balance - 1000) / 145.20) * 100}%` : '0%' }}
-          />
-        </div>
-        <div className="flex justify-between text-[10px] text-slate-500 font-medium px-0.5">
-          <span>{isEn ? "Start" : "البداية"}</span>
-          <span className={isStaking ? "text-emerald-400" : ""}>{isEn ? "Maturity" : "الاستحقاق"}</span>
-        </div>
-      </div>
-
-      {/* Bottom Action Area */}
-      <div className="px-4 py-3 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
-         <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-           <ShieldCheck className="w-3 h-3 text-emerald-500" />
-           {isEn ? "Principal Protected" : "رأس المال محمي"}
-         </div>
-         <button className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-300 ${
-           balance > 1100 
-             ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 translate-y-0" 
-             : "bg-white/5 text-slate-500 translate-y-0 cursor-not-allowed"
-         }`}>
-           {isEn ? "Claim Profit" : "سحب الأرباح"}
-           <ArrowRight className="w-3 h-3" />
-         </button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
