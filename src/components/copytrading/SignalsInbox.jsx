@@ -9,6 +9,7 @@ import SignalCard from './SignalCard';
 import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AllocationModal from './AllocationModal';
+import AutoTradeSettings from './AutoTradeSettings';
 
 import { useRef } from 'react';
 
@@ -283,6 +284,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       </div>
       
       <ScrollArea className="flex-1 h-full">
+        {/* Auto-Trade Settings - always visible at top */}
+        <div className="p-4 pb-0">
+          <AutoTradeSettings language={language} />
+        </div>
+
         {loading && signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground">
             <Loader2 className="w-8 h-8 animate-spin mb-3 text-primary" />
