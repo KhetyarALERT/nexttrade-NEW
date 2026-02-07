@@ -280,14 +280,30 @@ Deno.serve(async (req) => {
         const autoEnabledUserIds = new Set((autoSettings || []).map(s => s.user_id));
         console.log(`[SIGNALS_INGEST] Auto-enabled users: ${autoEnabledUserIds.size}`);
 
-        // Use created deliveries which have IDs for updating
+        // De-duplicate deliveries by user_id to prevent multiple trades per user per signal
         const deliveriesWithIds = createdDeliveries || deliveries;
+        const processedUserIds = new Set();
+
         for (const delivery of deliveriesWithIds) {
+          // CRITICAL: Skip if we already processed this user for this signal
+          if (processedUserIds.has(delivery.user_id)) {
+            console.log(`[SIGNALS_INGEST] SKIP duplicate delivery for user ${delivery.user_id} on signal ${signal.id}`);
+            continue;
+          }
+          processedUserIds.add(delivery.user_id);
+
           try {
             // --- AUTO-ACCEPT LOGIC ---
             if (autoEnabledUserIds.has(delivery.user_id)) {
               const userSettings = autoSettings.find(s => s.user_id === delivery.user_id);
               if (userSettings) {
+                // IDEMPOTENCY: Check if already acted on THIS signal before doing any work
+                const existingActions = await base44.asServiceRole.entities.SignalAction.filter({ user_id: delivery.user_id, signal_id: signal.id });
+                if (existingActions?.length > 0) {
+                  console.log(`[SIGNALS_INGEST] IDEMPOTENCY: user ${delivery.user_id} already acted on signal ${signal.id}, skipping`);
+                  continue;
+                }
+
                 // Check max open positions limit
                 const openPositions = await base44.asServiceRole.entities.CopyPosition.filter({ user_id: delivery.user_id, status: 'OPEN' });
                 const openCount = openPositions?.length || 0;
@@ -296,7 +312,7 @@ Deno.serve(async (req) => {
                 if (openCount >= maxOpen) {
                   console.log(`[SIGNALS_INGEST] Skipping auto-accept for ${delivery.user_id}: ${openCount}/${maxOpen} positions open`);
                 } else {
-                  // Check wallet balance
+                  // Check wallet balance — re-fetch wallet to get latest state
                   const userWallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: delivery.user_id, status: 'ACTIVE' });
                   const userWallet = userWallets?.[0];
                   const marginAmount = Math.min(
@@ -307,17 +323,18 @@ Deno.serve(async (req) => {
                   if (!userWallet || userWallet.available_balance < marginAmount + 0.1) {
                     console.log(`[SIGNALS_INGEST] Skipping auto-accept for ${delivery.user_id}: insufficient balance (${userWallet?.available_balance || 0} < ${marginAmount})`);
                   } else {
-                    // Determine leverage: follow signal cap or use fixed
+                    // Determine effective leverage: min(userMax, signalCap)
                     let autoLeverage = userSettings.max_leverage || 10;
                     if (userSettings.leverage_mode === 'FIXED') {
                       autoLeverage = userSettings.fixed_leverage || 5;
                     }
                     // Cap to signal's max leverage if present
                     if (signal.max_leverage && autoLeverage > signal.max_leverage) {
+                      console.log(`[SIGNALS_INGEST] Leverage clamped: user wanted ${autoLeverage}x, signal cap ${signal.max_leverage}x → using ${signal.max_leverage}x`);
                       autoLeverage = signal.max_leverage;
                     }
 
-                    console.log(`[SIGNALS_INGEST] Auto-accepting signal ${signal.id} for user ${delivery.user_id}: margin=${marginAmount}, leverage=${autoLeverage}x`);
+                    console.log(`[SIGNALS_INGEST] Auto-accepting signal ${signal.id} for user ${delivery.user_id}: margin=${marginAmount}, leverage=${autoLeverage}x, balBefore=${userWallet.available_balance}`);
 
                     // Execute auto-accept INLINE (not via function invoke, to avoid auth issues)
                     try {
