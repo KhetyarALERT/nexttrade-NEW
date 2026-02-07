@@ -528,6 +528,12 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
       const stakingData = stakingResult.data?.ok ? stakingResult.data.data : null;
       const copyTradingData = copyTradingResult.data?.ok ? copyTradingResult.data.data : null;
 
+      // Debug: log raw API responses to diagnose balance issues
+      console.log("[Layout:balances] wallet:", walletsResult.data?.success, "wallets:", wallets.length);
+      console.log("[Layout:balances] okx:", okxAccountResult.data?.ok, "hasAccount:", okxData?.hasAccount, "funding:", okxData?.balances?.fundingUsdt, "trading:", okxData?.balances?.tradingUsdt);
+      console.log("[Layout:balances] staking:", stakingResult.data?.ok, "active:", stakingData?.activeLockedByCcy?.USDT, "pending:", stakingData?.pendingLockedByCcy?.USDT);
+      console.log("[Layout:balances] copyTrading:", copyTradingResult.data?.ok, "available:", copyTradingData?.available_balance, "locked:", copyTradingData?.locked_balance);
+
       // Wallets: Fund Account balance (internal platform wallets)
       const internalFundingUsdt = wallets.reduce((sum, w) => {
         if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
