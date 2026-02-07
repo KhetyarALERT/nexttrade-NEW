@@ -639,7 +639,7 @@ export default function WithdrawModal({
               {t.title}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="px-4 overflow-y-auto flex-1 pt-4">{content}</div>
+          <div className="px-4 overflow-y-auto flex-1 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">{content}</div>
         </DrawerContent>
       </Drawer>
     );
