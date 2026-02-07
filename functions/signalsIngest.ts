@@ -4,6 +4,154 @@
 // Validates token, parses payload, creates Signal entity
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+// ==================== INLINE AUTO-ACCEPT (avoids auth issues with function invoke) ====================
+async function executeAutoAccept(base44, { targetUserId, signalId, signal, amount, leverage, wallet, config }) {
+  const amtNum = Number(amount);
+  const levNum = Number(leverage) || 5;
+  const now = new Date().toISOString();
+
+  if (!targetUserId || !signalId || !amtNum || amtNum <= 0) {
+    return { ok: false, error: 'Invalid input' };
+  }
+
+  // Idempotency: check if already acted
+  const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: targetUserId, signal_id: signalId });
+  if (existingAction.length > 0) {
+    return { ok: true, message: 'Already processed' };
+  }
+
+  // Commission calc
+  const commRate = config?.commission_open_rate || 0.0005;
+  const minComm = config?.min_commission_open || 0.05;
+  const margin = amtNum;
+  const notional = margin * levNum;
+  const commOpen = Math.max(minComm, notional * commRate);
+  const required = margin + commOpen;
+
+  if (wallet.available_balance < required) {
+    return { ok: false, error: `Insufficient balance: ${wallet.available_balance} < ${required}` };
+  }
+
+  // Live price
+  let entryPrice = signal.entry_price || 0;
+  try {
+    const pRes = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${signal.symbol}`, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const pJson = await pRes.json();
+    if (pJson.data?.[0]?.last) entryPrice = Number(pJson.data[0].last);
+  } catch (e) {}
+  if (!Number.isFinite(entryPrice) || entryPrice <= 0) entryPrice = signal.entry_price || 0;
+
+  const qtyBase = notional / entryPrice;
+
+  // Create position
+  const position = await base44.asServiceRole.entities.CopyPosition.create({
+    user_id: targetUserId,
+    signal_id: signalId,
+    status: 'OPEN',
+    symbol: signal.symbol,
+    side: signal.side,
+    entry_price: entryPrice,
+    margin_usdt: margin,
+    notional_usdt: notional,
+    leverage: levNum,
+    qty_base: qtyBase,
+    stop_loss: signal.stop_loss,
+    tp1: signal.tp1,
+    tp2: signal.tp2,
+    opened_at: now
+  });
+
+  // Signal Action
+  await base44.asServiceRole.entities.SignalAction.create({
+    signal_id: signalId,
+    user_id: targetUserId,
+    action: 'AUTO_ACCEPTED',
+    accepted_at: now,
+    user_amount_usdt: margin,
+    user_leverage: levNum,
+    commission_open_usdt: commOpen,
+    created_at: now
+  });
+
+  // Increment accepted_count
+  try {
+    await base44.asServiceRole.entities.Signal.update(signalId, {
+      accepted_count: (signal.accepted_count || 0) + 1
+    });
+  } catch (err) {}
+
+  // Ledger: Commission
+  const balBefore = wallet.available_balance;
+  await base44.asServiceRole.entities.CopyTradingLedger.create({
+    user_id: targetUserId,
+    kind: 'COMMISSION',
+    amount: -commOpen,
+    currency: 'USDT',
+    status: 'POSTED',
+    ref_type: 'SIGNAL_ACCEPTANCE',
+    ref_id: signalId,
+    balance_before: balBefore,
+    balance_after: balBefore - commOpen,
+    description: `Auto commission for ${signal.symbol}`,
+    created_at: now
+  });
+
+  // Ledger: Margin Lock
+  await base44.asServiceRole.entities.CopyTradingLedger.create({
+    user_id: targetUserId,
+    kind: 'MARGIN_LOCK',
+    amount: -margin,
+    currency: 'USDT',
+    status: 'POSTED',
+    ref_type: 'POSITION',
+    ref_id: position.id,
+    balance_before: balBefore - commOpen,
+    balance_after: balBefore - commOpen - margin,
+    description: `Auto margin lock for ${signal.symbol}`,
+    created_at: now
+  });
+
+  // Update Wallet
+  const newAvailable = wallet.available_balance - required;
+  const newLocked = wallet.locked_balance + margin;
+  await base44.asServiceRole.entities.CopyTradingWallet.update(wallet.id, {
+    available_balance: Math.max(0, newAvailable),
+    locked_balance: newLocked,
+    updated_at: now
+  });
+
+  // Notification
+  try {
+    let userLang = 'en';
+    try {
+      const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: targetUserId });
+      if (prefs?.[0]?.language) userLang = prefs[0].language;
+    } catch (e) {}
+
+    const isAr = userLang === 'ar';
+    const title = isAr ? 'تم فتح صفقة تلقائياً' : 'Auto-Trade: Position Opened';
+    const sideLabel = isAr ? (signal.side === 'LONG' ? 'شراء' : 'بيع') : signal.side;
+    const message = isAr
+      ? `صفقة ${sideLabel} على ${signal.symbol} بسعر ${entryPrice.toFixed(2)}. الهامش: ${margin} USDT، الرافعة: ${levNum}x`
+      : `${signal.side} ${signal.symbol} @ ${entryPrice.toFixed(2)}. Margin: ${margin} USDT, Leverage: ${levNum}x`;
+
+    await base44.asServiceRole.entities.Notification.create({
+      user_id: targetUserId,
+      type: 'trade_executed',
+      title,
+      message,
+      data: { instId: signal.symbol, signalId, positionId: position.id, source: 'AUTO', link: `/Futures?tab=bots` },
+      read: false,
+      priority: 'high'
+    });
+  } catch (e) {
+    console.error('[AUTO_ACCEPT] Notification error:', e.message);
+  }
+
+  console.log(`[AUTO_ACCEPT] SUCCESS: user=${targetUserId} signal=${signalId} symbol=${signal.symbol} margin=${margin} lev=${levNum}x entry=${entryPrice}`);
+  return { ok: true, positionId: position.id, entryPrice, margin, leverage: levNum };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -156,19 +304,36 @@ Deno.serve(async (req) => {
 
                     console.log(`[SIGNALS_INGEST] Auto-accepting signal ${signal.id} for user ${delivery.user_id}: margin=${marginAmount}, leverage=${autoLeverage}x`);
 
-                    // Use the internal accept action via SDK function invoke
+                    // Execute auto-accept INLINE (not via function invoke, to avoid auth issues)
                     try {
-                      const acceptRes = await base44.asServiceRole.functions.invoke('copyTradingUser', {
-                        action: 'acceptSignalInternal',
+                      const autoResult = await executeAutoAccept(base44, {
                         targetUserId: delivery.user_id,
                         signalId: signal.id,
+                        signal,
                         amount: marginAmount,
                         leverage: autoLeverage,
-                        source: 'AUTO'
+                        wallet: userWallet,
+                        config
                       });
-                      console.log(`[SIGNALS_INGEST] Auto-accept result for ${delivery.user_id}:`, JSON.stringify(acceptRes?.data || acceptRes));
+                      console.log(`[SIGNALS_INGEST] Auto-accept result for ${delivery.user_id}:`, JSON.stringify(autoResult));
+
+                      // Update delivery status
+                      try {
+                        await base44.asServiceRole.entities.SignalDelivery.update(delivery.id || delivery._id, {
+                          auto_status: autoResult.ok ? 'ACCEPTED' : 'FAILED',
+                          auto_error: autoResult.ok ? null : (autoResult.error || 'Unknown'),
+                          processed_at: new Date().toISOString()
+                        });
+                      } catch (e) {}
                     } catch (acceptErr) {
                       console.error(`[SIGNALS_INGEST] Auto-accept failed for ${delivery.user_id}:`, acceptErr.message);
+                      try {
+                        await base44.asServiceRole.entities.SignalDelivery.update(delivery.id || delivery._id, {
+                          auto_status: 'FAILED',
+                          auto_error: acceptErr.message,
+                          processed_at: new Date().toISOString()
+                        });
+                      } catch (e) {}
                     }
                   }
                 }
