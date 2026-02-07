@@ -382,7 +382,7 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
       type: 'trade_executed',
       title: title,
       message: message,
-      data: { instId: signal.symbol, signalId, positionId: position.id, link: `/Trading?tab=bots&instId=${signal.symbol}&positionId=${position.id}` },
+      data: { instId: signal.symbol, signalId, positionId: position.id, link: `/Futures?tab=bots&instId=${signal.symbol}&positionId=${position.id}` },
       read: false,
       priority: 'normal'
     });

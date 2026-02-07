@@ -140,7 +140,7 @@ async function executeAutoAccept(base44, { targetUserId, signalId, signal, amoun
       type: 'trade_executed',
       title,
       message,
-      data: { instId: signal.symbol, signalId, positionId: position.id, source: 'AUTO', link: `/Futures?tab=bots` },
+      data: { instId: signal.symbol, signalId, positionId: position.id, source: 'AUTO', link: `/Futures?tab=bots&signalId=${signalId}` },
       read: false,
       priority: 'high'
     });
@@ -376,7 +376,7 @@ Deno.serve(async (req) => {
                 data: { 
                   instId: finalSymbol,
                   signalId: signal.id,
-                  link: `/Trading?tab=bots&instId=${finalSymbol}&signalId=${signal.id}`
+                  link: `/Futures?tab=bots&instId=${finalSymbol}&signalId=${signal.id}`
                 },
                 read: false,
                 priority: 'high'
