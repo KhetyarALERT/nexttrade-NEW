@@ -521,9 +521,7 @@ export default function Trading({ language = "en" }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
-              {isAuthenticated && <NotificationBell />}
-            </div>
+            <div className="w-5" /> {/* Spacer for balance */}
           </div>
         </div>
 
