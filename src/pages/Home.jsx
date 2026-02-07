@@ -372,7 +372,7 @@ export default function Home({ language = "en" }) {
                 {/* Glow behind */}
                 <div className="absolute -inset-10 bg-primary/[0.07] blur-[60px] rounded-full" />
                 
-                <div className="relative grid grid-cols-2 gap-6">
+                <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {/* Signal showcase - animated */}
                   <Link to={createPageUrl("Futures") + "?tab=bots"} className="block hover:-translate-y-1 transition-transform duration-300">
                     <SignalShowcase language={language} />
