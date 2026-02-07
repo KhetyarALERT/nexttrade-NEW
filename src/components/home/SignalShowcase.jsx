@@ -1,159 +1,170 @@
 import { useState, useEffect } from "react";
-import { CheckCircle, ArrowUpRight, TrendingUp, Zap, DollarSign } from "lucide-react";
+import { CheckCircle, ArrowUpRight, TrendingUp, Zap, DollarSign, Bot } from "lucide-react";
 
-const STEPS = [
-  { key: "signal", delay: 0 },
-  { key: "auto", delay: 2200 },
-  { key: "open", delay: 4400 },
-  { key: "profit", delay: 6600 },
-  { key: "balance", delay: 8800 },
-];
-
-const CYCLE = 12000;
+const STEP_DURATION = 2800;
+const STEP_COUNT = 5;
 
 export default function SignalShowcase({ language = "en", compact = false }) {
-  const [activeStep, setActiveStep] = useState(0);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
-    let mounted = true;
-    const timers = [];
-
-    const runCycle = () => {
-      STEPS.forEach((step, i) => {
-        const t = setTimeout(() => {
-          if (mounted) setActiveStep(i);
-        }, step.delay);
-        timers.push(t);
-      });
-    };
-
-    runCycle();
     const interval = setInterval(() => {
-      setActiveStep(0);
-      runCycle();
-    }, CYCLE);
-
-    return () => {
-      mounted = false;
-      timers.forEach(clearTimeout);
-      clearInterval(interval);
-    };
+      setStep(s => (s + 1) % STEP_COUNT);
+    }, STEP_DURATION);
+    return () => clearInterval(interval);
   }, []);
 
-  const t = {
-    en: {
-      title: "BTC-USDT-SWAP",
-      badge: "LONG",
-      lev: "Lev: 5x",
-      entry: "Entry",
-      tp: "TP1",
-      sl: "SL",
-      steps: [
-        "Signal Received",
-        "Auto-Accept ON",
-        "Trade Opened",
-        "TP1 Hit — +$186",
-        "Balance: $2,186",
-      ],
-    },
-    ar: {
-      title: "BTC-USDT-SWAP",
-      badge: "شراء",
-      lev: "رافعة: 5x",
-      entry: "الدخول",
-      tp: "TP1",
-      sl: "SL",
-      steps: [
-        "إشارة مستلمة",
-        "القبول التلقائي مفعّل",
-        "الصفقة مفتوحة",
-        "TP1 — +$186",
-        "الرصيد: $2,186",
-      ],
-    },
-  };
+  const isEn = language === "en";
 
-  const c = t[language] || t.en;
-  const stepIcons = [Zap, CheckCircle, ArrowUpRight, TrendingUp, DollarSign];
-  const stepColors = [
-    "text-blue-400 bg-blue-500/20",
-    "text-emerald-400 bg-emerald-500/20",
-    "text-amber-400 bg-amber-500/20",
-    "text-green-400 bg-green-500/20",
-    "text-primary bg-primary/20",
+  // Each step is a full card "screen"
+  const screens = [
+    // 0 — Signal arrives
+    () => (
+      <div className="flex flex-col items-center text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+          <Zap className="w-5 h-5 text-blue-400" />
+        </div>
+        <div>
+          <p className={`font-bold text-white ${sz.title}`}>{isEn ? "New Signal" : "إشارة جديدة"}</p>
+          <p className={`text-white/40 mt-0.5 ${sz.sub}`}>{isEn ? "BTC-USDT • LONG • 5x" : "BTC-USDT • شراء • 5x"}</p>
+        </div>
+        <div className="w-full grid grid-cols-3 gap-2 mt-1">
+          <div className="rounded-lg bg-white/5 p-2 text-center">
+            <div className={`text-white/40 ${sz.label}`}>{isEn ? "Entry" : "دخول"}</div>
+            <div className={`font-mono font-bold text-white ${sz.val}`}>76,438</div>
+          </div>
+          <div className="rounded-lg bg-green-500/10 p-2 text-center">
+            <div className={`text-green-400/60 ${sz.label}`}>TP1</div>
+            <div className={`font-mono font-bold text-green-400 ${sz.val}`}>79,438</div>
+          </div>
+          <div className="rounded-lg bg-red-500/10 p-2 text-center">
+            <div className={`text-red-400/60 ${sz.label}`}>SL</div>
+            <div className={`font-mono font-bold text-red-400 ${sz.val}`}>75,438</div>
+          </div>
+        </div>
+      </div>
+    ),
+    // 1 — Auto accept
+    () => (
+      <div className="flex flex-col items-center text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+        </div>
+        <div>
+          <p className={`font-bold text-white ${sz.title}`}>{isEn ? "Auto-Accept ON" : "قبول تلقائي"}</p>
+          <p className={`text-white/40 mt-0.5 ${sz.sub}`}>{isEn ? "Signal accepted automatically" : "تم قبول الإشارة تلقائياً"}</p>
+        </div>
+        <div className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/15 p-3 flex items-center justify-between">
+          <span className={`text-emerald-400 font-semibold ${sz.sub}`}>{isEn ? "Copy Trading Bot" : "بوت نسخ التداول"}</span>
+          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">ACTIVE</span>
+        </div>
+      </div>
+    ),
+    // 2 — Trade opened
+    () => (
+      <div className="flex flex-col items-center text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+          <ArrowUpRight className="w-5 h-5 text-amber-400" />
+        </div>
+        <div>
+          <p className={`font-bold text-white ${sz.title}`}>{isEn ? "Trade Opened" : "الصفقة مفتوحة"}</p>
+          <p className={`text-white/40 mt-0.5 ${sz.sub}`}>BTC-USDT-SWAP • LONG</p>
+        </div>
+        <div className="w-full grid grid-cols-2 gap-2 mt-1">
+          <div className="rounded-lg bg-white/5 p-2.5 text-center">
+            <div className={`text-white/40 ${sz.label}`}>{isEn ? "Size" : "الحجم"}</div>
+            <div className={`font-mono font-bold text-white ${sz.val}`}>$2,000</div>
+          </div>
+          <div className="rounded-lg bg-white/5 p-2.5 text-center">
+            <div className={`text-white/40 ${sz.label}`}>{isEn ? "Leverage" : "رافعة"}</div>
+            <div className={`font-mono font-bold text-white ${sz.val}`}>5x</div>
+          </div>
+        </div>
+      </div>
+    ),
+    // 3 — TP Hit
+    () => (
+      <div className="flex flex-col items-center text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+          <TrendingUp className="w-5 h-5 text-green-400" />
+        </div>
+        <div>
+          <p className={`font-bold text-white ${sz.title}`}>{isEn ? "TP1 Hit!" : "!TP1 تم الوصول"}</p>
+          <p className={`text-white/40 mt-0.5 ${sz.sub}`}>79,438 USDT</p>
+        </div>
+        <div className="w-full rounded-xl bg-green-500/10 border border-green-500/15 p-4 text-center">
+          <div className={`text-green-400/60 ${sz.label}`}>{isEn ? "Profit" : "الربح"}</div>
+          <div className="font-mono font-extrabold text-green-400 text-2xl mt-0.5">+$186.00</div>
+        </div>
+      </div>
+    ),
+    // 4 — Balance updated
+    () => (
+      <div className="flex flex-col items-center text-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+          <DollarSign className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <p className={`font-bold text-white ${sz.title}`}>{isEn ? "Balance Updated" : "الرصيد محدّث"}</p>
+          <p className={`text-white/40 mt-0.5 ${sz.sub}`}>{isEn ? "Profit added to wallet" : "الربح أُضيف للمحفظة"}</p>
+        </div>
+        <div className="w-full rounded-xl bg-primary/10 border border-primary/15 p-4 text-center">
+          <div className={`text-primary/60 ${sz.label}`}>{isEn ? "New Balance" : "الرصيد الجديد"}</div>
+          <div className="font-mono font-extrabold text-primary text-2xl mt-0.5">$2,186.00</div>
+        </div>
+      </div>
+    ),
   ];
 
-  const py = compact ? "p-4" : "p-5";
+  const sz = compact
+    ? { title: "text-sm", sub: "text-[10px]", label: "text-[8px]", val: "text-[11px]" }
+    : { title: "text-base", sub: "text-xs", label: "text-[10px]", val: "text-sm" };
+
+  const pad = compact ? "p-4" : "p-5";
 
   return (
-    <div className={`rounded-2xl border border-white/10 bg-gradient-to-b from-slate-800/80 to-slate-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-blue-500/5 ${compact ? "text-xs" : ""}`}>
-      {/* Signal header */}
-      <div className={`${py} border-b border-white/5`}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className={`font-bold text-white ${compact ? "text-sm" : "text-base"}`}>{c.title}</span>
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">{c.badge}</span>
-          </div>
-          <span className="text-[10px] text-white/40 font-mono">{c.lev}</span>
+    <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-800/80 to-slate-900/90 backdrop-blur-sm overflow-hidden shadow-2xl shadow-blue-500/5">
+      {/* Top bar */}
+      <div className={`${pad} pb-3 flex items-center justify-between border-b border-white/5`}>
+        <div className="flex items-center gap-2">
+          <Bot className={`text-blue-400 ${compact ? "w-4 h-4" : "w-5 h-5"}`} />
+          <span className={`font-bold text-white ${compact ? "text-[11px]" : "text-sm"}`}>{isEn ? "Copy Trading" : "نسخ التداول"}</span>
         </div>
-        
-        {/* Price levels */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-white/50 text-[11px]">{c.entry}</span>
-            <span className="font-mono font-bold text-white text-sm">76,438</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="flex items-center gap-1 text-[11px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-green-400">{c.tp}</span>
-            </span>
-            <span className="font-mono font-bold text-green-400 text-sm">79,438</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="flex items-center gap-1 text-[11px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-              <span className="text-red-400">{c.sl}</span>
-            </span>
-            <span className="font-mono font-bold text-red-400 text-sm">75,438</span>
-          </div>
+        <div className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className={`text-green-400 font-bold ${compact ? "text-[9px]" : "text-[10px]"}`}>LIVE</span>
         </div>
       </div>
-      
-      {/* Animated steps */}
-      <div className={`${py} space-y-2`}>
-        {c.steps.map((label, i) => {
-          const Icon = stepIcons[i];
-          const isActive = i <= activeStep;
-          const isCurrent = i === activeStep;
-          return (
-            <div
-              key={i}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-500 ${
-                isCurrent
-                  ? "bg-white/[0.08] border border-white/10 scale-[1.02]"
-                  : isActive
-                  ? "bg-white/[0.03] opacity-70"
-                  : "opacity-20"
-              }`}
-            >
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-                isActive ? stepColors[i] : "bg-white/5 text-white/20"
-              }`}>
-                <Icon className="w-3.5 h-3.5" />
-              </div>
-              <span className={`text-[11px] font-medium transition-all duration-500 ${
-                isCurrent ? "text-white" : isActive ? "text-white/60" : "text-white/20"
-              }`}>
-                {label}
-              </span>
-              {isActive && (
-                <CheckCircle className="w-3 h-3 text-green-500 ml-auto flex-shrink-0" />
-              )}
-            </div>
-          );
-        })}
+
+      {/* Progress dots */}
+      <div className={`${pad} py-2 flex items-center justify-center gap-1.5`}>
+        {Array.from({ length: STEP_COUNT }).map((_, i) => (
+          <div
+            key={i}
+            className={`rounded-full transition-all duration-500 ${
+              i === step
+                ? "w-5 h-1.5 bg-blue-400"
+                : i < step
+                ? "w-1.5 h-1.5 bg-blue-400/40"
+                : "w-1.5 h-1.5 bg-white/10"
+            }`}
+          />
+        ))}
       </div>
+
+      {/* Card content — one screen at a time */}
+      <div className={`${pad} pt-1 min-h-[180px] flex items-center justify-center`}>
+        <div key={step} className="w-full animate-[fadeIn_0.4s_ease-out]">
+          {screens[step]()}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
