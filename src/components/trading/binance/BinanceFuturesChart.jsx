@@ -489,6 +489,9 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
           vertLines: { color: chartColors.gridColor, visible: Boolean(showGrid) },
           horzLines: { color: chartColors.gridColor, visible: Boolean(showGrid) },
         },
+        crosshair: {
+          mode: crosshairEnabled ? CrosshairMode.Magnet : CrosshairMode.Hidden,
+        },
       });
     } catch {}
 
@@ -506,7 +509,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
     try {
       volumeSeries.applyOptions({ visible: Boolean(showVolume) });
     } catch {}
-  }, [chartType, showGrid, showVolume, autoScale, chartColors]);
+  }, [chartType, showGrid, showVolume, autoScale, crosshairEnabled, chartColors]);
 
   // Seed + WS lifecycle - ONE REST call for snapshot, then WebSocket PUSH
   // Removed style dependencies to prevent re-fetching on theme change
