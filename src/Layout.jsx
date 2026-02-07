@@ -1236,7 +1236,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
 
 LayoutInner.propTypes = {
   children: PropTypes.node.isRequired,
-  currentPageName: PropTypes.string,
+  currentPageName: PropTypes.string
 };
 
 // Wrap Layout with MobileNavigationProvider
