@@ -14,9 +14,15 @@ async function executeAutoAccept(base44, { targetUserId, signalId, signal, amoun
     return { ok: false, error: 'Invalid input' };
   }
 
-  // Idempotency: check if already acted
+  // Idempotency: check if already acted (SignalAction OR CopyPosition)
   const existingAction = await base44.asServiceRole.entities.SignalAction.filter({ user_id: targetUserId, signal_id: signalId });
   if (existingAction.length > 0) {
+    console.log(`[AUTO_ACCEPT] IDEMPOTENCY: user=${targetUserId} signal=${signalId} already has SignalAction, skipping`);
+    return { ok: true, message: 'Already processed' };
+  }
+  const existingPosition = await base44.asServiceRole.entities.CopyPosition.filter({ user_id: targetUserId, signal_id: signalId });
+  if (existingPosition.length > 0) {
+    console.log(`[AUTO_ACCEPT] IDEMPOTENCY: user=${targetUserId} signal=${signalId} already has CopyPosition, skipping`);
     return { ok: true, message: 'Already processed' };
   }
 
