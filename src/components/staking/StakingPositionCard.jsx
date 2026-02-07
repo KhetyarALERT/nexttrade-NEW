@@ -253,10 +253,14 @@ StakingPositionCard.propTypes = {
     startedAt: PropTypes.string,
     endsAt: PropTypes.string,
     accruedAmount: PropTypes.number,
+    paidAmount: PropTypes.number,
+    claimableAmount: PropTypes.number,
+    payoutStatus: PropTypes.string,
     lastAccrualAt: PropTypes.string,
     rewardsGranted: PropTypes.number,
     rejectReason: PropTypes.string
   }).isRequired,
   onCancel: PropTypes.func,
+  onClaim: PropTypes.func,
   language: PropTypes.oneOf(["en", "ar"])
 };
