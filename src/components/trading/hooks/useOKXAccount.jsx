@@ -26,16 +26,17 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
   const mountedRef = useRef(true);
   const inFlightRef = useRef(false);
 
-  // Fetch account data
+  // Fetch account data (gated to prevent 429 spam)
   const fetchAccount = useCallback(async () => {
     if (!enabled || inFlightRef.current || !mountedRef.current) return;
     
     inFlightRef.current = true;
     
     try {
-      const res = await base44.functions.invoke("okxUserAccount", {
+      const { gated } = await import("@/components/utils/apiGate");
+      const res = await gated("okxUserAccount:getMyAccount", () => base44.functions.invoke("okxUserAccount", {
         action: "getMyAccount"
-      });
+      }), { minIntervalMs: 15000 });
 
       if (!mountedRef.current) return;
 
@@ -77,14 +78,15 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
     }
   }, [enabled]);
 
-  // Fetch positions
+  // Fetch positions (gated)
   const fetchPositions = useCallback(async () => {
     if (!enabled || !mountedRef.current) return;
     
     try {
-      const res = await base44.functions.invoke("okxUserAccount", {
+      const { gated } = await import("@/components/utils/apiGate");
+      const res = await gated("okxUserAccount:getPositions", () => base44.functions.invoke("okxUserAccount", {
         action: "getPositions"
-      });
+      }), { minIntervalMs: 10000 });
 
       if (!mountedRef.current) return;
 
@@ -117,14 +119,15 @@ export function useOKXAccount({ enabled = true, symbol = null } = {}) {
     } catch {}
   }, [enabled]);
 
-  // Fetch orders
+  // Fetch orders (gated)
   const fetchOrders = useCallback(async () => {
     if (!enabled || !mountedRef.current) return;
     
     try {
-      const res = await base44.functions.invoke("okxUserAccount", {
+      const { gated } = await import("@/components/utils/apiGate");
+      const res = await gated("okxUserAccount:getOrders", () => base44.functions.invoke("okxUserAccount", {
         action: "getOrders"
-      });
+      }), { minIntervalMs: 15000 });
 
       if (!mountedRef.current) return;
 
