@@ -173,6 +173,15 @@ css
   .balance {
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
     font-feature-settings: "tnum" 1, "zero" 1; /* Tabular numbers, slashed zero */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Force LTR for numeric content in RTL layouts */
+  [dir="rtl"] .font-mono,
+  [dir="rtl"] .tabular-nums,
+  [dir="rtl"] [data-numeric] {
+    direction: ltr;
+    unicode-bidi: plaintext;
   }
   
   /* Glass morphism effect */
