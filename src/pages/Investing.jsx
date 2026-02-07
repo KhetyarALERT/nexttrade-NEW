@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet
+  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
+import StakingEarnedPanel from "@/components/staking/StakingEarnedPanel";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 // Shared formatters with Latin digits
 function getLocale(lang) {
@@ -172,6 +173,10 @@ export default function Investing({ language = "en" }) {
 
   // Positions filter
   const [positionsFilter, setPositionsFilter] = useState("all");
+  
+  // Earned panel
+  const [showEarnedPanel, setShowEarnedPanel] = useState(false);
+  const [claimingId, setClaimingId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -311,6 +316,26 @@ export default function Investing({ language = "en" }) {
       }
     } catch (err) {
       toast.error(err.message);
+    }
+  };
+
+  const handleClaimRewards = async (positionId) => {
+    setClaimingId(positionId);
+    try {
+      const res = await base44.functions.invoke("stakingRewardsProcessor", {
+        action: "requestPayout",
+        position_id: positionId
+      });
+      if (res.data?.ok) {
+        toast.success(language === "ar" ? "تم تقديم طلب المطالبة!" : "Claim request submitted!");
+        await loadData();
+      } else {
+        toast.error(res.data?.error?.message || "Failed to claim");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setClaimingId(null);
     }
   };
 
