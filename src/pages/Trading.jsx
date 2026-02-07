@@ -585,9 +585,9 @@ export default function Trading({ language = "en" }) {
         {/* Mobile Header */}
         <div className="border-b border-border px-3 py-2.5 shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </Link>
             
             {/* Mode Toggle - Mobile */}
             <div className="flex bg-muted/50 p-1 rounded-lg">
