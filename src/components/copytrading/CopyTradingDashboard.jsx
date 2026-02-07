@@ -4,11 +4,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, TrendingUp, Lock, PlusCircle, RefreshCw, Sparkles, Settings } from "lucide-react";
+import { Wallet, TrendingUp, Lock, PlusCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import AllocationModal from "./AllocationModal";
-import CopyTradingSettingsForm from "./CopyTradingSettingsForm";
+import AutoTradeSettings from "./AutoTradeSettings";
 
 // Format number with English digits always (even in Arabic UI)
 function formatUsdt(val) {
@@ -143,22 +142,9 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
           <h2 className="text-xl font-bold text-foreground">{labels.title}</h2>
           <p className="text-xs text-muted-foreground">{labels.subtitle}</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2">
-                <Settings className="w-4 h-4" />
-                {language === "ar" ? "الإعدادات" : "Settings"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-              <CopyTradingSettingsForm language={language} />
-            </DialogContent>
-          </Dialog>
-          <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
+        <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       {/* Balance Cards */}
@@ -220,13 +206,8 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
         {labels.addFunds}
       </Button>
 
-      {/* Signals Placeholder */}
-      <Card className="border-dashed">
-        <CardContent className="p-6 text-center">
-          <Sparkles className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">{labels.signalsPlaceholder}</p>
-        </CardContent>
-      </Card>
+      {/* Auto-Trade Settings - Inline */}
+      <AutoTradeSettings language={language} />
 
       {/* Recent Activity - Show ledger entries */}
       {ledgerEntries.length > 0 && (
