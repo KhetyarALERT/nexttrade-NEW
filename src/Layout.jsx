@@ -792,11 +792,11 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                         <div>
                           <div className="text-xs text-muted-foreground">{language === "ar" ? "إجمالي الأصول" : "Total Assets"}</div>
                           <div className="text-2xl font-semibold text-foreground">
-                            {accountTotals.totalUsdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatUsdt(accountTotals.totalUsdt)}
                             <span className="text-xs font-medium text-muted-foreground ml-1">USDT</span>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            ≈ ${accountTotals.totalUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ≈ ${formatUsdt(accountTotals.totalUsd)}
                           </div>
                         </div>
                         <button
