@@ -502,7 +502,7 @@ export default function Trading({ language = "en" }) {
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden">
         {/* Header */}
-        <div className="border-b border-border/50 px-4 py-2.5 shrink-0 glass-panel bg-blue-500/5">
+        <div className="border-b border-border/50 px-4 py-2 shrink-0 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -510,32 +510,24 @@ export default function Trading({ language = "en" }) {
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              <div className="flex bg-muted/50 p-1 rounded-lg">
+              <div className="flex bg-muted/50 p-0.5 rounded-lg">
                 <button
                   onClick={() => toggleMode('trade')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
-                  className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
               </div>
-              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">{isAr ? "نسخ التداول" : "PAPER MODE"}</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {isAuthenticated && <NotificationBell />}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-              </button>
             </div>
           </div>
         </div>
@@ -583,7 +575,7 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Right: Wallet Panel */}
-          <div className="w-[280px] border-l border-border/50 bg-background flex flex-col shrink-0 overflow-hidden">
+          <div className="w-[300px] border-l border-border/50 bg-background flex flex-col shrink-0 overflow-hidden">
              <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
