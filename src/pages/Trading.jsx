@@ -651,6 +651,25 @@ export default function Trading({ language = "en" }) {
       );
     }
 
+    // Callback to force chart resize after splitter drag
+    const handleSplitterResize = useCallback(() => {
+      // Lightweight-charts auto-resizes via ResizeObserver, but trigger layout recalc
+      window.dispatchEvent(new Event("resize"));
+    }, []);
+
+    // Compute unrealized PnL for right panel
+    const copyUnrealizedPnl = useMemo(() => {
+      return paperPositions.reduce((sum, pos) => {
+        const currentPrice = markPrices[pos.symbol] || 0;
+        if (!currentPrice || !pos.entry_price) return sum;
+        const qty = (pos.notional_usdt || 0) / pos.entry_price;
+        const rawPnl = pos.side === "LONG"
+          ? (currentPrice - pos.entry_price) * qty
+          : (pos.entry_price - currentPrice) * qty;
+        return sum + rawPnl;
+      }, 0);
+    }, [paperPositions, markPrices]);
+
     // DESKTOP COPY MODE
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden copy-trading-page">
@@ -690,14 +709,23 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Desktop 3-Column Grid: Left(wallet) | Center(chart+positions) | Right(settings+signals) */}
+        {/* Desktop 3-Column Grid: Left(signals) | Center(chart+positions) | Right(wallet+history) */}
         <div className="flex flex-1 overflow-hidden">
-          {/* LEFT SIDEBAR: Wallet Summary + Activity Preview */}
-          <div className="w-[280px] xl:w-[300px] border-r border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
-            <CopyWalletPanel language={language} liveAccount={liveAccount} />
+          {/* LEFT SIDEBAR: Signals */}
+          <div className="w-[300px] xl:w-[320px] border-r border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
+            <SignalsInbox 
+              onSignalAccepted={() => {
+                handleRefresh();
+                refreshCopyPositions();
+              }} 
+              liveAccount={liveAccount}
+              preSelectedSignalId={urlSignalId}
+              onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
+              language={language}
+            />
           </div>
 
-          {/* CENTER: Chart (dominant) + Positions table */}
+          {/* CENTER: Chart (resizable) + Positions table */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Symbol Selector Bar */}
             <div className="border-b border-border/10 px-3 py-1.5 bg-background shrink-0">
@@ -708,33 +736,29 @@ export default function Trading({ language = "en" }) {
               />
             </div>
             
-            {/* Chart Area */}
-            <div className="flex-1 min-h-0">
-              {chartComponent}
-            </div>
-
-            {/* Positions Table */}
-            <div className="h-[220px] xl:h-[250px] shrink-0 border-t border-border/10 overflow-hidden">
-              <CopyPositionsTable 
-                refreshTrigger={isRefreshing}
-                language={language}
-                onPositionClick={handleCopyPositionClick}
-                selectedPositionId={selectedCopyPosition?.id}
-              />
-            </div>
+            {/* Resizable: Chart (top) / Positions (bottom) */}
+            <ResizableSplitter
+              topContent={chartComponent}
+              bottomContent={
+                <CopyPositionsTable 
+                  refreshTrigger={isRefreshing}
+                  language={language}
+                  onPositionClick={handleCopyPositionClick}
+                  selectedPositionId={selectedCopyPosition?.id}
+                />
+              }
+              onResize={handleSplitterResize}
+            />
           </div>
 
-          {/* RIGHT SIDEBAR: Settings + Signals */}
-          <div className="w-[320px] xl:w-[350px] border-l border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
-            <SignalsInbox 
-              onSignalAccepted={() => {
-                handleRefresh();
-                refreshCopyPositions();
-              }} 
-              liveAccount={liveAccount}
-              preSelectedSignalId={urlSignalId}
-              onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
+          {/* RIGHT SIDEBAR: Balance + History (redesigned) */}
+          <div className="w-[260px] xl:w-[280px] border-l border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
+            <CopyRightPanel
               language={language}
+              liveAccount={liveAccount}
+              openPositionsCount={paperPositions.length}
+              unrealizedPnl={copyUnrealizedPnl}
+              onPositionClick={handleCopyPositionClick}
             />
           </div>
         </div>
