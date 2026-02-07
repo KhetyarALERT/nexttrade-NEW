@@ -709,12 +709,8 @@ export default function Trading({ language = "en" }) {
             <CopyPositionsTable 
               refreshTrigger={isRefreshing}
               language={language}
-              onPositionClick={(pos) => {
-                  // When clicking position, switch chart to that symbol
-                  if (pos?.symbol) {
-                    setSelectedSymbol(pos.symbol);
-                  }
-                }}
+              onPositionClick={handleCopyPositionClick}
+              selectedPositionId={selectedCopyPosition?.id}
               />
             </div>
           </div>
@@ -724,6 +720,16 @@ export default function Trading({ language = "en" }) {
              <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
+
+        {/* Position Detail Drawer (desktop: right side) */}
+        <PositionDetailDrawer
+          open={copyDetailOpen}
+          onOpenChange={handleCopyDetailClose}
+          position={selectedCopyPosition}
+          currentPrice={lastPrice}
+          language={language}
+          isMobile={false}
+        />
       </div>
     );
   }
