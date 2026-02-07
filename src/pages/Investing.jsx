@@ -400,7 +400,14 @@ export default function Investing({ language = "en" }) {
             ) : (
               <>
                 <StatCard icon={Lock} label={labels.totalStaked} value={`${formatUsdt(summary.totalStaked, language)} USDT`} />
-                <StatCard icon={Gift} label={labels.earned} value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} highlight />
+                <StatCard 
+                  icon={Gift} 
+                  label={labels.earned} 
+                  value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} 
+                  highlight 
+                  onClick={() => setShowEarnedPanel(true)}
+                  actionLabel={language === "ar" ? "عرض التفاصيل" : "View details"}
+                />
                 <StatCard icon={CheckCircle2} label={labels.activePositions} value={summary.activePositions} />
                 <StatCard icon={TrendingUp} label={labels.avgApy} value={formatPercent(summary.avgApy, language)} />
               </>
