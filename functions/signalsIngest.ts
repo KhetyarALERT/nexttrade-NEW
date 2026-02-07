@@ -106,11 +106,78 @@ Deno.serve(async (req) => {
       if (deliveries.length > 0) {
         await base44.asServiceRole.entities.SignalDelivery.bulkCreate(deliveries);
         console.log(`[SIGNALS_INGEST] Delivered signal to ${deliveries.length} users`);
-        
-        // Send notifications to users with preferences enabled
+
+        // ==================== AUTO-ACCEPT FOR USERS WITH auto_enabled ====================
+        // Fetch ALL CopyTradingSettings with auto_enabled=true
+        let autoSettings = [];
+        try {
+          autoSettings = await base44.asServiceRole.entities.CopyTradingSettings.filter({ auto_enabled: true });
+        } catch (e) {
+          console.error('[SIGNALS_INGEST] Failed to fetch auto settings:', e.message);
+        }
+
+        const autoEnabledUserIds = new Set((autoSettings || []).map(s => s.user_id));
+        console.log(`[SIGNALS_INGEST] Auto-enabled users: ${autoEnabledUserIds.size}`);
+
         for (const delivery of deliveries) {
           try {
-            // Check user preferences
+            // --- AUTO-ACCEPT LOGIC ---
+            if (autoEnabledUserIds.has(delivery.user_id)) {
+              const userSettings = autoSettings.find(s => s.user_id === delivery.user_id);
+              if (userSettings) {
+                // Check max open positions limit
+                const openPositions = await base44.asServiceRole.entities.CopyPosition.filter({ user_id: delivery.user_id, status: 'OPEN' });
+                const openCount = openPositions?.length || 0;
+                const maxOpen = userSettings.max_open_positions_total || 5;
+
+                if (openCount >= maxOpen) {
+                  console.log(`[SIGNALS_INGEST] Skipping auto-accept for ${delivery.user_id}: ${openCount}/${maxOpen} positions open`);
+                } else {
+                  // Check wallet balance
+                  const userWallets = await base44.asServiceRole.entities.CopyTradingWallet.filter({ user_id: delivery.user_id, status: 'ACTIVE' });
+                  const userWallet = userWallets?.[0];
+                  const marginAmount = Math.min(
+                    userSettings.fixed_margin_usdt || 5,
+                    userSettings.max_margin_per_trade_usdt || 50
+                  );
+
+                  if (!userWallet || userWallet.available_balance < marginAmount + 0.1) {
+                    console.log(`[SIGNALS_INGEST] Skipping auto-accept for ${delivery.user_id}: insufficient balance (${userWallet?.available_balance || 0} < ${marginAmount})`);
+                  } else {
+                    // Determine leverage: follow signal cap or use fixed
+                    let autoLeverage = userSettings.max_leverage || 10;
+                    if (userSettings.leverage_mode === 'FIXED') {
+                      autoLeverage = userSettings.fixed_leverage || 5;
+                    }
+                    // Cap to signal's max leverage if present
+                    if (signal.max_leverage && autoLeverage > signal.max_leverage) {
+                      autoLeverage = signal.max_leverage;
+                    }
+
+                    console.log(`[SIGNALS_INGEST] Auto-accepting signal ${signal.id} for user ${delivery.user_id}: margin=${marginAmount}, leverage=${autoLeverage}x`);
+
+                    // Use the internal accept action via SDK function invoke
+                    try {
+                      const acceptRes = await base44.asServiceRole.functions.invoke('copyTradingUser', {
+                        action: 'acceptSignalInternal',
+                        targetUserId: delivery.user_id,
+                        signalId: signal.id,
+                        amount: marginAmount,
+                        leverage: autoLeverage,
+                        source: 'AUTO'
+                      });
+                      console.log(`[SIGNALS_INGEST] Auto-accept result for ${delivery.user_id}:`, JSON.stringify(acceptRes?.data || acceptRes));
+                    } catch (acceptErr) {
+                      console.error(`[SIGNALS_INGEST] Auto-accept failed for ${delivery.user_id}:`, acceptErr.message);
+                    }
+                  }
+                }
+                // Skip manual notification for auto-accepted users (they get trade notification instead)
+                continue;
+              }
+            }
+
+            // --- MANUAL NOTIFICATION (for users without auto-accept) ---
             let shouldNotify = true;
             try {
               const prefs = await base44.asServiceRole.entities.UserPreferences.filter({ user_id: delivery.user_id });
@@ -123,8 +190,8 @@ Deno.serve(async (req) => {
             if (shouldNotify) {
               await base44.asServiceRole.entities.Notification.create({
                 user_id: delivery.user_id,
-                type: 'trade_executed',
-                title: '🚀 New Trading Signal',
+                type: 'signal_new',
+                title: 'New Trading Signal',
                 message: `${finalSymbol} ${signalData.side.toUpperCase()} @ ${signalData.entry_price}`,
                 data: { 
                   instId: finalSymbol,
@@ -136,7 +203,7 @@ Deno.serve(async (req) => {
               });
             }
           } catch (e) {
-            console.error(`[SIGNALS_INGEST] Failed to send notification to ${delivery.user_id}:`, e.message);
+            console.error(`[SIGNALS_INGEST] Failed to process delivery for ${delivery.user_id}:`, e.message);
           }
         }
       }
