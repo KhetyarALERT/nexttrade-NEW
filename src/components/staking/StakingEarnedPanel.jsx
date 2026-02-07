@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Gift, TrendingUp, Clock, CheckCircle2, Loader2, ArrowRight, DollarSign } from "lucide-react";
+import { Gift, Clock, Loader2, ArrowRight, DollarSign } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 
 function getLocale(lang) {
@@ -14,12 +14,17 @@ function fmtUsdt(val, language = "en") {
   return new Intl.NumberFormat(getLocale(language), { minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(val);
 }
 
+function isDone(endsAt) {
+  if (!endsAt) return false;
+  return new Date(endsAt).getTime() <= Date.now();
+}
+
 const t = {
-  en: { title: "Earnings Breakdown", subtitle: "Your accrued rewards across all active positions", totalEarned: "Total Earned", totalClaimed: "Claimed", totalClaimable: "Available to Claim", noEarnings: "No earnings yet. Start staking to earn rewards!", accrued: "Accrued", paid: "Paid", claimable: "Claimable", claim: "Claim", requested: "Requested", bonusPoints: "Bonus Points", apy: "APY", days: "days", close: "Close" },
-  ar: { title: "تفاصيل الأرباح", subtitle: "مكافآتك المستحقة عبر جميع المراكز النشطة", totalEarned: "إجمالي المكتسب", totalClaimed: "المُطالَب به", totalClaimable: "متاح للمطالبة", noEarnings: "لا أرباح بعد. ابدأ الستاكينغ لكسب المكافآت!", accrued: "مستحق", paid: "مدفوع", claimable: "قابل للمطالبة", claim: "مطالبة", requested: "مطلوب", bonusPoints: "نقاط إضافية", apy: "عائد سنوي", days: "أيام", close: "إغلاق" }
+  en: { totalEarned: "Total Earned", totalClaimed: "Claimed", totalClaimable: "Available", noEarnings: "No earnings yet. Start staking to earn rewards!", accrued: "Accrued", claim: "Collect", requestEarly: "Request Early", requested: "Requested", bonusPoints: "Bonus Points", apy: "APY", days: "days", close: "Close", periodDone: "Mature", active: "Active" },
+  ar: { totalEarned: "إجمالي المكتسب", totalClaimed: "المُطالَب به", totalClaimable: "متاح", noEarnings: "لا أرباح بعد. ابدأ الستاكينغ لكسب المكافآت!", accrued: "مستحق", claim: "تحصيل", requestEarly: "طلب مبكر", requested: "مطلوب", bonusPoints: "نقاط إضافية", apy: "عائد سنوي", days: "أيام", close: "إغلاق", periodDone: "مكتمل", active: "نشط" }
 };
 
-export default function StakingEarnedPanel({ positions, onClaim, claimingId, onClose, language = "en" }) {
+export default function StakingEarnedPanel({ positions, onClaim, onEarlyClaim, claimingId, onClose, language = "en" }) {
   const labels = t[language] || t.en;
   const activePositions = (positions || []).filter(p => p.status === "ACTIVE" && (p.accruedAmount > 0 || p.rewardsGranted > 0));
   const totalAccrued = activePositions.reduce((s, p) => s + (p.accruedAmount || 0), 0);
@@ -56,6 +61,7 @@ export default function StakingEarnedPanel({ positions, onClaim, claimingId, onC
             const claimable = (pos.accruedAmount || 0) - (pos.paidAmount || 0);
             const isClaiming = claimingId === pos.id;
             const isRequested = pos.payoutStatus === "REQUESTED";
+            const periodFinished = isDone(pos.endsAt);
             return (
               <Card key={pos.id} className="border-border/60">
                 <CardContent className="p-3">
@@ -64,7 +70,12 @@ export default function StakingEarnedPanel({ positions, onClaim, claimingId, onC
                       <UsdtIcon size="sm" language={language} />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate">{fmtUsdt(pos.principal, language)} USDT</p>
-                        <p className="text-[10px] text-muted-foreground">{pos.termDays} {labels.days} • {pos.apyPercent}% {labels.apy}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] text-muted-foreground">{pos.termDays} {labels.days} • {pos.apyPercent}% {labels.apy}</p>
+                          {periodFinished && (
+                            <Badge className="text-[8px] h-4 px-1 bg-blue-500/10 text-blue-600 border-blue-500/30">{labels.periodDone}</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -72,9 +83,16 @@ export default function StakingEarnedPanel({ positions, onClaim, claimingId, onC
                         <p className="text-xs text-muted-foreground">{labels.accrued}</p>
                         <p className="text-sm font-semibold text-emerald-600">+{fmtUsdt(pos.accruedAmount, language)}</p>
                       </div>
-                      {claimable > 0.01 && !isRequested && (
-                        <Button size="sm" variant="outline" className="h-8 text-xs border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10" disabled={isClaiming} onClick={() => onClaim?.(pos.id)}>
+                      {/* Mature claim: auto-collect */}
+                      {claimable > 0.01 && !isRequested && periodFinished && onClaim && (
+                        <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white" disabled={isClaiming} onClick={() => onClaim?.(pos.id)}>
                           {isClaiming ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{labels.claim} <ArrowRight className="w-3 h-3 ltr:ml-1 rtl:mr-1" /></>}
+                        </Button>
+                      )}
+                      {/* Early claim: request */}
+                      {claimable > 0.01 && !isRequested && !periodFinished && onEarlyClaim && (
+                        <Button size="sm" variant="outline" className="h-7 text-[10px] border-amber-500/40 text-amber-600 hover:bg-amber-500/10" disabled={isClaiming} onClick={() => onEarlyClaim?.(pos.id)}>
+                          {isClaiming ? <Loader2 className="w-3 h-3 animate-spin" /> : labels.requestEarly}
                         </Button>
                       )}
                       {isRequested && (
@@ -106,6 +124,7 @@ export default function StakingEarnedPanel({ positions, onClaim, claimingId, onC
 StakingEarnedPanel.propTypes = {
   positions: PropTypes.array,
   onClaim: PropTypes.func,
+  onEarlyClaim: PropTypes.func,
   claimingId: PropTypes.string,
   onClose: PropTypes.func,
   language: PropTypes.oneOf(["en", "ar"])
