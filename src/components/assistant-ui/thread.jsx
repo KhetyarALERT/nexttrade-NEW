@@ -96,8 +96,63 @@ function extractPath(href) {
 }
 
 /**
+ * Inline USDT icon (tiny, inline with text)
+ */
+function UsdtInline() {
+  return (
+    <svg className="inline-block w-3.5 h-3.5 align-text-bottom mx-px" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="16" fill="#26A17B"/>
+      <path d="M17.922 17.383v-.002c-.11.008-.677.042-1.942.042-1.01 0-1.721-.03-1.971-.042v.003c-3.888-.171-6.79-.848-6.79-1.658 0-.809 2.902-1.486 6.79-1.66v2.644c.254.018.982.061 1.988.061 1.207 0 1.812-.05 1.925-.06v-2.643c3.88.173 6.775.85 6.775 1.658 0 .81-2.895 1.485-6.775 1.657m0-3.59v-2.366h5.414V7.819H8.595v3.608h5.414v2.365c-4.4.202-7.709 1.074-7.709 2.118 0 1.044 3.309 1.915 7.709 2.118v7.582h3.913v-7.584c4.393-.202 7.694-1.073 7.694-2.116 0-1.043-3.301-1.914-7.694-2.117" fill="#fff"/>
+    </svg>
+  );
+}
+
+/**
+ * Process text to highlight $ amounts and USDT with green + icon
+ */
+function formatFinancialText(text) {
+  if (!text || typeof text !== "string") return text;
+  
+  // Match patterns: $123, $1,234.56, 123 USDT, 123.45 USDT, +$50, -$50, +50 USDT, 18.3% APY, 55% APY, etc.
+  const parts = text.split(/(\+?\-?\$[\d,]+\.?\d*|\d[\d,]*\.?\d*\s*USDT|\d+\.?\d*%\s*APY)/g);
+  
+  if (parts.length === 1) return text; // no matches
+  
+  return parts.map((part, i) => {
+    // $ amounts
+    if (/^\+?\-?\$[\d,]+\.?\d*$/.test(part)) {
+      const isNeg = part.startsWith("-");
+      return (
+        <span key={i} className={cn("font-semibold font-mono", isNeg ? "text-rose-500" : "text-emerald-500")} style={{ direction: "ltr", unicodeBidi: "plaintext" }}>
+          {part}
+        </span>
+      );
+    }
+    // USDT amounts
+    if (/\d[\d,]*\.?\d*\s*USDT/.test(part)) {
+      const numPart = part.replace(/\s*USDT/, "");
+      return (
+        <span key={i} className="font-semibold font-mono text-emerald-500 inline-flex items-center gap-0.5" style={{ direction: "ltr", unicodeBidi: "plaintext" }}>
+          {numPart} <UsdtInline />
+        </span>
+      );
+    }
+    // APY percentages
+    if (/\d+\.?\d*%\s*APY/.test(part)) {
+      return (
+        <span key={i} className="font-semibold font-mono text-emerald-500" style={{ direction: "ltr", unicodeBidi: "plaintext" }}>
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+/**
  * Custom markdown renderer for assistant messages
  * ALL internal links use SPA navigation (no page refresh)
+ * Enhanced: green profit/amounts, USDT icon, clean title separation
  */
 function AssistantMarkdown({ content, navigate, language }) {
   const handleLinkClick = useCallback((e, href) => {
@@ -107,23 +162,50 @@ function AssistantMarkdown({ content, navigate, language }) {
     const internal = isInternalUrl(href);
     
     if (internal) {
-      // SPA navigation - no reload
       const path = extractPath(href);
       navigate(path);
     } else {
-      // External: open in new tab
       window.open(href, "_blank", "noopener,noreferrer");
     }
   }, [navigate]);
 
   return (
     <ReactMarkdown
-      className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
+      className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:my-1.5 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5"
       components={{
-        a: ({ children, href, ...props }) => {
+        // Bold text → used for titles, render with clear visual separation
+        strong: ({ children }) => (
+          <strong className="block text-foreground font-bold text-[13px] tracking-tight mt-2.5 mb-1 first:mt-0">
+            {children}
+          </strong>
+        ),
+        // Paragraphs → format financial text inline
+        p: ({ children }) => {
+          const enhanced = React.Children.map(children, (child) => {
+            if (typeof child === "string") return formatFinancialText(child);
+            return child;
+          });
+          return <p className="my-1.5 leading-relaxed text-[13px]">{enhanced}</p>;
+        },
+        // List items → format financial text inline
+        li: ({ children, ordered, ...props }) => {
+          const enhanced = React.Children.map(children, (child) => {
+            if (typeof child === "string") return formatFinancialText(child);
+            return child;
+          });
+          return <li className="my-0.5 text-[13px] leading-relaxed marker:text-muted-foreground/60">{enhanced}</li>;
+        },
+        // Ordered list → clean numbering
+        ol: ({ children }) => (
+          <ol className="my-2 pl-4 list-decimal space-y-1">{children}</ol>
+        ),
+        // Unordered list
+        ul: ({ children }) => (
+          <ul className="my-2 pl-4 list-disc space-y-1">{children}</ul>
+        ),
+        // Links → SPA nav buttons
+        a: ({ children, href }) => {
           const internal = isInternalUrl(href);
-          
-          // ALL links become buttons to ensure no accidental navigation
           return (
             <button
               type="button"
@@ -135,8 +217,13 @@ function AssistantMarkdown({ content, navigate, language }) {
             </button>
           );
         },
+        // Code
         code: ({ children }) => (
           <code className="px-1 py-0.5 rounded bg-muted text-xs font-mono">{children}</code>
+        ),
+        // Horizontal rule → subtle divider
+        hr: () => (
+          <hr className="my-3 border-border/30" />
         ),
       }}
     >
