@@ -337,8 +337,13 @@ export default function Investing({ language = "en" }) {
         position_id: positionId
       });
       if (res.data?.ok) {
-        if (res.data.data?.autoProcessed) {
+        const d = res.data.data;
+        if (d?.autoProcessed) {
           toast.success(language === "ar" ? "تم تحصيل المكافآت!" : "Rewards collected!");
+          // If position moved to COMPLETED, update local state immediately
+          if (d.status === "COMPLETED") {
+            setPositions(prev => prev.map(p => p.id === positionId ? { ...p, status: "COMPLETED", paidAmount: (p.paidAmount || 0) + (d.paidAmount || 0), payoutStatus: "PAID" } : p));
+          }
         } else {
           toast.success(language === "ar" ? "تم تقديم طلب المطالبة!" : "Claim request submitted!");
         }
