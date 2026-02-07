@@ -37,6 +37,7 @@ import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard"
 import CopyWalletPanel from "@/components/copytrading/CopyWalletPanel";
 import SignalsInbox from "@/components/copytrading/SignalsInbox";
 import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
+import PositionDetailDrawer from "@/components/copytrading/PositionDetailDrawer";
 // NotificationBell is rendered in Layout - no duplicate needed here
 
 export default function Trading({ language = "en" }) {
@@ -465,6 +466,27 @@ export default function Trading({ language = "en" }) {
   // Copy Mode Mobile State
   const [copyMobileTab, setCopyMobileTab] = useState('signals'); // signals | chart | positions
   const [walletOpen, setWalletOpen] = useState(false);
+  
+  // Position Detail Drawer
+  const [selectedPosition, setSelectedPosition] = useState(null);
+  const [positionDrawerOpen, setPositionDrawerOpen] = useState(false);
+  
+  const handlePositionClick = useCallback((pos) => {
+    setSelectedPosition(pos);
+    setPositionDrawerOpen(true);
+    // Also update chart to show this position's symbol
+    if (pos?.symbol) {
+      setSelectedSymbol(pos.symbol);
+    }
+  }, []);
+  
+  const handlePositionDrawerClose = useCallback(() => {
+    setPositionDrawerOpen(false);
+    // Keep selectedPosition for a moment so exit animation works
+    setTimeout(() => {
+      if (!positionDrawerOpen) setSelectedPosition(null);
+    }, 300);
+  }, [positionDrawerOpen]);
 
   // RENDER LOGIC: Strict Separation of Modes
   
