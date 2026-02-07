@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { RefreshCw, ArrowUp, ArrowDown, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
+import { gated } from "@/components/utils/apiGate";
 
 export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, language = "en" }) {
   const [positions, setPositions] = useState([]);
@@ -49,8 +51,6 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
     const unsubs = [];
     
     // Use WebSocket store for live prices instead of polling okxMarketData
-    const { binanceFuturesStore } = await import("@/components/trading/binance/binanceFuturesStore");
-    
     // Fetch initial prices from store
     symbols.forEach((sym) => {
       const ticker = binanceFuturesStore.getTicker(sym);
@@ -70,7 +70,6 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
     });
     
     // Fallback poll only every 30s using gated API (NOT 3s)
-    const { gated } = await import("@/components/utils/apiGate");
     const interval = setInterval(() => {
       if (document.hidden) return;
       symbols.forEach(async (sym) => {
