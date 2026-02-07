@@ -469,6 +469,25 @@ Deno.serve(async (req) => {
         console.log(`[STAKING_REWARDS] Failed to notify user:`, e.message);
       }
 
+      // Notify ALL admins about the payout (audit trail)
+      try {
+        const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+        for (const admin of (admins || []).slice(0, 5)) {
+          if (admin.id === user.id) continue; // Skip the admin who just processed it
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'system',
+            title: 'Staking Payout Processed',
+            message: `${user.email} paid $${amount.toFixed(2)} USDT to ${position.user_email || position.user_id} from staking rewards`,
+            data: { stakingPositionId: position.id, amount, action: 'payout_processed', processedBy: user.email },
+            read: false,
+            priority: 'normal'
+          });
+        }
+      } catch (e) {
+        console.log(`[STAKING_REWARDS] Failed to notify other admins:`, e.message);
+      }
+
       return Response.json({
         ok: true,
         data: {
