@@ -391,6 +391,7 @@ export default function AutoTradeSettings({ language = "en" }) {
               <EstimatedOutcome
                 amount={settings.fixed_margin_usdt}
                 leverage={settings.max_leverage}
+                maxPerTrade={settings.max_margin_per_trade_usdt}
                 language={language}
               />
 
