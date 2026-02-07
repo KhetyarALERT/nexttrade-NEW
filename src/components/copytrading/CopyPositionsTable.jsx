@@ -117,11 +117,12 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   if (isMobile) {
     if (positions.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/50 mx-4">
-          <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center mb-3">
-            <TrendingUp className="w-5 h-5 text-muted-foreground/30" />
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/50 mx-4">
+          <div className="w-14 h-14 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
+            <TrendingUp className="w-6 h-6 text-muted-foreground/25" />
           </div>
-          <p className="text-[13px] font-medium text-muted-foreground/60">{t.noPositions}</p>
+          <p className="text-[13px] font-semibold text-muted-foreground/50">{t.noPositions}</p>
+          <p className="text-[11px] text-muted-foreground/30 mt-1">{isAr ? "ابدأ بقبول إشارة" : "Accept a signal to start"}</p>
         </div>
       );
     }
