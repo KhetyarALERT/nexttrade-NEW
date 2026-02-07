@@ -136,7 +136,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
   const labels = useMemo(() => {
     const isAr = language === "ar";
     return {
-      reset: isAr ? "إعادة ضبط" : "Reset View",
+      reset: isAr ? "إعادة ضبط" : "Reset",
       resetTitle: isAr ? "إعادة عرض الشارت إلى آخر شمعة" : "Reset view to latest candle with proper zoom",
       loading: isAr ? "جارٍ التحميل…" : "Loading…",
       live: isAr ? "مباشر" : "Live",
@@ -150,6 +150,8 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
       smoothAnimations: isAr ? "حركة سلسة" : "Smooth Animations",
       autoScale: isAr ? "ضبط تلقائي" : "Auto Scale",
       settings: isAr ? "الإعدادات" : "Settings",
+      crosshair: isAr ? "الخط المتقاطع" : "Crosshair",
+      fullscreen: isAr ? "ملء الشاشة" : "Fullscreen",
     };
   }, [language]);
 
