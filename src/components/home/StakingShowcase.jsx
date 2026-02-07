@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wallet, ShieldCheck, ArrowRight, Coins, Lock } from "lucide-react";
+import { Wallet, ShieldCheck, ArrowRight, Coins, Lock, TrendingUp } from "lucide-react";
 
 export default function StakingShowcase({ language = "en" }) {
   const [balance, setBalance] = useState(1000.00);
