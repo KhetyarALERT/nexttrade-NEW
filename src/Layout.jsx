@@ -369,8 +369,8 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
   // Initialize Product Fruits for authenticated users (must be after language state)
   useProductFruits({ user, language, isAuthenticated });
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
-  const [accountTotals, setAccountTotals] = useState({ totalUsd: 0, totalUsdt: 0 });
-  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: 0, spotUsdt: null, futuresUsdt: null, wealthUsdt: 0, stakedActiveUsdt: 0, stakedPendingUsdt: 0, nextUnlockAt: null, copyTradingAvailableUsdt: 0, copyTradingLockedUsdt: 0 });
+  const [accountTotals, setAccountTotals] = useState({ totalUsd: null, totalUsdt: null, mainWalletTotal: null });
+  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: null, spotUsdt: null, futuresUsdt: null, wealthUsdt: null, stakedActiveUsdt: null, stakedPendingUsdt: null, nextUnlockAt: null, copyTradingAvailableUsdt: null, copyTradingLockedUsdt: null, hasCopyTrading: false });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
   useEffect(() => {
