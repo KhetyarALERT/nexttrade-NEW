@@ -151,72 +151,69 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   }
 
   return (
-    <div className="h-full overflow-auto p-4 space-y-4" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="h-full overflow-auto p-5 space-y-5" dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-foreground">{labels.title}</h2>
-          <p className="text-xs text-muted-foreground">{labels.subtitle}</p>
+          <h2 className="text-lg font-bold text-foreground tracking-tight">{labels.title}</h2>
+          <p className="text-[11px] text-muted-foreground/60 mt-0.5">{labels.subtitle}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={loadData} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={loadData} disabled={loading}>
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-1 gap-3">
-        {/* Total Equity Card (Primary) */}
-        <Card className="bg-gradient-to-br from-primary/15 to-primary/5 border-primary/20 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium text-foreground/80">{language === "ar" ? "إجمالي الحقوق" : "Total Equity"}</span>
-              </div>
-              <Badge variant="outline" className="bg-background/50 text-[10px] font-normal">USDT</Badge>
-            </div>
-            <p className="text-3xl font-bold text-foreground font-mono tracking-tight">
-              ${formatUsdt(totalEquity)}
-            </p>
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <span>{labels.available}: <span className="font-mono text-foreground">{formatUsdt(availableBalance)}</span></span>
-              <span>•</span>
-              <span>{language === "ar" ? "إيداع" : "Dep"}: <span className="font-mono text-foreground">{formatUsdt(wallet?.lifetime_deposited || 0)}</span></span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Total Equity - Hero Card */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/[0.08] via-primary/[0.04] to-transparent border border-primary/10 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Wallet className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">{language === "ar" ? "إجمالي الحقوق" : "Total Equity"}</span>
+        </div>
+        <p className="text-[32px] font-bold text-foreground font-mono tracking-tighter leading-none">
+          {formatUsdt(totalEquity)}
+          <span className="text-[11px] font-normal text-muted-foreground/40 ml-1.5">USDT</span>
+        </p>
+        <div className="flex items-center gap-3 mt-3">
+          <div className="bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px]">
+            <span className="text-muted-foreground/60">{labels.available}: </span>
+            <span className="font-mono font-semibold text-foreground">{formatUsdt(availableBalance)}</span>
+          </div>
+          <div className="bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px]">
+            <span className="text-muted-foreground/60">{language === "ar" ? "إيداع" : "Deposited"}: </span>
+            <span className="font-mono font-semibold text-foreground">{formatUsdt(wallet?.lifetime_deposited || 0)}</span>
+          </div>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Card>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Lock className="w-3 h-3 text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">{labels.allocated}</span>
-              </div>
-              <p className="text-lg font-bold text-foreground font-mono">
-                {formatUsdt(lockedBalance)}
-              </p>
-            </CardContent>
-          </Card>
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card/80 backdrop-blur-sm border border-border/40 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Lock className="w-3.5 h-3.5 text-muted-foreground/40" />
+            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">{labels.allocated}</span>
+          </div>
+          <p className="text-xl font-bold text-foreground font-mono tracking-tight">
+            {formatUsdt(lockedBalance)}
+          </p>
+        </div>
 
-          <Card className={lifetimePnl >= 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}>
-            <CardContent className="p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className={`w-3 h-3 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
-                <span className="text-[11px] text-muted-foreground">{labels.totalPnl}</span>
-              </div>
-              <p className={`text-lg font-bold font-mono ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
-              </p>
-            </CardContent>
-          </Card>
+        <div className={`rounded-2xl p-4 border ${lifetimePnl >= 0 ? "bg-emerald-500/[0.04] border-emerald-500/10" : "bg-rose-500/[0.04] border-rose-500/10"}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className={`w-3.5 h-3.5 ${lifetimePnl >= 0 ? "text-emerald-500/60" : "text-rose-500/60"}`} />
+            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">{labels.totalPnl}</span>
+          </div>
+          <p className={`text-xl font-bold font-mono tracking-tight ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+            {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
+          </p>
         </div>
       </div>
 
       {/* Add Funds Button */}
       <Button 
         onClick={() => setAllocationModalOpen(true)} 
-        className="w-full bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90"
+        className="w-full h-11 rounded-2xl text-[13px] font-semibold shadow-md shadow-primary/20"
       >
         <PlusCircle className="w-4 h-4 mr-2" />
         {labels.addFunds}
@@ -225,32 +222,28 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
       {/* Auto-Trade Settings - Inline */}
       <AutoTradeSettings language={language} />
 
-      {/* Recent Activity - Show ledger entries */}
+      {/* Recent Activity */}
       {ledgerEntries.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="text-sm font-semibold mb-3">{labels.recentAllocations}</h3>
-            <div className="space-y-2">
-              {ledgerEntries.slice(0, 5).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between text-sm bg-muted/30 rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Badge className={ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} variant="outline">
-                      {ledgerKindLabels[language]?.[entry.kind] || entry.kind}
-                    </Badge>
-                    <span className="text-muted-foreground text-xs">
-                      {formatDate(entry.created_at || entry.created_date)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-mono font-medium ${entry.kind === 'CREDIT' ? 'text-green-500' : entry.kind === 'DEBIT' ? 'text-red-500' : ''}`}>
-                      {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))} USDT
-                    </span>
-                  </div>
+        <div>
+          <h3 className="text-[12px] font-semibold text-muted-foreground/60 uppercase tracking-wider mb-3">{labels.recentAllocations}</h3>
+          <div className="space-y-1.5">
+            {ledgerEntries.slice(0, 5).map((entry) => (
+              <div key={entry.id} className="flex items-center justify-between bg-muted/20 rounded-xl px-3.5 py-2.5 transition-colors hover:bg-muted/30">
+                <div className="flex items-center gap-2.5">
+                  <Badge className={`${ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} rounded-md text-[9px] font-bold`} variant="outline">
+                    {ledgerKindLabels[language]?.[entry.kind] || entry.kind}
+                  </Badge>
+                  <span className="text-muted-foreground/40 text-[10px] font-medium">
+                    {formatDate(entry.created_at || entry.created_date)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <span className={`font-mono font-semibold text-[13px] tabular-nums ${entry.kind === 'CREDIT' ? 'text-emerald-500' : entry.kind === 'DEBIT' ? 'text-rose-500' : 'text-foreground'}`}>
+                  {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Allocation Modal */}
