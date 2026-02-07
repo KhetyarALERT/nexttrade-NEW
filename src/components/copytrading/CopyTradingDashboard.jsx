@@ -4,7 +4,9 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, TrendingUp, Lock, PlusCircle, RefreshCw, Sparkles } from "lucide-react";
+import { Wallet, TrendingUp, Lock, PlusCircle, RefreshCw, Sparkles, ArrowDownToLine } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import AllocationModal from "./AllocationModal";
 import AutoTradeSettings from "./AutoTradeSettings";
@@ -203,14 +205,26 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
         </div>
       </div>
 
-      {/* Add Funds Button */}
-      <Button 
-        onClick={() => setAllocationModalOpen(true)} 
-        className="w-full h-11 rounded-2xl text-[13px] font-semibold shadow-md shadow-primary/20"
-      >
-        <PlusCircle className="w-4 h-4 mr-2" />
-        {labels.addFunds}
-      </Button>
+      {/* Add Funds + Deposit Buttons */}
+      <div className="flex gap-2.5">
+        <Button 
+          onClick={() => setAllocationModalOpen(true)} 
+          className="flex-1 h-11 rounded-2xl text-[13px] font-semibold shadow-md shadow-primary/20"
+        >
+          <PlusCircle className="w-4 h-4 mr-2" />
+          {labels.addFunds}
+        </Button>
+        <Button 
+          asChild
+          variant="outline"
+          className="h-11 rounded-2xl text-[13px] font-semibold px-4"
+        >
+          <Link to={`${createPageUrl("Wallet")}?page=deposit`}>
+            <ArrowDownToLine className="w-4 h-4 mr-1.5" />
+            {isRTL ? "إيداع" : "Deposit"}
+          </Link>
+        </Button>
+      </div>
 
       {/* Auto-Trade Settings - Inline */}
       <AutoTradeSettings language={language} />
