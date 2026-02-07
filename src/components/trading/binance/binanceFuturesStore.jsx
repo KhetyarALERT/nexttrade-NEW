@@ -631,7 +631,7 @@ class OKXFuturesStore {
         console.error("[OKX Store] REST: fetchPremiumIndex error:", err);
         return this.premiumIndex[normalized] || null;
       } finally {
-        setTimeout(() => this.pendingFetches.delete(cacheKey), 500);
+        setTimeout(() => this.pendingFetches.delete(cacheKey), 5000);
       }
     })();
     

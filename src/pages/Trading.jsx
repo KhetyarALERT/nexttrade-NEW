@@ -134,10 +134,10 @@ export default function Trading({ language = "en" }) {
         } catch (e) { console.error(e); }
       };
       loadPaperPositions();
-      // Poll every 20s (reduced from 10s), skip if hidden
+      // Poll every 45s, skip if hidden
       const interval = setInterval(() => {
         if (!document.hidden) loadPaperPositions();
-      }, 20000);
+      }, 45000);
       return () => clearInterval(interval);
     }
   }, [isCopyMode, isAuthenticated, isRefreshing]);

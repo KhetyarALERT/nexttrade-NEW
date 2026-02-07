@@ -154,7 +154,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     };
 
     runLoad();
-    const interval = setInterval(runLoad, 30000); 
+    const interval = setInterval(runLoad, 60000); 
     return () => clearInterval(interval);
   }, []);
 
