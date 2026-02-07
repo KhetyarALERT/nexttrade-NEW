@@ -42,7 +42,6 @@ import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
 
 export default function Trading({ language = "en" }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isCopyMode = searchParams.get("tab") === "bots";
   
