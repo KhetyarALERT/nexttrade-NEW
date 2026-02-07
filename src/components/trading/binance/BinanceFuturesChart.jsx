@@ -343,12 +343,14 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
       crosshair: { 
         mode: CrosshairMode.Magnet,
         vertLine: {
+          visible: true,
           color: chartColors.crosshairColor,
           width: 1,
           style: 2,
           labelBackgroundColor: chartColors.priceLineColor,
         },
         horzLine: {
+          visible: true,
           color: chartColors.crosshairColor,
           width: 1,
           style: 2,
