@@ -401,7 +401,20 @@ async function processSignalAcceptance({ base44, targetUserId, signalId, amount,
     });
   } catch (e) {}
 
-  return Response.json({ ok: true, success: true, wallet: { available: newAvailable, locked: newLocked } });
+  console.log(`[COPY_ACCEPT] SUCCESS: user=${targetUserId} signal=${signalId} symbol=${signal.symbol} margin=${margin} lev=${levNum}x entry=${entryPrice} balBefore=${balBefore} balAfter=${Math.max(0, newAvailable)} commission=${commOpen}`);
+  return Response.json({ 
+    ok: true, 
+    success: true, 
+    wallet: { available: Math.max(0, newAvailable), locked: newLocked },
+    trade: {
+      margin,
+      leverage: levNum,
+      entryPrice,
+      commission: commOpen,
+      balanceBefore: balBefore,
+      balanceAfter: Math.max(0, newAvailable)
+    }
+  });
 }
 
 Deno.serve(async (req) => {
