@@ -516,11 +516,13 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
     if (!isAuthenticated) return;
     setLoadingAccountTotals(true);
     try {
+      // Import gated to prevent 429 spam - dedupe + throttle + backoff
+      const { gated } = await import("@/components/utils/apiGate");
       const [walletsResult, okxAccountResult, stakingResult, copyTradingResult] = await Promise.all([
-        base44.functions.invoke("wallet", { action: "list" }).catch((e) => { console.error("[Layout] wallet fetch failed:", e); return { data: { success: false } }; }),
-        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch((e) => { console.error("[Layout] okx fetch failed:", e); return { data: { ok: false } }; }),
-        base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }).catch((e) => { console.error("[Layout] staking fetch failed:", e); return { data: { ok: false } }; }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }).catch((e) => { console.error("[Layout] copyTrading fetch failed:", e); return { data: { ok: false } }; }),
+        gated("layout:wallet", () => base44.functions.invoke("wallet", { action: "list" }), { minIntervalMs: 10000 }).catch((e) => { console.error("[Layout] wallet fetch failed:", e); return { data: { success: false } }; }),
+        gated("layout:okxAccount", () => base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }), { minIntervalMs: 10000 }).catch((e) => { console.error("[Layout] okx fetch failed:", e); return { data: { ok: false } }; }),
+        gated("layout:staking", () => base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }), { minIntervalMs: 15000 }).catch((e) => { console.error("[Layout] staking fetch failed:", e); return { data: { ok: false } }; }),
+        gated("layout:copyTrading", () => base44.functions.invoke("copyTradingUser", { action: "getWallet" }), { minIntervalMs: 15000 }).catch((e) => { console.error("[Layout] copyTrading fetch failed:", e); return { data: { ok: false } }; }),
       ]);
 
       const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];

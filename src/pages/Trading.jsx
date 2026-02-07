@@ -135,10 +135,13 @@ export default function Trading({ language = "en" }) {
     if (copyPositionsPollRef.current.inFlight) return;
     copyPositionsPollRef.current.inFlight = true;
     try {
-      const res = await base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' });
-      if (res.data?.ok) {
+      const { gated } = await import("@/components/utils/apiGate");
+      const res = await gated("copyTradingUser:getPositions", () => base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' }), { minIntervalMs: 10000 });
+      if (res?.data?.ok) {
         setPaperPositions(res.data.data || []);
         copyPositionsPollRef.current.errorCount = 0;
+      } else if (res === null) {
+        // Throttled/backoff - keep existing data
       } else {
         copyPositionsPollRef.current.errorCount += 1;
       }
