@@ -154,8 +154,9 @@ async function executeAutoAccept(base44, { targetUserId, signalId, signal, amoun
     console.error('[AUTO_ACCEPT] Notification error:', e.message);
   }
 
-  console.log(`[AUTO_ACCEPT] SUCCESS: user=${targetUserId} signal=${signalId} symbol=${signal.symbol} margin=${margin} lev=${levNum}x entry=${entryPrice}`);
-  return { ok: true, positionId: position.id, entryPrice, margin, leverage: levNum };
+  const balAfter = Math.max(0, wallet.available_balance - required);
+  console.log(`[AUTO_ACCEPT] SUCCESS: user=${targetUserId} signal=${signalId} symbol=${signal.symbol} margin=${margin} lev=${levNum}x entry=${entryPrice} balBefore=${balBefore} balAfter=${balAfter} commission=${commOpen}`);
+  return { ok: true, positionId: position.id, entryPrice, margin, leverage: levNum, balanceBefore: balBefore, balanceAfter: balAfter };
 }
 
 Deno.serve(async (req) => {
