@@ -746,34 +746,34 @@ export default function FuturesActivityTabs({
     <div className="h-full flex flex-col bg-transparent">
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
         {/* Simplified Tab Header */}
-        <div className="px-3 py-2 border-b border-border/50 flex items-center gap-2 shrink-0">
+        <div className="px-3 py-2.5 border-b border-border/20 flex items-center gap-2 shrink-0" data-ui-version="v2">
           <div className="flex-1 overflow-x-auto scrollbar-hide">
-            <TabsList className="bg-muted/50 h-9 p-1 rounded-xl inline-flex w-auto min-w-0">
+            <TabsList className="bg-muted/25 h-9 p-[3px] rounded-xl inline-flex w-auto min-w-0">
               <TabsTrigger 
                 value="positions" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold tracking-tight px-3 sm:px-4"
               >
                 {labels.tabs.positions}
                 {openPositions.length > 0 && (
-                  <span className="ml-1.5 bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                  <span className="ml-1.5 bg-primary/15 text-primary text-[10px] px-1.5 py-0.5 rounded-lg font-bold">
                     {openPositions.length}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger 
                 value="openOrders" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold tracking-tight px-3 sm:px-4"
               >
                 {labels.tabs.openOrders}
                 {openOrders.length > 0 && (
-                  <span className="ml-1.5 bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                  <span className="ml-1.5 bg-amber-500/15 text-amber-500 text-[10px] px-1.5 py-0.5 rounded-lg font-bold">
                     {openOrders.length}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger 
                 value="history" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg text-xs font-medium px-2 sm:px-4"
+                className="data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-[10px] text-[11px] font-semibold tracking-tight px-3 sm:px-4"
               >
                 {labels.tabs.history}
               </TabsTrigger>

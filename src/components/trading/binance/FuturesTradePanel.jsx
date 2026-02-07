@@ -748,36 +748,37 @@ export default function FuturesTradePanel({
 
     return (
       <>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        {/* Cross / Isolated segmented control */}
+        <div className="flex p-[3px] bg-muted/30 rounded-xl" data-ui-version="v2">
           <button
             type="button"
             onClick={() => setMode("cross")}
-            className={`px-4 py-2 rounded-lg text-sm transition-all ${mode === "cross" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 px-4 py-2 rounded-[10px] text-[13px] font-semibold tracking-tight transition-all ${mode === "cross" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             {labels.cross}
           </button>
           <button
             type="button"
             onClick={() => setMode("isolated")}
-            className={`px-4 py-2 rounded-lg text-sm transition-all ${mode === "isolated" ? "bg-primary text-primary-foreground font-semibold shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 px-4 py-2 rounded-[10px] text-[13px] font-semibold tracking-tight transition-all ${mode === "isolated" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             {labels.isolated}
           </button>
-          {/* Removed demo label */}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        {/* Open / Close segmented control */}
+        <div className="mt-3 flex p-[3px] bg-muted/30 rounded-xl">
           <button
             type="button"
             onClick={() => setSide("open")}
-            className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-sm font-medium transition-all ${side === "open" ? "bg-primary text-primary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold tracking-tight transition-all ${side === "open" ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : "text-muted-foreground hover:text-foreground"}`}
           >
             {labels.open}
           </button>
           <button
             type="button"
             onClick={() => setSide("close")}
-            className={`flex-1 min-w-[120px] py-2.5 rounded-lg text-sm font-medium transition-all ${side === "close" ? "bg-secondary text-secondary-foreground shadow-md" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            className={`flex-1 py-2.5 rounded-[10px] text-[13px] font-semibold tracking-tight transition-all ${side === "close" ? "bg-background text-foreground shadow-sm border border-border/50" : "text-muted-foreground hover:text-foreground"}`}
           >
             {labels.close}
           </button>
@@ -802,31 +803,34 @@ export default function FuturesTradePanel({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() => setOrderType("limit")}
-            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "limit" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-          >
-            {labels.limit}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOrderType("market")}
-            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "market" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-          >
-            {labels.market}
-          </button>
-          <button
-            type="button"
-            onClick={() => setOrderType("trigger")}
-            className={`flex-1 min-w-[90px] px-4 py-2 rounded-lg transition-all ${orderType === "trigger" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
-          >
-            {labels.trigger}
-          </button>
+        {/* Limit / Market / Trigger segmented control */}
+        <div className="mt-3 flex items-center gap-3">
+          <div className="flex-1 flex p-[3px] bg-muted/30 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setOrderType("limit")}
+              className={`flex-1 px-3 py-2 rounded-[10px] text-[12px] font-semibold tracking-tight transition-all ${orderType === "limit" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {labels.limit}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType("market")}
+              className={`flex-1 px-3 py-2 rounded-[10px] text-[12px] font-semibold tracking-tight transition-all ${orderType === "market" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {labels.market}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType("trigger")}
+              className={`flex-1 px-3 py-2 rounded-[10px] text-[12px] font-semibold tracking-tight transition-all ${orderType === "trigger" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {labels.trigger}
+            </button>
+          </div>
 
-          <div className="ml-auto text-[11px] text-muted-foreground font-mono">
-            {labels.mark} {lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}
+          <div className="text-[11px] text-muted-foreground/60 font-mono tabular-nums shrink-0">
+            {lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}
           </div>
         </div>
 
@@ -836,14 +840,15 @@ export default function FuturesTradePanel({
             <span className="text-foreground font-medium">{labels.leverage}: {Math.min(5, Math.max(1, Number(leverage) || 5))}×</span>
           </div>
 
-          <div className="mt-3 flex gap-2 text-xs">
+          {/* Order mode segmented control */}
+          <div className="mt-3 flex p-[2px] bg-muted/25 rounded-xl">
             <button
               type="button"
               onClick={() => {
                 setOrderMode("amount");
                 setLastEdited("amount");
               }}
-              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "amount" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+              className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tracking-tight transition-all ${orderMode === "amount" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {labels.byAmount}
             </button>
@@ -853,7 +858,7 @@ export default function FuturesTradePanel({
                 setOrderMode("value");
                 setLastEdited("total");
               }}
-              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "value" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+              className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tracking-tight transition-all ${orderMode === "value" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {labels.byValue}
             </button>
@@ -863,7 +868,7 @@ export default function FuturesTradePanel({
                 setOrderMode("cost");
                 setLastEdited("cost");
               }}
-              className={`flex-1 py-2 rounded-lg transition-all ${orderMode === "cost" ? "bg-secondary text-secondary-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+              className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tracking-tight transition-all ${orderMode === "cost" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {labels.byCost}
             </button>
@@ -914,7 +919,7 @@ export default function FuturesTradePanel({
               </div>
             </div>
             {/* Quick leverage buttons */}
-            <div className="mt-2 flex gap-1">
+            <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
               {[1, 2, 3, 5].map((lev) => (
                 <button
                   key={lev}
@@ -923,10 +928,10 @@ export default function FuturesTradePanel({
                     setLeverage(lev);
                     setLastEdited("leverage");
                   }}
-                  className={`flex-1 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                  className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tabular-nums transition-all ${
                     leverage === lev
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {lev}×
@@ -1047,16 +1052,16 @@ export default function FuturesTradePanel({
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
-                <div className="mt-2 flex justify-between gap-1">
+                <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
                   {[0, 25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                      className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tabular-nums transition-all ${
                         amountPct === p 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {p}%
@@ -1147,16 +1152,16 @@ export default function FuturesTradePanel({
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
-                <div className="mt-2 flex justify-between gap-1">
+                <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
                   {[0, 25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                      className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tabular-nums transition-all ${
                         amountPct === p 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {p}%
@@ -1264,16 +1269,16 @@ export default function FuturesTradePanel({
                   onChange={(e) => applyAmountPct(Number(e.target.value))}
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
-                <div className="mt-2 flex justify-between gap-1">
+                <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
                   {[0, 25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => applyAmountPct(p)}
-                      className={`flex-1 py-1.5 rounded-md text-[11px] font-medium transition-colors ${
+                      className={`flex-1 py-1.5 rounded-[9px] text-[11px] font-semibold tabular-nums transition-all ${
                         amountPct === p 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" 
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {p}%
