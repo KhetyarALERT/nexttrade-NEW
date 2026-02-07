@@ -103,25 +103,35 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const labels = t[language] || t.en;
   const isRTL = language === "ar";
 
+  const invokeWithRetry = async (action, extra = {}, retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return await base44.functions.invoke('copyTradingUser', { action, ...extra });
+      } catch (err) {
+        if (err?.response?.status === 429 && i < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+  };
+
   const loadSignals = async () => {
-    // Silent update if we already have data
     if(signals.length === 0) setLoading(true);
     try {
-      const [sigsRes, walletRes, configRes] = await Promise.all([
-        base44.functions.invoke('copyTradingUser', { action: 'getSignals' }),
-        base44.functions.invoke('copyTradingUser', { action: 'getWallet' }),
-        base44.functions.invoke('copyTradingUser', { action: 'getConfig' })
-      ]);
-      
-      if (sigsRes.data?.ok) {
+      // Stagger: signals first, then wallet+config
+      const sigsRes = await invokeWithRetry('getSignals');
+      if (sigsRes?.data?.ok) {
         setSignals(sigsRes.data.data || []);
       }
-      if (walletRes.data?.ok) {
-        setWallet(walletRes.data.data || null);
-      }
-      if (configRes.data?.ok) {
-        setConfig(configRes.data.data || null);
-      }
+
+      const [walletRes, configRes] = await Promise.all([
+        invokeWithRetry('getWallet'),
+        invokeWithRetry('getConfig')
+      ]);
+      if (walletRes?.data?.ok) setWallet(walletRes.data.data || null);
+      if (configRes?.data?.ok) setConfig(configRes.data.data || null);
     } catch (e) {
       console.error(e);
     } finally {

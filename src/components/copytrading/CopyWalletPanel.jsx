@@ -79,41 +79,56 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
   const lastLoadTime = useRef(0);
 
+  const invokeWithRetry = useCallback(async (action, extra = {}, retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return await base44.functions.invoke("copyTradingUser", { action, ...extra });
+      } catch (err) {
+        if (err?.response?.status === 429 && i < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }, []);
+
   const loadData = useCallback(async (force = false) => {
-    // Auth & Visibility Guard
     if (document.hidden && !force) return;
     
     try {
       const user = await base44.auth.me().catch(() => null);
-      if (!user) return; // Stop if not authenticated
+      if (!user) return;
     } catch { return; }
 
-    // Rate limiting: prevent calls within 2 seconds unless forced
     const now = Date.now();
-    if (!force && now - lastLoadTime.current < 2000) {
-      return;
-    }
+    if (!force && now - lastLoadTime.current < 3000) return;
     lastLoadTime.current = now;
 
     setLoading(true);
     try {
-      const [configRes, walletRes, ledgerRes, allocationsRes] = await Promise.all([
-        base44.functions.invoke("copyTradingUser", { action: "getConfig" }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
-        base44.functions.invoke("copyTradingUser", { action: "getLedger", limit: 20 }),
-        base44.functions.invoke("copyTradingUser", { action: "getAllocations" }).catch(() => ({ data: { ok: false } })),
+      // Stagger calls to avoid 429: batch 1 then batch 2
+      const [configRes, walletRes] = await Promise.all([
+        invokeWithRetry("getConfig"),
+        invokeWithRetry("getWallet"),
       ]);
 
-      if (configRes.data?.ok) setConfig(configRes.data.data);
-      if (walletRes.data?.ok) setWallet(walletRes.data.data);
-      if (ledgerRes.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
-      if (allocationsRes.data?.ok) setAllocations(allocationsRes.data.data || []);
+      if (configRes?.data?.ok) setConfig(configRes.data.data);
+      if (walletRes?.data?.ok) setWallet(walletRes.data.data);
+
+      const [ledgerRes, allocationsRes] = await Promise.all([
+        invokeWithRetry("getLedger", { limit: 20 }),
+        invokeWithRetry("getAllocations").catch(() => ({ data: { ok: false } })),
+      ]);
+
+      if (ledgerRes?.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
+      if (allocationsRes?.data?.ok) setAllocations(allocationsRes.data.data || []);
     } catch (err) {
       console.error("Failed to load copy trading data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [invokeWithRetry]);
 
   useEffect(() => {
     loadData(true);

@@ -74,24 +74,40 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
 
+  const invokeWithRetry = useCallback(async (action, extra = {}, retries = 2) => {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        return await base44.functions.invoke("copyTradingUser", { action, ...extra });
+      } catch (err) {
+        if (err?.response?.status === 429 && i < retries) {
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [configRes, walletRes, ledgerRes] = await Promise.all([
-        base44.functions.invoke("copyTradingUser", { action: "getConfig" }),
-        base44.functions.invoke("copyTradingUser", { action: "getWallet" }),
-        base44.functions.invoke("copyTradingUser", { action: "getLedger", limit: 10 }),
+      // Stagger to avoid 429: config+wallet first, then ledger
+      const [configRes, walletRes] = await Promise.all([
+        invokeWithRetry("getConfig"),
+        invokeWithRetry("getWallet"),
       ]);
 
-      if (configRes.data?.ok) setConfig(configRes.data.data);
-      if (walletRes.data?.ok) setWallet(walletRes.data.data);
-      if (ledgerRes.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
+      if (configRes?.data?.ok) setConfig(configRes.data.data);
+      if (walletRes?.data?.ok) setWallet(walletRes.data.data);
+
+      const ledgerRes = await invokeWithRetry("getLedger", { limit: 10 });
+      if (ledgerRes?.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
     } catch (err) {
       console.error("Failed to load copy trading data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [invokeWithRetry]);
 
   // Load data once on mount - no interval to prevent spam
   useEffect(() => {
