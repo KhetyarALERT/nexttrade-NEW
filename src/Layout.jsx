@@ -856,8 +856,8 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                                     </Link>
                                   </DropdownMenuItem>
 
-                      {/* Copy Trading - always show when wallet exists */}
-                      {(accountBalances.hasCopyTrading || accountBalances.copyTradingAvailableUsdt > 0) && (
+                      {/* Copy Trading - show when wallet data indicates copy trading activity */}
+                      {(accountBalances.hasCopyTrading || (accountBalances.copyTradingAvailableUsdt !== null && accountBalances.copyTradingAvailableUsdt > 0)) && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Futures") + "?tab=bots"}>
                             <div className="flex w-full items-center justify-between gap-3">
