@@ -220,7 +220,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
                 return (
                   <TableRow 
                     key={pos.id} 
-                    className="text-xs cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/20"
+                    className={`text-xs cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/20 ${selectedPositionId === pos.id ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
                     onClick={() => onPositionClick?.(pos)}
                   >
                     <TableCell className="font-semibold text-[12px] tracking-tight">{pos.symbol}</TableCell>
