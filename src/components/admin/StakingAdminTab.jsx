@@ -66,6 +66,11 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
   const [rewardsAdjustment, setRewardsAdjustment] = useState('');
   const [processing, setProcessing] = useState(false);
   
+  // Payout state
+  const [payoutSummary, setPayoutSummary] = useState(null);
+  const [loadingPayouts, setLoadingPayouts] = useState(false);
+  const [processingPayoutId, setProcessingPayoutId] = useState(null);
+  
   // Auto-Approve State
   const [autoApproveRunning, setAutoApproveRunning] = useState(false);
   const [autoApproveResult, setAutoApproveResult] = useState(null);
@@ -73,53 +78,42 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
   // Accrual State
   const [accrualRunning, setAccrualRunning] = useState(false);
   const [accrualResult, setAccrualResult] = useState(null);
-  
-  // Payouts State
-  const [payoutSummary, setPayoutSummary] = useState(null);
-  const [payoutLoading, setPayoutLoading] = useState(false);
-  const [payoutProcessingId, setPayoutProcessingId] = useState(null);
-  const [payoutAmount, setPayoutAmount] = useState('');
-  const [payoutNote, setPayoutNote] = useState('');
-  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
-  const [selectedPayout, setSelectedPayout] = useState(null);
 
   const pendingRequests = stakingRequests.filter(r => r.status === 'PENDING_APPROVAL');
   const otherRequests = stakingRequests.filter(r => r.status !== 'PENDING_APPROVAL');
 
   const loadPayoutSummary = async () => {
-    setPayoutLoading(true);
+    setLoadingPayouts(true);
     try {
       const res = await base44.functions.invoke('stakingRewardsProcessor', { action: 'getAdminPayoutSummary' });
       if (res.data?.ok) setPayoutSummary(res.data.data);
     } catch (err) {
       toast.error(err.message);
     } finally {
-      setPayoutLoading(false);
+      setLoadingPayouts(false);
     }
   };
 
-  const handleProcessPayout = async () => {
-    if (!selectedPayout || !payoutAmount) return;
-    setPayoutProcessingId(selectedPayout.positionId);
+  const handleProcessPayout = async (positionId, amount) => {
+    setProcessingPayoutId(positionId);
     try {
       const res = await base44.functions.invoke('stakingRewardsProcessor', {
         action: 'adminProcessPayout',
-        position_id: selectedPayout.positionId,
-        amount: Number(payoutAmount),
-        note: payoutNote || undefined
+        position_id: positionId,
+        amount,
+        note: 'Processed from admin panel'
       });
       if (res.data?.ok) {
-        toast.success(`Paid $${Number(payoutAmount).toFixed(2)} to ${selectedPayout.userEmail}`);
-        setPayoutDialogOpen(false);
-        loadPayoutSummary();
+        toast.success(`Paid $${amount.toFixed(2)} USDT`);
+        await loadPayoutSummary();
         onRefresh?.();
       } else {
-        toast.error(res.data?.error?.message || 'Failed');
+        toast.error(res.data?.error?.message || 'Failed to process payout');
       }
     } catch (err) {
       toast.error(err.message);
     } finally {
-      setPayoutProcessingId(null);
+      setProcessingPayoutId(null);
     }
   };
 
@@ -288,6 +282,7 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
           <TabsList className="bg-muted/50 p-1">
             <TabsTrigger value="requests" className="px-4">Requests {pendingRequests.length > 0 && <span className="ml-2 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{pendingRequests.length}</span>}</TabsTrigger>
             <TabsTrigger value="positions" className="px-4">All Positions</TabsTrigger>
+            <TabsTrigger value="payouts" className="px-4" onClick={loadPayoutSummary}>Payouts</TabsTrigger>
             <TabsTrigger value="plans" className="px-4">Plans</TabsTrigger>
           </TabsList>
           
@@ -410,17 +405,19 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                     <TableHead>Amount</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>APY</TableHead>
+                    <TableHead>Accrued</TableHead>
+                    <TableHead>Paid</TableHead>
                     <TableHead>Rewards</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Approval</TableHead>
+                    <TableHead>Payout</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {otherRequests.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No positions found</TableCell>
-                    </TableRow>
+                       <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No positions found</TableCell>
+                     </TableRow>
                   ) : (
                     otherRequests.map((req) => (
                       <TableRow key={req.id}>
@@ -435,12 +432,22 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-emerald-600 font-medium">{req.apyPercent}%</TableCell>
+                        <TableCell className="font-mono text-emerald-600">{formatUsdt(req.accruedAmount || 0)}</TableCell>
+                        <TableCell className="font-mono">{formatUsdt(req.paidAmount || 0)}</TableCell>
                         <TableCell className="font-mono">{req.rewardsGranted || 0}</TableCell>
                         <TableCell>
                           <Badge className={STATUS_COLORS[req.status] || ''} variant="outline">{req.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {req.approvedByType === 'AUTOMATION' ? <Badge variant="secondary" className="text-[10px]">Auto</Badge> : 'Admin'}
+                        <TableCell>
+                          {req.payoutStatus === 'REQUESTED' ? (
+                            <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20" variant="outline">Requested</Badge>
+                          ) : req.payoutStatus === 'CLAIMABLE' ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20" variant="outline">Claimable</Badge>
+                          ) : req.payoutStatus === 'PAID' ? (
+                            <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20" variant="outline">Paid</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => openReviewDialog(req, 'manage')}>
@@ -452,6 +459,102 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Payouts Tab */}
+        <TabsContent value="payouts">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Payout Requests</CardTitle>
+                  <CardDescription>Review and process user reward claims</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadPayoutSummary} disabled={loadingPayouts}>
+                  {loadingPayouts ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : <RotateCcw className="w-3 h-3 mr-2" />}
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!payoutSummary ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Click to load payout data</p>
+                  <Button variant="outline" size="sm" className="mt-2" onClick={loadPayoutSummary} disabled={loadingPayouts}>
+                    {loadingPayouts ? <Loader2 className="w-3 h-3 mr-2 animate-spin" /> : null}
+                    Load Payouts
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
+                      <p className="text-xs text-muted-foreground">Total Claimable</p>
+                      <p className="text-lg font-bold text-emerald-600">${formatUsdt(payoutSummary.totalClaimable)}</p>
+                    </div>
+                    <div className="bg-orange-500/5 p-3 rounded-lg border border-orange-500/20 text-center">
+                      <p className="text-xs text-muted-foreground">Requested</p>
+                      <p className="text-lg font-bold text-orange-600">${formatUsdt(payoutSummary.totalRequested)}</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
+                      <p className="text-xs text-muted-foreground">Pending Count</p>
+                      <p className="text-lg font-bold">{payoutSummary.pendingPayoutsCount}</p>
+                    </div>
+                  </div>
+
+                  {payoutSummary.pendingPayouts?.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Principal</TableHead>
+                          <TableHead>Accrued</TableHead>
+                          <TableHead>Paid</TableHead>
+                          <TableHead>Claimable</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payoutSummary.pendingPayouts.map((p) => (
+                          <TableRow key={p.positionId}>
+                            <TableCell className="text-sm">{p.userEmail}</TableCell>
+                            <TableCell>{p.planKey}</TableCell>
+                            <TableCell className="font-mono">{formatUsdt(p.principal)}</TableCell>
+                            <TableCell className="font-mono text-emerald-600">{formatUsdt(p.accrued)}</TableCell>
+                            <TableCell className="font-mono">{formatUsdt(p.paid)}</TableCell>
+                            <TableCell className="font-mono font-semibold text-emerald-600">{formatUsdt(p.claimable)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                disabled={processingPayoutId === p.positionId}
+                                onClick={() => handleProcessPayout(p.positionId, p.claimable)}
+                              >
+                                {processingPayoutId === p.positionId ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <DollarSign className="w-3 h-3 mr-1" />
+                                    Pay
+                                  </>
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-xl">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                      <p>No pending payout requests</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
