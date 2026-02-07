@@ -74,18 +74,11 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [allocationModalOpen, setAllocationModalOpen] = useState(false);
 
-  const invokeWithRetry = useCallback(async (action, extra = {}, retries = 2) => {
-    for (let i = 0; i <= retries; i++) {
-      try {
-        return await base44.functions.invoke("copyTradingUser", { action, ...extra });
-      } catch (err) {
-        if (err?.response?.status === 429 && i < retries) {
-          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-          continue;
-        }
-        throw err;
-      }
-    }
+  const invokeWithRetry = useCallback(async (action, extra = {}) => {
+    const { gated } = await import("@/components/utils/apiGate");
+    const key = `copyTradingUser:${action}`;
+    const res = await gated(key, () => base44.functions.invoke("copyTradingUser", { action, ...extra }), { minIntervalMs: 5000 });
+    return res;
   }, []);
 
   const loadData = useCallback(async () => {

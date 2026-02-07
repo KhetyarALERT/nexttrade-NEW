@@ -1843,8 +1843,6 @@ export default function FuturesTradePanel({
     <aside className="h-full w-full trading-panel text-foreground rounded-2xl shadow-xl flex flex-col overflow-hidden" data-ui-version="v2-proof">
       {/* Trade Panel Content - Tabs Removed, controlled by parent page */}
       <div className="flex-1 overflow-auto p-3">
-        {/* PROOF MARKER - remove after confirming render */}
-        <div className="mb-2 px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-[10px] font-bold text-primary text-center tracking-widest">UI-V2 ✓</div>
         {renderOrderForm({ demoMode: false })}
         
         {/* Account Info for Trade tab */}
