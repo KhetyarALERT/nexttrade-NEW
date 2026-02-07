@@ -526,7 +526,7 @@ export default function Trading({ language = "en" }) {
         {/* Desktop Grid Layout */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left: Signals Inbox */}
-          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col shrink-0 overflow-hidden">
+          <div className="w-[320px] xl:w-[360px] border-r border-border/20 flex flex-col shrink-0 overflow-hidden">
             <SignalsInbox 
               onSignalAccepted={handleRefresh} 
               liveAccount={liveAccount}
@@ -539,7 +539,7 @@ export default function Trading({ language = "en" }) {
           {/* Center: Chart (Top) + Positions (Bottom) */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Symbol Selector Bar - Fixed row above chart */}
-            <div className="border-b border-border/50 px-3 py-2 bg-card shrink-0">
+            <div className="border-b border-border/20 px-3 py-2 bg-card/80 backdrop-blur-sm shrink-0">
               <BinanceSymbolSelector 
                 selectedSymbol={selectedSymbol} 
                 onSelectSymbol={handleSymbolChange} 
@@ -547,8 +547,8 @@ export default function Trading({ language = "en" }) {
               />
             </div>
             
-            {/* Chart Area - No overlay conflicts */}
-            <div className="flex-1 border-b border-border/50">
+            {/* Chart Area */}
+            <div className="flex-1 border-b border-border/20">
               {chartComponent}
             </div>
             <div className="h-[250px] shrink-0 bg-background">
@@ -566,7 +566,7 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Right: Wallet Panel */}
-          <div className="w-[300px] border-l border-border/50 bg-background flex flex-col shrink-0 overflow-hidden">
+          <div className="w-[300px] border-l border-border/20 bg-background flex flex-col shrink-0 overflow-hidden">
              <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
@@ -766,7 +766,7 @@ export default function Trading({ language = "en" }) {
         {/* Center: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
         {/* Symbol Selector + Stats */}
-        <div className="border-b border-border/50 px-4 py-2 bg-background/95 backdrop-blur-sm">
+        <div className="border-b border-border/20 px-4 py-2.5 bg-background/95 backdrop-blur-md">
           <div className="flex items-center justify-between gap-3">
             <BinanceSymbolSelector 
               selectedSymbol={selectedSymbol} 
@@ -774,11 +774,11 @@ export default function Trading({ language = "en" }) {
               language={language} 
             />
 
-            <div className="flex items-center gap-4 lg:gap-6">
+            <div className="flex items-center gap-5 lg:gap-7">
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <div className="text-[10px] text-muted-foreground">{stat.label}</div>
-                  <div className={`text-xs lg:text-sm font-semibold font-mono ${
+                  <div className="text-[9px] text-muted-foreground/50 uppercase tracking-wider font-semibold">{stat.label}</div>
+                  <div className={`text-xs lg:text-[13px] font-bold font-mono tabular-nums tracking-tight ${
                     stat.isPositive !== undefined 
                       ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
                       : "text-foreground"
