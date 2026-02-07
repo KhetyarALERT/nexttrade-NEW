@@ -644,9 +644,16 @@ export default function Trading({ language = "en" }) {
 
     // DESKTOP COPY MODE
     return (
-      <div className="flex h-screen flex-col bg-background overflow-hidden">
+      <div className="flex h-screen flex-col bg-background overflow-hidden copy-trading-page">
+        <style>{`
+          .copy-trading-page ::-webkit-scrollbar { width: 4px; height: 4px; }
+          .copy-trading-page ::-webkit-scrollbar-track { background: transparent; }
+          .copy-trading-page ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.15); border-radius: 4px; }
+          .copy-trading-page ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.3); }
+          .copy-trading-page { scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent; }
+        `}</style>
         {/* Header */}
-        <div className="border-b border-border/20 px-4 py-2.5 shrink-0 bg-background/95 backdrop-blur-md">
+        <div className="border-b border-border/10 px-4 py-2 shrink-0 bg-background/95 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <Link to={createPageUrl("Dashboard")} className="text-foreground/40 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -654,16 +661,16 @@ export default function Trading({ language = "en" }) {
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              <div className="flex bg-muted/25 p-[3px] rounded-xl">
+              <div className="flex bg-muted/20 p-[2px] rounded-xl">
                 <button
                   onClick={() => toggleMode('trade')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/40 hover:text-foreground'}`}
                 >
                   {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/40 hover:text-foreground'}`}
                 >
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
@@ -674,10 +681,42 @@ export default function Trading({ language = "en" }) {
           </div>
         </div>
 
-        {/* Desktop Grid Layout */}
+        {/* Desktop 3-Column Grid: Left(wallet) | Center(chart+positions) | Right(settings+signals) */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: Signals Inbox */}
-          <div className="w-[320px] xl:w-[360px] border-r border-border/20 flex flex-col shrink-0 overflow-hidden">
+          {/* LEFT SIDEBAR: Wallet Summary + Activity Preview */}
+          <div className="w-[280px] xl:w-[300px] border-r border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
+            <CopyWalletPanel language={language} liveAccount={liveAccount} />
+          </div>
+
+          {/* CENTER: Chart (dominant) + Positions table */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Symbol Selector Bar */}
+            <div className="border-b border-border/10 px-3 py-1.5 bg-background shrink-0">
+              <BinanceSymbolSelector 
+                selectedSymbol={selectedSymbol} 
+                onSelectSymbol={handleSymbolChange} 
+                language={language} 
+              />
+            </div>
+            
+            {/* Chart Area */}
+            <div className="flex-1 min-h-0">
+              {chartComponent}
+            </div>
+
+            {/* Positions Table */}
+            <div className="h-[220px] xl:h-[250px] shrink-0 border-t border-border/10 overflow-hidden">
+              <CopyPositionsTable 
+                refreshTrigger={isRefreshing}
+                language={language}
+                onPositionClick={handleCopyPositionClick}
+                selectedPositionId={selectedCopyPosition?.id}
+              />
+            </div>
+          </div>
+
+          {/* RIGHT SIDEBAR: Settings + Signals */}
+          <div className="w-[320px] xl:w-[350px] border-l border-border/10 flex flex-col shrink-0 overflow-hidden bg-background">
             <SignalsInbox 
               onSignalAccepted={() => {
                 handleRefresh();
@@ -688,36 +727,6 @@ export default function Trading({ language = "en" }) {
               onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
               language={language}
             />
-          </div>
-
-          {/* Center: Chart (Top) + Positions (Bottom) */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Symbol Selector Bar - Fixed row above chart */}
-            <div className="border-b border-border/20 px-3 py-2 bg-card/80 backdrop-blur-sm shrink-0">
-              <BinanceSymbolSelector 
-                selectedSymbol={selectedSymbol} 
-                onSelectSymbol={handleSymbolChange} 
-                language={language} 
-              />
-            </div>
-            
-            {/* Chart Area */}
-            <div className="flex-1 border-b border-border/20">
-              {chartComponent}
-            </div>
-            <div className="h-[250px] shrink-0 bg-background">
-            <CopyPositionsTable 
-              refreshTrigger={isRefreshing}
-              language={language}
-              onPositionClick={handleCopyPositionClick}
-              selectedPositionId={selectedCopyPosition?.id}
-              />
-            </div>
-          </div>
-
-          {/* Right: Wallet Panel */}
-          <div className="w-[300px] border-l border-border/20 bg-background flex flex-col shrink-0 overflow-hidden">
-             <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
 
