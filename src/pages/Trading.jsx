@@ -527,8 +527,8 @@ export default function Trading({ language = "en" }) {
 
         {/* Desktop Grid Layout */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: Signals Inbox - Explicit min-width and scroll handling */}
-          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col bg-muted/5 shrink-0 overflow-hidden">
+          {/* Left: Signals Inbox */}
+          <div className="w-[320px] xl:w-[360px] border-r border-border/50 flex flex-col shrink-0 overflow-hidden">
             <SignalsInbox 
               onSignalAccepted={handleRefresh} 
               liveAccount={liveAccount}
@@ -757,71 +757,71 @@ export default function Trading({ language = "en" }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Sidebar: Order Book + Trade Tape */}
         <div className="hidden xl:flex w-[200px] flex-col border-r border-border/50 overflow-hidden shrink-0">
-          <div className="flex-1 overflow-hidden p-2">
-            <OrderBookPanel symbol={selectedSymbol} language={language} />
-          </div>
-          <div className="h-[240px] overflow-hidden p-2 border-t border-border/50">
-            <TradeTapePanel symbol={selectedSymbol} language={language} />
-          </div>
+        <div className="flex-1 overflow-hidden p-2">
+          <OrderBookPanel symbol={selectedSymbol} language={language} />
+        </div>
+        <div className="h-[240px] overflow-hidden p-2 border-t border-border/50">
+          <TradeTapePanel symbol={selectedSymbol} language={language} />
+        </div>
         </div>
 
         {/* Center: Chart + Activity */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Symbol Selector + Stats - Glass Panel */}
-          <div className="border-b border-border/50 px-4 py-2 glass-panel">
-            <div className="flex items-center justify-between gap-3">
-              <BinanceSymbolSelector 
-                selectedSymbol={selectedSymbol} 
-                onSelectSymbol={handleSymbolChange} 
-                language={language} 
-              />
-              
-              <div className="flex items-center gap-4 lg:gap-6">
-                {stats.map((stat) => (
-                  <div key={stat.label} className="text-center">
-                    <div className="text-[10px] text-muted-foreground">{stat.label}</div>
-                    <div className={`text-xs lg:text-sm font-semibold font-mono ${
-                      stat.isPositive !== undefined 
-                        ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
-                        : "text-foreground"
-                    }`}>
-                      {stat.value}
-                    </div>
+        {/* Symbol Selector + Stats */}
+        <div className="border-b border-border/50 px-4 py-2 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3">
+            <BinanceSymbolSelector 
+              selectedSymbol={selectedSymbol} 
+              onSelectSymbol={handleSymbolChange} 
+              language={language} 
+            />
+
+            <div className="flex items-center gap-4 lg:gap-6">
+              {stats.map((stat) => (
+                <div key={stat.label} className="text-center">
+                  <div className="text-[10px] text-muted-foreground">{stat.label}</div>
+                  <div className={`text-xs lg:text-sm font-semibold font-mono ${
+                    stat.isPositive !== undefined 
+                      ? (stat.isPositive ? "text-emerald-500" : "text-rose-500")
+                      : "text-foreground"
+                  }`}>
+                    {stat.value}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* Balance Bar (Desktop) - Glass */}
-          {isAuthenticated && hasLiveAccount && (
-            <div className="px-4 py-2 border-b border-border/50 glass-panel">
-              <AccountBalanceBar
-                account={liveAccount}
-                totalUnrealizedPnl={totalUnrealizedPnl}
-                language={language}
-                onRefresh={handleRefresh}
-                isRefreshing={isRefreshing}
-                compact={true}
-              />
-            </div>
-          )}
-
-          {/* Chart - Optimized height */}
-          <div className="flex-1 overflow-hidden px-3 py-2 min-h-0">
-            <div className="h-full min-h-[250px]">
-              {chartComponent}
-            </div>
-          </div>
-
-          {/* Activity Tabs - Glass Panel */}
-          <div className="border-t border-border/50 h-[240px] lg:h-[260px] overflow-hidden shrink-0 glass-panel">
-            {activityComponent}
           </div>
         </div>
 
-        {/* Right: Trade Panel - Glass */}
-        <div className="w-[320px] lg:w-[360px] border-l border-border/50 flex flex-col overflow-hidden shrink-0 glass-panel">
+        {/* Balance Bar (Desktop) */}
+        {isAuthenticated && hasLiveAccount && (
+          <div className="px-4 py-2 border-b border-border/50">
+            <AccountBalanceBar
+              account={liveAccount}
+              totalUnrealizedPnl={totalUnrealizedPnl}
+              language={language}
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
+              compact={true}
+            />
+          </div>
+        )}
+
+        {/* Chart */}
+        <div className="flex-1 overflow-hidden px-3 py-2 min-h-0">
+          <div className="h-full min-h-[250px]">
+            {chartComponent}
+          </div>
+        </div>
+
+        {/* Activity Tabs */}
+        <div className="border-t border-border/50 h-[240px] lg:h-[260px] overflow-hidden shrink-0">
+          {activityComponent}
+        </div>
+        </div>
+
+        {/* Right: Trade Panel */}
+        <div className="w-[320px] lg:w-[360px] border-l border-border/50 flex flex-col overflow-hidden shrink-0">
           {!isAuthenticated ? (
             <div className="flex flex-1 items-center justify-center p-4 text-center">
               <div>
