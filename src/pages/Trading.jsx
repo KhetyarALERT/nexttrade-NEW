@@ -368,59 +368,59 @@ export default function Trading({ language = "en" }) {
       return (
         <div className="flex h-[100dvh] flex-col bg-background overflow-hidden">
           {/* Mobile Header */}
-          <div className="border-b border-border px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur z-50 sticky top-0">
-            <div className="flex items-center justify-between mb-2">
-              <Link 
-                to={createPageUrl("Dashboard")} 
-                className="text-foreground/60 p-1.5 -ml-1 active:bg-accent rounded-full touch-manipulation"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              
-              {/* Mode Toggle */}
-              <div className="flex bg-muted/50 p-0.5 rounded-lg">
-                <button
-                  onClick={() => toggleMode('trade')}
-                  className={`h-9 min-w-[72px] px-4 rounded-md text-xs font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  {isAr ? "تداول" : "Trade"}
-                </button>
-                <button
-                  onClick={() => toggleMode('bots')}
-                  className={`h-9 min-w-[72px] px-4 rounded-md text-xs font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  {isAr ? "نسخ" : "Copy"}
-                </button>
-              </div>
+          <div className="border-b border-border/30 px-3 pb-2.5 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur-md z-50 sticky top-0">
+           <div className="flex items-center justify-between mb-2.5">
+             <Link 
+               to={createPageUrl("Dashboard")} 
+               className="text-foreground/40 p-1.5 -ml-1 active:bg-accent rounded-xl touch-manipulation"
+               style={{ touchAction: 'manipulation' }}
+             >
+               <ArrowLeft className="h-5 w-5" />
+             </Link>
 
-              <Button size="sm" variant="ghost" className="h-9 w-9 p-0 rounded-full" onClick={() => setWalletOpen(true)}>
-                <WalletIcon className="h-4.5 w-4.5" />
-              </Button>
-            </div>
+             {/* Mode Toggle */}
+             <div className="flex bg-muted/30 p-[3px] rounded-xl">
+               <button
+                 onClick={() => toggleMode('trade')}
+                 className={`h-8 min-w-[68px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/60'}`}
+                 style={{ touchAction: 'manipulation' }}
+               >
+                 {isAr ? "تداول" : "Trade"}
+               </button>
+               <button
+                 onClick={() => toggleMode('bots')}
+                 className={`h-8 min-w-[68px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/60'}`}
+                 style={{ touchAction: 'manipulation' }}
+               >
+                 {isAr ? "نسخ" : "Copy"}
+               </button>
+             </div>
 
-            {/* Segmented Control */}
-            <div className="grid grid-cols-3 gap-1 bg-muted/30 p-0.5 rounded-lg">
-              {[
-                { id: 'signals', label: isAr ? 'الإشارات' : 'Signals' },
-                { id: 'chart', label: isAr ? 'الرسم البياني' : 'Chart' },
-                { id: 'positions', label: isAr ? 'الصفقات' : 'Positions' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setCopyMobileTab(tab.id)}
-                  className={`py-1.5 text-xs font-medium rounded-md transition-all ${
-                    copyMobileTab === tab.id 
-                      ? 'bg-background text-foreground shadow-sm' 
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+             <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-xl" onClick={() => setWalletOpen(true)}>
+               <WalletIcon className="h-4 w-4" />
+             </Button>
+           </div>
+
+           {/* Segmented Control */}
+           <div className="grid grid-cols-3 gap-1 bg-muted/20 p-[3px] rounded-xl">
+             {[
+               { id: 'signals', label: isAr ? 'الإشارات' : 'Signals' },
+               { id: 'chart', label: isAr ? 'الرسم البياني' : 'Chart' },
+               { id: 'positions', label: isAr ? 'الصفقات' : 'Positions' }
+             ].map(tab => (
+               <button
+                 key={tab.id}
+                 onClick={() => setCopyMobileTab(tab.id)}
+                 className={`py-1.5 text-[11px] font-semibold rounded-[10px] transition-all ${
+                   copyMobileTab === tab.id 
+                     ? 'bg-background text-foreground shadow-sm' 
+                     : 'text-muted-foreground/50'
+                 }`}
+               >
+                 {tab.label}
+               </button>
+             ))}
+           </div>
           </div>
 
           {/* Content Area */}
@@ -495,31 +495,31 @@ export default function Trading({ language = "en" }) {
     return (
       <div className="flex h-screen flex-col bg-background overflow-hidden">
         {/* Header */}
-        <div className="border-b border-border/50 px-4 py-2 shrink-0 bg-background/95 backdrop-blur-sm">
+        <div className="border-b border-border/20 px-4 py-2.5 shrink-0 bg-background/95 backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/40 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </Link>
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              <div className="flex bg-muted/50 p-0.5 rounded-lg">
+              <div className="flex bg-muted/25 p-[3px] rounded-xl">
                 <button
                   onClick={() => toggleMode('trade')}
-                  className={`px-5 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-foreground'}`}
                 >
                   {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
-                  className={`px-5 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50 hover:text-foreground'}`}
                 >
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
               </div>
             </div>
 
-            <div className="w-5" /> {/* Spacer for balance */}
+            <div className="w-5" />
           </div>
         </div>
 
@@ -581,24 +581,24 @@ export default function Trading({ language = "en" }) {
     return (
       <div className="flex h-screen flex-col bg-background">
         {/* Mobile Header */}
-        <div className="border-b border-border px-3 py-2.5 shrink-0">
+        <div className="border-b border-border/30 px-3 py-2.5 shrink-0 bg-background/95 backdrop-blur-md">
           <div className="flex items-center justify-between mb-2">
-            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/40 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             
             {/* Mode Toggle - Mobile */}
-            <div className="flex bg-muted/50 p-1 rounded-lg">
+            <div className="flex bg-muted/25 p-[3px] rounded-xl">
               <button
                 onClick={() => toggleMode('trade')}
-                className={`h-8 px-4 rounded-md text-xs font-medium transition-all touch-manipulation ${!isCopyMode ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 {isAr ? "تداول" : "Trade"}
               </button>
               <button
                 onClick={() => toggleMode('bots')}
-                className={`h-8 px-4 rounded-md text-xs font-medium transition-all touch-manipulation ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground'}`}
+                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 {isAr ? "نسخ" : "Copy"}
@@ -690,20 +690,20 @@ export default function Trading({ language = "en" }) {
   // 3. TRADE MODE DESKTOP
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
-      {/* Desktop Header - Glass Effect */}
-      <div className="border-b border-border/50 px-4 py-2 shrink-0 glass-panel">
+      {/* Desktop Header */}
+      <div className="border-b border-border/20 px-4 py-2.5 shrink-0 bg-background/95 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/40 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <h1 className="text-lg font-semibold text-foreground">
+            <h1 className="text-[15px] font-semibold text-foreground tracking-tight">
               {isAr ? "التداول" : "Trading"}
             </h1>
             
             {/* Connection status */}
-            <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-              wsConnected ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-semibold ${
+              wsConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
             }`}>
               {wsConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               <span>{wsConnected ? "Live" : "Connecting"}</span>
@@ -711,16 +711,16 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex bg-muted/50 p-1 rounded-lg mx-4">
+          <div className="flex bg-muted/25 p-[3px] rounded-xl mx-4">
             <button
               onClick={() => toggleMode('trade')}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-foreground'}`}
             >
               {isAr ? "تداول" : "Trade"}
             </button>
             <button
               onClick={() => toggleMode('bots')}
-              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${isCopyMode ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50 hover:text-foreground'}`}
             >
               {isAr ? "نسخ التداول" : "Copy Trading"}
             </button>
