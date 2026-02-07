@@ -100,5 +100,5 @@ function PagesContent() {
 }
 
 export default function Pages() {
-    return <PagesContent />;
+    return <PagesContent />; // v2
 }
