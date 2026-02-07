@@ -531,6 +531,33 @@ export default function StakingAdminTab({ stakingRequests = [], stakingStats = {
         </TabsContent>
       </Tabs>
 
+      {/* Payout Dialog */}
+      <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Process Payout</DialogTitle>
+            <DialogDescription>{selectedPayout?.userEmail} • {formatUsdt(selectedPayout?.claimable)} USDT claimable</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>Amount (USDT)</Label>
+              <Input type="number" value={payoutAmount} onChange={(e) => setPayoutAmount(e.target.value)} placeholder="0.00" step="0.01" />
+            </div>
+            <div className="space-y-1">
+              <Label>Note (optional)</Label>
+              <Textarea value={payoutNote} onChange={(e) => setPayoutNote(e.target.value)} placeholder="Admin note..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayoutDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleProcessPayout} disabled={!!payoutProcessingId || !payoutAmount} className="bg-emerald-600 hover:bg-emerald-700">
+              {payoutProcessingId ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+              Confirm Payout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
         <DialogContent className="sm:max-w-md">
