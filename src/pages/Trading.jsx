@@ -608,16 +608,21 @@ export default function Trading({ language = "en" }) {
                   refreshTrigger={isRefreshing} 
                   isMobile={true}
                   language={language}
-                  onPositionClick={(pos) => {
-                    if (pos?.symbol) {
-                      setSelectedSymbol(pos.symbol);
-                      setCopyMobileTab('chart');
-                    }
-                  }}
+                  onPositionClick={handleCopyPositionClick}
                 />
               </div>
             )}
           </div>
+
+          {/* Position Detail Sheet (mobile: bottom sheet) */}
+          <PositionDetailDrawer
+            open={copyDetailOpen}
+            onOpenChange={handleCopyDetailClose}
+            position={selectedCopyPosition}
+            currentPrice={lastPrice}
+            language={language}
+            isMobile={true}
+          />
 
           {/* Wallet Drawer/Sheet */}
           {walletOpen && (
