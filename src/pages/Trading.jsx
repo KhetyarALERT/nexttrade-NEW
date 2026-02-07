@@ -38,6 +38,7 @@ import CopyWalletPanel from "@/components/copytrading/CopyWalletPanel";
 import SignalsInbox from "@/components/copytrading/SignalsInbox";
 import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
 import PositionDetailDrawer from "@/components/copytrading/PositionDetailDrawer";
+import ResizableSplitter from "@/components/copytrading/ResizableSplitter";
 // NotificationBell is rendered in Layout - no duplicate needed here
 
 export default function Trading({ language = "en" }) {

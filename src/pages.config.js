@@ -67,9 +67,9 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Profile from './pages/Profile';
 import Rewards from './pages/Rewards';
 import TermsOfService from './pages/TermsOfService';
-import Trading from './pages/Trading';
 import Wallet from './pages/Wallet';
 import index from './pages/index';
+import Trading from './pages/Trading';
 import __Layout from './Layout.jsx';
 
 
@@ -94,9 +94,9 @@ export const PAGES = {
     "Profile": Profile,
     "Rewards": Rewards,
     "TermsOfService": TermsOfService,
-    "Trading": Trading,
     "Wallet": Wallet,
     "index": index,
+    "Trading": Trading,
 }
 
 export const pagesConfig = {
