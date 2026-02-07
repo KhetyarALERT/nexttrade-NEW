@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet
+  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import StakingPlanCard from "@/components/staking/StakingPlanCard";
 import StakingAmountPanel from "@/components/staking/StakingAmountPanel";
 import StakingPositionCard from "@/components/staking/StakingPositionCard";
+import StakingEarnedPanel from "@/components/staking/StakingEarnedPanel";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 // Shared formatters with Latin digits
 function getLocale(lang) {
@@ -125,9 +126,12 @@ function useMediaQuery(query) {
 }
 
 // Stats Card component
-function StatCard({ icon: Icon, label, value, highlight = false }) {
+function StatCard({ icon: Icon, label, value, highlight = false, onClick, actionLabel }) {
   return (
-    <Card className={`${highlight ? "border-primary/30 bg-primary/5" : ""}`}>
+    <Card 
+      className={`transition-all ${highlight ? "border-primary/30 bg-primary/5" : ""} ${onClick ? "cursor-pointer hover:shadow-md hover:border-primary/40 active:scale-[0.98]" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-1">
           <Icon className={`w-4 h-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
@@ -136,6 +140,11 @@ function StatCard({ icon: Icon, label, value, highlight = false }) {
         <p className={`text-lg sm:text-xl font-bold ${highlight ? "text-primary" : "text-foreground"}`}>
           {value}
         </p>
+        {actionLabel && (
+          <p className="text-[10px] text-primary mt-1 flex items-center gap-0.5">
+            {actionLabel} <ArrowRight className="w-3 h-3" />
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -145,7 +154,9 @@ StatCard.propTypes = {
   icon: PropTypes.elementType.isRequired,
   label: PropTypes.string.isRequired,
   value: PropTypes.node.isRequired,
-  highlight: PropTypes.bool
+  highlight: PropTypes.bool,
+  onClick: PropTypes.func,
+  actionLabel: PropTypes.string
 };
 
 export default function Investing({ language = "en" }) {
@@ -172,6 +183,10 @@ export default function Investing({ language = "en" }) {
 
   // Positions filter
   const [positionsFilter, setPositionsFilter] = useState("all");
+  
+  // Earned panel
+  const [showEarnedPanel, setShowEarnedPanel] = useState(false);
+  const [claimingId, setClaimingId] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -314,6 +329,26 @@ export default function Investing({ language = "en" }) {
     }
   };
 
+  const handleClaimRewards = async (positionId) => {
+    setClaimingId(positionId);
+    try {
+      const res = await base44.functions.invoke("stakingRewardsProcessor", {
+        action: "requestPayout",
+        position_id: positionId
+      });
+      if (res.data?.ok) {
+        toast.success(language === "ar" ? "تم تقديم طلب المطالبة!" : "Claim request submitted!");
+        await loadData();
+      } else {
+        toast.error(res.data?.error?.message || "Failed to claim");
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
   const filteredPositions = positions.filter(p => {
     if (positionsFilter === "all") return true;
     if (positionsFilter === "pending") return p.status === "PENDING_APPROVAL" || p.status === "PENDING_LOCK";
@@ -365,7 +400,14 @@ export default function Investing({ language = "en" }) {
             ) : (
               <>
                 <StatCard icon={Lock} label={labels.totalStaked} value={`${formatUsdt(summary.totalStaked, language)} USDT`} />
-                <StatCard icon={Gift} label={labels.earned} value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} highlight />
+                <StatCard 
+                  icon={Gift} 
+                  label={labels.earned} 
+                  value={`${formatUsdt(summary.estimatedEarned, language)} USDT`} 
+                  highlight 
+                  onClick={() => setShowEarnedPanel(true)}
+                  actionLabel={language === "ar" ? "عرض التفاصيل" : "View details"}
+                />
                 <StatCard icon={CheckCircle2} label={labels.activePositions} value={summary.activePositions} />
                 <StatCard icon={TrendingUp} label={labels.avgApy} value={formatPercent(summary.avgApy, language)} />
               </>
@@ -534,7 +576,7 @@ export default function Investing({ language = "en" }) {
         )}
       </div>
 
-      {/* Mobile: Bottom Sheet */}
+      {/* Mobile: Bottom Sheet for Staking */}
       {isMobile && (
         <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
           <DrawerContent className="max-h-[90vh]">
@@ -559,6 +601,43 @@ export default function Investing({ language = "en" }) {
             </div>
           </DrawerContent>
         </Drawer>
+      )}
+
+      {/* Earned Details Panel */}
+      {isMobile ? (
+        <Drawer open={showEarnedPanel} onOpenChange={setShowEarnedPanel}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader className="border-b border-border pb-3">
+              <DrawerTitle>{language === "ar" ? "تفاصيل الأرباح" : "Earnings Breakdown"}</DrawerTitle>
+              <DrawerDescription className="sr-only">Earnings details</DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 overflow-auto">
+              <StakingEarnedPanel
+                positions={positions}
+                onClaim={handleClaimRewards}
+                claimingId={claimingId}
+                onClose={() => setShowEarnedPanel(false)}
+                language={language}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={showEarnedPanel} onOpenChange={setShowEarnedPanel}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{language === "ar" ? "تفاصيل الأرباح" : "Earnings Breakdown"}</DialogTitle>
+              <DialogDescription>{language === "ar" ? "مكافآتك المستحقة عبر جميع المراكز" : "Your accrued rewards across all positions"}</DialogDescription>
+            </DialogHeader>
+            <StakingEarnedPanel
+              positions={positions}
+              onClaim={handleClaimRewards}
+              claimingId={claimingId}
+              onClose={() => setShowEarnedPanel(false)}
+              language={language}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
