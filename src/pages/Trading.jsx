@@ -729,8 +729,6 @@ export default function Trading({ language = "en" }) {
           </div>
           
           <div className="flex items-center gap-2">
-            {isAuthenticated && <NotificationBell />}
-            
             {isAuthenticated && (
               <button
                 onClick={handleRefresh}
