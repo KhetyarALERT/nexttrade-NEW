@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import ArcadeEmbed from "./ArcadeEmbed";
 
 const t = {
   en: {
@@ -429,11 +428,6 @@ export default function AutoTradeSettings({ language = "en" }) {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-
-              {/* Tutorial Demo */}
-              <div className="rounded-lg overflow-hidden border border-border/30">
-                <ArcadeEmbed />
-              </div>
 
               {/* Save Button */}
               {dirty && (
