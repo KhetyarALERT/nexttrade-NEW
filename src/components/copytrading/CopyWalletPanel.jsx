@@ -156,6 +156,8 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
     return map[kind] || kind;
   };
 
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
     <div className="h-full overflow-hidden flex flex-col" dir={isRTL ? "rtl" : "ltr"}>
       {loading ? (
@@ -164,8 +166,8 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
         </div>
       ) : (
         <>
-      {/* Balance Summary */}
-      <div className="px-4 py-5 space-y-4 shrink-0 border-b border-border/30">
+      {/* Balance Card - Clean */}
+      <div className="px-4 py-5 space-y-3.5 shrink-0 border-b border-border/20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -178,23 +180,38 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
           </Button>
         </div>
         
-        <p className="text-[28px] font-bold text-foreground font-mono tracking-tighter leading-none">
+        <p className="text-[28px] font-bold text-foreground font-mono tracking-tighter leading-none" style={{ direction: "ltr", unicodeBidi: "plaintext" }}>
           {formatUsdt(availableBalance)} <span className="text-[11px] font-normal text-muted-foreground/50">USDT</span>
         </p>
 
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1.5 rounded-lg">
-            <Lock className="w-3 h-3 text-muted-foreground/50" />
-            <span className="text-muted-foreground/70 text-[10px]">{labels.locked}</span>
-            <span className="font-mono font-semibold text-[11px] text-foreground">{formatUsdt(lockedBalance)}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-muted/30 px-2.5 py-1.5 rounded-lg">
-            <TrendingUp className={`w-3 h-3 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
-            <span className={`font-mono font-semibold text-[11px] ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-              {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
-            </span>
-          </div>
+        {/* Unrealized PnL */}
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className={`w-3 h-3 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
+          <span className="text-[10px] text-muted-foreground/60">{labels.totalPnl}</span>
+          <span className={`font-mono font-semibold text-[12px] tabular-nums ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} style={{ direction: "ltr", unicodeBidi: "plaintext" }}>
+            {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
+          </span>
         </div>
+
+        {/* Collapsible details for advanced users */}
+        {lockedBalance > 0 && (
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                <span>{isRTL ? "تفاصيل" : "Details"}</span>
+                <ChevronDown className={cn("w-3 h-3 transition-transform", detailsOpen && "rotate-180")} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="flex items-center gap-3 mt-2 text-[10px]">
+                <div className="flex items-center gap-1.5 bg-muted/20 px-2 py-1 rounded-md">
+                  <span className="text-muted-foreground/60">{isRTL ? "مستخدم" : "Used Margin"}</span>
+                  <span className="font-mono font-semibold text-foreground tabular-nums" style={{ direction: "ltr", unicodeBidi: "plaintext" }}>{formatUsdt(lockedBalance)}</span>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         <div className="flex gap-2">
           <Button 
@@ -219,80 +236,9 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
         </div>
       </div>
 
-      {/* Tabs for Ledger/Allocations */}
-      <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="ledger" className="h-full flex flex-col">
-          <TabsList className="w-full justify-start px-4 pt-3 bg-transparent border-b border-border/20 rounded-none h-auto pb-0">
-            <TabsTrigger value="ledger" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
-              {isRTL ? "النشاط" : "Activity"}
-            </TabsTrigger>
-            {allocations.length > 0 && (
-              <TabsTrigger value="allocations" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
-                {labels.allocations}
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          <TabsContent value="ledger" className="flex-1 overflow-y-auto px-3 py-2.5 mt-0">
-            {ledgerEntries.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-xs text-muted-foreground/40 font-medium">
-                {isRTL ? "لا يوجد نشاط بعد" : "No activity yet"}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {ledgerEntries
-                  .filter((entry) => entry.kind !== 'COMMISSION' && entry.kind !== 'COMMISSION_OPEN' && entry.kind !== 'COMMISSION_CLOSE')
-                  .map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between bg-muted/20 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/30">
-                    <div className="flex flex-col gap-1 min-w-0 flex-1 mr-3">
-                      <Badge className={`${ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} shrink-0 w-fit rounded-md text-[9px] font-bold`} variant="outline">
-                        {getLedgerLabel(entry.kind)}
-                      </Badge>
-                      <span className="text-muted-foreground/50 text-[10px] font-medium truncate">
-                        {formatDate(entry.created_at || entry.created_date)}
-                      </span>
-                    </div>
-                    <span className={`font-mono font-semibold text-[13px] tabular-nums shrink-0 ${
-                      entry.kind === 'CREDIT' || entry.kind === 'TOPUP_OKX' || entry.kind === 'TOPUP_ADMIN' || entry.kind === 'PNL' 
-                        ? 'text-emerald-500' 
-                        : entry.kind === 'DEBIT'
-                        ? 'text-rose-500' 
-                        : 'text-foreground'
-                    }`}>
-                      {entry.amount >= 0 ? '+' : ''}{formatUsdt(entry.amount)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="allocations" className="flex-1 overflow-y-auto px-3 py-2.5 mt-0">
-            {allocations.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-xs text-muted-foreground/40 font-medium">
-                {labels.noAllocations}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {allocations.map((alloc) => (
-                  <div key={alloc.id} className="flex items-center justify-between bg-muted/20 rounded-xl px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <Badge className="shrink-0 rounded-md text-[9px] font-bold" variant={alloc.status === 'APPROVED' ? 'success' : alloc.status === 'PENDING' ? 'warning' : 'outline'}>
-                        {alloc.status}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground/50 font-medium">
-                        {formatDate(alloc.created_at)}
-                      </span>
-                    </div>
-                    <span className="font-mono text-[13px] font-semibold tabular-nums">
-                      {formatUsdt(alloc.amount_usdt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+      {/* Collapsible History Section */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <CopyHistorySection language={language} defaultOpen={false} />
       </div>
 
       <AllocationModal
