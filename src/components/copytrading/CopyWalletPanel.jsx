@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wallet, Lock, TrendingUp, PlusCircle, RefreshCw } from "lucide-react";
+import { Wallet, Lock, TrendingUp, PlusCircle, RefreshCw, ArrowDownToLine } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import AllocationModal from "./AllocationModal";
 
 function formatUsdt(val) {
@@ -192,14 +194,27 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
           </div>
         </div>
 
-        <Button 
-          onClick={() => setAllocationModalOpen(true)} 
-          className="w-full rounded-xl h-9 text-xs font-semibold shadow-sm shadow-primary/20"
-          size="sm"
-        >
-          <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
-          {labels.addFunds}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setAllocationModalOpen(true)} 
+            className="flex-1 rounded-xl h-9 text-xs font-semibold shadow-sm shadow-primary/20"
+            size="sm"
+          >
+            <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+            {labels.addFunds}
+          </Button>
+          <Button 
+            asChild
+            variant="outline"
+            className="rounded-xl h-9 text-xs font-semibold px-3"
+            size="sm"
+          >
+            <Link to={`${createPageUrl("Wallet")}?page=deposit`}>
+              <ArrowDownToLine className="w-3.5 h-3.5 mr-1.5" />
+              {labels.deposit}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Tabs for Ledger/Allocations */}
