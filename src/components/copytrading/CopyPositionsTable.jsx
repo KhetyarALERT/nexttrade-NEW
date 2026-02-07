@@ -27,7 +27,6 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   const loadPositions = async () => {
     setLoading(true);
     try {
-      const { gated } = await import("@/components/utils/apiGate");
       const res = await gated("copyTradingUser:getPositions", () => base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' }), { minIntervalMs: 8000 });
       if (res?.data?.ok) {
         setPositions(res.data.data || []);
