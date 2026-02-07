@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Inbox, Wallet as WalletIcon, AlertCircle } from "lucide-react";
+import { Loader2, Inbox, Wallet as WalletIcon, AlertCircle, RefreshCw } from "lucide-react";
 import SignalCard from './SignalCard';
 import { toast } from 'sonner';
 import { ScrollArea } from "@/components/ui/scroll-area";
