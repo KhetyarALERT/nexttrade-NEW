@@ -524,7 +524,7 @@ export default function Trading({ language = "en" }) {
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
               </div>
-              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">{isAr ? "وضع تجريبي" : "PAPER MODE"}</span>
+              <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-medium">{isAr ? "نسخ التداول" : "PAPER MODE"}</span>
             </div>
 
             <div className="flex items-center gap-2">
