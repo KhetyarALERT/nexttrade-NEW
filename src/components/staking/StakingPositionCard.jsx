@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, Gift, AlertCircle, CheckCircle2, XCircle, Loader2, Calendar, ArrowRight, DollarSign } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
-// Shared formatters with Latin digits
+
 function getLocale(lang) {
   return lang === "ar" ? "ar-u-nu-latn" : "en-US";
 }
@@ -26,34 +26,18 @@ function formatShortDate(dateStr, language = "en") {
 
 const t = {
   en: {
-    days: "days",
-    day: "day",
-    earned: "Earned",
-    accrualPending: "Accrual pending",
-    lastUpdated: "Last updated",
-    endsIn: "Ends in",
-    waitingApproval: "Awaiting approval",
-    cancel: "Cancel",
-    bonusRewards: "Bonus",
-    startedOn: "Started",
-    completedOn: "Completed",
-    rejectedReason: "Reason",
-    apy: "APY"
+    days: "days", day: "day", earned: "Earned", accrualPending: "Accrual pending",
+    lastUpdated: "Last updated", endsIn: "Ends in", waitingApproval: "Awaiting approval",
+    cancel: "Cancel", bonusRewards: "Bonus", startedOn: "Started", completedOn: "Completed",
+    rejectedReason: "Reason", apy: "APY", collect: "Collect", periodComplete: "Period complete",
+    requestEarlyClaim: "Request Early Claim", earlyClaimPending: "Early claim pending"
   },
   ar: {
-    days: "أيام",
-    day: "يوم",
-    earned: "المكتسب",
-    accrualPending: "الاحتساب معلق",
-    lastUpdated: "آخر تحديث",
-    endsIn: "ينتهي خلال",
-    waitingApproval: "بانتظار الموافقة",
-    cancel: "إلغاء",
-    bonusRewards: "المكافأة",
-    startedOn: "بدأ في",
-    completedOn: "اكتمل في",
-    rejectedReason: "السبب",
-    apy: "عائد سنوي"
+    days: "أيام", day: "يوم", earned: "المكتسب", accrualPending: "الاحتساب معلق",
+    lastUpdated: "آخر تحديث", endsIn: "ينتهي خلال", waitingApproval: "بانتظار الموافقة",
+    cancel: "إلغاء", bonusRewards: "المكافأة", startedOn: "بدأ في", completedOn: "اكتمل في",
+    rejectedReason: "السبب", apy: "عائد سنوي", collect: "تحصيل", periodComplete: "انتهت الفترة",
+    requestEarlyClaim: "طلب تحصيل مبكر", earlyClaimPending: "طلب تحصيل مبكر قيد المعالجة"
   }
 };
 
@@ -67,8 +51,6 @@ const STATUS_CONFIG = {
   UNLOCKING: { color: "bg-purple-500/10 text-purple-600 border-purple-500/30", icon: Loader2, spin: true },
 };
 
-// Using shared formatters from components/utils/formatters
-
 function formatDaysRemaining(endsAt) {
   if (!endsAt) return null;
   const diff = new Date(endsAt).getTime() - Date.now();
@@ -76,22 +58,25 @@ function formatDaysRemaining(endsAt) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export default function StakingPositionCard({ position, onCancel, onClaim, language = "en" }) {
+export default function StakingPositionCard({ position, onCancel, onClaim, onEarlyClaim, language = "en" }) {
   const [claiming, setClaiming] = useState(false);
   const labels = t[language] || t.en;
   const statusConfig = STATUS_CONFIG[position.status] || STATUS_CONFIG.PENDING_APPROVAL;
   const StatusIcon = statusConfig.icon;
 
   const daysRemaining = formatDaysRemaining(position.endsAt);
+  const isPeriodFinished = daysRemaining !== null && daysRemaining <= 0;
   const progressPercent = position.status === "ACTIVE" && position.termDays > 0
     ? Math.min(100, Math.max(0, ((position.termDays - (daysRemaining || 0)) / position.termDays) * 100))
     : 0;
 
   const accruedAmount = position.accruedAmount || 0;
+  const paidAmount = position.paidAmount || 0;
+  const claimableAmount = accruedAmount - paidAmount;
   const hasRealAccrual = accruedAmount > 0;
 
   return (
-    <Card className={`overflow-hidden transition-all ${position.status === "ACTIVE" ? "border-emerald-500/30" : ""}`}>
+    <Card className={`overflow-hidden transition-all ${position.status === "ACTIVE" ? (isPeriodFinished ? "border-blue-500/40" : "border-emerald-500/30") : ""}`}>
       <CardContent className="p-4 space-y-3">
         {/* Header: Amount + Status */}
         <div className="flex items-start justify-between">
@@ -123,12 +108,16 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Calendar className="w-3.5 h-3.5" />
-                <span>
-                  {language === "ar"
-                    ? <>{labels.endsIn} <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
-                    : <>{labels.endsIn}: <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
-                  }
-                </span>
+                {isPeriodFinished ? (
+                  <span className="text-blue-500 font-medium">{labels.periodComplete}</span>
+                ) : (
+                  <span>
+                    {language === "ar"
+                      ? <>{labels.endsIn} <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
+                      : <>{labels.endsIn}: <strong className="text-foreground">{daysRemaining}</strong> {daysRemaining === 1 ? labels.day : labels.days}</>
+                    }
+                  </span>
+                )}
               </div>
               <div className={language === "ar" ? "text-left" : "text-right"}>
                 {hasRealAccrual ? (
@@ -155,12 +144,7 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
               <span className="text-sm">{labels.waitingApproval}</span>
             </div>
             {onCancel && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => onCancel(position.id)} 
-                className="text-xs text-muted-foreground h-7 px-2"
-              >
+              <Button variant="ghost" size="sm" onClick={() => onCancel(position.id)} className="text-xs text-muted-foreground h-7 px-2">
                 {labels.cancel}
               </Button>
             )}
@@ -185,17 +169,16 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
           </div>
         )}
 
-        {/* Claimable rewards CTA */}
-        {position.status === "ACTIVE" && (position.claimableAmount || 0) > 0.01 && position.payoutStatus !== "REQUESTED" && onClaim && (
+        {/* MATURE CLAIM: Period finished + has claimable amount → auto-collect button */}
+        {position.status === "ACTIVE" && isPeriodFinished && claimableAmount > 0.01 && position.payoutStatus !== "REQUESTED" && onClaim && (
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <div className="flex items-center gap-1.5 text-emerald-600 text-sm">
+            <div className="flex items-center gap-1.5 text-blue-600 text-sm">
               <DollarSign className="w-4 h-4" />
-              <span className="font-medium">{formatUsdt(position.claimableAmount, language)} USDT {language === "ar" ? "قابل للمطالبة" : "claimable"}</span>
+              <span className="font-medium">{formatUsdt(claimableAmount, language)} USDT</span>
             </div>
             <Button
               size="sm"
-              variant="outline"
-              className="h-7 text-xs border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+              className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white"
               disabled={claiming}
               onClick={async () => {
                 setClaiming(true);
@@ -203,7 +186,30 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
                 setClaiming(false);
               }}
             >
-              {claiming ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{language === "ar" ? "مطالبة" : "Claim"} <ArrowRight className="w-3 h-3 ltr:ml-1 rtl:mr-1" /></>}
+              {claiming ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{labels.collect} <ArrowRight className="w-3 h-3 ltr:ml-1 rtl:mr-1" /></>}
+            </Button>
+          </div>
+        )}
+
+        {/* EARLY CLAIM: Period NOT finished + has claimable amount → request early claim */}
+        {position.status === "ACTIVE" && !isPeriodFinished && claimableAmount > 0.01 && position.payoutStatus !== "REQUESTED" && onEarlyClaim && (
+          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <div className="flex items-center gap-1.5 text-amber-600 text-sm">
+              <DollarSign className="w-4 h-4" />
+              <span className="font-medium">{formatUsdt(claimableAmount, language)} USDT</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px] border-amber-500/40 text-amber-600 hover:bg-amber-500/10"
+              disabled={claiming}
+              onClick={async () => {
+                setClaiming(true);
+                await onEarlyClaim(position.id);
+                setClaiming(false);
+              }}
+            >
+              {claiming ? <Loader2 className="w-3 h-3 animate-spin" /> : labels.requestEarlyClaim}
             </Button>
           </div>
         )}
@@ -213,7 +219,10 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
           <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
             <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
               <Clock className="w-3 h-3 ltr:mr-1 rtl:ml-1" />
-              {language === "ar" ? "طلب مطالبة قيد المعالجة" : "Claim request pending"}
+              {isPeriodFinished
+                ? (language === "ar" ? "طلب مطالبة قيد المعالجة" : "Claim request pending")
+                : labels.earlyClaimPending
+              }
             </Badge>
           </div>
         )}
@@ -262,5 +271,6 @@ StakingPositionCard.propTypes = {
   }).isRequired,
   onCancel: PropTypes.func,
   onClaim: PropTypes.func,
+  onEarlyClaim: PropTypes.func,
   language: PropTypes.oneOf(["en", "ar"])
 };
