@@ -642,6 +642,7 @@ export default function Investing({ language = "en" }) {
               <StakingEarnedPanel
                 positions={positions}
                 onClaim={handleClaimRewards}
+                onEarlyClaim={handleEarlyClaim}
                 claimingId={claimingId}
                 onClose={() => setShowEarnedPanel(false)}
                 language={language}
@@ -659,6 +660,7 @@ export default function Investing({ language = "en" }) {
             <StakingEarnedPanel
               positions={positions}
               onClaim={handleClaimRewards}
+              onEarlyClaim={handleEarlyClaim}
               claimingId={claimingId}
               onClose={() => setShowEarnedPanel(false)}
               language={language}
