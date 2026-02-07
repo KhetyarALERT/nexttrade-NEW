@@ -160,13 +160,25 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
   try {
-    // 1. Auth Check (Secret Token)
-    const authHeader = req.headers.get('x-telegram-bot-api-secret-token') || req.headers.get('authorization');
-    const secret = Deno.env.get('MASSIVE_API_KEY'); // Reuse existing secret or create specific one
+    // 1. Auth Check (Secret Token OR Admin user)
+    const botToken = req.headers.get('x-telegram-bot-api-secret-token');
+    const secret = Deno.env.get('MASSIVE_API_KEY');
     
-    // Simple bearer check if provided
-    if (authHeader && secret && !authHeader.includes(secret)) {
+    // If bot token is provided, validate it
+    if (botToken && secret && botToken !== secret) {
       return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // If no bot token, check if caller is an admin user (for manual/test signals)
+    if (!botToken) {
+      try {
+        const caller = await base44.auth.me();
+        if (!caller || caller.role !== 'admin') {
+          return Response.json({ ok: false, error: 'Unauthorized: admin required' }, { status: 401 });
+        }
+      } catch (e) {
+        return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const body = await req.json();
