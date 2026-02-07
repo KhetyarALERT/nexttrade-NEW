@@ -969,12 +969,14 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
         </div>
       </div>
 
-      {/* Chart Container - Ensure minimum height on mobile */}
+      {/* Chart Container */}
       <div ref={containerRef} className="flex-1 min-h-[200px] sm:min-h-[280px] relative">
-        {/* Symbol watermark */}
-        <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-medium text-muted-foreground/40 dark:text-muted-foreground/50 select-none pointer-events-none z-10">
-          {String(symbol || normalizedSymbol)}
-        </div>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
+            <span className="text-xs text-muted-foreground animate-pulse">{labels.loading}</span>
+          </div>
+        )}
       </div>
     </div>
   );
