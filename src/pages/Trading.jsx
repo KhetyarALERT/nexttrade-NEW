@@ -499,9 +499,9 @@ export default function Trading({ language = "en" }) {
         {/* Header */}
         <div className="border-b border-border/50 px-4 py-2 shrink-0 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center justify-between">
-            <button onClick={() => navigate(-1)} className="text-foreground/60 hover:text-foreground transition-colors">
+            <Link to={createPageUrl("Dashboard")} className="text-foreground/60 hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </Link>
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
