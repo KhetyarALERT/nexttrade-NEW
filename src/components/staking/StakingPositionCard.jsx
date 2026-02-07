@@ -185,12 +185,57 @@ export default function StakingPositionCard({ position, onCancel, onClaim, langu
           </div>
         )}
 
+        {/* Claimable rewards CTA */}
+        {position.status === "ACTIVE" && (position.claimableAmount || 0) > 0.01 && position.payoutStatus !== "REQUESTED" && onClaim && (
+          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <div className="flex items-center gap-1.5 text-emerald-600 text-sm">
+              <DollarSign className="w-4 h-4" />
+              <span className="font-medium">{formatUsdt(position.claimableAmount, language)} USDT {language === "ar" ? "قابل للمطالبة" : "claimable"}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+              disabled={claiming}
+              onClick={async () => {
+                setClaiming(true);
+                await onClaim(position.id);
+                setClaiming(false);
+              }}
+            >
+              {claiming ? <Loader2 className="w-3 h-3 animate-spin" /> : <>{language === "ar" ? "مطالبة" : "Claim"} <ArrowRight className="w-3 h-3 ltr:ml-1 rtl:mr-1" /></>}
+            </Button>
+          </div>
+        )}
+
+        {/* Payout requested badge */}
+        {position.payoutStatus === "REQUESTED" && (
+          <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
+            <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">
+              <Clock className="w-3 h-3 ltr:mr-1 rtl:ml-1" />
+              {language === "ar" ? "طلب مطالبة قيد المعالجة" : "Claim request pending"}
+            </Badge>
+          </div>
+        )}
+
         {/* Rewards badge */}
         {position.rewardsGranted > 0 && (
-          <div className="flex items-center gap-1.5 text-primary text-sm">
-            <Gift className="w-4 h-4" />
-            <span>+{position.rewardsGranted} {labels.bonusRewards}</span>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 text-primary text-sm cursor-help">
+                  <Gift className="w-4 h-4" />
+                  <span>+{position.rewardsGranted} {labels.bonusRewards}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="text-xs max-w-[220px]">
+                {language === "ar" 
+                  ? "نقاط مكافأة تُمنح تلقائياً عند تفعيل الستاكينغ. تفتح مزايا إضافية."
+                  : "Bonus points granted when your stake activates. Unlocks perks automatically."
+                }
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </CardContent>
     </Card>
