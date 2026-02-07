@@ -363,14 +363,81 @@ export default function Home({ language = "en" }) {
               </div>
             </motion.div>
 
-            {/* Right Content - Phone Mockup */}
+            {/* Right Content - Feature Cards */}
             <motion.div
               initial={fadeInScale.initial}
               animate={fadeInScale.animate}
               transition={{ duration: shouldReduceMotion ? 0.2 : 0.8, delay: shouldReduceMotion ? 0 : 0.2 }}
               className="order-1 lg:order-2 flex justify-center"
             >
-              <PhoneMockup language={language} />
+              <div className="grid grid-cols-1 gap-5 w-full max-w-md">
+                {/* Copy Trading Card */}
+                <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-600/15 to-cyan-600/10 border border-blue-500/20 hover:border-blue-500/40 transition-all">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <Bot className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">
+                            {language === "en" ? "AUTO" : "تلقائي"}
+                          </Badge>
+                        </div>
+                        <h3 className="text-white font-bold text-lg mb-1">
+                          {language === "en" ? "Copy Trading" : "نسخ التداول"}
+                        </h3>
+                        <p className="text-white/50 text-sm leading-relaxed">
+                          {language === "en" 
+                            ? "Mirror top traders automatically. Earn while you sleep." 
+                            : "انسخ أفضل المتداولين تلقائياً. اربح وأنت نائم."}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
+                      <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-blue-400" /> {language === "en" ? "AI Signals" : "إشارات ذكية"}</span>
+                      <span className="flex items-center gap-1"><Users className="w-3 h-3 text-blue-400" /> {language === "en" ? "Pro Traders" : "متداولون محترفون"}</span>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Staking Card */}
+                <Link to={createPageUrl("Investing")} className="block group">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-600/15 to-green-600/10 border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                            <Lock className="w-5 h-5 text-emerald-400" />
+                          </div>
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                            {language === "en" ? "SAFE" : "آمن"}
+                          </Badge>
+                        </div>
+                        <h3 className="text-white font-bold text-lg mb-1">
+                          {language === "en" ? "Staking" : "الستاكينغ"}
+                        </h3>
+                        <p className="text-white/50 text-sm leading-relaxed">
+                          {language === "en" 
+                            ? "Lock USDT, earn up to 33% APY. Safe and predictable." 
+                            : "اقفل USDT، واربح حتى 33% سنوياً. آمن وموثوق."}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-white/40">
+                      <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-emerald-400" /> {language === "en" ? "Secured" : "مؤمّن"}</span>
+                      <span className="flex items-center gap-1"><DollarSign className="w-3 h-3 text-emerald-400" /> {language === "en" ? "Daily Rewards" : "مكافآت يومية"}</span>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Phone Mockup below the cards */}
+                <div className="hidden xl:block">
+                  <PhoneMockup language={language} />
+                </div>
+              </div>
             </motion.div>
           </div>
         </div>
