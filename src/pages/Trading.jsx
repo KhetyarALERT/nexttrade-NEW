@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
 import { ArrowLeft, Lock, RefreshCw, Wifi, WifiOff, Wallet as WalletIcon } from "lucide-react";
 import BinanceFuturesChart from "@/components/trading/binance/BinanceFuturesChart";
@@ -95,6 +95,8 @@ export default function Trading({ language = "en" }) {
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);
   const [quoteVolume, setQuoteVolume] = useState(0);
+  const [highPrice, setHighPrice] = useState(0);
+  const [lowPrice, setLowPrice] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
   const [markPrices, setMarkPrices] = useState({});
 
@@ -123,22 +125,70 @@ export default function Trading({ language = "en" }) {
   // Copy Trading State
   const [paperPositions, setPaperPositions] = useState([]);
   
-  useEffect(() => {
-    if (isCopyMode && isAuthenticated) {
-      const loadPaperPositions = async () => {
-        try {
-          const res = await base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' });
-          if (res.data?.ok) setPaperPositions(res.data.data || []);
-        } catch (e) { console.error(e); }
-      };
-      loadPaperPositions();
-      // Poll every 45s, skip if hidden
-      const interval = setInterval(() => {
-        if (!document.hidden) loadPaperPositions();
-      }, 45000);
-      return () => clearInterval(interval);
+  const copyPositionsPollRef = useRef({
+    timeoutId: null,
+    inFlight: false,
+    errorCount: 0,
+  });
+
+  const refreshCopyPositions = useCallback(async () => {
+    if (copyPositionsPollRef.current.inFlight) return;
+    copyPositionsPollRef.current.inFlight = true;
+    try {
+      const res = await base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' });
+      if (res.data?.ok) {
+        setPaperPositions(res.data.data || []);
+        copyPositionsPollRef.current.errorCount = 0;
+      } else {
+        copyPositionsPollRef.current.errorCount += 1;
+      }
+    } catch (e) {
+      copyPositionsPollRef.current.errorCount += 1;
+      console.error(e);
+    } finally {
+      copyPositionsPollRef.current.inFlight = false;
     }
-  }, [isCopyMode, isAuthenticated, isRefreshing]);
+  }, []);
+
+  useEffect(() => {
+    if (!isCopyMode || !isAuthenticated) return;
+    let mounted = true;
+
+    const scheduleNext = (delayMs) => {
+      if (!mounted) return;
+      if (copyPositionsPollRef.current.timeoutId) {
+        clearTimeout(copyPositionsPollRef.current.timeoutId);
+      }
+      copyPositionsPollRef.current.timeoutId = setTimeout(runPoll, delayMs);
+    };
+
+    const runPoll = async (force = false) => {
+      if (!mounted) return;
+      if (document.hidden && !force) {
+        scheduleNext(45000);
+        return;
+      }
+      await refreshCopyPositions();
+      const backoff = Math.min(3, copyPositionsPollRef.current.errorCount);
+      const nextDelay = 45000 * (backoff ? 1 + backoff * 0.5 : 1);
+      scheduleNext(nextDelay);
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) runPoll(true);
+    };
+
+    runPoll(true);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      mounted = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (copyPositionsPollRef.current.timeoutId) {
+        clearTimeout(copyPositionsPollRef.current.timeoutId);
+      }
+    };
+  }, [isCopyMode, isAuthenticated, refreshCopyPositions]);
 
   // Persist symbol selection
   useEffect(() => {
@@ -206,6 +256,27 @@ export default function Trading({ language = "en" }) {
     };
   }, [selectedSymbol]);
 
+  useEffect(() => {
+    const updateTickerStats = (ticker) => {
+      if (!ticker) return;
+      if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
+      if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
+      if (ticker?.highPrice) setHighPrice(Number(ticker.highPrice) || 0);
+      if (ticker?.lowPrice) setLowPrice(Number(ticker.lowPrice) || 0);
+    };
+
+    const unsubTicker = binanceFuturesStore.subscribe(`ticker:${selectedSymbol}`, (ticker) => {
+      updateTickerStats(ticker);
+    });
+
+    const existing = binanceFuturesStore.getTicker?.(selectedSymbol);
+    updateTickerStats(existing);
+
+    return () => {
+      try { unsubTicker?.(); } catch {}
+    };
+  }, [selectedSymbol]);
+
   // Subscribe to mark prices for all positions
   useEffect(() => {
     if (!livePositions.length) return;
@@ -243,6 +314,17 @@ export default function Trading({ language = "en" }) {
 
   // Stats display
   const stats = useMemo(
+    () => [
+      { label: isAr ? "السعر" : "Price", value: formatPrice(lastPrice) },
+      { label: isAr ? "التغير" : "Change", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, isPositive: changePct >= 0 },
+      { label: isAr ? "الأعلى" : "High", value: highPrice ? formatPrice(highPrice) : "—" },
+      { label: isAr ? "الأدنى" : "Low", value: lowPrice ? formatPrice(lowPrice) : "—" },
+      { label: isAr ? "الحجم" : "Volume", value: formatCompactNumber(quoteVolume) },
+    ],
+    [lastPrice, changePct, quoteVolume, highPrice, lowPrice, isAr]
+  );
+
+  const mobileStats = useMemo(
     () => [
       { label: isAr ? "السعر" : "Price", value: formatPrice(lastPrice) },
       { label: isAr ? "التغير" : "Change", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, isPositive: changePct >= 0 },
@@ -303,9 +385,6 @@ export default function Trading({ language = "en" }) {
   // Price update handler
   const handlePriceUpdate = useCallback((p) => {
     setLastPrice(p);
-    const ticker = binanceFuturesStore.getTicker?.(selectedSymbol);
-    if (ticker?.priceChangePercent) setChangePct(Number(ticker.priceChangePercent) || 0);
-    if (ticker?.quoteVolume) setQuoteVolume(Number(ticker.quoteVolume) || 0);
   }, [selectedSymbol]);
 
   // Chart component (shared between mobile and desktop)
@@ -430,6 +509,7 @@ export default function Trading({ language = "en" }) {
                 <SignalsInbox 
                   onSignalAccepted={() => { 
                     handleRefresh(); 
+                    refreshCopyPositions();
                     setCopyMobileTab('positions'); 
                   }} 
                   liveAccount={liveAccount}
@@ -528,7 +608,10 @@ export default function Trading({ language = "en" }) {
           {/* Left: Signals Inbox */}
           <div className="w-[320px] xl:w-[360px] border-r border-border/20 flex flex-col shrink-0 overflow-hidden">
             <SignalsInbox 
-              onSignalAccepted={handleRefresh} 
+              onSignalAccepted={() => {
+                handleRefresh();
+                refreshCopyPositions();
+              }} 
               liveAccount={liveAccount}
               preSelectedSignalId={urlSignalId}
               onSymbolFocus={(symbol) => setSelectedSymbol(symbol)}
@@ -634,7 +717,7 @@ export default function Trading({ language = "en" }) {
               height="compact"
             />
             <div className="flex items-center gap-3">
-              {stats.map((stat) => (
+              {mobileStats.map((stat) => (
                 <div key={stat.label} className="flex items-center gap-1">
                   <span className="text-[9px] text-muted-foreground">{stat.label}:</span>
                   <span className={`text-[10px] font-semibold ${

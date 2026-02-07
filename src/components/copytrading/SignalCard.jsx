@@ -11,13 +11,16 @@ import {
   ChevronDown, 
   ChevronUp,
   Ban,
-  CheckCircle2
+  CheckCircle2,
+  Info,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function SignalCard({ signal, onAccept, onReject, language = 'en' }) {
+export default function SignalCard({ signal, onAccept, onReject, onView, isAccepting = false, isRejecting = false, language = 'en' }) {
   const [expanded, setExpanded] = React.useState(false);
   const isLong = signal.side === 'LONG';
+  const status = String(signal.status || 'NEW').toUpperCase();
   
   // Format expiry nicely
   const expiry = new Date(signal.expires_at);
@@ -38,7 +41,8 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
       viewAnalysis: "View analysis",
       hideAnalysis: "Hide analysis",
       ignore: "Ignore",
-      accept: "Accept"
+      accept: "Accept",
+      details: "Details"
     },
     ar: {
       maxLev: "أقصى رافعة",
@@ -51,11 +55,23 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
       viewAnalysis: "عرض التحليل",
       hideAnalysis: "إخفاء التحليل",
       ignore: "تجاهل",
-      accept: "قبول"
+      accept: "قبول",
+      details: "تفاصيل"
     }
   };
   
   const labels = t[language] || t.en;
+
+  const statusStyles = {
+    NEW: "bg-blue-500/10 text-blue-500",
+    ACTIVE: "bg-emerald-500/10 text-emerald-500",
+    EXECUTED: "bg-emerald-500/10 text-emerald-500",
+    REJECTED: "bg-rose-500/10 text-rose-500",
+    EXPIRED: "bg-amber-500/10 text-amber-500",
+    CANCELED: "bg-amber-500/10 text-amber-500",
+  };
+
+  const statusClass = statusStyles[status] || "bg-muted/40 text-muted-foreground";
 
   return (
     <Card className={cn(
@@ -86,6 +102,9 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
               >
                 {signal.side}
               </Badge>
+              <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-md", statusClass)}>
+                {status}
+              </span>
               {signal.max_leverage && (
                 <span className="text-[10px] font-mono text-muted-foreground/70">{signal.max_leverage}x</span>
               )}
@@ -145,6 +164,7 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
         {signal.notes && (
           <div>
             <button 
+              type="button"
               onClick={() => setExpanded(!expanded)}
               className="text-[10px] text-muted-foreground/60 hover:text-foreground flex items-center gap-1 w-full transition-colors"
             >
@@ -160,22 +180,46 @@ export default function SignalCard({ signal, onAccept, onReject, language = 'en'
         )}
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-2.5 pt-1">
+        <div className="flex items-center justify-between pt-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="h-8 text-[11px] font-medium rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={() => onView?.(signal)}
+          >
+            <Info className="w-3.5 h-3.5 mr-1.5" />
+            {labels.details}
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5 pt-2">
           <Button 
             variant="outline" 
             size="sm" 
+            type="button"
             className="h-9 text-xs font-medium w-full rounded-xl border-border/50 hover:bg-muted/50"
             onClick={() => onReject(signal)}
+            disabled={isRejecting || isAccepting}
           >
-            <Ban className="w-3.5 h-3.5 mr-1.5 opacity-60" />
+            {isRejecting ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Ban className="w-3.5 h-3.5 mr-1.5 opacity-60" />
+            )}
             {labels.ignore}
           </Button>
           <Button 
             size="sm" 
+            type="button"
             className="h-9 text-xs font-semibold w-full rounded-xl bg-primary hover:bg-primary/90 shadow-sm shadow-primary/20"
             onClick={() => onAccept(signal)}
+            disabled={isAccepting || isRejecting}
           >
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+            {isAccepting ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+            )}
             {labels.accept}
           </Button>
         </div>
