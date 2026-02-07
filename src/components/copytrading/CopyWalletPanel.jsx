@@ -167,62 +167,43 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
         </div>
       ) : (
         <>
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      {/* Balance Summary */}
+      <div className="px-4 py-4 space-y-3 shrink-0 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Balance</h2>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => loadData(true)} disabled={loading}>
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground">{labels.available}</span>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => loadData(true)} disabled={loading}>
+            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-      </div>
+        
+        <p className="text-2xl font-bold text-foreground font-mono tracking-tight">
+          {formatUsdt(availableBalance)} <span className="text-xs font-normal text-muted-foreground">USDT</span>
+        </p>
 
-      {/* Balance Cards */}
-      <div className="px-3 py-3 space-y-2 shrink-0 border-b border-border">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground truncate">{labels.available}</span>
-            </div>
-            <p className="text-lg font-bold text-foreground font-mono truncate">
-              {formatUsdt(availableBalance)} <span className="text-[10px] text-muted-foreground">USDT</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Card className="bg-card/50 overflow-hidden">
-            <CardContent className="p-2">
-              <div className="flex items-center gap-1 mb-1">
-                <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[9px] text-muted-foreground truncate">{labels.locked}</span>
-              </div>
-              <p className="text-sm font-bold text-foreground font-mono truncate">
-                {formatUsdt(lockedBalance)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className={`overflow-hidden ${lifetimePnl >= 0 ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
-            <CardContent className="p-2">
-              <div className="flex items-center gap-1 mb-1">
-                <TrendingUp className={`w-3 h-3 shrink-0 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
-                <span className="text-[9px] text-muted-foreground truncate">{labels.totalPnl}</span>
-              </div>
-              <p className={`text-sm font-bold font-mono truncate ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <Lock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground">{labels.locked}:</span>
+            <span className="font-mono font-medium text-foreground">{formatUsdt(lockedBalance)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className={`w-3 h-3 ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`} />
+            <span className="text-muted-foreground">P&L:</span>
+            <span className={`font-mono font-medium ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
+            </span>
+          </div>
         </div>
 
         <Button 
           onClick={() => setAllocationModalOpen(true)} 
-          className="w-full bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90"
+          className="w-full"
           size="sm"
         >
-          <PlusCircle className="w-4 h-4 mr-2" />
+          <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
           {labels.addFunds}
         </Button>
       </div>
