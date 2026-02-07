@@ -726,7 +726,7 @@ export default function Trading({ language = "en" }) {
           open={copyDetailOpen}
           onOpenChange={handleCopyDetailClose}
           position={selectedCopyPosition}
-          currentPrice={lastPrice}
+          currentPrice={selectedCopyPosition?.symbol === selectedSymbol ? lastPrice : 0}
           language={language}
           isMobile={false}
         />
