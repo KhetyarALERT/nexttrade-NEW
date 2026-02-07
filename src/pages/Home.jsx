@@ -24,6 +24,8 @@ import {
 import { motion, useReducedMotion, MotionConfig } from "framer-motion";
 import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
+import SignalShowcase from "../components/home/SignalShowcase";
+import StakingShowcase from "../components/home/StakingShowcase";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { useAuth } from "@/lib/AuthContext";
 import { useReferralCapture } from "@/components/hooks/useReferralCapture";
@@ -242,42 +244,13 @@ export default function Home({ language = "en" }) {
             </p>
           </div>
 
-          {/* Screenshots with labels OUTSIDE */}
+          {/* Animated showcase cards */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Signal screenshot */}
-            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block space-y-2">
-              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-blue-500/5 bg-white">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
-                  alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
-                  className="w-full h-auto block"
-                  loading="eager"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-1">
-                <div className="w-5 h-5 rounded-md bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-3 h-3 text-blue-400" />
-                </div>
-                <span className="text-[11px] font-semibold text-white/70">{language === "en" ? "AI Trading Signals" : "إشارات التداول"}</span>
-              </div>
+            <Link to={createPageUrl("Futures") + "?tab=bots"} className="block">
+              <SignalShowcase language={language} compact />
             </Link>
-            
-            {/* Earnings screenshot */}
-            <Link to={createPageUrl("Investing")} className="block space-y-2">
-              <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-emerald-500/5 bg-white">
-                <img
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
-                  alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
-                  className="w-full h-auto block"
-                  loading="eager"
-                />
-              </div>
-              <div className="flex items-center gap-1.5 px-1">
-                <div className="w-5 h-5 rounded-md bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                </div>
-                <span className="text-[11px] font-semibold text-white/70">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</span>
-              </div>
+            <Link to={createPageUrl("Investing")} className="block">
+              <StakingShowcase language={language} compact />
             </Link>
           </div>
 
@@ -400,46 +373,14 @@ export default function Home({ language = "en" }) {
                 <div className="absolute -inset-10 bg-primary/[0.07] blur-[60px] rounded-full" />
                 
                 <div className="relative grid grid-cols-2 gap-6">
-                  {/* Signal Card - clean, no overlay */}
-                  <Link to={createPageUrl("Futures") + "?tab=bots"} className="block group space-y-3">
-                    <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-blue-500/10 bg-white group-hover:-translate-y-2 transition-all duration-300">
-                      <img
-                        src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/a9777e91b_image.png"
-                        alt={language === "en" ? "Trading Signal" : "إشارة تداول"}
-                        className="w-full h-auto block"
-                        loading="eager"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 px-1">
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">{language === "en" ? "AI Trading Signals" : "إشارات التداول"}</p>
-                        <p className="text-[10px] text-white/40">{language === "en" ? "Auto-executed by bots" : "تنفيذ آلي"}</p>
-                      </div>
-                    </div>
+                  {/* Signal showcase - animated */}
+                  <Link to={createPageUrl("Futures") + "?tab=bots"} className="block hover:-translate-y-1 transition-transform duration-300">
+                    <SignalShowcase language={language} />
                   </Link>
 
-                  {/* Earnings Card - offset, clean, no overlay */}
-                  <Link to={createPageUrl("Investing")} className="block group space-y-3 mt-10">
-                    <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-emerald-500/10 bg-white group-hover:-translate-y-2 transition-all duration-300">
-                      <img
-                        src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695729460f2712be53338a89/118556953_image.png"
-                        alt={language === "en" ? "Staking Earnings" : "أرباح الستاكينغ"}
-                        className="w-full h-auto block"
-                        loading="eager"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 px-1">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                        <Lock className="w-4 h-4 text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
-                        <p className="text-[10px] text-white/40">{language === "en" ? "Up to 33% APY" : "حتى 33%"}</p>
-                      </div>
-                    </div>
+                  {/* Staking showcase - animated, offset */}
+                  <Link to={createPageUrl("Investing")} className="block mt-10 hover:-translate-y-1 transition-transform duration-300">
+                    <StakingShowcase language={language} />
                   </Link>
                 </div>
 
