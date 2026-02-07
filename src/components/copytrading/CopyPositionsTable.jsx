@@ -215,8 +215,11 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
           <TableBody>
             {positions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground/40 text-xs font-medium">
-                  No open positions
+                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground/40">
+                  <div className="flex flex-col items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-muted-foreground/20" />
+                    <span className="text-xs font-medium">{t.noPositions}</span>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
