@@ -576,7 +576,7 @@ export default function Investing({ language = "en" }) {
         )}
       </div>
 
-      {/* Mobile: Bottom Sheet for Staking */}
+      {/* Mobile: Stake Amount Sheet */}
       {isMobile && (
         <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
           <DrawerContent className="max-h-[90vh]">
