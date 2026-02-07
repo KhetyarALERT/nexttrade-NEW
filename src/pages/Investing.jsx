@@ -126,9 +126,12 @@ function useMediaQuery(query) {
 }
 
 // Stats Card component
-function StatCard({ icon: Icon, label, value, highlight = false }) {
+function StatCard({ icon: Icon, label, value, highlight = false, onClick, actionLabel }) {
   return (
-    <Card className={`${highlight ? "border-primary/30 bg-primary/5" : ""}`}>
+    <Card 
+      className={`transition-all ${highlight ? "border-primary/30 bg-primary/5" : ""} ${onClick ? "cursor-pointer hover:shadow-md hover:border-primary/40 active:scale-[0.98]" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-center gap-2 mb-1">
           <Icon className={`w-4 h-4 ${highlight ? "text-primary" : "text-muted-foreground"}`} />
@@ -137,6 +140,11 @@ function StatCard({ icon: Icon, label, value, highlight = false }) {
         <p className={`text-lg sm:text-xl font-bold ${highlight ? "text-primary" : "text-foreground"}`}>
           {value}
         </p>
+        {actionLabel && (
+          <p className="text-[10px] text-primary mt-1 flex items-center gap-0.5">
+            {actionLabel} <ArrowRight className="w-3 h-3" />
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -146,7 +154,9 @@ StatCard.propTypes = {
   icon: PropTypes.elementType.isRequired,
   label: PropTypes.string.isRequired,
   value: PropTypes.node.isRequired,
-  highlight: PropTypes.bool
+  highlight: PropTypes.bool,
+  onClick: PropTypes.func,
+  actionLabel: PropTypes.string
 };
 
 export default function Investing({ language = "en" }) {
