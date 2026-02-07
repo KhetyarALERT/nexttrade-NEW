@@ -237,8 +237,8 @@ Deno.serve(async (req) => {
 
     console.log(`[SIGNALS_INGEST] Created signal ${signal.id} for ${finalSymbol}`);
 
-    // 4. Delivery (Phase 2): Create SignalDelivery for eligible users
-    // Check config first
+    // 4. Delivery: Create SignalDelivery for eligible users
+    let deliveredCount = 0;
     const configs = await base44.asServiceRole.entities.CopyTradingConfig.filter({ config_key: 'default' });
     const config = configs?.[0];
 
@@ -264,8 +264,9 @@ Deno.serve(async (req) => {
       }
 
       if (deliveries.length > 0) {
-        await base44.asServiceRole.entities.SignalDelivery.bulkCreate(deliveries);
-        console.log(`[SIGNALS_INGEST] Delivered signal to ${deliveries.length} users`);
+        const createdDeliveries = await base44.asServiceRole.entities.SignalDelivery.bulkCreate(deliveries);
+        deliveredCount = deliveries.length;
+        console.log(`[SIGNALS_INGEST] Delivered signal to ${deliveredCount} users`);
 
         // ==================== AUTO-ACCEPT FOR USERS WITH auto_enabled ====================
         // Fetch ALL CopyTradingSettings with auto_enabled=true
@@ -279,7 +280,9 @@ Deno.serve(async (req) => {
         const autoEnabledUserIds = new Set((autoSettings || []).map(s => s.user_id));
         console.log(`[SIGNALS_INGEST] Auto-enabled users: ${autoEnabledUserIds.size}`);
 
-        for (const delivery of deliveries) {
+        // Use created deliveries which have IDs for updating
+        const deliveriesWithIds = createdDeliveries || deliveries;
+        for (const delivery of deliveriesWithIds) {
           try {
             // --- AUTO-ACCEPT LOGIC ---
             if (autoEnabledUserIds.has(delivery.user_id)) {
@@ -386,7 +389,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return Response.json({ ok: true, data: { signalId: signal.id, delivered: deliveries.length || 0 } });
+    return Response.json({ ok: true, data: { signalId: signal.id, delivered: deliveredCount } });
 
   } catch (error) {
     console.error('[SIGNALS_INGEST_ERROR]', error);
