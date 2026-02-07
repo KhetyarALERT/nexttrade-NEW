@@ -209,9 +209,11 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
             <TabsTrigger value="ledger" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
               Activity
             </TabsTrigger>
-            <TabsTrigger value="allocations" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
-              {labels.allocations}
-            </TabsTrigger>
+            {allocations.length > 0 && (
+              <TabsTrigger value="allocations" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
+                {labels.allocations}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="ledger" className="flex-1 overflow-y-auto px-3 py-2.5 mt-0">
