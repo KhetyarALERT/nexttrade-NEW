@@ -372,13 +372,13 @@ export default function Trading({ language = "en" }) {
           {/* Mobile Header */}
           <div className="border-b border-border px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur z-50 sticky top-0">
             <div className="flex items-center justify-between mb-2">
-              <button 
-                onClick={() => navigate(-1)} 
+              <Link 
+                to={createPageUrl("Dashboard")} 
                 className="text-foreground/60 p-1.5 -ml-1 active:bg-accent rounded-full touch-manipulation"
                 style={{ touchAction: 'manipulation' }}
               >
                 <ArrowLeft className="h-5 w-5" />
-              </button>
+              </Link>
               
               {/* Mode Toggle */}
               <div className="flex bg-muted/50 p-0.5 rounded-lg">
