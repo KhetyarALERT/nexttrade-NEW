@@ -125,7 +125,44 @@ export default function Trading({ language = "en" }) {
 
   // Copy Trading State
   const [paperPositions, setPaperPositions] = useState([]);
-  
+  const [selectedCopyPosition, setSelectedCopyPosition] = useState(null);
+  const [copyDetailOpen, setCopyDetailOpen] = useState(false);
+
+  // Handler: clicking a copy position opens detail drawer AND switches chart
+  const handleCopyPositionClick = useCallback((pos) => {
+    setSelectedCopyPosition(pos);
+    setCopyDetailOpen(true);
+    if (pos?.symbol) {
+      setSelectedSymbol(pos.symbol);
+      // Update URL with positionId for deep-link
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set("positionId", pos.id);
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // When drawer closes, remove positionId from URL
+  const handleCopyDetailClose = useCallback((open) => {
+    setCopyDetailOpen(open);
+    if (!open) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("positionId");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Deep-link: auto-open position detail if positionId in URL
+  useEffect(() => {
+    if (urlPositionId && isCopyMode && paperPositions.length > 0 && !copyDetailOpen) {
+      const pos = paperPositions.find(p => p.id === urlPositionId);
+      if (pos) {
+        setSelectedCopyPosition(pos);
+        setCopyDetailOpen(true);
+        if (pos.symbol) setSelectedSymbol(pos.symbol);
+      }
+    }
+  }, [urlPositionId, isCopyMode, paperPositions.length]);
+
   const copyPositionsPollRef = useRef({
     timeoutId: null,
     inFlight: false,
