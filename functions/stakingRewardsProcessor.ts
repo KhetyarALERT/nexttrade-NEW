@@ -466,14 +466,33 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.Notification.create({
           user_id: position.user_id,
           type: 'staking_reward',
-          title: 'Staking Rewards Paid! 💰',
-          message: `$${amount.toFixed(2)} USDT has been paid out from your staking rewards.`,
+          title: 'Staking Rewards Claimed! 💰',
+          message: `$${amount.toFixed(2)} USDT has been credited to your account from staking rewards.`,
           data: { stakingPositionId: position.id, amount, action: 'payout_processed' },
           read: false,
           priority: 'normal'
         });
       } catch (e) {
         console.log(`[STAKING_REWARDS] Failed to notify user:`, e.message);
+      }
+
+      // Notify all admins of payout completion
+      try {
+        const admins = await base44.asServiceRole.entities.User.filter({ role: 'admin' });
+        for (const admin of (admins || []).slice(0, 5)) {
+          if (admin.id === user.id) continue; // Don't self-notify admin who processed it
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'system',
+            title: 'Staking Payout Processed',
+            message: `${user.email} processed $${amount.toFixed(2)} payout for ${position.user_email || position.user_id}`,
+            data: { stakingPositionId: position.id, amount, action: 'payout_processed', processedBy: user.email },
+            read: false,
+            priority: 'normal'
+          });
+        }
+      } catch (e) {
+        console.log(`[STAKING_REWARDS] Failed to notify admins:`, e.message);
       }
 
       return Response.json({
