@@ -78,6 +78,8 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
   const [isNarrow, setIsNarrow] = useState(false);
   const [smoothAnimations, setSmoothAnimations] = useState(true);
   const [autoScale, setAutoScale] = useState(true);
+  const [crosshairEnabled, setCrosshairEnabled] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Detect dark mode
   const [isDark, setIsDark] = useState(() => {
