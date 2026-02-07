@@ -336,7 +336,7 @@ export default function Home({ language = "en" }) {
               <p className="text-lg text-white/50 mb-10 max-w-lg leading-relaxed">
                 {language === "en"
                   ? "Futures trading with AI signals, automated copy trading bots, and secure staking with up to 33% APY — all in one institutional-grade platform."
-                  : "تداول العقود بإشارات ذكية، روبوتات نسخ تداول تلقائية، وستاكينغ آمن بعائد يصل إلى 33% سنوياً — كلها في منصة واحدة بمستوى مؤسسي."
+                  : "تداول العقود بإشارات ذكية، روبوتات نسخ تداول تلقائية، وستاكينغ آمن بعائد يصل إلى 33%  — كلها في منصة واحدة بمستوى مؤسسي."
                 }
               </p>
 
@@ -421,7 +421,7 @@ export default function Home({ language = "en" }) {
                           <Lock className="w-4 h-4 text-emerald-400" />
                           <p className="text-xs font-bold text-white">{language === "en" ? "Staking Rewards" : "مكافآت الستاكينغ"}</p>
                         </div>
-                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "Up to 33% APY, daily accrual" : "حتى 33% سنوياً، احتساب يومي"}</p>
+                        <p className="text-[10px] text-white/50 mt-0.5">{language === "en" ? "Up to 33% APY, daily accrual" : "حتى 33% ، احتساب يومي"}</p>
                       </div>
                     </div>
                   </Link>
