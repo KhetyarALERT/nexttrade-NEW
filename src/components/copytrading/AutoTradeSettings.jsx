@@ -387,6 +387,13 @@ export default function AutoTradeSettings({ language = "en" }) {
                 </div>
               </div>
 
+              {/* Estimated Outcome Preview */}
+              <EstimatedOutcome
+                amount={settings.fixed_margin_usdt}
+                leverage={settings.max_leverage}
+                language={language}
+              />
+
               {/* Advanced Collapsible */}
               <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                 <CollapsibleTrigger asChild>
