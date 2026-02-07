@@ -511,7 +511,14 @@ export default function Trading({ language = "en" }) {
     // 1A. MOBILE COPY TRADING
     if (isMobile) {
       return (
-        <div className="flex h-[100dvh] flex-col bg-background overflow-hidden">
+        <div className="flex h-[100dvh] flex-col bg-background overflow-hidden copy-trading-page">
+          <style>{`
+            .copy-trading-page ::-webkit-scrollbar { width: 4px; height: 4px; }
+            .copy-trading-page ::-webkit-scrollbar-track { background: transparent; }
+            .copy-trading-page ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.15); border-radius: 4px; }
+            .copy-trading-page ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.3); }
+            .copy-trading-page { scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent; }
+          `}</style>
           {/* Mobile Header */}
           <div className="border-b border-border/30 px-3 pb-2.5 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur-md z-50 sticky top-0">
            <div className="flex items-center justify-between mb-2.5">
