@@ -37,7 +37,6 @@ import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard"
 import CopyWalletPanel from "@/components/copytrading/CopyWalletPanel";
 import SignalsInbox from "@/components/copytrading/SignalsInbox";
 import CopyPositionsTable from "@/components/copytrading/CopyPositionsTable";
-import PositionDetailDrawer from "@/components/copytrading/PositionDetailDrawer";
 // NotificationBell is rendered in Layout - no duplicate needed here
 
 export default function Trading({ language = "en" }) {
@@ -466,27 +465,6 @@ export default function Trading({ language = "en" }) {
   // Copy Mode Mobile State
   const [copyMobileTab, setCopyMobileTab] = useState('signals'); // signals | chart | positions
   const [walletOpen, setWalletOpen] = useState(false);
-  
-  // Position Detail Drawer
-  const [selectedPosition, setSelectedPosition] = useState(null);
-  const [positionDrawerOpen, setPositionDrawerOpen] = useState(false);
-  
-  const handlePositionClick = useCallback((pos) => {
-    setSelectedPosition(pos);
-    setPositionDrawerOpen(true);
-    // Also update chart to show this position's symbol
-    if (pos?.symbol) {
-      setSelectedSymbol(pos.symbol);
-    }
-  }, []);
-  
-  const handlePositionDrawerClose = useCallback(() => {
-    setPositionDrawerOpen(false);
-    // Keep selectedPosition for a moment so exit animation works
-    setTimeout(() => {
-      if (!positionDrawerOpen) setSelectedPosition(null);
-    }, 300);
-  }, [positionDrawerOpen]);
 
   // RENDER LOGIC: Strict Separation of Modes
   
@@ -592,21 +570,16 @@ export default function Trading({ language = "en" }) {
                   refreshTrigger={isRefreshing} 
                   isMobile={true}
                   language={language}
-                  selectedPositionId={selectedPosition?.id}
-                  onPositionClick={handlePositionClick}
+                  onPositionClick={(pos) => {
+                    if (pos?.symbol) {
+                      setSelectedSymbol(pos.symbol);
+                      setCopyMobileTab('chart');
+                    }
+                  }}
                 />
               </div>
             )}
           </div>
-
-          {/* Position Detail Drawer - Mobile */}
-          <PositionDetailDrawer
-            position={selectedPosition}
-            open={positionDrawerOpen}
-            onClose={handlePositionDrawerClose}
-            isMobile={true}
-            language={language}
-          />
 
           {/* Wallet Drawer/Sheet */}
           {walletOpen && (
@@ -693,8 +666,12 @@ export default function Trading({ language = "en" }) {
             <CopyPositionsTable 
               refreshTrigger={isRefreshing}
               language={language}
-              selectedPositionId={selectedPosition?.id}
-              onPositionClick={handlePositionClick}
+              onPositionClick={(pos) => {
+                  // When clicking position, switch chart to that symbol
+                  if (pos?.symbol) {
+                    setSelectedSymbol(pos.symbol);
+                  }
+                }}
               />
             </div>
           </div>
@@ -704,15 +681,6 @@ export default function Trading({ language = "en" }) {
              <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
         </div>
-
-        {/* Position Detail Drawer - Desktop */}
-        <PositionDetailDrawer
-          position={selectedPosition}
-          open={positionDrawerOpen}
-          onClose={handlePositionDrawerClose}
-          isMobile={false}
-          language={language}
-        />
       </div>
     );
   }

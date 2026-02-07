@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { gated } from "@/components/utils/apiGate";
 
-export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, selectedPositionId, language = "en" }) {
+export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, language = "en" }) {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [livePrices, setLivePrices] = useState({});
@@ -129,7 +129,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
           return (
             <Card 
               key={pos.id} 
-              className={`p-0 cursor-pointer hover:bg-muted/30 transition-all overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-sm active:scale-[0.99] ${selectedPositionId === pos.id ? 'ring-2 ring-primary/30 border-primary/20' : ''}`}
+              className="p-0 cursor-pointer hover:bg-muted/30 transition-all overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-sm active:scale-[0.99]"
               onClick={() => onPositionClick?.(pos)}
             >
               <div className="px-4 py-3">
@@ -220,7 +220,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
                 return (
                   <TableRow 
                     key={pos.id} 
-                    className={`text-xs cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/20 ${selectedPositionId === pos.id ? 'bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                    className="text-xs cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/20"
                     onClick={() => onPositionClick?.(pos)}
                   >
                     <TableCell className="font-semibold text-[12px] tracking-tight">{pos.symbol}</TableCell>
