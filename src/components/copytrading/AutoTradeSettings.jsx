@@ -17,9 +17,15 @@ import {
   ChevronDown, 
   ChevronUp,
   Info,
-  DollarSign
+  DollarSign,
+  HelpCircle,
+  Shield,
+  Scale,
+  TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const t = {
   en: {
@@ -48,6 +54,8 @@ const t = {
     hideAdvanced: "Hide Advanced",
     leverageFollows: "Follows signal leverage",
     trades: "trades",
+    leverageHelp: "Leverage multiplies your trade size. 10x leverage means $10 controls $100. Higher leverage = higher potential profit AND higher risk of loss.",
+    autoTradeHelp: "When enabled, new expert signals are automatically executed using your settings below. You don't need to manually accept each signal.",
   },
   ar: {
     autoTrade: "التداول التلقائي",
@@ -70,11 +78,13 @@ const t = {
     saveFailed: "فشل الحفظ",
     low: "محافظ",
     mid: "متوسط",
-    high: "عدواني",
+    high: "مخاطر",
     showAdvanced: "إعدادات متقدمة",
     hideAdvanced: "إخفاء المتقدمة",
     leverageFollows: "تتبع رافعة الإشارة",
     trades: "صفقات",
+    leverageHelp: "الرافعة تضاعف حجم صفقتك. رافعة 10x تعني أن $10 تتحكم بـ $100. رافعة أعلى = ربح محتمل أعلى وخسارة محتملة أعلى.",
+    autoTradeHelp: "عند التفعيل، يتم تنفيذ إشارات الخبراء تلقائياً حسب إعداداتك أدناه. لا حاجة لقبول كل إشارة يدوياً.",
   }
 };
 
@@ -192,7 +202,7 @@ export default function AutoTradeSettings({ language = "en" }) {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{labels.autoTrade}</span>
+                  <span className="font-semibold text-sm text-foreground">{labels.autoTrade}</span>
                   <Badge 
                     variant={settings.auto_enabled ? "default" : "secondary"} 
                     className={cn(
@@ -202,6 +212,16 @@ export default function AutoTradeSettings({ language = "en" }) {
                   >
                     {settings.auto_enabled ? labels.on : labels.off}
                   </Badge>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="bottom" className="max-w-[260px] text-xs leading-relaxed p-3">
+                      {labels.autoTradeHelp}
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{labels.autoTradeDesc}</p>
               </div>
@@ -221,32 +241,31 @@ export default function AutoTradeSettings({ language = "en" }) {
           
           {/* Quick Presets */}
           <div className="grid grid-cols-3 gap-2">
-            {(["low", "mid", "high"]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => applyPreset(key)}
-                className={cn(
-                  "py-2.5 px-2 rounded-xl text-xs font-medium transition-all border-2",
-                  activePreset === key
-                    ? "border-primary bg-primary/10 text-primary shadow-sm"
-                    : "border-border/50 bg-card hover:border-primary/30 text-foreground"
-                )}
-              >
-                <div className="text-center">
-                  <span className={cn(
-                    "text-lg block mb-0.5",
-                    key === "low" ? "" : key === "mid" ? "" : ""
-                  )}>
-                    {key === "low" ? "🛡️" : key === "mid" ? "⚖️" : "🚀"}
-                  </span>
-                  <span>{labels[key]}</span>
-                  <span className="block text-[10px] text-muted-foreground mt-0.5 font-mono">
-                    {PRESETS[key].fixed_margin_usdt} USDT · {PRESETS[key].max_leverage}x
-                  </span>
-                </div>
-              </button>
-            ))}
+            {(["low", "mid", "high"]).map((key) => {
+              const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
+              const iconColor = key === "low" ? "text-blue-500" : key === "mid" ? "text-amber-500" : "text-rose-500";
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={cn(
+                    "py-2.5 px-2 rounded-xl text-xs font-medium transition-all border-2",
+                    activePreset === key
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border/50 bg-card hover:border-primary/30 text-foreground"
+                  )}
+                >
+                  <div className="text-center">
+                    <PresetIcon className={cn("w-5 h-5 mx-auto mb-1", activePreset === key ? "text-primary" : iconColor)} />
+                    <span className="text-foreground font-medium">{labels[key]}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5 font-mono">
+                      {PRESETS[key].fixed_margin_usdt} USDT · {PRESETS[key].max_leverage}x
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Amount per Trade */}
@@ -254,12 +273,12 @@ export default function AutoTradeSettings({ language = "en" }) {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{labels.amountPerTrade}</span>
+                  <DollarSign className="w-4 h-4 text-primary/70" />
+                  <span className="text-sm font-medium text-foreground">{labels.amountPerTrade}</span>
                 </div>
                 <span className="font-mono text-sm font-bold text-primary">{settings.fixed_margin_usdt} USDT</span>
               </div>
-              <p className="text-xs text-muted-foreground">{labels.amountPerTradeDesc}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{labels.amountPerTradeDesc}</p>
               <div className="flex items-center gap-3">
                 <Slider
                   value={[settings.fixed_margin_usdt]}
@@ -285,7 +304,19 @@ export default function AutoTradeSettings({ language = "en" }) {
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <CardContent className="p-3 space-y-2">
-                <span className="text-xs font-medium text-muted-foreground">{labels.maxLeverage}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">{labels.maxLeverage}</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                        <HelpCircle className="w-3 h-3" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" className="max-w-[240px] text-xs leading-relaxed p-3">
+                      {labels.leverageHelp}
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <div className="text-center">
                   <span className="font-mono text-2xl font-bold text-foreground">{settings.max_leverage}x</span>
                 </div>
@@ -321,8 +352,8 @@ export default function AutoTradeSettings({ language = "en" }) {
           <Card className="border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-medium">{labels.safetySettings}</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-medium text-foreground">{labels.safetySettings}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{labels.maxPerTrade}</span>
