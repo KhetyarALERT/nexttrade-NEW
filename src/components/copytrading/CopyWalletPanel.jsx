@@ -222,7 +222,7 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
         <Tabs defaultValue="ledger" className="h-full flex flex-col">
           <TabsList className="w-full justify-start px-4 pt-3 bg-transparent border-b border-border/20 rounded-none h-auto pb-0">
             <TabsTrigger value="ledger" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
-              Activity
+              {isRTL ? "النشاط" : "Activity"}
             </TabsTrigger>
             {allocations.length > 0 && (
               <TabsTrigger value="allocations" className="text-[11px] font-semibold data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none pb-2.5 text-muted-foreground/60">
@@ -234,7 +234,7 @@ export default function CopyWalletPanel({ language = "en", liveAccount }) {
           <TabsContent value="ledger" className="flex-1 overflow-y-auto px-3 py-2.5 mt-0">
             {ledgerEntries.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-xs text-muted-foreground/40 font-medium">
-                No activity yet
+                {isRTL ? "لا يوجد نشاط بعد" : "No activity yet"}
               </div>
             ) : (
               <div className="space-y-1.5">
