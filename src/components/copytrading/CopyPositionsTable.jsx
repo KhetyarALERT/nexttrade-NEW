@@ -129,7 +129,7 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
           return (
             <Card 
               key={pos.id} 
-              className="p-0 cursor-pointer hover:bg-muted/30 transition-all overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-sm active:scale-[0.99]"
+              className={`p-0 cursor-pointer hover:bg-muted/30 transition-all overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-sm active:scale-[0.99] ${selectedPositionId === pos.id ? 'ring-2 ring-primary/30 border-primary/20' : ''}`}
               onClick={() => onPositionClick?.(pos)}
             >
               <div className="px-4 py-3">
