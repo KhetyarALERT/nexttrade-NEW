@@ -635,7 +635,7 @@ export default function Trading({ language = "en" }) {
           {walletOpen && (
             <div className="fixed inset-0 z-50 bg-background flex flex-col animate-in slide-in-from-bottom-full duration-200">
               <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
-                <h2 className="font-semibold text-sm">Copy Trading Wallet</h2>
+                <h2 className="font-semibold text-sm">{isAr ? "محفظة نسخ التداول" : "Copy Trading Wallet"}</h2>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setWalletOpen(false)}>
                   <XCircle className="h-5 w-5" />
                 </Button>
