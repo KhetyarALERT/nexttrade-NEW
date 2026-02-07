@@ -25,8 +25,9 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
   const loadPositions = async () => {
     setLoading(true);
     try {
-      const res = await base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' });
-      if (res.data?.ok) {
+      const { gated } = await import("@/components/utils/apiGate");
+      const res = await gated("copyTradingUser:getPositions", () => base44.functions.invoke('copyTradingUser', { action: 'getPositions', status: 'OPEN' }), { minIntervalMs: 8000 });
+      if (res?.data?.ok) {
         setPositions(res.data.data || []);
       }
     } catch (e) {
@@ -47,27 +48,40 @@ export default function CopyPositionsTable({ refreshTrigger, isMobile = false, o
     const symbols = [...new Set(positions.map(p => p.symbol).filter(Boolean))];
     const unsubs = [];
     
-    // Fetch initial prices
-    symbols.forEach(async (sym) => {
-      try {
-        const res = await base44.functions.invoke('okxMarketData', { action: 'getTicker', instId: sym });
-        if (res.data?.ok && res.data.data?.last) {
-          setLivePrices(prev => ({ ...prev, [sym]: res.data.data.last }));
-        }
-      } catch (e) {}
+    // Use WebSocket store for live prices instead of polling okxMarketData
+    const { binanceFuturesStore } = await import("@/components/trading/binance/binanceFuturesStore");
+    
+    // Fetch initial prices from store
+    symbols.forEach((sym) => {
+      const ticker = binanceFuturesStore.getTicker(sym);
+      if (ticker?.lastPrice) {
+        setLivePrices(prev => ({ ...prev, [sym]: Number(ticker.lastPrice) }));
+      }
     });
     
-    // Poll for updates every 3 seconds
+    // Subscribe to WebSocket price updates instead of HTTP polling
+    symbols.forEach((sym) => {
+      const unsub = binanceFuturesStore.subscribe(`price:${sym}`, (price) => {
+        if (Number.isFinite(price)) {
+          setLivePrices(prev => ({ ...prev, [sym]: price }));
+        }
+      });
+      unsubs.push(unsub);
+    });
+    
+    // Fallback poll only every 30s using gated API (NOT 3s)
+    const { gated } = await import("@/components/utils/apiGate");
     const interval = setInterval(() => {
+      if (document.hidden) return;
       symbols.forEach(async (sym) => {
         try {
-          const res = await base44.functions.invoke('okxMarketData', { action: 'getTicker', instId: sym });
-          if (res.data?.ok && res.data.data?.last) {
+          const res = await gated(`okxMarketData:ticker:${sym}`, () => base44.functions.invoke('okxMarketData', { action: 'getTicker', instId: sym }), { minIntervalMs: 30000 });
+          if (res?.data?.ok && res.data.data?.last) {
             setLivePrices(prev => ({ ...prev, [sym]: res.data.data.last }));
           }
         } catch (e) {}
       });
-    }, 3000);
+    }, 30000);
     
     return () => {
       clearInterval(interval);
