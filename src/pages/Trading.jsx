@@ -696,7 +696,7 @@ export default function Trading({ language = "en" }) {
             <CopyWalletPanel language={language} liveAccount={liveAccount} />
           </div>
 
-          {/* CENTER: Chart (dominant) + Positions table */}
+          {/* CENTER: Chart (dominant) + Positions table with resizable splitter */}
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             {/* Symbol Selector Bar */}
             <div className="border-b border-border/10 px-3 py-1.5 bg-background shrink-0">
@@ -707,20 +707,22 @@ export default function Trading({ language = "en" }) {
               />
             </div>
             
-            {/* Chart Area */}
-            <div className="flex-1 min-h-0">
-              {chartComponent}
-            </div>
-
-            {/* Positions Table */}
-            <div className="h-[220px] xl:h-[250px] shrink-0 border-t border-border/10 overflow-hidden">
-              <CopyPositionsTable 
-                refreshTrigger={isRefreshing}
-                language={language}
-                onPositionClick={handleCopyPositionClick}
-                selectedPositionId={selectedCopyPosition?.id}
-              />
-            </div>
+            {/* Resizable Chart + Positions */}
+            <ResizableSplitter
+              className="flex-1 min-h-0"
+              topContent={chartComponent}
+              bottomContent={
+                <CopyPositionsTable 
+                  refreshTrigger={isRefreshing}
+                  language={language}
+                  onPositionClick={handleCopyPositionClick}
+                  selectedPositionId={selectedCopyPosition?.id}
+                />
+              }
+              onResize={() => {
+                // Trigger chart library resize via ResizeObserver (already handled by BinanceFuturesChart)
+              }}
+            />
           </div>
 
           {/* RIGHT SIDEBAR: Settings + Signals */}
