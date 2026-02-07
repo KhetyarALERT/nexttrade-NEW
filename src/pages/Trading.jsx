@@ -395,15 +395,29 @@ export default function Trading({ language = "en" }) {
   // When deep-linked to a specific positionId, use that; otherwise match symbol+side
   const activePosition = useMemo(() => {
     if (isCopyMode) {
-      if (urlPositionId) return paperPositions.find(p => p.id === urlPositionId) || paperPositions.find(p => p.symbol === selectedSymbol);
-      return paperPositions.find(p => p.symbol === selectedSymbol);
+      let pos = null;
+      if (urlPositionId) pos = paperPositions.find(p => p.id === urlPositionId);
+      if (!pos) pos = paperPositions.find(p => p.symbol === selectedSymbol);
+      // Normalize copy position fields so chart overlay finds TP/SL:
+      // CopyPosition uses tp1/tp2/stop_loss; chart reads take_profit/tp and stop_loss/sl
+      if (pos) {
+        return {
+          ...pos,
+          take_profit: pos.take_profit ?? pos.tp1 ?? null,
+          tp: pos.tp1 ?? null,
+          stop_loss: pos.stop_loss ?? null,
+          sl: pos.stop_loss ?? null,
+          entry_price: pos.entry_price,
+          avg_entry_price: pos.entry_price,
+        };
+      }
+      return null;
     }
     // For live: if multiple positions on same symbol (long+short), prefer the one matching urlPositionId
     if (urlPositionId) {
       const exact = livePositions.find(p => p.id === urlPositionId);
       if (exact) return exact;
     }
-    // Return first match on symbol (could be long or short)
     return livePositions.find(p => p.instId === selectedSymbol);
   }, [isCopyMode, selectedSymbol, paperPositions, livePositions, urlPositionId]);
 
