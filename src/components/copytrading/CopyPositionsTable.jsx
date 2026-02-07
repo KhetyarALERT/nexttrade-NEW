@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { gated } from "@/components/utils/apiGate";
 
-export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, language = "en" }) {
+export default function CopyPositionsTable({ refreshTrigger, isMobile = false, onPositionClick, selectedPositionId, language = "en" }) {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [livePrices, setLivePrices] = useState({});
