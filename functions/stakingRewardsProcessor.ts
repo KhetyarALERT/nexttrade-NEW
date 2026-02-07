@@ -374,15 +374,21 @@ Deno.serve(async (req) => {
           created_at: nowIso
         });
 
-        // Update position
+        // Update position — if fully paid, mark as COMPLETED so card disappears
         const newPaid = (position.paid_amount || 0) + requestAmount;
         const remaining = (position.accrued_amount || 0) - newPaid;
-        await base44.asServiceRole.entities.StakingPosition.update(position.id, {
+        const fullyPaid = remaining <= 0.01;
+        const updateData = {
           paid_amount: newPaid,
-          payout_status: remaining > 0.01 ? 'CLAIMABLE' : 'PAID',
+          payout_status: fullyPaid ? 'PAID' : 'CLAIMABLE',
           last_payout_at: nowIso,
           updated_at: nowIso
-        });
+        };
+        // Transition to COMPLETED when period is done AND fully paid
+        if (fullyPaid && isPeriodFinished) {
+          updateData.status = 'COMPLETED';
+        }
+        await base44.asServiceRole.entities.StakingPosition.update(position.id, updateData);
 
         // Notify user
         try {
@@ -404,9 +410,10 @@ Deno.serve(async (req) => {
           data: {
             positionId: position.id,
             paidAmount: requestAmount,
-            payoutStatus: remaining > 0.01 ? 'CLAIMABLE' : 'PAID',
+            payoutStatus: fullyPaid ? 'PAID' : 'CLAIMABLE',
+            status: fullyPaid && isPeriodFinished ? 'COMPLETED' : 'ACTIVE',
             autoProcessed: true,
-            message: 'Rewards collected automatically (period completed).'
+            message: fullyPaid ? 'Rewards collected! Position completed.' : 'Rewards collected automatically (period completed).'
           }
         });
       }
