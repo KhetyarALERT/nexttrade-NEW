@@ -373,6 +373,17 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
   const [accountBalances, setAccountBalances] = useState({ fundingUsdt: null, spotUsdt: null, futuresUsdt: null, wealthUsdt: null, stakedActiveUsdt: null, stakedPendingUsdt: null, nextUnlockAt: null, copyTradingAvailableUsdt: null, copyTradingLockedUsdt: null, hasCopyTrading: false });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
+  // Load premium fonts via <link> in document head
+  useEffect(() => {
+    if (!document.getElementById("nt-google-fonts")) {
+      const link = document.createElement("link");
+      link.id = "nt-google-fonts";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap";
+      document.head.appendChild(link);
+    }
+  }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
