@@ -589,7 +589,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
   };
 
   const formatUsdt = (val) => {
-    if (val === null || val === undefined) return "—";
+    if (val === null || val === undefined || val !== val) return "—";
     if (!Number.isFinite(val)) return "—";
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
