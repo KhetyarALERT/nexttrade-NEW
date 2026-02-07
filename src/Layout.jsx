@@ -871,8 +871,8 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                         </DropdownMenuItem>
                       )}
 
-                      {/* Staking (Locked) - show if any staking exists */}
-                      {(accountBalances.stakedActiveUsdt > 0 || accountBalances.stakedPendingUsdt > 0) && (
+                      {/* Staking (Locked) - show if any staking exists (null-safe) */}
+                      {((accountBalances.stakedActiveUsdt || 0) > 0 || (accountBalances.stakedPendingUsdt || 0) > 0) && (
                         <DropdownMenuItem asChild>
                           <Link to={createPageUrl("Investing")}>
                             <div className="flex w-full items-center justify-between gap-3">
@@ -887,7 +887,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                       )}
 
                       {/* Show Total incl staking if active staking exists */}
-                      {accountBalances.stakedActiveUsdt > 0 && (
+                      {(accountBalances.stakedActiveUsdt || 0) > 0 && (
                         <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-between">
                           <span>{language === "ar" ? "الإجمالي (شامل الستيكنج)" : "Total (incl. staking)"}</span>
                           <span className="font-medium text-foreground">{formatUsdt(accountTotals.totalUsdt)} USDT</span>
