@@ -865,7 +865,7 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
                                 <TrendingUp className="h-4 w-4 text-blue-600" />
                                 <span>{language === "ar" ? "نسخ التداول" : "Copy Trading"}</span>
                               </div>
-                              <span className="text-xs font-medium text-blue-600">{formatUsdt(accountBalances.copyTradingAvailableUsdt + accountBalances.copyTradingLockedUsdt)} USDT</span>
+                              <span className="text-xs font-medium text-blue-600">{formatUsdt((accountBalances.copyTradingAvailableUsdt || 0) + (accountBalances.copyTradingLockedUsdt || 0))} USDT</span>
                             </div>
                           </Link>
                         </DropdownMenuItem>
