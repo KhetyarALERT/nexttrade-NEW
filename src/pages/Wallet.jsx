@@ -130,9 +130,10 @@ export default function WalletPage({ language = "en" }) {
   const [showBalances, setShowBalances] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Account & KYC Status
-  const [kycStatus, setKycStatus] = useState(null); // null | 'pending' | 'under_review' | 'approved' | 'rejected'
-  const [kycRejectionReason, setKycRejectionReason] = useState(null);
+  // KYC Status - uses useUserVerification hook with real-time subscription
+  const { status: verificationStatus, isVerified, verificationData, refresh: refreshVerification } = useUserVerification({ enabled: isAuthenticated });
+  
+  // Account status
   const [hasOkxAccount, setHasOkxAccount] = useState(false);
   const [accountRequestStatus, setAccountRequestStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
 
