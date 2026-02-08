@@ -166,6 +166,32 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Notify all admins: KYC submitted
+      try {
+        const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 200);
+        const admins = (allUsers || []).filter(u => u.role === 'admin');
+        for (const admin of admins) {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'kyc_submitted',
+            title: `KYC Submitted: ${fullName || user.email}`,
+            message: `${user.email} submitted a KYC verification request (${documentType || 'passport'})`,
+            priority: 'high',
+            read: false,
+            data: {
+              verification_request_id: verificationRequest.id,
+              user_id: user.id,
+              user_email: user.email,
+              status: 'pending',
+              timestamp: new Date().toISOString(),
+              link: `/OKXAdminHub?tab=verification&requestId=${verificationRequest.id}`
+            }
+          });
+        }
+      } catch (e) {
+        console.error('[verificationService] Failed to notify admins on KYC submit:', e.message);
+      }
+
       return Response.json({
         ok: true,
         data: {
@@ -280,6 +306,47 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Notify all admins: KYC approved
+      try {
+        const allUsersAppr = await base44.asServiceRole.entities.User.list('-created_date', 200);
+        const adminsAppr = (allUsersAppr || []).filter(u => u.role === 'admin');
+        for (const admin of adminsAppr) {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'kyc_approved',
+            title: `KYC Approved: ${vr.full_name || vr.user_email}`,
+            message: `${vr.user_email}'s KYC verification was approved by ${user.email}`,
+            priority: 'normal',
+            read: false,
+            data: {
+              verification_request_id: requestId,
+              user_id: vr.user_id,
+              user_email: vr.user_email,
+              status: 'approved',
+              timestamp: new Date().toISOString(),
+              link: `/OKXAdminHub?tab=verification&requestId=${requestId}`
+            }
+          });
+        }
+      } catch (e) {
+        console.error('[verificationService] Failed to notify admins on approve:', e.message);
+      }
+
+      // Notify the user: KYC approved
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: vr.user_id,
+          type: 'kyc_approved',
+          title: 'KYC Verified ✅',
+          message: 'Your identity verification has been approved. You now have full access to all features.',
+          priority: 'high',
+          read: false,
+          data: { link: '/Profile?tab=security', status: 'approved' }
+        });
+      } catch (e) {
+        console.error('[verificationService] Failed to notify user on approve:', e.message);
+      }
+
       return Response.json({ ok: true, status: "approved" });
     }
 
@@ -323,6 +390,47 @@ Deno.serve(async (req) => {
           rejection_reason: reason || "Verification declined",
           rejected_at: new Date().toISOString()
         });
+      }
+
+      // Notify all admins: KYC rejected
+      try {
+        const allUsersRej = await base44.asServiceRole.entities.User.list('-created_date', 200);
+        const adminsRej = (allUsersRej || []).filter(u => u.role === 'admin');
+        for (const admin of adminsRej) {
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: admin.id,
+            type: 'kyc_rejected',
+            title: `KYC Rejected: ${vr.full_name || vr.user_email}`,
+            message: `${vr.user_email}'s KYC was rejected by ${user.email}. Reason: ${reason || 'No reason'}`,
+            priority: 'normal',
+            read: false,
+            data: {
+              verification_request_id: requestId,
+              user_id: vr.user_id,
+              user_email: vr.user_email,
+              status: 'rejected',
+              timestamp: new Date().toISOString(),
+              link: `/OKXAdminHub?tab=verification&requestId=${requestId}`
+            }
+          });
+        }
+      } catch (e) {
+        console.error('[verificationService] Failed to notify admins on reject:', e.message);
+      }
+
+      // Notify the user: KYC rejected
+      try {
+        await base44.asServiceRole.entities.Notification.create({
+          user_id: vr.user_id,
+          type: 'kyc_rejected',
+          title: 'Verification Update',
+          message: reason || 'Your verification could not be completed. Please submit new documents.',
+          priority: 'high',
+          read: false,
+          data: { link: '/Profile?tab=security&openVerification=true', status: 'rejected' }
+        });
+      } catch (e) {
+        console.error('[verificationService] Failed to notify user on reject:', e.message);
       }
 
       return Response.json({ ok: true, status: "rejected" });

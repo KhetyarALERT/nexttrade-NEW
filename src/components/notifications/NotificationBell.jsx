@@ -14,6 +14,8 @@ import { useNotifications } from "./NotificationProvider";
 
 import { Headphones } from "lucide-react";
 
+import { Shield, LogIn } from "lucide-react";
+
 const NOTIFICATION_ICONS = {
   price_alert: TrendingUp,
   trade_executed: TrendingUp,
@@ -28,7 +30,12 @@ const NOTIFICATION_ICONS = {
   ticket_created: Headphones,
   ticket_updated: Headphones,
   ticket_admin_reply: Headphones,
-  signal_new: TrendingUp
+  signal_new: TrendingUp,
+  kyc_submitted: Shield,
+  kyc_approved: Shield,
+  kyc_rejected: Shield,
+  kyc_update: Shield,
+  user_login: LogIn
 };
 
 const NOTIFICATION_COLORS = {
@@ -45,7 +52,12 @@ const NOTIFICATION_COLORS = {
   ticket_created: "bg-blue-500/10 text-blue-500",
   ticket_updated: "bg-blue-500/10 text-blue-500",
   ticket_admin_reply: "bg-emerald-500/10 text-emerald-500",
-  signal_new: "bg-blue-500/10 text-blue-500"
+  signal_new: "bg-blue-500/10 text-blue-500",
+  kyc_submitted: "bg-amber-500/10 text-amber-500",
+  kyc_approved: "bg-emerald-500/10 text-emerald-500",
+  kyc_rejected: "bg-red-500/10 text-red-500",
+  kyc_update: "bg-blue-500/10 text-blue-500",
+  user_login: "bg-slate-500/10 text-slate-500"
 };
 
 export default function NotificationBell({ onSettingsClick, language = "en" }) {
@@ -74,6 +86,20 @@ export default function NotificationBell({ onSettingsClick, language = "en" }) {
     
     // Handle ticket notifications - route to appropriate page
     if (notification.type?.startsWith('ticket_') && notification.data?.link) {
+      setOpen(false);
+      navigate(notification.data.link);
+      return;
+    }
+
+    // Handle KYC notifications - deep link to admin hub KYC tab
+    if (notification.type?.startsWith('kyc_') && notification.data?.link) {
+      setOpen(false);
+      navigate(notification.data.link);
+      return;
+    }
+
+    // Handle user_login notifications - deep link to admin hub users tab
+    if (notification.type === 'user_login' && notification.data?.link) {
       setOpen(false);
       navigate(notification.data.link);
       return;

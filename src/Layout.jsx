@@ -622,6 +622,10 @@ function LayoutInner({ children, currentPageName: _currentPageName }) {
         eventName: "user_login",
         properties: { method: "session", user_id: currentUser?.id, user_email: currentUser?.email }
       });
+      // Server-side login tracking (last_login_at + admin notification, throttled)
+      base44.functions.invoke("trackLogin", {}).catch(e => {
+        console.warn("[Layout] trackLogin failed:", e?.message);
+      });
     }).catch(() => {
       base44.analytics.track({
         eventName: "user_login",
