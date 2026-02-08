@@ -102,7 +102,8 @@ export default function Trading({ language = "en" }) {
   const [wsConnected, setWsConnected] = useState(false);
   const [markPrices, setMarkPrices] = useState({});
 
-  // Demo account state (separate from OKX)
+  // Demo account state - DISABLED: no fake 10k balances
+  // Only set if explicit demo mode is enabled via FeatureStatus
   const [demoAccount, setDemoAccount] = useState(null);
 
   // Closing position state
