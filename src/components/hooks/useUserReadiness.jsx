@@ -134,13 +134,14 @@ export function useUserReadiness({ enabled = true } = {}) {
         return;
       }
       
-      // KYC approved but no request yet
+      // KYC approved - user should already have auto-provisioned account
+      // If not, the account may still be provisioning. Direct to wallet/deposit.
       if (!hasRequest) {
         setIsReady(false);
         setNextAction({
-          route: createPageUrl("Profile") + "?tab=accounts",
-          label: { en: "Request Trading Account", ar: "طلب حساب تداول" },
-          reason: "Submit a trading account request for live trading",
+          route: createPageUrl("Wallet"),
+          label: { en: "Go to Wallet", ar: "الذهاب للمحفظة" },
+          reason: "Your account is being set up. Deposit funds to get started.",
           blocking: false
         });
         setLoading(false);
