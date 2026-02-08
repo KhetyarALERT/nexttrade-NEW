@@ -5,12 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Radio, ArrowUpRight, ArrowDownRight, Clock, Ban, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Radio, ArrowUpRight, ArrowDownRight, Clock, Ban, CheckCircle2, Loader2, RefreshCw, Zap } from 'lucide-react';
+import SignalDetailsModal from '@/components/admin/SignalDetailsModal';
+import AutoAcceptAdminTab from '@/components/admin/AutoAcceptAdminTab';
 
 export default function SignalsAdminTab({ onRefresh }) {
   const [signals, setSignals] = useState([]);
@@ -156,45 +159,36 @@ export default function SignalsAdminTab({ onRefresh }) {
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSignalId, setSelectedSignalId] = useState(null);
-  const [signalDetails, setSignalDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [signalsSubTab, setSignalsSubTab] = useState('signals');
 
-  const openDetails = async (id) => {
+  const openDetails = (id) => {
     setSelectedSignalId(id);
     setDetailsOpen(true);
-    setLoadingDetails(true);
-    try {
-      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'getSignalDetails', signalId: id });
-      if (res.data?.ok) {
-        setSignalDetails(res.data.data);
-      }
-    } catch (e) {
-      toast.error('Failed to load details');
-    } finally {
-      setLoadingDetails(false);
-    }
   };
 
-  const forceCloseAll = async () => {
-    if (!confirm('Are you sure you want to force close ALL open positions for this signal? This will realize PnL for all users immediately.')) return;
+  const forceCloseAll = async (signalId) => {
+    if (!confirm('Are you sure you want to force close ALL open positions for this signal?')) return;
     try {
-      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId: selectedSignalId });
+      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId });
       if (res.data?.ok) {
         toast.success(`Closed ${res.data.processed} positions`);
-        openDetails(selectedSignalId); // Reload
+        // Re-open to refresh
+        setDetailsOpen(false);
+        setTimeout(() => { setSelectedSignalId(signalId); setDetailsOpen(true); }, 100);
       }
     } catch (e) {
       toast.error('Failed to force close');
     }
   };
 
-  const forceCloseUser = async (userId) => {
+  const forceCloseUser = async (userId, signalId) => {
     if (!confirm('Force close position for this user?')) return;
     try {
-      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId: selectedSignalId, userId });
+      const res = await base44.functions.invoke('copyTradingAdmin', { action: 'forceCloseSignalPositions', signalId, userId });
       if (res.data?.ok) {
         toast.success('Position closed');
-        openDetails(selectedSignalId); // Reload
+        setDetailsOpen(false);
+        setTimeout(() => { setSelectedSignalId(signalId); setDetailsOpen(true); }, 100);
       }
     } catch (e) {
       toast.error('Failed to force close');
@@ -212,6 +206,22 @@ export default function SignalsAdminTab({ onRefresh }) {
 
   return (
     <div className="space-y-6">
+      {/* Sub-tabs: Signals / Auto-Accept */}
+      <Tabs value={signalsSubTab} onValueChange={setSignalsSubTab}>
+        <TabsList className="h-9">
+          <TabsTrigger value="signals" className="text-xs px-4 h-7">
+            <Radio className="h-3 w-3 mr-1.5" /> Signals
+          </TabsTrigger>
+          <TabsTrigger value="autoaccept" className="text-xs px-4 h-7">
+            <Zap className="h-3 w-3 mr-1.5" /> Auto-Accept Users
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="autoaccept">
+          <AutoAcceptAdminTab />
+        </TabsContent>
+
+        <TabsContent value="signals" className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -503,86 +513,16 @@ export default function SignalsAdminTab({ onRefresh }) {
         </DialogContent>
       </Dialog>
 
-      {/* Details Drawer/Dialog */}
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Signal Details</DialogTitle>
-            <DialogDescription>
-              {signalDetails?.signal?.symbol} {signalDetails?.signal?.side} (ID: {selectedSignalId})
-            </DialogDescription>
-          </DialogHeader>
-
-          {loadingDetails ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center bg-muted/20 p-4 rounded-lg">
-                <div>
-                  <div className="text-sm font-medium">Accepted Users</div>
-                  <div className="text-2xl font-bold">{signalDetails?.rows?.length || 0}</div>
-                </div>
-                <Button variant="destructive" size="sm" onClick={forceCloseAll}>
-                  Force Close All Positions
-                </Button>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Margin</TableHead>
-                    <TableHead>Lev</TableHead>
-                    <TableHead>Entry</TableHead>
-                    <TableHead>PnL</TableHead>
-                    <TableHead>Opened</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signalDetails?.rows?.map((row) => (
-                    <TableRow key={row.positionId}>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{row.name}</span>
-                          <span className="text-xs text-muted-foreground">{row.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.status === 'OPEN' ? 'default' : 'secondary'}>
-                          {row.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{row.margin?.toFixed(2)}</TableCell>
-                      <TableCell>{row.leverage}x</TableCell>
-                      <TableCell>{row.entryPrice}</TableCell>
-                      <TableCell className={row.pnl >= 0 ? 'text-green-500' : 'text-red-500'}>
-                        {row.pnl !== null ? row.pnl?.toFixed(2) : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs">{new Date(row.openedAt).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">
-                        {row.status === 'OPEN' && (
-                          <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => forceCloseUser(row.userId)}>
-                            Close
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!signalDetails?.rows?.length && (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">No acceptances yet</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Grouped Signal Details Modal */}
+      <SignalDetailsModal
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        signalId={selectedSignalId}
+        onForceCloseAll={forceCloseAll}
+        onForceCloseUser={forceCloseUser}
+      />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
