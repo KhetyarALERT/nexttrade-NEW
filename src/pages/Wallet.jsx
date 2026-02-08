@@ -36,6 +36,7 @@ import WalletHistory from "@/components/wallet/WalletHistory";
 import OKXTransferModal from "@/components/profile/OKXTransferModal";
 import AllocationModal from "@/components/copytrading/AllocationModal";
 import PullToRefresh from "@/components/ui/PullToRefresh";
+import { useUserVerification } from "@/components/hooks/useUserVerification";
 
 const translations = {
   en: {
