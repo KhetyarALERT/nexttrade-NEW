@@ -35,12 +35,9 @@ Deno.serve(async (req) => {
     
     // Handle status transitions
     if (newStatus === 'approved') {
-      // Update user's verification status
-      try {
-        console.log(`User ${data.user_id} verification approved`);
-      } catch (e) {
-        console.error("Failed to update user status:", e);
-      }
+      // NOTE: Notifications are now handled by verificationService.adminApprove (single source).
+      // This automation only handles referral attribution and marking as notified.
+      console.log(`[processKycStatusChange] User ${data.user_id} verification approved - skipping notifications (handled by verificationService)`);
       
       // Process referral attribution for KYC approval
       try {
@@ -52,137 +49,12 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("Failed to process referral KYC:", e);
       }
-      
-      // Send notification to user
-      try {
-        await base44.asServiceRole.entities.Notification.create({
-          user_id: data.user_id,
-          type: "system",
-          title: "KYC Verified ✅",
-          message: "Congratulations! Your identity verification has been approved. You now have full access to all platform features including withdrawals and higher limits.",
-          priority: "high",
-          read: false
-        });
-        console.log(`Created approval notification for user ${data.user_id}`);
-      } catch (e) {
-        console.error("Failed to create notification:", e);
-      }
-      
-      // Send email notification
-      if (data.user_email) {
-        try {
-          await base44.integrations.Core.SendEmail({
-            to: data.user_email,
-            subject: "Your Identity Verification is Approved! ✅",
-            body: `
-Hello ${data.full_name || "Valued User"},
-
-Great news! Your identity verification has been approved.
-
-You now have full access to all NextTrade features including:
-• Withdrawals
-• Higher trading limits
-• Full account functionality
-
-Start trading now at NextTrade.
-
-Best regards,
-The NextTrade Team
-            `.trim()
-          });
-          console.log(`Sent approval email to ${data.user_email}`);
-        } catch (e) {
-          console.error("Failed to send email:", e);
-        }
-      }
     } else if (newStatus === 'rejected') {
-      // Send rejection notification
-      try {
-        await base44.asServiceRole.entities.Notification.create({
-          user_id: data.user_id,
-          type: "system",
-          title: "Verification Update",
-          message: data.rejection_reason || "Your verification could not be completed. Please submit new documents with clearer images.",
-          priority: "high",
-          read: false
-        });
-        console.log(`Created rejection notification for user ${data.user_id}`);
-      } catch (e) {
-        console.error("Failed to create notification:", e);
-      }
-      
-      // Send email notification
-      if (data.user_email) {
-        try {
-          await base44.integrations.Core.SendEmail({
-            to: data.user_email,
-            subject: "Identity Verification Update",
-            body: `
-Hello ${data.full_name || "Valued User"},
-
-We've reviewed your identity verification submission.
-
-Unfortunately, we were unable to verify your identity at this time.
-
-${data.rejection_reason ? `Reason: ${data.rejection_reason}` : ""}
-
-You can submit a new verification request with updated documents. Common issues include:
-• Blurry or unclear document images
-• Documents that don't match the information provided
-• Expired documents
-
-If you need help, please contact our support team.
-
-Best regards,
-The NextTrade Team
-            `.trim()
-          });
-          console.log(`Sent rejection email to ${data.user_email}`);
-        } catch (e) {
-          console.error("Failed to send email:", e);
-        }
-      }
+      // NOTE: Notifications handled by verificationService.adminReject
+      console.log(`[processKycStatusChange] User ${data.user_id} verification rejected - skipping notifications (handled by verificationService)`);
     } else if (newStatus === 'under_review' && data.admin_response) {
-      // Admin responded to help request
-      try {
-        await base44.asServiceRole.entities.Notification.create({
-          user_id: data.user_id,
-          type: "system",
-          title: "KYC Help Response",
-          message: data.admin_response,
-          priority: "normal",
-          read: false
-        });
-        console.log(`Created help response notification for user ${data.user_id}`);
-      } catch (e) {
-        console.error("Failed to create notification:", e);
-      }
-      
-      // Send email notification
-      if (data.user_email) {
-        try {
-          await base44.integrations.Core.SendEmail({
-            to: data.user_email,
-            subject: "Response to Your KYC Help Request",
-            body: `
-Hello ${data.full_name || "Valued User"},
-
-Our team has responded to your verification help request.
-
-Response:
-"${data.admin_response}"
-
-If you still need assistance, please don't hesitate to reach out.
-
-Best regards,
-The NextTrade Team
-            `.trim()
-          });
-          console.log(`Sent help response email to ${data.user_email}`);
-        } catch (e) {
-          console.error("Failed to send email:", e);
-        }
-      }
+      // NOTE: Notifications handled by verificationService.adminRespond / notifyAdminVerification
+      console.log(`[processKycStatusChange] Help response for user ${data.user_id} - skipping notifications (handled by verificationService)`);
     }
     
     // Mark as notified
