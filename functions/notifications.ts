@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       // Get all unread notifications for user
       // Note: filter by user_id, then filter read=false in code since DB stores in nested data field
       const allUserNotifs = await base44.asServiceRole.entities.Notification.filter({
-        'data.user_id': user.id
+        user_id: user.id
       });
       const unread = (allUserNotifs || []).filter(n => n.read === false);
       
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     // GET UNREAD COUNT
     if (action === 'getUnreadCount') {
       const allUserNotifs = await base44.asServiceRole.entities.Notification.filter({
-        'data.user_id': user.id
+        user_id: user.id
       });
       const unreadCount = (allUserNotifs || []).filter(n => n.read === false).length;
       
