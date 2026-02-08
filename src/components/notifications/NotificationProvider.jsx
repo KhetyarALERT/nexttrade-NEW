@@ -147,8 +147,15 @@ export function NotificationProvider({ children }) {
         const responseData = notifsRes?.data;
         if (responseData?.ok) {
           const notifs = responseData.data || [];
-          setNotifications(notifs);
-          setUnreadCount(notifs.filter(n => !n.read).length || 0);
+          // Deduplicate by notification ID to prevent UI duplicates from polling
+          const seen = new Set();
+          const uniqueNotifs = notifs.filter(n => {
+            if (seen.has(n.id)) return false;
+            seen.add(n.id);
+            return true;
+          });
+          setNotifications(uniqueNotifs);
+          setUnreadCount(uniqueNotifs.filter(n => !n.read).length || 0);
         } else {
           // Server returned ok: false - this is normal if user has no notifications
           // Don't log as warning unless there's actually an error message
