@@ -260,7 +260,7 @@ export default function WalletPage({ language = "en" }) {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([loadData(), refreshVerification()]);
     // Increment refresh key to trigger child component reloads (WalletHistory)
     setRefreshKey(prev => prev + 1);
     setRefreshing(false);
