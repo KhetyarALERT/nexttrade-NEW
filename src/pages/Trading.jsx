@@ -238,28 +238,9 @@ export default function Trading({ language = "en" }) {
     localStorage.setItem("trading_symbol", selectedSymbol);
   }, [selectedSymbol]);
 
-  // Load demo account via backend function (service role creates if needed)
-  useEffect(() => {
-    if (!isAuthenticated || isLoadingAuth) return;
-    
-    let mounted = true;
-    const loadDemoAccount = async () => {
-      try {
-        const res = await base44.functions.invoke("tradingAccount", {
-          action: "getOrCreate",
-          accountType: "demo"
-        });
-        if (mounted && res?.data?.success) {
-          setDemoAccount(res.data.data);
-        }
-      } catch (err) {
-        console.error("Failed to load demo account:", err);
-      }
-    };
-    
-    loadDemoAccount();
-    return () => { mounted = false; };
-  }, [isAuthenticated, isLoadingAuth]);
+  // Demo account loading DISABLED - no fake 10k balance.
+  // Only load demo account if explicit demo mode is enabled.
+  // TODO: Gate behind FeatureStatus.demo_mode=true if needed later.
 
   // WebSocket connection status - check both public and business WS
   useEffect(() => {
