@@ -202,7 +202,9 @@ export default function FuturesTradePanel({
   }, [activeTab, demoAccount, liveAccount]);
 
   const getAccountSnapshot = (demoMode) => {
-    const account = demoMode ? (demoAccount || liveAccount) : (liveAccount || demoAccount);
+    // CRITICAL: In live mode, ONLY use liveAccount. Never fall back to demoAccount.
+    // demoAccount is only used when explicitly in demo mode.
+    const account = demoMode ? (demoAccount || liveAccount) : liveAccount;
     if (!account) {
       return { balance: 0, equity: 0, marginUsed: 0, availableMargin: 0, hasAccount: false };
     }
