@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Bell, TrendingUp, AlertTriangle, CheckCircle, Wallet, Lock, Info } from "lucide-react";
+import { Bell, TrendingUp, AlertTriangle, CheckCircle, Wallet, Lock, Info, Shield, LogIn } from "lucide-react";
 
 const NotificationContext = createContext(null);
 
@@ -22,7 +22,12 @@ const NOTIFICATION_ICONS = {
   ticket_created: Headphones,
   ticket_updated: Headphones,
   ticket_admin_reply: Headphones,
-  signal_new: TrendingUp
+  signal_new: TrendingUp,
+  kyc_submitted: Shield,
+  kyc_approved: Shield,
+  kyc_rejected: Shield,
+  kyc_update: Shield,
+  user_login: LogIn
 };
 
 const NOTIFICATION_COLORS = {
@@ -39,7 +44,12 @@ const NOTIFICATION_COLORS = {
   ticket_created: "text-blue-500",
   ticket_updated: "text-blue-500",
   ticket_admin_reply: "text-emerald-500",
-  signal_new: "text-blue-500"
+  signal_new: "text-blue-500",
+  kyc_submitted: "text-amber-500",
+  kyc_approved: "text-emerald-500",
+  kyc_rejected: "text-red-500",
+  kyc_update: "text-blue-500",
+  user_login: "text-slate-500"
 };
 
 export function NotificationProvider({ children }) {
