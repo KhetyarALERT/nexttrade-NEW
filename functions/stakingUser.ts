@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
           apyPercent: p.apy_percent,
           minDeposit: p.min_deposit,
           baseRewardsPerDollar: p.base_rewards_per_dollar || 10,
+          benefitsCapUsd: p.benefits_cap_usd || 0,
           perks: p.perks || [],
           features: p.features || [],
           isEnabled: p.is_enabled !== false,
