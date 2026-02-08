@@ -46,19 +46,26 @@ export function useUserReadiness({ enabled = true } = {}) {
         return;
       }
       
-      // === FIRST: Check if user has ACTIVE exchange account (SINGLE SOURCE OF TRUTH) ===
-      // This is the only check that matters for trading access
-      const exchangeAccounts = await base44.entities.UserExchangeAccount.filter(
-        { user_id: user.id, status: 'ACTIVE' }, 
-        '-created_date', 
-        1
-      );
+      // === FIRST: Check if user has ACTIVE exchange account OR a live TradingAccount ===
+      const [exchangeAccounts, liveAccounts] = await Promise.all([
+        base44.entities.UserExchangeAccount.filter(
+          { user_id: user.id, status: 'ACTIVE' }, 
+          '-created_date', 
+          1
+        ),
+        base44.entities.TradingAccount.filter(
+          { user_id: user.id, is_demo: false },
+          '-created_date',
+          1
+        )
+      ]);
       
       const activeExchangeAccount = exchangeAccounts?.[0] || null;
+      const activeLiveAccount = liveAccounts?.[0] || null;
       
-      // User has active account = ready to trade. No other checks needed.
-      if (activeExchangeAccount) {
-        console.log('[useUserReadiness] User has ACTIVE exchange account:', activeExchangeAccount.id);
+      // User has active OKX account OR a live TradingAccount = ready to trade
+      if (activeExchangeAccount || activeLiveAccount) {
+        console.log('[useUserReadiness] User has active account:', activeExchangeAccount?.id || activeLiveAccount?.id);
         setIsReady(true);
         setNextAction({
           route: createPageUrl("Futures"),
