@@ -619,12 +619,12 @@ export default function Investing({ language = "en" }) {
       {/* Mobile: Stake Amount Sheet */}
       {isMobile && (
         <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
-          <DrawerContent className="max-h-[85vh]">
-            <DrawerHeader className="border-b border-border pb-3">
+          <DrawerContent className="max-h-[85dvh]" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <DrawerHeader className="border-b border-border pb-3 flex-shrink-0">
               <DrawerTitle>{labels.step2Title}</DrawerTitle>
               <DrawerDescription className="sr-only">Enter staking amount</DrawerDescription>
             </DrawerHeader>
-            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom)+4rem)] overflow-auto">
+            <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] overflow-y-auto flex-1 min-h-0">
               <StakingAmountPanel
                 plan={selectedPlan}
                 amount={stakeAmount}
