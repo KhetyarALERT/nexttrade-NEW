@@ -618,7 +618,7 @@ export default function Investing({ language = "en" }) {
 
       {/* Mobile: Stake Amount Sheet */}
       {isMobile && (
-        <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
+        <Drawer open={sheetOpen} onOpenChange={setSheetOpen} handleOnly>
           <DrawerContent className="max-h-[85dvh]" onOpenAutoFocus={(e) => e.preventDefault()}>
             <DrawerHeader className="border-b border-border pb-3 flex-shrink-0">
               <DrawerTitle>{labels.step2Title}</DrawerTitle>
