@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { createPageUrl } from "@/utils";
 
 /**
  * useUserVerification - Single Source of Truth for Verification Status
