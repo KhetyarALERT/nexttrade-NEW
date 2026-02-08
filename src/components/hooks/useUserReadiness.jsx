@@ -77,8 +77,7 @@ export function useUserReadiness({ enabled = true } = {}) {
         return;
       }
       
-      // === No active account - check onboarding status (NON-BLOCKING for viewing) ===
-      // Use UserVerification as single source of truth
+      // === No active OKX or live account - check onboarding status ===
       const [uvRes, requests] = await Promise.all([
         base44.functions.invoke("verificationService", { action: "getStatus" }),
         base44.entities.LiveAccountRequest.filter({ user_id: user.id }, '-created_date', 1)
