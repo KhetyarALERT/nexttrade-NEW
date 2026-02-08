@@ -167,6 +167,7 @@ export default function Investing({ language = "en" }) {
 
   const [plans, setPlans] = useState([]);
   const [stakingConfig, setStakingConfig] = useState(null);
+  const [pointsValueUsd, setPointsValueUsd] = useState(0);
   const [summary, setSummary] = useState({ totalStaked: 0, estimatedEarned: 0, activePositions: 0, avgApy: 0 });
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,10 +192,11 @@ export default function Investing({ language = "en" }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // Load plans and config (public)
-      const [plansRes, configRes] = await Promise.all([
+      // Load plans, config, and entitlements config (public)
+      const [plansRes, configRes, entConfigRes] = await Promise.all([
         base44.functions.invoke("stakingUser", { action: "getPlans" }),
         base44.entities.StakingConfig.filter({ config_key: "default" }),
+        base44.entities.EntitlementsConfig.filter({ config_key: "default" }),
       ]);
 
       if (plansRes.data?.ok) {
@@ -207,6 +209,9 @@ export default function Investing({ language = "en" }) {
       
       if (configRes?.length) {
         setStakingConfig(configRes[0]);
+      }
+      if (entConfigRes?.length) {
+        setPointsValueUsd(entConfigRes[0].points_value_usd || 0);
       }
 
       if (isAuthenticated) {
@@ -535,6 +540,7 @@ export default function Investing({ language = "en" }) {
                     processing={processing}
                     isEligibleFirstStake={isEligibleFirstStake}
                     stakingConfig={stakingConfig}
+                    pointsValueUsd={pointsValueUsd}
                     language={language}
                   />
                 </Card>
@@ -630,6 +636,7 @@ export default function Investing({ language = "en" }) {
                 processing={processing}
                 isEligibleFirstStake={isEligibleFirstStake}
                 stakingConfig={stakingConfig}
+                pointsValueUsd={pointsValueUsd}
                 language={language}
               />
             </div>
