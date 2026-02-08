@@ -298,11 +298,12 @@ export default function WalletPage({ language = "en" }) {
     );
   }
 
-  // Determine access level
-  const isKycApproved = kycStatus === "approved";
-  const isKycPending = kycStatus === "pending" || kycStatus === "under_review";
-  const isKycRejected = kycStatus === "rejected";
-  const needsKyc = !kycStatus;
+  // Determine access level - derived from useUserVerification hook (real-time)
+  const isKycApproved = isVerified;
+  const isKycPending = verificationStatus === "pending";
+  const isKycRejected = verificationStatus === "rejected";
+  const needsKyc = verificationStatus === "unverified";
+  const kycRejectionReason = verificationData?.rejection_reason || null;
   const needsAccount = !hasOkxAccount && !accountRequestStatus;
   const accountPending = !hasOkxAccount && accountRequestStatus === "pending";
 
