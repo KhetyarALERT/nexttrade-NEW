@@ -53,7 +53,7 @@ const t = {
     copyTradingBalance: "Copy Trading",
     estMonthlyEarnings: "Est. Monthly Earnings",
     estTotalUnlock: "Est. Total at Unlock",
-    paidEvery30: "Paid every 30 days",
+    paidEvery: "Paid every",
     estExtraBenefits: "Est. extra benefits",
     upTo: "up to"
   },
@@ -86,7 +86,7 @@ const t = {
     copyTradingBalance: "نسخ التداول",
     estMonthlyEarnings: "الأرباح الشهرية المتوقعة",
     estTotalUnlock: "الإجمالي المتوقع عند الفتح",
-    paidEvery30: "تدفع كل 30 يوم",
+    paidEvery: "تدفع كل",
     estExtraBenefits: "المزايا المتوقعة",
     upTo: "حتى"
   }
