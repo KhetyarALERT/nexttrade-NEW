@@ -199,6 +199,21 @@ export default function OKXAdminHub() {
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
+  const formatRelativeTime = (dateStr) => {
+    if (!dateStr) return '—';
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diffMs = now - then;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+  };
+
   if (!isAuthenticated || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -634,11 +649,16 @@ export default function OKXAdminHub() {
                       <TableHead>User</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>OKX Account</TableHead>
+                      <TableHead>Last Login</TableHead>
                       <TableHead>Joined</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((u) => (
+                    {[...users].sort((a, b) => {
+                      const aLogin = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+                      const bLogin = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+                      return bLogin - aLogin;
+                    }).map((u) => (
                       <TableRow key={u.id}>
                         <TableCell>
                           <div>
@@ -649,6 +669,9 @@ export default function OKXAdminHub() {
                         <TableCell><Badge variant="secondary">{u.role}</Badge></TableCell>
                         <TableCell>
                           {u.hasOkxAccount ? <Badge variant="outline" className="bg-green-500/10 text-green-500">Active</Badge> : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground" title={u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : ''}>
+                          {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : '—'}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(u.createdAt)}</TableCell>
                       </TableRow>
