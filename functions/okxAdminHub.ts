@@ -400,6 +400,7 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, data: (allUsers || []).map(u => ({
         id: u.id, email: u.email, fullName: u.full_name, role: u.role,
         hasOkxAccount: !!accMap[u.id], okxAccountStatus: accMap[u.id]?.status || null, okxAccountId: accMap[u.id]?.id || null,
+        lastLoginAt: u.last_login_at || null,
         createdAt: u.created_date,
       })) });
     }
