@@ -231,6 +231,55 @@ export default function EntitlementsAdminTab({ onRefresh }) {
                 </div>
               </div>
 
+              {/* Benefits Valuation (Display Only) */}
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  🎁 Benefits Valuation (Display Only)
+                </h3>
+                <div className="grid md:grid-cols-2 gap-6 p-4 border rounded-xl bg-card">
+                  <div className="space-y-2">
+                    <Label>Benefits Cap (USD)</Label>
+                    <Input 
+                      type="number" 
+                      step="1"
+                      value={configForm.benefits_value_cap_usd ?? 54}
+                      onChange={(e) => setConfigForm({...configForm, benefits_value_cap_usd: Number(e.target.value)})}
+                    />
+                    <p className="text-xs text-muted-foreground">Max displayed value (marketing cap)</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Point Value (USD per point)</Label>
+                    <Input 
+                      type="number" 
+                      step="0.001"
+                      value={configForm.points_value_usd ?? 0.005}
+                      onChange={(e) => setConfigForm({...configForm, points_value_usd: Number(e.target.value)})}
+                    />
+                    <p className="text-xs text-muted-foreground">Display only — not withdrawable cash</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label (EN)</Label>
+                    <Input 
+                      value={configForm.benefits_label_en ?? "Estimated benefits value (up to $54)"}
+                      onChange={(e) => setConfigForm({...configForm, benefits_label_en: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label (AR)</Label>
+                    <Input 
+                      dir="rtl"
+                      value={configForm.benefits_label_ar ?? "قيمة المزايا التقريبية (حتى $54)"}
+                      onChange={(e) => setConfigForm({...configForm, benefits_label_ar: e.target.value})}
+                    />
+                  </div>
+                </div>
+                {/* Preview */}
+                <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+                  <p className="font-medium mb-1">Preview:</p>
+                  <p>If user has 10,000 points → shows <strong className="text-foreground">${Math.min(10000 * (configForm.points_value_usd || 0.005), configForm.benefits_value_cap_usd || 54).toFixed(2)}</strong> (capped at ${configForm.benefits_value_cap_usd || 54})</p>
+                </div>
+              </div>
+
               {/* Defaults */}
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="text-sm font-medium flex items-center gap-2">

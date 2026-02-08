@@ -14,13 +14,14 @@ const t = {
     day: "day",
     min: "Min",
     bonusRewards: "Bonus Rewards",
-    bonusTooltip: "Bonus Rewards unlock perks automatically. No action required.",
+    bonusTooltip: "Points unlock in-app benefits (discounts, priority, perks). Your USDT withdrawals are normal and not affected.",
     perDollar: "/USDT staked",
     perks: "Perks while active",
     viewAllPerks: "View all perks",
     firstStakeBonus: "First stake bonus",
     select: "Select Plan",
-    apy: "APY"
+    apy: "APY",
+    benefitsValue: "Benefits value up to"
   },
   ar: {
     recommended: "موصى به",
@@ -29,13 +30,14 @@ const t = {
     day: "يوم",
     min: "الحد الأدنى",
     bonusRewards: "المكافآت الإضافية",
-    bonusTooltip: "المكافآت الإضافية تفتح المزايا تلقائياً. لا حاجة لأي إجراء.",
+    bonusTooltip: "النقاط تمنحك مزايا داخل NextTrade مثل خصومات وأولوية ومكافآت. سحب USDT طبيعي ولا يتأثر.",
     perDollar: "/USDT مستثمر",
     perks: "المزايا أثناء النشاط",
     viewAllPerks: "عرض كل المزايا",
     firstStakeBonus: "مكافأة الستيك الأول",
     select: "اختر الخطة",
-    apy: "عائد سنوي"
+    apy: "عائد سنوي",
+    benefitsValue: "قيمة المزايا حتى"
   }
 };
 
@@ -107,22 +109,33 @@ export default function StakingPlanCard({
         </div>
 
         {/* Bonus Rewards */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1.5">
-            <Gift className="w-4 h-4 text-primary" />
-            <span className="text-muted-foreground">{labels.bonusRewards}</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[200px] text-xs">
-                  {labels.bonusTooltip}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-1.5">
+              <Gift className="w-4 h-4 text-primary" />
+              <span className="text-muted-foreground">{labels.bonusRewards}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[240px] text-xs">
+                    <span dangerouslySetInnerHTML={{ __html: labels.bonusTooltip }} />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <span className="font-medium text-primary">+{plan.baseRewardsPerDollar}{labels.perDollar}</span>
           </div>
-          <span className="font-medium text-primary">+{plan.baseRewardsPerDollar}{labels.perDollar}</span>
+          {plan.minDeposit > 0 && plan.baseRewardsPerDollar > 0 && (
+            <div className="text-[11px] text-muted-foreground/80 ltr:pl-5.5 rtl:pr-5.5" style={{ paddingInlineStart: '1.375rem' }}>
+              {language === "ar" ? (
+                <>{labels.benefitsValue} <bdi dir="ltr">${plan.benefitsCapUsd || 54}</bdi></>
+              ) : (
+                <>{labels.benefitsValue} <bdi dir="ltr">${plan.benefitsCapUsd || 54}</bdi></>
+              )}
+            </div>
+          )}
         </div>
 
         {/* First stake bonus badge */}

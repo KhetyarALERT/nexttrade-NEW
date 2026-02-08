@@ -17,8 +17,9 @@ import {
   Gift, Star, Trophy, Flame, Zap, Users, Copy, Check, Share2,
   CalendarCheck2, CheckCircle2, DollarSign, TrendingUp, Clock,
   ArrowRight, Wallet, History, Target, ExternalLink, RefreshCw, 
-  Lock, Crown, AlertCircle, Sparkles
+  Lock, Crown, AlertCircle, Sparkles, Info
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Components
 import InviteCard from "@/components/rewards/InviteCard";
@@ -178,6 +179,7 @@ export default function Rewards({ language = "en" }) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [claimingMilestone, setClaimingMilestone] = useState(null);
+  const [benefitsConfig, setBenefitsConfig] = useState(null);
 
   // Load main rewards data
   const loadData = useCallback(async () => {
@@ -222,6 +224,20 @@ export default function Rewards({ language = "en" }) {
       setMissionsLoading(false);
     }
   }, []);
+
+  // Load benefits config (public read)
+  const loadBenefitsConfig = useCallback(async () => {
+    try {
+      const configs = await base44.entities.EntitlementsConfig.filter({ config_key: "default" });
+      if (configs?.length) setBenefitsConfig(configs[0]);
+    } catch (e) {
+      // silent - config may not exist yet
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBenefitsConfig();
+  }, [loadBenefitsConfig]);
 
   useEffect(() => {
     if (isAuthenticated && !isLoadingAuth) {
@@ -313,6 +329,18 @@ export default function Rewards({ language = "en" }) {
   const checkin = data?.checkin || { checkedInToday: false, streak: 0, nextPoints: 10 };
   const recentRewards = data?.recentRewards || [];
 
+  // Benefits value computation (display-only)
+  const pointsValueUsd = benefitsConfig?.points_value_usd || 0;
+  const benefitsCapUsd = benefitsConfig?.benefits_value_cap_usd || 0;
+  const estimatedBenefits = pointsValueUsd > 0 && benefitsCapUsd > 0
+    ? Math.min(balances.points * pointsValueUsd, benefitsCapUsd)
+    : 0;
+  const showBenefitsValue = estimatedBenefits > 0;
+  const benefitsLabelEn = benefitsConfig?.benefits_label_en || "Estimated benefits value (up to $54)";
+  const benefitsLabelAr = benefitsConfig?.benefits_label_ar || "قيمة المزايا التقريبية (حتى $54)";
+  const benefitsTooltipEn = "Points unlock in-app benefits (discounts, priority, perks). Your <bdi dir=\"ltr\">USDT</bdi> withdrawals are normal and not affected.";
+  const benefitsTooltipAr = "النقاط تمنحك مزايا داخل NextTrade مثل خصومات وأولوية ومكافآت. سحب <bdi dir=\"ltr\">USDT</bdi> طبيعي ولا يتأثر.";
+
   // Invite & Earn data
   const ieData = inviteEarnData || {};
   const tierStatus = ieData.tierStatus || { currentLevel: 0, activeEligible100Count: 0, activeEligible200Count: 0, vipActive: false };
@@ -360,6 +388,30 @@ export default function Rewards({ language = "en" }) {
               </div>
             ))}
           </div>
+
+          {/* Benefits Value Line */}
+          {showBenefitsValue && (
+            <div className="flex items-center justify-center gap-2 mt-3 bg-white/5 backdrop-blur-sm rounded-lg px-3 py-2">
+              <Gift className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span className="text-white/80 text-xs sm:text-sm">
+                {isAr ? (
+                  <>{benefitsLabelAr.split('$')[0]}<bdi dir="ltr">${estimatedBenefits.toFixed(2)}</bdi>{benefitsLabelAr.includes(')') ? ')' : ''}</>
+                ) : (
+                  <>{language === "en" ? "Benefits value: " : ""}<bdi dir="ltr">${estimatedBenefits.toFixed(2)}</bdi></>
+                )}
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-white/40 cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[260px] text-xs">
+                    <span dangerouslySetInnerHTML={{ __html: isAr ? benefitsTooltipAr : benefitsTooltipEn }} />
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </div>
       </section>
 
