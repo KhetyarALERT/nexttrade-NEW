@@ -173,17 +173,8 @@ export default function WalletPage({ language = "en" }) {
     try {
       const user = await base44.auth.me();
 
-      // Load KYC status from UserVerification (single source of truth)
-      const uvResult = await base44.functions.invoke("verificationService", { action: "getStatus" });
-      if (uvResult.data?.ok && uvResult.data.data?.exists) {
-        const uvData = uvResult.data.data;
-        // Map status: verified → approved (for backward compat with UI)
-        const mappedStatus = uvData.status === "verified" ? "approved" : uvData.status;
-        setKycStatus(mappedStatus);
-        setKycRejectionReason(uvData.rejection_reason);
-      } else {
-        setKycStatus(null);
-      }
+      // KYC status is handled by useUserVerification hook (real-time subscription)
+      // No need to manually load it here
 
       // Load OKX account status
       const okxResult = await base44.functions.invoke("okxUserAccount", { action: "getMyAccount" });
