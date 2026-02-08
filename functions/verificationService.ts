@@ -347,6 +347,70 @@ Deno.serve(async (req) => {
         console.error('[verificationService] Failed to notify user on approve:', e.message);
       }
 
+      // === AUTO-PROVISION: Create TradingAccount + Wallets for verified user ===
+      try {
+        // Check if user already has a non-demo TradingAccount
+        const existingLiveAccounts = await base44.asServiceRole.entities.TradingAccount.filter({
+          user_id: vr.user_id,
+          is_demo: false
+        });
+        
+        if (!existingLiveAccounts || existingLiveAccounts.length === 0) {
+          const accountId = `TA_live_${vr.user_id.substring(0, 8)}_${Date.now()}`;
+          
+          const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
+            account_id: accountId,
+            user_id: vr.user_id,
+            user_email: vr.user_email,
+            nickname: 'Trading Account',
+            account_type: 'mentor',
+            balance: 0,
+            equity: 0,
+            margin_used: 0,
+            unrealized_pnl: 0,
+            realized_pnl: 0,
+            total_trades: 0,
+            winning_trades: 0,
+            status: 'active',
+            default_leverage: 5,
+            is_demo: false,
+            demo_balance: 0
+          });
+          
+          console.log('[verificationService] Auto-provisioned TradingAccount:', newAccount.id, 'for user:', vr.user_id);
+          
+          // Create USDT wallets for NOWPayments deposits
+          const walletConfigs = [
+            { currency: 'USDT', network: 'TRC20', is_primary: true },
+            { currency: 'USDT', network: 'ERC20', is_primary: false },
+            { currency: 'USDT', network: 'BEP20', is_primary: false },
+            { currency: 'BTC', network: 'BTC', is_primary: false },
+            { currency: 'ETH', network: 'ERC20', is_primary: false }
+          ];
+          
+          for (const wc of walletConfigs) {
+            await base44.asServiceRole.entities.Wallet.create({
+              trading_account_id: newAccount.id,
+              user_id: vr.user_id,
+              currency: wc.currency,
+              network: wc.network,
+              balance: 0,
+              locked_balance: 0,
+              staked_balance: 0,
+              status: 'active',
+              total_deposited: 0,
+              total_withdrawn: 0,
+              is_primary: wc.is_primary
+            });
+          }
+          
+          console.log('[verificationService] Auto-provisioned wallets for user:', vr.user_id);
+        }
+      } catch (provErr) {
+        console.error('[verificationService] Auto-provision failed:', provErr.message);
+        // Non-blocking — user is still verified even if provisioning fails
+      }
+
       return Response.json({ ok: true, status: "approved" });
     }
 
