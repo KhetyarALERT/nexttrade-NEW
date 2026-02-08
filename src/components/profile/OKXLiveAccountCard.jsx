@@ -169,18 +169,48 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
 
   const loadAccount = useCallback(async () => {
     try {
-      const res = await base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' });
+      const user = await base44.auth.me();
+      
+      // Check OKX account first
+      const res = await base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } }));
       
       if (res.data?.ok && res.data.data?.hasAccount) {
         setAccountData(res.data.data);
         
         // Load positions
-        const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' });
+        const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' }).catch(() => ({ data: { ok: false } }));
         if (posRes.data?.ok) {
           setPositions(posRes.data.data || []);
         }
       } else {
-        setAccountData(null);
+        // Fallback: check if user has a live TradingAccount (auto-provisioned on KYC approval)
+        const liveAccounts = await base44.entities.TradingAccount.filter(
+          { user_id: user.id, is_demo: false },
+          '-created_date',
+          1
+        );
+        
+        if (liveAccounts?.length > 0) {
+          const account = liveAccounts[0];
+          // Build account data structure compatible with the card UI
+          setAccountData({
+            hasAccount: true,
+            accountLabel: account.nickname || 'Trading Account',
+            externalAccountId: account.account_id,
+            balances: {
+              totalEquity: account.equity || account.balance || 0,
+              totalUsdt: account.balance || 0,
+              tradingUsdt: 0,
+              fundingUsdt: account.balance || 0,
+              perCcy: {}
+            },
+            defaultLeverage: account.default_leverage || 5,
+            lastSync: account.updated_date,
+            _source: 'internal' // Flag to distinguish from OKX
+          });
+        } else {
+          setAccountData(null);
+        }
       }
     } catch (err) {
       console.error('[OKXLiveAccountCard] Load error:', err);
