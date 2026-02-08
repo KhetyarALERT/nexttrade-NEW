@@ -53,7 +53,9 @@ const t = {
     copyTradingBalance: "Copy Trading",
     estMonthlyEarnings: "Est. Monthly Earnings",
     estTotalUnlock: "Est. Total at Unlock",
-    paidEvery30: "Paid every 30 days"
+    paidEvery30: "Paid every 30 days",
+    estExtraBenefits: "Est. extra benefits",
+    upTo: "up to"
   },
   ar: {
     step2Title: "أدخل المبلغ",
@@ -84,7 +86,9 @@ const t = {
     copyTradingBalance: "نسخ التداول",
     estMonthlyEarnings: "الأرباح الشهرية المتوقعة",
     estTotalUnlock: "الإجمالي المتوقع عند الفتح",
-    paidEvery30: "تدفع كل 30 يوم"
+    paidEvery30: "تدفع كل 30 يوم",
+    estExtraBenefits: "المزايا المتوقعة",
+    upTo: "حتى"
   }
 };
 
@@ -101,6 +105,7 @@ export default function StakingAmountPanel({
   processing, 
   isEligibleFirstStake,
   stakingConfig,
+  pointsValueUsd = 0,
   language = "en"
 }) {
   const labels = t[language] || t.en;
@@ -278,6 +283,19 @@ export default function StakingAmountPanel({
                 )}
               </div>
             </div>
+
+            {/* Estimated extra benefits (display-only) */}
+            {plan.benefitsCapUsd > 0 && pointsValueUsd > 0 && totalRewards > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">{labels.estExtraBenefits}</span>
+                <span className="font-medium text-emerald-600">
+                  <bdi dir="ltr">${Math.min(totalRewards * pointsValueUsd, plan.benefitsCapUsd).toFixed(2)}</bdi>
+                  <span className="text-[10px] text-muted-foreground ltr:ml-1 rtl:mr-1">
+                    ({labels.upTo} <bdi dir="ltr">${plan.benefitsCapUsd}</bdi>)
+                  </span>
+                </span>
+              </div>
+            )}
 
             <div className="pt-2 mt-2 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
               <div>

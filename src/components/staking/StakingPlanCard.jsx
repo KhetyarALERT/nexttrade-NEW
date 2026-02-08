@@ -14,14 +14,14 @@ const t = {
     day: "day",
     min: "Min",
     bonusRewards: "Bonus Rewards",
-    bonusTooltip: "Points unlock in-app benefits (discounts, priority, perks). Your USDT withdrawals are normal and not affected.",
+    bonusTooltip: "Benefits are in-app advantages like discounts, priority, and bonuses. Withdrawals work normally and are not affected.",
     perDollar: "/USDT staked",
     perks: "Perks while active",
     viewAllPerks: "View all perks",
     firstStakeBonus: "First stake bonus",
     select: "Select Plan",
     apy: "APY",
-    benefitsValue: "Benefits value up to"
+    benefitsValue: "Extra benefits up to"
   },
   ar: {
     recommended: "موصى به",
@@ -30,14 +30,14 @@ const t = {
     day: "يوم",
     min: "الحد الأدنى",
     bonusRewards: "المكافآت الإضافية",
-    bonusTooltip: "النقاط تمنحك مزايا داخل NextTrade مثل خصومات وأولوية ومكافآت. سحب USDT طبيعي ولا يتأثر.",
+    bonusTooltip: "المزايا فوائد داخل NextTrade مثل خصومات وأولوية ومكافآت. السحب يعمل بشكل طبيعي ولا يتأثر.",
     perDollar: "/USDT مستثمر",
     perks: "المزايا أثناء النشاط",
     viewAllPerks: "عرض كل المزايا",
     firstStakeBonus: "مكافأة الستيك الأول",
     select: "اختر الخطة",
     apy: "عائد سنوي",
-    benefitsValue: "قيمة المزايا حتى"
+    benefitsValue: "مزايا إضافية حتى"
   }
 };
 
@@ -127,13 +127,9 @@ export default function StakingPlanCard({
             </div>
             <span className="font-medium text-primary">+{plan.baseRewardsPerDollar}{labels.perDollar}</span>
           </div>
-          {plan.minDeposit > 0 && plan.baseRewardsPerDollar > 0 && (
+          {plan.benefitsCapUsd > 0 && plan.baseRewardsPerDollar > 0 && (
             <div className="text-[11px] text-muted-foreground/80 ltr:pl-5.5 rtl:pr-5.5" style={{ paddingInlineStart: '1.375rem' }}>
-              {language === "ar" ? (
-                <>{labels.benefitsValue} <bdi dir="ltr">${plan.benefitsCapUsd || 54}</bdi></>
-              ) : (
-                <>{labels.benefitsValue} <bdi dir="ltr">${plan.benefitsCapUsd || 54}</bdi></>
-              )}
+              {labels.benefitsValue} <bdi dir="ltr">${plan.benefitsCapUsd}</bdi>
             </div>
           )}
         </div>

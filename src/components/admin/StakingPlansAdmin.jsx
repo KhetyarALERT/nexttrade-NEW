@@ -37,6 +37,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
     apy_percent: 10,
     min_deposit: 50,
     base_rewards_per_dollar: 10,
+    benefits_cap_usd: 0,
     perks: '',
     signals_tier: 'NONE',
     copy_trading_level: 'ACCESS',
@@ -115,6 +116,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
         apy_percent: plan.apy_percent,
         min_deposit: plan.min_deposit || 50,
         base_rewards_per_dollar: plan.base_rewards_per_dollar || 10,
+        benefits_cap_usd: plan.benefits_cap_usd || 0,
         perks: (plan.perks || []).join('\n'),
         signals_tier: plan.signals_tier || 'NONE',
         copy_trading_level: plan.copy_trading_level || 'ACCESS',
@@ -170,6 +172,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
         apy_percent: Number(form.apy_percent),
         min_deposit: Number(form.min_deposit),
         base_rewards_per_dollar: Number(form.base_rewards_per_dollar),
+        benefits_cap_usd: Number(form.benefits_cap_usd),
         perks: perksArray,
         signals_tier: form.signals_tier,
         copy_trading_level: form.copy_trading_level,
@@ -396,7 +399,8 @@ export default function StakingPlansAdmin({ onRefresh }) {
                 <TableHead>Term</TableHead>
                 <TableHead>APY</TableHead>
                 <TableHead>Min Deposit</TableHead>
-                <TableHead>Rewards/$ </TableHead>
+                <TableHead>Rewards/$</TableHead>
+                <TableHead>Benefits Cap</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Actions</TableHead>
@@ -405,7 +409,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
             <TableBody>
               {plans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No plans configured
                   </TableCell>
                 </TableRow>
@@ -425,6 +429,7 @@ export default function StakingPlansAdmin({ onRefresh }) {
                     <TableCell className="font-mono text-emerald-600">{plan.apy_percent}%</TableCell>
                     <TableCell className="font-mono">${plan.min_deposit}</TableCell>
                     <TableCell className="font-mono">+{plan.base_rewards_per_dollar}</TableCell>
+                    <TableCell className="font-mono">${plan.benefits_cap_usd || 0}</TableCell>
                     <TableCell>
                       <Switch
                         checked={plan.is_enabled !== false}
@@ -557,6 +562,17 @@ export default function StakingPlansAdmin({ onRefresh }) {
                   onChange={(e) => setForm({ ...form, base_rewards_per_dollar: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label>Benefits Cap (USD) — display only</Label>
+              <Input
+                type="number"
+                step="1"
+                value={form.benefits_cap_usd}
+                onChange={(e) => setForm({ ...form, benefits_cap_usd: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Max estimated benefits shown to users (e.g. 10, 25, 40, 54)</p>
             </div>
 
             <div>
