@@ -314,7 +314,7 @@ export default function StakingAmountPanel({
             
             <div className="flex justify-center pt-1">
               <span className="text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Info className="w-3 h-3" /> {labels.paidEvery30}
+                <Info className="w-3 h-3" /> {labels.paidEvery} {plan.termDays} {plan.termDays === 1 ? labels.day : labels.days}
               </span>
             </div>
             
@@ -328,16 +328,16 @@ export default function StakingAmountPanel({
         </div>
       )}
 
-      {/* CTA Buttons */}
-      <div className="flex gap-3 pt-2">
-        <Button variant="outline" onClick={onBack} disabled={processing} className="flex-1 h-11">
+      {/* CTA Buttons - sticky on mobile to always be visible */}
+      <div className="flex gap-3 pt-3 pb-2 sticky bottom-0 bg-background z-10">
+        <Button variant="outline" onClick={onBack} disabled={processing} className="flex-1 h-12">
           <BackIcon className="w-4 h-4 ltr:mr-1 rtl:ml-1" />
           {labels.back}
         </Button>
         <Button 
           onClick={() => onStake(useCopyTrading ? 'COPY_TRADING' : 'MAIN')} 
           disabled={processing || !isValidAmount}
-          className="flex-1 h-11"
+          className="flex-1 h-12"
           data-pf="stake-confirm"
         >
           {processing ? (
