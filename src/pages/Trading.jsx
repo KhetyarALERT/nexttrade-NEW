@@ -454,11 +454,11 @@ export default function Trading({ language = "en" }) {
     </div>
   );
 
-  // Trade panel component
+  // Trade panel component - no demoAccount passed to prevent fake 10k balance
   const tradePanelComponent = (
     <FuturesTradePanel
       liveAccount={liveAccount}
-      demoAccount={demoAccount}
+      demoAccount={null}
       symbol={selectedSymbol}
       onTradesChanged={handleTradesChanged}
       onAccountsChanged={handleAccountsChanged}
