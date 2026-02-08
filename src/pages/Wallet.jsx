@@ -176,31 +176,31 @@ export default function WalletPage({ language = "en" }) {
       // KYC status is handled by useUserVerification hook (real-time subscription)
       // No need to manually load it here
 
-      // Load OKX account status
-      const okxResult = await base44.functions.invoke("okxUserAccount", { action: "getMyAccount" });
-      if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
+      // Load OKX account status + check for live TradingAccount
+      const [okxResult, liveTradingAccounts] = await Promise.all([
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch(() => ({ data: { ok: false } })),
+        base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: false }, '-created_date', 1)
+      ]);
+      
+      const hasOkx = okxResult.data?.ok && okxResult.data.data?.hasAccount;
+      const hasLiveAccount = liveTradingAccounts?.length > 0;
+      
+      if (hasOkx || hasLiveAccount) {
         setHasOkxAccount(true);
-        setOkxBalances(okxResult.data.data.balances);
+        setOkxBalances(hasOkx ? okxResult.data.data.balances : null);
+        setAccountRequestStatus(null);
       } else {
-        // Fallback: if user already has an internal TradingAccount, treat as active account
-        const myTradingAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id });
-        if (myTradingAccounts?.length > 0) {
-          setHasOkxAccount(true);
-          setOkxBalances(okxResult.data?.data?.balances || null);
-          setAccountRequestStatus(null);
+        setHasOkxAccount(false);
+        // Check for pending account request
+        const requests = await base44.entities.LiveAccountRequest.filter(
+          { user_id: user.id },
+          "-created_date",
+          1
+        );
+        if (requests?.length > 0 && requests[0].status !== "rejected") {
+          setAccountRequestStatus(requests[0].status);
         } else {
-          setHasOkxAccount(false);
-          // Check for pending account request
-          const requests = await base44.entities.LiveAccountRequest.filter(
-            { user_id: user.id },
-            "-created_date",
-            1
-          );
-          if (requests?.length > 0 && requests[0].status !== "rejected") {
-            setAccountRequestStatus(requests[0].status);
-          } else {
-            setAccountRequestStatus(null);
-          }
+          setAccountRequestStatus(null);
         }
       }
 
