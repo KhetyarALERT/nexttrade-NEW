@@ -246,7 +246,7 @@ async function processDeposit(base44, payload) {
     network: wallet.network
   });
   
-  // Create notification for confirmed deposit
+  // Create notification for confirmed deposit (user)
   try {
     await base44.asServiceRole.entities.Notification.create({
       user_id: wallet.user_id,
@@ -257,7 +257,38 @@ async function processDeposit(base44, payload) {
       priority: 'normal'
     });
   } catch (e) {
-    console.log('Failed to create notification:', e.message);
+    console.log('Failed to create user notification:', e.message);
+  }
+  
+  // Create admin notification for deposit (for manual ledger top-up visibility)
+  try {
+    const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 200);
+    const admins = (allUsers || []).filter(u => u.role === 'admin');
+    
+    for (const admin of admins) {
+      await base44.asServiceRole.entities.Notification.create({
+        user_id: admin.id,
+        type: 'deposit_confirmed',
+        title: `💰 NOWPayments Deposit: ${depositAmount} ${wallet.currency}`,
+        message: `User ${wallet.user_id} deposited ${depositAmount} ${wallet.currency} via ${wallet.network}. Payment ID: ${payment_id}. Balance updated to ${newBalance.toFixed(2)} ${wallet.currency}.`,
+        priority: 'high',
+        read: false,
+        data: {
+          deposit_user_id: wallet.user_id,
+          wallet_id: wallet.id,
+          amount: depositAmount,
+          currency: wallet.currency,
+          network: wallet.network,
+          payment_id: String(payment_id),
+          new_balance: newBalance,
+          trading_account_id: wallet.trading_account_id,
+          timestamp: new Date().toISOString(),
+          link: `/OKXAdminHub?tab=users&userId=${wallet.user_id}`
+        }
+      });
+    }
+  } catch (e) {
+    console.log('Failed to create admin deposit notification:', e.message);
   }
 }
 
