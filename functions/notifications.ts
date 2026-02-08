@@ -29,8 +29,9 @@ Deno.serve(async (req) => {
       // which sets created_by to service email, not user email
       // Security: we filter by user_id which is the authenticated user
       // Note: Entity stores properties in 'data' field, so we query 'data.user_id'
+      // Query by user_id (top-level entity field, not nested data)
       const notifications = await base44.asServiceRole.entities.Notification.filter(
-        { 'data.user_id': user.id },
+        { user_id: user.id },
         '-created_date',
         limit + skip
       );
