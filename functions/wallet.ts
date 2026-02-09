@@ -22,57 +22,6 @@ const audit = (action, userId, data) => {
   console.log(`[WALLET_AUDIT] [${new Date().toISOString()}] ${action} | User: ${userId}`, JSON.stringify(data));
 };
 
-// Auth token for sub-partner operations (customer/payment)
-const getNowPaymentsAuthToken = async () => {
-  const email = Deno.env.get("NOWPAYMENTS_EMAIL");
-  const password = Deno.env.get("NOWPAYMENTS_PASSWORD");
-
-  if (!email || !password) {
-    throw new Error('NOWPayments credentials not configured');
-  }
-
-  const response = await fetch(`${NOWPAYMENTS_BASE_URL}/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.token) {
-    throw new Error(data.message || 'Failed to authenticate with NOWPayments');
-  }
-
-  return data.token;
-};
-
-// Ensure sub-partner customer exists for the user (reuses custody account storage)
-const getOrCreateSubPartnerAccount = async (base44, user) => {
-  const existing = await base44.entities.CustodyAccount.filter({ user_id: user.id });
-  if (existing?.length) {
-    return existing[0];
-  }
-
-  const token = await getNowPaymentsAuthToken();
-  const name = `user_${user.id.substring(0, 20)}`;
-  const result = await nowPaymentsRequest('/sub-partner/balance', 'POST', { name }, token);
-
-  if (!result?.result?.id) {
-    throw new Error('Failed to create NOWPayments sub-partner account');
-  }
-
-  const account = await base44.asServiceRole.entities.CustodyAccount.create({
-    user_id: user.id,
-    nowpayments_id: result.result.id,
-    name,
-    status: 'active',
-    balances: {},
-    last_sync: new Date().toISOString()
-  });
-
-  audit('SUB_PARTNER_ACCOUNT_CREATED', user.id, { nowpaymentsId: account.nowpayments_id });
-  return account;
-};
-
 // NOWPayments API helper
 const nowPaymentsRequest = async (endpoint, method = 'GET', body = null, authToken = null) => {
   if (!NOWPAYMENTS_API_KEY) {
@@ -304,7 +253,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, data: wallets || [] });
     }
 
-    // GET DEPOSIT ADDRESS (sub-partner payment / customer)
+    // GET DEPOSIT ADDRESS (creates NOWPayments invoice)
     if (action === 'getDepositAddress') {
       const { walletId, amount = 100 } = params;
       
@@ -333,34 +282,30 @@ Deno.serve(async (req) => {
       const appUrl = Deno.env.get('BASE44_APP_URL') || 'https://app.base44.com';
       
       try {
-        const token = await getNowPaymentsAuthToken();
-        const subPartnerAccount = await getOrCreateSubPartnerAccount(base44, user);
-        const orderId = `deposit_${wallet.id}_${Date.now()}`;
-        
-        const paymentData = await nowPaymentsRequest('/sub-partner/payment', 'POST', {
-          sub_partner_id: subPartnerAccount.nowpayments_id,
+        // Create payment/invoice via NOWPayments
+        const paymentData = await nowPaymentsRequest('/invoice', 'POST', {
           price_amount: parseFloat(amount) || 100,
           price_currency: 'usd',
           pay_currency: currencyConfig.nowpaymentsCurrency,
-          order_id: orderId,
+          order_id: `deposit_${wallet.id}_${Date.now()}`,
           order_description: `Deposit ${wallet.currency} (${wallet.network}) to NextTrade wallet`,
           ipn_callback_url: `${appUrl}/api/functions/walletWebhook`,
           success_url: `${appUrl}/Profile?tab=wallet&deposit=success`,
           cancel_url: `${appUrl}/Profile?tab=wallet&deposit=cancelled`
-        }, token);
+        });
         
         await base44.asServiceRole.entities.Wallet.update(walletId, {
-          nowpayments_payment_id: String(paymentData.payment_id || paymentData.id),
+          nowpayments_payment_id: String(paymentData.id),
           deposit_address: paymentData.pay_address || null,
           address_generated_at: new Date().toISOString()
         });
         
-        audit('DEPOSIT_PAYMENT_CREATED', user.id, { walletId, paymentId: paymentData.payment_id || paymentData.id, subPartnerId: subPartnerAccount.nowpayments_id });
+        audit('DEPOSIT_INVOICE_CREATED', user.id, { walletId, invoiceId: paymentData.id });
         
         return Response.json({ 
           success: true, 
           data: {
-            invoice_id: paymentData.payment_id || paymentData.id,
+            invoice_id: paymentData.id,
             invoice_url: paymentData.invoice_url,
             pay_address: paymentData.pay_address,
             pay_currency: paymentData.pay_currency,
@@ -681,49 +626,6 @@ Deno.serve(async (req) => {
       audit('INTERNAL_TRANSFER', user.id, { fromWalletId, toWalletId, amount: transferAmount, transferId });
       
       return Response.json({ success: true, data: { transferId, status: 'completed' } });
-    }
-
-    // ADMIN: LIST DEPOSITS (NOWPayments + internal) - admin only
-    if (action === 'adminListDeposits') {
-      if (user.role !== 'admin') {
-        return Response.json({ success: false, error: 'Admin access required' }, { status: 403 });
-      }
-
-      const { limit = 100 } = params;
-      const txs = await base44.asServiceRole.entities.WalletTransaction.filter({ type: 'deposit' }, '-created_date', Math.min(500, limit));
-      const walletIds = Array.from(new Set((txs || []).map(t => t.wallet_id).filter(Boolean)));
-      const userIds = Array.from(new Set((txs || []).map(t => t.user_id).filter(Boolean)));
-
-      const [walletLists, userLists] = await Promise.all([
-        Promise.all(walletIds.map(id => base44.asServiceRole.entities.Wallet.filter({ id }))),
-        Promise.all(userIds.map(id => base44.asServiceRole.entities.User.filter({ id })))
-      ]);
-
-      const wallets = walletLists.flat();
-      const users = userLists.flat();
-
-      const walletMap = {};
-      for (const w of wallets || []) walletMap[w.id] = w;
-      const userMap = {};
-      for (const u of users || []) userMap[u.id] = u;
-
-      return Response.json({
-        success: true,
-        data: (txs || []).map(tx => ({
-          id: tx.id,
-          amount: tx.amount,
-          currency: tx.currency,
-          network: tx.network,
-          status: tx.status,
-          created_at: tx.created_date || tx.created_at,
-          nowpayments_id: tx.nowpayments_id,
-          wallet_id: tx.wallet_id,
-          user_id: tx.user_id,
-          user_email: userMap[tx.user_id]?.email || null,
-          wallet_currency: walletMap[tx.wallet_id]?.currency,
-          wallet_network: walletMap[tx.wallet_id]?.network,
-        }))
-      });
     }
 
     // GET TRANSACTIONS

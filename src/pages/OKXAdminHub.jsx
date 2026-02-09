@@ -71,7 +71,6 @@ export default function OKXAdminHub() {
   const [users, setUsers] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [transfers, setTransfers] = useState([]);
-  const [deposits, setDeposits] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   // Referrals tab state
   const [refOverview, setRefOverview] = useState([]);
@@ -104,13 +103,12 @@ export default function OKXAdminHub() {
     if (!isAdmin) return;
     setLoading(true);
     try {
-      const [statsRes, poolRes, usersRes, withdrawalsRes, transfersRes, depositsRes, requestsRes, verificationsRes, stakingReqRes, stakingStatsRes] = await Promise.all([
+      const [statsRes, poolRes, usersRes, withdrawalsRes, transfersRes, requestsRes, verificationsRes, stakingReqRes, stakingStatsRes] = await Promise.all([
         base44.functions.invoke('okxAdminHub', { action: 'getDashboardStats' }),
         base44.functions.invoke('okxAdminHub', { action: 'listPool' }),
         base44.functions.invoke('okxAdminHub', { action: 'listUsers' }),
         base44.functions.invoke('okxAdminHub', { action: 'listWithdrawals', limit: 50 }),
         base44.functions.invoke('okxAdminHub', { action: 'listTransfers', limit: 50 }),
-        base44.functions.invoke('wallet', { action: 'adminListDeposits', limit: 50 }),
         base44.functions.invoke('okxAdminHub', { action: 'listAccountRequests', limit: 100 }),
         base44.entities.VerificationRequest.list('-created_date', 100),
         base44.functions.invoke('okxAdminHub', { action: 'listStakingRequests', status: 'all', limit: 100 }),
@@ -122,7 +120,6 @@ export default function OKXAdminHub() {
       if (usersRes.data?.ok) setUsers(usersRes.data.data || []);
       if (withdrawalsRes.data?.ok) setWithdrawals(withdrawalsRes.data.data || []);
       if (transfersRes.data?.ok) setTransfers(transfersRes.data.data || []);
-      if (depositsRes.data?.success) setDeposits(depositsRes.data.data || []);
       if (requestsRes.data?.ok) setAccountRequests(requestsRes.data.data || []);
       if (verificationsRes) setVerifications(verificationsRes || []);
       if (stakingReqRes.data?.ok) setStakingRequests(stakingReqRes.data.data || []);
@@ -687,37 +684,6 @@ export default function OKXAdminHub() {
 
           <TabsContent value="finance">
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>NOWPayments Deposits</CardTitle>
-                  <CardDescription>Recent wallet deposits via NOWPayments</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Network</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {deposits.map((d) => (
-                        <TableRow key={d.id}>
-                          <TableCell className="font-medium">{d.user_email || d.user_id}</TableCell>
-                          <TableCell>{formatUsdt(d.amount)} {d.currency}</TableCell>
-                          <TableCell>{d.network || d.wallet_network || '—'}</TableCell>
-                          <TableCell><Badge variant="outline" className={statusColors[d.status?.toUpperCase()] || ''}>{d.status}</Badge></TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDate(d.created_at)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle>Withdrawals</CardTitle>
