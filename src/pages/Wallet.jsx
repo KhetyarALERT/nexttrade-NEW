@@ -139,6 +139,7 @@ export default function WalletPage({ language = "en" }) {
 
   // Wallet Data
   const [wallets, setWallets] = useState([]);
+  const [tradingAccountId, setTradingAccountId] = useState(null);
   const [okxBalances, setOkxBalances] = useState(null);
   const [totalBalance, setTotalBalance] = useState(0);
   const [stakingOverlay, setStakingOverlay] = useState(null);
@@ -193,6 +194,10 @@ export default function WalletPage({ language = "en" }) {
       
       const hasOkx = okxResult.data?.ok && okxResult.data.data?.hasAccount;
       const hasLiveAccount = liveTradingAccounts?.length > 0;
+
+      if (hasLiveAccount) {
+        setTradingAccountId(liveTradingAccounts[0].id);
+      }
       
       if (hasOkx || hasLiveAccount) {
         setHasOkxAccount(true);
@@ -217,6 +222,10 @@ export default function WalletPage({ language = "en" }) {
       const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
       if (walletsResult.data?.success) {
         setWallets(walletsResult.data.data || []);
+        const primary = (walletsResult.data.data || []).find((w) => w.is_primary) || (walletsResult.data.data || [])[0];
+        if (primary?.trading_account_id && !tradingAccountId) {
+          setTradingAccountId(primary.trading_account_id);
+        }
       }
 
       // Load staking overlay
@@ -568,6 +577,8 @@ export default function WalletPage({ language = "en" }) {
               <WalletDeposit
                 language={language}
                 hasOkxAccount={hasOkxAccount}
+                tradingAccountId={tradingAccountId}
+                wallets={wallets}
                 onRefresh={handleRefresh}
                 showBackButton={true}
               />
