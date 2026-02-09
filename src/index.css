@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -81,6 +83,17 @@
   }
   body {
     @apply bg-background text-foreground text-[15px] sm:text-[16px];
+    font-family: 'Inter', 'Cairo', system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Prioritize Cairo for Arabic/RTL while keeping Inter fallback */
+  [dir="rtl"], :lang(ar) {
+    font-family: 'Cairo', 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  input, textarea, button, select {
+    font-family: inherit;
   }
 }
 

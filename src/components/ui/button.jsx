@@ -11,11 +11,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30",
+          "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/35",
         destructive:
           "bg-destructive text-destructive-foreground shadow-lg shadow-destructive/25 hover:bg-destructive/90",
         outline:
-          "border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-primary/50",
+          "border-2 border-input bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground hover:border-primary/50",
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
@@ -23,17 +23,17 @@ const buttonVariants = cva(
         success:
           "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-600",
         gradient:
-          "bg-gradient-to-r from-primary to-blue-400 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:brightness-110",
+          "bg-gradient-to-r from-primary via-emerald-500 to-cyan-500 text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
         "gradient-primary":
-          "bg-gradient-to-r from-primary via-emerald-400 to-cyan-400 text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:brightness-110",
+          "bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5",
         long:
           "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/45",
         short:
           "bg-gradient-to-r from-rose-500 to-rose-400 text-white shadow-lg shadow-rose-500/30 hover:shadow-rose-500/45",
         glass:
-          "border border-white/20 bg-white/10 text-foreground backdrop-blur-md hover:bg-white/20 dark:bg-white/5",
+          "border border-border/60 bg-card/70 text-foreground backdrop-blur-md hover:bg-card/90 dark:border-white/10 dark:bg-white/5",
         "outline-glow":
-          "border border-primary/50 bg-transparent text-foreground shadow-outline-glow hover:bg-primary/10",
+          "border border-primary/60 bg-transparent text-primary shadow-[0_0_0_1px_hsla(160,84%,39%,0.25),0_0_18px_hsla(160,84%,39%,0.25)] hover:bg-primary/10 hover:text-primary-foreground dark:text-primary",
       },
       size: {
         default: "h-10 px-5 py-2",
