@@ -359,12 +359,12 @@ export default function Rewards({ language = "en" }) {
   return (
     <div className="min-h-screen bg-background text-foreground pb-24" dir={isAr ? "rtl" : "ltr"}>
       {/* Compact Header */}
-      <section className="bg-gradient-to-br from-emerald-900/90 via-teal-800 to-slate-900/85 pt-6 pb-10 shadow-inner">
+      <section className="bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950/70 pt-6 pb-10 shadow-inner">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/10">
-                <Gift className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/10">
+                <Gift className="w-5 h-5 text-teal-100" />
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-white">{txt.title}</h1>
@@ -376,7 +376,7 @@ export default function Rewards({ language = "en" }) {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="text-white/80 hover:text-white hover:bg-white/15"
+              className="text-white/80 hover:text-white hover:bg-white/10"
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? txt.refreshing : txt.refresh}
@@ -386,23 +386,23 @@ export default function Rewards({ language = "en" }) {
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {[
-              { label: txt.totalEarnings, value: `$${ieData.totalVoucherValue || 0}`, icon: DollarSign, color: "text-emerald-200" },
-              { label: txt.totalPoints, value: balances.points.toLocaleString(), icon: Star, color: "text-amber-200" },
-              { label: txt.level, value: tierStatus.currentLevel || 0, icon: Trophy, color: "text-purple-200" },
-              { label: txt.streak, value: `${checkin.streak}d`, icon: Flame, color: "text-orange-200" }
+              { label: txt.totalEarnings, value: `$${ieData.totalVoucherValue || 0}`, icon: DollarSign, color: "text-teal-100" },
+              { label: txt.totalPoints, value: balances.points.toLocaleString(), icon: Star, color: "text-amber-100" },
+              { label: txt.level, value: tierStatus.currentLevel || 0, icon: Trophy, color: "text-sky-100" },
+              { label: txt.streak, value: `${checkin.streak}d`, icon: Flame, color: "text-orange-100" }
             ].map((stat, i) => (
-              <div key={i} className="rounded-xl border border-white/15 bg-white/8 backdrop-blur-sm p-2 sm:p-3 text-center shadow-sm shadow-black/10">
-                <stat.icon className={`w-4 h-4 ${stat.color} mx-auto mb-1`} />
-                <p className="text-white font-bold text-sm sm:text-lg">{stat.value}</p>
-                <p className="text-white/60 text-[10px] sm:text-xs truncate">{stat.label}</p>
+              <div key={i} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-2 sm:p-3 text-center shadow-sm shadow-black/10">
+                <stat.icon className={`${stat.color} w-4 h-4 mx-auto mb-1`} />
+                <p className="text-white font-semibold text-sm sm:text-lg">{stat.value}</p>
+                <p className="text-white/65 text-[10px] sm:text-xs truncate">{stat.label}</p>
               </div>
             ))}
           </div>
 
           {/* Benefits Value Line */}
           {showBenefitsValue && (
-            <div className="flex items-center justify-center gap-2 mt-3 bg-white/8 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/15 shadow-sm shadow-black/10">
-              <Gift className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+            <div className="flex items-center justify-center gap-2 mt-3 bg-white/6 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10 shadow-sm shadow-black/10">
+              <Gift className="w-3.5 h-3.5 text-teal-100 flex-shrink-0" />
               <span className="text-white/85 text-xs sm:text-sm">
                 {isAr ? (
                   <>{benefitsLabelAr.split('$')[0]}<bdi dir="ltr">${estimatedBenefits.toFixed(2)}</bdi>{benefitsLabelAr.includes(')') ? ')' : ''}</>

@@ -218,17 +218,17 @@ export default function AutoTradeSettings({ language = "en" }) {
       <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
         {/* Compact Header - Always Visible */}
         <div className={cn(
-          "rounded-xl border transition-all duration-200",
+          "rounded-xl border transition-all duration-200 bg-card/70",
           settings.auto_enabled ?
-          "border-primary/30 bg-gradient-to-r from-primary/5 via-primary/[0.03] to-transparent" :
-          "border-border/40 bg-card/50"
+          "border-primary/25 ring-1 ring-primary/15" :
+          "border-border/40"
         )}>
           <div className="flex items-center justify-between p-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
                 settings.auto_enabled ?
-                "bg-primary/15 text-primary" :
+                "bg-primary/12 text-primary" :
                 "bg-muted/60 text-muted-foreground"
               )}>
                 {settings.auto_enabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
@@ -279,7 +279,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                 {["low", "mid", "high"].map((key) => {
                   const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
                   const colors = {
-                    low: "text-blue-500 bg-blue-500/[0.06] border-blue-500/15",
+                    low: "text-sky-500 bg-sky-500/[0.06] border-sky-500/15",
                     mid: "text-amber-500 bg-amber-500/[0.06] border-amber-500/15",
                     high: "text-rose-500 bg-rose-500/[0.06] border-rose-500/15"
                   };
@@ -292,7 +292,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                       className={cn(
                         "relative py-2.5 px-2 rounded-xl text-xs font-medium transition-all border",
                         isActive ?
-                        "border-primary/40 bg-primary/[0.08] text-primary ring-1 ring-primary/20" :
+                        "border-primary/35 bg-primary/[0.07] text-primary ring-1 ring-primary/15" :
                         cn("hover:border-primary/20", colors[key])
                       )}>
                       <PresetIcon className={cn("w-4 h-4 mx-auto mb-1.5", isActive ? "text-primary" : "")} />
@@ -366,9 +366,9 @@ export default function AutoTradeSettings({ language = "en" }) {
               </div>
 
               {/* Safety Limit - Inline */}
-              <div className="flex items-center justify-between rounded-xl border border-emerald-500/15 bg-emerald-500/[0.04] p-3">
+              <div className="flex items-center justify-between rounded-xl border border-border/50 bg-card/60 p-3">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-primary/70" />
                   <span className="text-[11px] font-semibold text-foreground tracking-tight">{labels.maxPerTrade}</span>
                 </div>
                 <div className="flex items-center gap-1.5">

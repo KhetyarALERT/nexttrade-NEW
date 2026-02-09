@@ -23,9 +23,9 @@ const buttonVariants = cva(
         success:
           "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 hover:bg-emerald-600",
         gradient:
-          "bg-gradient-to-r from-primary via-emerald-500 to-cyan-500 text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5",
+          "bg-gradient-to-r from-primary/95 via-emerald-600/85 to-teal-500/85 text-white shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25",
         "gradient-primary":
-          "bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:-translate-y-0.5",
+          "bg-gradient-to-r from-emerald-600/90 via-emerald-500/85 to-teal-500/85 text-white shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/25",
         long:
           "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/45",
         short:
@@ -33,7 +33,7 @@ const buttonVariants = cva(
         glass:
           "border border-border/60 bg-card/70 text-foreground backdrop-blur-md hover:bg-card/90 dark:border-white/10 dark:bg-white/5",
         "outline-glow":
-          "border border-primary/60 bg-transparent text-primary shadow-[0_0_0_1px_hsla(160,84%,39%,0.25),0_0_18px_hsla(160,84%,39%,0.25)] hover:bg-primary/10 hover:text-primary-foreground dark:text-primary",
+          "border border-primary/55 bg-transparent text-primary shadow-[0_0_0_1px_hsla(158,60%,46%,0.2)] hover:bg-primary/8 hover:text-primary",
       },
       size: {
         default: "h-10 px-5 py-2",

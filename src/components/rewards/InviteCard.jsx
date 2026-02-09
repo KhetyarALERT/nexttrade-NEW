@@ -65,7 +65,7 @@ export default function InviteCard({
     <Card className="border border-border bg-card overflow-hidden">
       <CardContent className="p-0">
         {/* Header */}
-        <div className="bg-primary p-5 sm:p-6">
+        <div className="bg-gradient-to-r from-emerald-700/95 via-emerald-600/90 to-teal-600/85 p-5 sm:p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
               <Gift className="w-6 h-6 text-white" />
