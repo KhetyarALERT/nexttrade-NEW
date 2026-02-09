@@ -494,7 +494,7 @@ export default function Trading({ language = "en" }) {
     // 1A. MOBILE COPY TRADING
     if (isMobile) {
       return (
-        <div className="flex h-[100dvh] flex-col bg-background overflow-hidden copy-trading-page">
+        <div className="flex h-[100dvh] flex-col bg-gradient-to-b from-background via-background to-muted/20 overflow-hidden copy-trading-page">
           <style>{`
             .copy-trading-page ::-webkit-scrollbar { width: 4px; height: 4px; }
             .copy-trading-page ::-webkit-scrollbar-track { background: transparent; }
@@ -504,7 +504,7 @@ export default function Trading({ language = "en" }) {
           `}</style>
           {/* Mobile Header */}
           <div className="border-b border-border/30 px-3 pb-2.5 pt-[calc(0.5rem+env(safe-area-inset-top))] shrink-0 bg-background/95 backdrop-blur-md z-50 sticky top-0">
-           <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center justify-between mb-2.5">
              <Link 
                to={createPageUrl("Dashboard")} 
                className="text-foreground/40 p-1.5 -ml-1 active:bg-accent rounded-xl touch-manipulation"
@@ -514,17 +514,17 @@ export default function Trading({ language = "en" }) {
              </Link>
 
              {/* Mode Toggle */}
-             <div className="flex bg-muted/30 p-[3px] rounded-xl">
+             <div className="flex bg-muted/30 p-[3px] rounded-xl shadow-card">
                <button
                  onClick={() => toggleMode('trade')}
-                 className={`h-8 min-w-[68px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/60'}`}
+                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-card' : 'text-muted-foreground/60'}`}
                  style={{ touchAction: 'manipulation' }}
                >
                  {isAr ? "تداول" : "Trade"}
                </button>
                <button
                  onClick={() => toggleMode('bots')}
-                 className={`h-8 min-w-[68px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/60'}`}
+                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-primary text-primary-foreground shadow-glow' : 'text-muted-foreground/60'}`}
                  style={{ touchAction: 'manipulation' }}
                >
                  {isAr ? "نسخ" : "Copy"}
@@ -537,7 +537,7 @@ export default function Trading({ language = "en" }) {
            </div>
 
            {/* Segmented Control */}
-           <div className="grid grid-cols-3 gap-1 bg-muted/20 p-[3px] rounded-xl">
+           <div className="grid grid-cols-3 gap-1 bg-muted/25 p-[3px] rounded-xl shadow-inner">
              {[
                { id: 'signals', label: isAr ? 'الإشارات' : 'Signals' },
                { id: 'chart', label: isAr ? 'الرسم البياني' : 'Chart' },
@@ -548,8 +548,8 @@ export default function Trading({ language = "en" }) {
                  onClick={() => setCopyMobileTab(tab.id)}
                  className={`py-1.5 text-[11px] font-semibold rounded-[10px] transition-all ${
                    copyMobileTab === tab.id 
-                     ? 'bg-background text-foreground shadow-sm' 
-                     : 'text-muted-foreground/50'
+                     ? 'bg-background text-foreground shadow-card' 
+                     : 'text-muted-foreground/60'
                  }`}
                >
                  {tab.label}
@@ -634,7 +634,7 @@ export default function Trading({ language = "en" }) {
 
     // DESKTOP COPY MODE
     return (
-      <div className="flex h-screen flex-col bg-background overflow-hidden copy-trading-page">
+      <div className="flex h-screen flex-col bg-gradient-to-b from-background via-background to-muted/15 overflow-hidden copy-trading-page">
         <style>{`
           .copy-trading-page ::-webkit-scrollbar { width: 4px; height: 4px; }
           .copy-trading-page ::-webkit-scrollbar-track { background: transparent; }
@@ -651,16 +651,16 @@ export default function Trading({ language = "en" }) {
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              <div className="flex bg-muted/20 p-[2px] rounded-xl">
+              <div className="flex bg-muted/20 p-[2px] rounded-xl shadow-card">
                 <button
                   onClick={() => toggleMode('trade')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-card' : 'text-muted-foreground/50 hover:text-foreground'}`}
                 >
                   {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/40 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-glow' : 'text-muted-foreground/50 hover:text-foreground'}`}
                 >
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>

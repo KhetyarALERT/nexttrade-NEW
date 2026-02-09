@@ -154,6 +154,7 @@ export default function FuturesTradePanel({
       estCost: isAr ? "التكلفة التقديرية" : "Est. cost",
       estLiq: isAr ? "سعر التصفية المتوقع" : "Est. Liquidation",
       orderEntry: isAr ? "إدخال الأمر" : "Order Entry",
+      configureOrder: isAr ? "اضبط تفاصيل الأمر" : "Configure your order",
       orderSummary: isAr ? "ملخص الأمر" : "Order Summary",
       fundingIn: isAr ? "التمويل في" : "Funding in",
       fundingRate: isAr ? "معدل التمويل" : "Funding Rate",
@@ -817,8 +818,20 @@ export default function FuturesTradePanel({
           </button>
         </div>
 
+        {/* Order entry header */}
+        <div className="mt-3 flex items-center justify-between">
+          <div>
+            <p className="text-[12px] font-semibold tracking-tight text-foreground">{labels.orderMode}</p>
+            <p className="text-[11px] text-muted-foreground">{labels.configureOrder}</p>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="rounded-md bg-muted/40 px-2 py-1 font-medium text-foreground/80">{symbol}</span>
+            <span className="font-mono tabular-nums text-foreground/80">{lastPrice ? formatNumber(lastPrice, lastPrice < 1 ? 6 : 2) : "—"}</span>
+          </div>
+        </div>
+
         {/* Funding Rate Countdown Banner */}
-        <div className="mt-3 flex items-center justify-between rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-3 py-2">
+        <div className="mt-2 flex items-center justify-between rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-3 py-2">
           <div className="flex items-center gap-2">
             <Clock className="h-3.5 w-3.5 text-amber-500" />
             <span className="text-[11px] text-muted-foreground">{labels.fundingIn}</span>

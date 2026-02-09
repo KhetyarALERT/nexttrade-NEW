@@ -31,13 +31,14 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { useMobileNavigation } from "@/components/mobile/MobileNavigationContext";
 
 // Telegram links
-const TELEGRAM_SUPPORT = "https://t.me/NextTradeSupport";
-const TELEGRAM_COMMUNITY = "https://t.me/NextTradeCommunity";
+const TELEGRAM_COMMUNITY = "https://t.me/nexttradeapp";
 
 export default function Contact({ language = "en" }) {
   const { user, isAuthenticated, isLoadingAuth } = useAuth();
+  const { openAssistantModal } = useMobileNavigation();
   
   // Support ticket form state
   const [supportForm, setSupportForm] = useState({
@@ -411,11 +412,10 @@ export default function Contact({ language = "en" }) {
                 <p className="text-sm text-muted-foreground">{t.telegram.subtitle}</p>
               </CardHeader>
               <CardContent className="grid sm:grid-cols-2 gap-4">
-                <a
-                  href={TELEGRAM_SUPPORT}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-[#0088cc]/50 hover:bg-[#0088cc]/5 transition-colors"
+                <button
+                  type="button"
+                  onClick={openAssistantModal}
+                  className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-[#0088cc]/50 hover:bg-[#0088cc]/5 transition-colors text-left"
                 >
                   <div className="w-10 h-10 rounded-full bg-[#0088cc]/10 flex items-center justify-center">
                     <Headphones className="h-5 w-5 text-[#0088cc]" />
@@ -424,8 +424,8 @@ export default function Contact({ language = "en" }) {
                     <div className="font-medium text-foreground">{t.telegram.supportBot}</div>
                     <div className="text-sm text-muted-foreground">{t.telegram.supportDesc}</div>
                   </div>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                </a>
+                  <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                </button>
 
                 <a
                   href={TELEGRAM_COMMUNITY}

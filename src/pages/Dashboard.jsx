@@ -373,13 +373,13 @@ export default function Dashboard({ language = "en" }) {
       label: t.deposit,
       icon: ArrowDownRight,
       href: `${createPageUrl("Wallet")}?page=deposit`,
-      variant: "outline-glow",
+      variant: "glass",
     },
     {
       label: t.transfer,
       icon: ArrowUpRight,
       href: `${createPageUrl("Wallet")}?page=overview`,
-      variant: "glass",
+      variant: "outline-glow",
     },
     {
       label: t.rewards,
@@ -529,7 +529,7 @@ export default function Dashboard({ language = "en" }) {
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
-                  variant="glass"
+                  variant="outline-glow"
                   size="icon"
                   className="h-11 w-11 rounded-xl"
                   onClick={handleRefresh}
@@ -541,7 +541,7 @@ export default function Dashboard({ language = "en" }) {
                   asChild={!!nextAction?.route} 
                   disabled={loadingReadiness}
                   variant="gradient-primary"
-                  className="h-11 rounded-xl"
+                  className="h-11 rounded-xl shadow-glow"
                 >
                   {nextAction?.route ? (
                     <Link to={nextAction.route} className="flex items-center justify-center gap-2 px-4">
