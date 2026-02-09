@@ -165,6 +165,15 @@ export default function WalletPage({ language = "en" }) {
     if (newPage !== activePage) setActivePage(newPage);
   }, [location.search]);
 
+  // Fallback trading account from existing wallets
+  useEffect(() => {
+    if (!tradingAccountId && wallets.length > 0) {
+      const firstWallet = wallets.find((w) => w.trading_account_id) || wallets[0];
+      if (firstWallet?.trading_account_id) {
+        setTradingAccountId(firstWallet.trading_account_id);
+      }
+    }
+  }, [tradingAccountId, wallets]);
   // Load user status and wallets
   const loadData = useCallback(async () => {
     if (!isAuthenticated) return;
