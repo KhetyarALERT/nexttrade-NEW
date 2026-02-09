@@ -47,20 +47,36 @@ const CHAIN_NAMES = {
   'ETH-Base': 'Base',
 };
 
+const CHAIN_FEES = {
+  'USDT-TRC20': '~1 USDT',
+  'USDT-ERC20': '~15 USDT',
+  'USDT-Polygon': '~0.1 USDT',
+  'USDT-Arbitrum One': '~0.5 USDT',
+  'USDT-BNB Smart Chain(BEP20)': '~0.5 USDT',
+  'USDT-Solana': '~1 USDT',
+  'BTC-Bitcoin': '~0.0001 BTC',
+  'ETH-ERC20': '~0.005 ETH',
+};
+
 export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [accountData, setAccountData] = useState(null);
   const [positions, setPositions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   
+  // Deposit section state
   const [depositExpanded, setDepositExpanded] = useState(false);
   const [depositAddresses, setDepositAddresses] = useState({});
   const [loadingAddresses, setLoadingAddresses] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState('USDT');
   const [selectedChain, setSelectedChain] = useState('');
   const [copied, setCopied] = useState(false);
+  const [depositHistory, setDepositHistory] = useState([]);
   
+  // Transfer modal state
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  
+  // Live account request state
   const [requestFormOpen, setRequestFormOpen] = useState(false);
   const [existingRequest, setExistingRequest] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -98,6 +114,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       credited: "Credited",
       complete: "Complete",
       supportContact: "Need help? Contact support",
+      // Account request strings (OKX removed)
       requestLiveAccount: "Request Trading Account",
       requestLiveAccountDesc: "Complete the form to get a trading account",
       verifyFirst: "Verify Your Identity First",
@@ -138,6 +155,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
       credited: "تم الإيداع",
       complete: "مكتمل",
       supportContact: "تحتاج مساعدة؟ تواصل مع الدعم",
+      // Account request strings (OKX removed)
       requestLiveAccount: "طلب حساب تداول",
       requestLiveAccountDesc: "أكمل النموذج للحصول على حساب تداول",
       verifyFirst: "تحقق من هويتك أولاً",
@@ -152,16 +170,29 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   const loadAccount = useCallback(async () => {
     try {
       const user = await base44.auth.me();
+      
+      // Check OKX account first
       const res = await base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } }));
       
       if (res.data?.ok && res.data.data?.hasAccount) {
         setAccountData(res.data.data);
+        
+        // Load positions
         const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' }).catch(() => ({ data: { ok: false } }));
-        if (posRes.data?.ok) setPositions(posRes.data.data || []);
+        if (posRes.data?.ok) {
+          setPositions(posRes.data.data || []);
+        }
       } else {
-        const liveAccounts = await base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: false }, '-created_date', 1);
+        // Fallback: check if user has a live TradingAccount (auto-provisioned on KYC approval)
+        const liveAccounts = await base44.entities.TradingAccount.filter(
+          { user_id: user.id, is_demo: false },
+          '-created_date',
+          1
+        );
+        
         if (liveAccounts?.length > 0) {
           const account = liveAccounts[0];
+          // Build account data structure compatible with the card UI
           setAccountData({
             hasAccount: true,
             accountLabel: account.nickname || 'Trading Account',
@@ -175,7 +206,7 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
             },
             defaultLeverage: account.default_leverage || 5,
             lastSync: account.updated_date,
-            _source: 'internal'
+            _source: 'internal' // Flag to distinguish from OKX
           });
         } else {
           setAccountData(null);
@@ -188,12 +219,24 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
     }
   }, []);
   
+  // Load existing request and verification status
   const loadRequestStatus = useCallback(async () => {
     setLoadingRequest(true);
     try {
       const user = await base44.auth.me();
-      const requests = await base44.entities.LiveAccountRequest.filter({ user_id: user.id }, '-created_date', 1);
-      if (requests && requests.length > 0) setExistingRequest(requests[0]);
+      
+      // Check existing live account requests
+      const requests = await base44.entities.LiveAccountRequest.filter(
+        { user_id: user.id },
+        '-created_date',
+        1
+      );
+      
+      if (requests && requests.length > 0) {
+        setExistingRequest(requests[0]);
+      }
+      
+      // Check verification status using UserVerification (single source of truth)
       const uvRes = await base44.functions.invoke("verificationService", { action: "getStatus" });
       const uvData = uvRes.data?.ok && uvRes.data.data?.exists ? uvRes.data.data : null;
       setIsVerified(uvData?.status === 'verified');
@@ -207,192 +250,669 @@ export default function OKXLiveAccountCard({ language = "en", onRefresh }) {
   useEffect(() => {
     loadAccount();
     loadRequestStatus();
-    const unsubVerification = base44.entities.VerificationRequest.subscribe(() => loadRequestStatus());
-    const unsubLiveRequest = base44.entities.LiveAccountRequest.subscribe(() => loadRequestStatus());
+    
+    // Subscribe to verification changes for real-time updates
+    const unsubVerification = base44.entities.VerificationRequest.subscribe((event) => {
+      // Reload verification status when any verification changes
+      loadRequestStatus();
+    });
+    
+    // Subscribe to LiveAccountRequest changes for real-time stepper updates
+    const unsubLiveRequest = base44.entities.LiveAccountRequest.subscribe((event) => {
+      // Reload request status when any request changes (admin approval, etc.)
+      loadRequestStatus();
+    });
+    
     return () => {
       unsubVerification();
       unsubLiveRequest();
     };
   }, [loadAccount, loadRequestStatus]);
 
+  // Poll for status updates while under review (every 15 seconds)
+  useEffect(() => {
+    if (!existingRequest) return;
+    if (existingRequest.status === 'assigned' || existingRequest.status === 'rejected') return;
+    
+    const pollInterval = setInterval(() => {
+      loadRequestStatus();
+    }, 15000);
+    
+    return () => clearInterval(pollInterval);
+  }, [existingRequest?.status, loadRequestStatus]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadAccount();
-    onRefresh?.();
     setRefreshing(false);
-    toast.success(language === 'ar' ? 'تم التحديث' : 'Account refreshed');
+    toast.success(language === 'ar' ? 'تم التحديث' : 'Refreshed');
+    if (onRefresh) onRefresh();
   };
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
+  const loadDepositAddresses = async (ccy) => {
+    setLoadingAddresses(true);
+    try {
+      const res = await base44.functions.invoke('okxUserAccount', { 
+        action: 'getDepositAddress',
+        ccy 
+      });
+      
+      if (res.data?.ok && res.data.data) {
+        setDepositAddresses(prev => ({
+          ...prev,
+          [ccy]: res.data.data
+        }));
+        
+        // Auto-select first chain if not selected
+        if (res.data.data.length > 0 && !selectedChain) {
+          // Prefer TRC20 for USDT
+          const trc20 = res.data.data.find(a => a.chain.includes('TRC20'));
+          setSelectedChain(trc20?.chain || res.data.data[0].chain);
+        }
+      }
+    } catch (err) {
+      console.error('[OKXLiveAccountCard] Load addresses error:', err);
+      toast.error(language === 'ar' ? 'فشل تحميل العناوين' : 'Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const loadDepositHistory = async () => {
+    try {
+      const res = await base44.functions.invoke('okxUserAccount', { 
+        action: 'getDepositHistory',
+        limit: 5
+      });
+      
+      if (res.data?.ok) {
+        setDepositHistory(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('[OKXLiveAccountCard] Load history error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (depositExpanded && accountData?.hasAccount) {
+      if (!depositAddresses[selectedCurrency]) {
+        loadDepositAddresses(selectedCurrency);
+      }
+      loadDepositHistory();
+    }
+  }, [depositExpanded, selectedCurrency, accountData?.hasAccount]);
+
+  const handleCurrencyChange = (ccy) => {
+    setSelectedCurrency(ccy);
+    setSelectedChain('');
+    if (!depositAddresses[ccy]) {
+      loadDepositAddresses(ccy);
+    } else {
+      // Select default chain for this currency
+      const addresses = depositAddresses[ccy];
+      if (addresses?.length > 0) {
+        const trc20 = addresses.find(a => a.chain.includes('TRC20'));
+        setSelectedChain(trc20?.chain || addresses[0].chain);
+      }
+    }
+  };
+
+  const handleCopy = async (text) => {
+    await navigator.clipboard.writeText(text);
     setCopied(true);
+    toast.success(language === 'ar' ? 'تم النسخ!' : 'Copied!');
     setTimeout(() => setCopied(false), 2000);
-    toast.success(language === 'ar' ? 'تم النسخ' : 'Address copied');
   };
 
-  if (loading || loadingRequest) {
-    return <Skeleton className="h-64 w-full rounded-2xl" />;
+  const formatUsdt = (val) => {
+    if (val === null || val === undefined) return '0.00';
+    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const totalUpl = positions.reduce((sum, p) => sum + (p.upl || 0), 0);
+
+  const currentAddresses = depositAddresses[selectedCurrency] || [];
+  const selectedAddress = currentAddresses.find(a => a.chain === selectedChain);
+  const chainDisplayName = CHAIN_NAMES[selectedChain] || selectedChain?.split('-').pop() || selectedChain;
+
+  if (loading) {
+    return (
+      <Card className="border-border shadow-lg rounded-2xl">
+        <CardHeader className="border-b border-border bg-muted/30 p-5">
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent className="p-5 space-y-4">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </CardContent>
+      </Card>
+    );
   }
 
-  if (!accountData) {
+  if (!accountData?.hasAccount) {
+    // Show request form UI instead of just "contact support"
+    const statusConfig = {
+      pending: { icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30" },
+      under_review: { icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/30" },
+      approved: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30" },
+      rejected: { icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-500/10 border-rose-500/30" },
+      assigned: { icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30" }
+    };
+    
     return (
-      <Card className="border-border/40 bg-card/30 overflow-hidden">
-        <CardContent className="p-8">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="p-4 rounded-2xl bg-muted/30">
-              <Rocket className="h-10 w-10 text-muted-foreground/40" />
+      <Card className="border-border shadow-lg rounded-2xl overflow-hidden">
+        <CardHeader className="border-b border-border bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 p-5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-md">
+              <Wallet className="h-5 w-5 text-white" />
             </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold">{t.noAccount}</h3>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t.noAccountDesc}</p>
+            <div>
+              <CardTitle className="text-lg font-bold text-foreground">{t.title}</CardTitle>
+              <p className="text-xs text-muted-foreground">{t.subtitle}</p>
             </div>
-            
-            <div className="w-full max-w-md">
-              <TradingAccountStepper 
-                language={language} 
-                isVerified={isVerified} 
-                existingRequest={existingRequest} 
-              />
-            </div>
-
-            {!isVerified ? (
-              <Button asChild className="rounded-xl px-8 h-11">
-                <Link to={createPageUrl("Profile", { tab: "security", openVerification: "true" })}>
-                  <Shield className="h-4 w-4 mr-2" />
-                  {t.verifyFirst}
-                </Link>
-              </Button>
-            ) : existingRequest?.status === 'pending' || existingRequest?.status === 'under_review' ? (
-              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center gap-3">
-                <Clock className="h-5 w-5 animate-pulse" />
-                <span className="text-sm font-bold">{t.requestPending}</span>
-              </div>
-            ) : (
-              <Button onClick={() => setRequestFormOpen(true)} className="rounded-xl px-8 h-11">
-                <Rocket className="h-4 w-4 mr-2" />
-                {t.requestLiveAccount}
-              </Button>
-            )}
           </div>
+        </CardHeader>
+        <CardContent className="p-5">
+          {loadingRequest ? (
+            <div className="py-8 flex flex-col items-center gap-3">
+              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          ) : existingRequest && existingRequest.status !== 'rejected' ? (
+            // Show existing request status with DB-driven stepper
+            <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">
+              <div className="text-center">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                  {existingRequest.status === 'assigned' ? (
+                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500" />
+                  ) : (
+                    <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 animate-pulse" />
+                  )}
+                </div>
+                <h3 className="font-semibold text-foreground text-base sm:text-lg">
+                  {existingRequest.status === 'assigned' 
+                    ? (language === 'ar' ? 'حساب التداول جاهز!' : 'Trading Account Ready!')
+                    : t.requestPending}
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 px-2">
+                  {existingRequest.status === 'assigned'
+                    ? (language === 'ar' ? 'يمكنك البدء في التداول الآن' : 'You can start trading now')
+                    : t.requestPendingDesc}
+                </p>
+              </div>
+              
+              {/* DB-driven stepper */}
+              <TradingAccountStepper 
+                language={language}
+                isVerified={isVerified}
+                existingRequest={existingRequest}
+              />
+              
+              {/* CTA based on status */}
+              {existingRequest.status === 'assigned' ? (
+                <Button
+                  asChild
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Link to={createPageUrl("Futures")}>
+                    <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    {t.startTrading}
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="w-full bg-muted text-muted-foreground rounded-xl text-xs sm:text-sm h-9 sm:h-10 cursor-not-allowed"
+                >
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {language === 'ar' ? 'قيد المراجعة' : 'Under Review'}
+                </Button>
+              )}
+              
+              <p className="text-xs text-muted-foreground text-center">
+                {language === 'ar' ? 'تاريخ الطلب' : 'Requested'}: {new Date(existingRequest.created_date).toLocaleDateString()}
+              </p>
+            </div>
+          ) : (
+            // Show request form prompt
+            <div className="py-3 sm:py-4 space-y-3 sm:space-y-4">
+              <div className="text-center">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+                  <Rocket className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-500" />
+                </div>
+                <h3 className="font-semibold text-foreground text-base sm:text-lg">{t.requestLiveAccount}</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 px-2">{t.requestLiveAccountDesc}</p>
+              </div>
+              
+              {/* Verification status indicator */}
+              <div className={`rounded-xl p-3 sm:p-4 flex items-start gap-2 sm:gap-3 ${isVerified ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}>
+                {isVerified ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                        {language === 'ar' ? 'الهوية موثقة' : 'Identity Verified'}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-500">
+                        {language === 'ar' ? 'يمكنك طلب حساب تداول الآن' : 'You can now request a trading account'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-400">{t.verifyFirst}</p>
+                      <p className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-500">{t.verifyFirstDesc}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {/* Steps guide - DB-driven stepper */}
+              <TradingAccountStepper 
+                language={language}
+                isVerified={isVerified}
+                existingRequest={existingRequest}
+              />
+              
+              {/* CTA Button based on step status */}
+              {!isVerified ? (
+                // Step 1 not done: Show verify button
+                <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
+                  <Button
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                  >
+                    <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    {language === 'ar' ? 'تحقق من هويتك' : 'Complete Verification'}
+                  </Button>
+                </Link>
+              ) : existingRequest?.status === 'rejected' ? (
+                // Rejected: Show re-apply button (creates NEW request)
+                <Button
+                  onClick={async () => {
+                    try {
+                      const user = await base44.auth.me();
+                      base44.analytics.track({
+                        eventName: "trading_account_reapply_clicked",
+                        properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
+                      });
+                    } catch {
+                      base44.analytics.track({
+                        eventName: "trading_account_reapply_clicked",
+                        properties: { is_verified: isVerified, language }
+                      });
+                    }
+                    setRequestFormOpen(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {t.reapply}
+                </Button>
+              ) : (
+                // Step 1 done, no request: Show request button
+                <Button
+                  onClick={async () => {
+                    try {
+                      const user = await base44.auth.me();
+                      base44.analytics.track({
+                        eventName: "trading_account_request_clicked",
+                        properties: { is_verified: isVerified, language, user_id: user?.id, user_email: user?.email }
+                      });
+                    } catch {
+                      base44.analytics.track({
+                        eventName: "trading_account_request_clicked",
+                        properties: { is_verified: isVerified, language }
+                      });
+                    }
+                    setRequestFormOpen(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+                >
+                  <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  {t.requestLiveAccount}
+                </Button>
+              )}
+              
+              {existingRequest?.status === 'rejected' && (
+                <div className="rounded-lg bg-rose-100 dark:bg-rose-900/30 p-3 text-center">
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
+                    {language === 'ar' ? 'تم رفض طلبك السابق' : 'Your previous request was rejected'}
+                    {existingRequest.rejection_reason && `: ${existingRequest.rejection_reason}`}
+                  </p>
+                  <p className="text-xs text-rose-500 mt-1">
+                    {language === 'ar' ? 'يمكنك تقديم طلب جديد' : 'You can submit a new request'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
-        <LiveAccountRequestForm 
-          open={requestFormOpen} 
-          onOpenChange={setRequestFormOpen} 
-          language={language} 
-          onSuccess={loadRequestStatus} 
+        
+        {/* Live Account Request Form Modal */}
+        <LiveAccountRequestForm
+          open={requestFormOpen}
+          onOpenChange={setRequestFormOpen}
+          language={language}
+          existingRequest={existingRequest?.status !== 'rejected' ? existingRequest : null}
+          isVerified={isVerified}
+          onVerifyClick={() => {
+            // Navigate to verification - close this modal first
+            setRequestFormOpen(false);
+            // The parent component handles verification modal
+          }}
         />
       </Card>
     );
   }
 
-  const balances = accountData.balances || {};
-
   return (
-    <div className="space-y-6">
-      <Card className="border-border/40 bg-card/30 overflow-hidden">
-        <CardHeader className="bg-muted/30 border-b border-border/40 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Activity className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{accountData.accountLabel || t.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <Badge variant="outline" className="text-[10px] font-bold border-none bg-emerald-500/10 text-emerald-500">
-                    {t.active}
-                  </Badge>
-                  <span className="text-[10px] font-mono text-muted-foreground">ID: {accountData.externalAccountId?.slice(0, 8)}...</span>
-                </div>
-              </div>
+    <Card className="border-border shadow-lg rounded-2xl overflow-hidden">
+      <CardHeader className="border-b border-border bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-md">
+              <Wallet className="h-5 w-5 text-white" />
             </div>
-            <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={refreshing} className="h-8 w-8 p-0 rounded-lg">
+            <div>
+              <CardTitle className="text-lg font-bold text-foreground">{t.title}</CardTitle>
+              <p className="text-xs text-muted-foreground">{accountData.accountLabel || accountData.externalAccountId}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              {t.active}
+            </Badge>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="h-8 w-8 p-0"
+            >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
-            <div className="p-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t.equity}</p>
-              <p className="text-2xl font-bold font-mono">${(balances.totalEquity || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-3 sm:p-5 space-y-3 sm:space-y-4">
+      {/* Balance Cards */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 truncate">{t.equity}</p>
+          <p className="text-lg sm:text-2xl font-bold text-foreground truncate">
+            ${formatUsdt(accountData.balances?.totalEquity || accountData.balances?.totalUsdt)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-muted/30 border border-border p-3 sm:p-4">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 truncate">{t.unrealizedPnl}</p>
+          <p className={`text-lg sm:text-2xl font-bold truncate ${totalUpl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {totalUpl >= 0 ? '+' : ''}{formatUsdt(totalUpl)}
+          </p>
+        </div>
+      </div>
+
+        {/* Detailed Balances */}
+        <div className="rounded-xl bg-muted/20 border border-border/50 p-3 sm:p-4 space-y-2">
+          <div className="flex justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground truncate">{t.tradingBalance}</span>
+            <span className="font-mono font-medium truncate ml-2">${formatUsdt(accountData.balances?.tradingUsdt)}</span>
+          </div>
+          <div className="flex justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground truncate">{t.fundingBalance}</span>
+            <span className="font-mono font-medium truncate ml-2">${formatUsdt(accountData.balances?.fundingUsdt)}</span>
+          </div>
+          <div className="flex justify-between text-xs sm:text-sm pt-2 border-t border-border/50">
+            <span className="text-muted-foreground">{t.leverage}</span>
+            <span className="font-medium">{accountData.defaultLeverage || accountData.accountConfig?.leverage || 5}x</span>
+          </div>
+        </div>
+
+        {/* Action Buttons: Transfer & Deposit */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setTransferModalOpen(true)}
+            className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl border-border hover:bg-muted text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10"
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="truncate">{t.transfer}</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setDepositExpanded(!depositExpanded)}
+            className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 text-xs sm:text-sm px-2 sm:px-4 h-9 sm:h-10"
+          >
+            <ArrowDownToLine className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="truncate">{t.depositFunds}</span>
+          </Button>
+        </div>
+
+        {/* Deposit Section - Collapsible */}
+        {depositExpanded && (
+        <div className="rounded-xl border border-blue-500/30 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10">
+            <div className="flex items-center gap-2">
+              <ArrowDownToLine className="h-5 w-5 text-blue-600" />
+              <span className="font-semibold text-foreground">{t.depositFunds}</span>
             </div>
-            <div className="p-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t.fundingBalance}</p>
-              <p className="text-2xl font-bold font-mono">${(balances.fundingUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            <button onClick={() => setDepositExpanded(false)}>
+              <ChevronUp className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            </button>
+          </div>
+          
+          {depositExpanded && (
+            <div className="p-4 space-y-4 bg-card/50">
+              {/* Currency Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">{t.selectCurrency}</label>
+                <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USDT">USDT (Tether)</SelectItem>
+                    <SelectItem value="USDC">USDC</SelectItem>
+                    <SelectItem value="BTC">BTC (Bitcoin)</SelectItem>
+                    <SelectItem value="ETH">ETH (Ethereum)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Network Selection */}
+              {currentAddresses.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">{t.selectNetwork}</label>
+                  <Select value={selectedChain} onValueChange={setSelectedChain}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select network" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currentAddresses.map((addr) => (
+                        <SelectItem key={addr.chain} value={addr.chain}>
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span>{CHAIN_NAMES[addr.chain] || addr.chain.split('-').pop()}</span>
+                            {CHAIN_FEES[addr.chain] && (
+                              <span className="text-xs text-muted-foreground">Fee: {CHAIN_FEES[addr.chain]}</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Loading State */}
+              {loadingAddresses && (
+                <div className="flex items-center justify-center py-6">
+                  <RefreshCw className="h-6 w-6 animate-spin text-blue-600" />
+                </div>
+              )}
+
+              {/* Deposit Address Display */}
+              {selectedAddress && !loadingAddresses && (
+                <div className="space-y-3">
+                  {/* QR Code Placeholder */}
+                  <div className="flex justify-center p-4 bg-white rounded-lg">
+                    <div className="w-32 h-32 flex items-center justify-center bg-slate-100 rounded-lg">
+                      <QrCode className="w-full h-full p-3 text-slate-400" />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="rounded-lg bg-muted/30 border border-border p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-muted-foreground">{t.depositAddress}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleCopy(selectedAddress.address)}
+                        className="h-7 px-2"
+                      >
+                        {copied ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                        <span className="ml-1 text-xs">{t.copyAddress}</span>
+                      </Button>
+                    </div>
+                    <code className="text-sm font-mono text-foreground break-all block">
+                      {selectedAddress.address}
+                    </code>
+                    
+                    {selectedAddress.tag && (
+                      <div className="mt-3 pt-3 border-t border-border/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Memo/Tag</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleCopy(selectedAddress.tag)}
+                            className="h-6 px-2"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <code className="text-sm font-mono text-foreground">{selectedAddress.tag}</code>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Min Deposit */}
+                  {selectedAddress.minDeposit && (
+                    <div className="flex items-center justify-between text-sm px-1">
+                      <span className="text-muted-foreground">{t.minDeposit}</span>
+                      <span className="font-mono font-medium">{selectedAddress.minDeposit} {selectedCurrency}</span>
+                    </div>
+                  )}
+
+                  {/* Warning */}
+                  <div className="flex items-start gap-2 p-3 bg-amber-100/40 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {t.networkWarning
+                        .replace('{ccy}', selectedCurrency)
+                        .replace('{chain}', chainDisplayName)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Deposits */}
+              {depositHistory.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <h4 className="text-sm font-semibold text-foreground">{t.recentDeposits}</h4>
+                  <div className="space-y-2">
+                    {depositHistory.map((dep, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg text-sm">
+                        <div>
+                          <span className="font-medium">{dep.amount} {dep.ccy}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{dep.chain}</span>
+                        </div>
+                        <Badge variant="outline" className={`text-xs ${
+                          dep.state === '2' ? 'text-emerald-600 border-emerald-300' :
+                          dep.state === '1' ? 'text-blue-600 border-blue-300' :
+                          'text-amber-600 border-amber-300'
+                        }`}>
+                          {dep.stateLabel}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="p-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t.tradingBalance}</p>
-              <p className="text-2xl font-bold font-mono">${(balances.tradingUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          )}
+        </div>
+        )}
+
+        {/* Positions */}
+        {positions.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+              {t.positions} ({positions.length})
+            </h4>
+            <div className="space-y-2 max-h-32 sm:max-h-40 overflow-auto">
+              {positions.slice(0, 3).map((pos, idx) => (
+                <div key={idx} className="rounded-lg bg-muted/30 border border-border/50 p-2 sm:p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                      <span className="font-medium text-xs sm:text-sm truncate">{pos.instId}</span>
+                      <Badge className={`text-[10px] sm:text-xs flex-shrink-0 ${pos.posSide === 'long' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>
+                        {pos.posSide === 'long' ? <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" /> : <TrendingDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />}
+                        {pos.posSide?.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <span className={`text-xs sm:text-sm font-mono font-medium flex-shrink-0 ${pos.upl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {pos.upl >= 0 ? '+' : ''}{formatUsdt(pos.upl)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground mt-1 gap-1">
+                    <span className="truncate">Size: {pos.size}</span>
+                    <span className="truncate">Entry: ${formatUsdt(pos.avgPx)}</span>
+                    <span className="flex-shrink-0">{pos.lever}x</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </CardContent>
-        <CardFooter className="bg-muted/10 border-t border-border/40 p-4 gap-3">
-          <Button onClick={() => setTransferModalOpen(true)} variant="outline" className="flex-1 rounded-lg h-10 font-bold border-border/40">
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            {t.transfer}
-          </Button>
-          <Button asChild className="flex-1 rounded-lg h-10 font-bold">
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2">
+          <Button asChild className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs sm:text-sm h-9 sm:h-10">
             <Link to={createPageUrl("Futures")}>
-              <TrendingUp className="h-4 w-4 mr-2" />
+              <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               {t.tradeNow}
             </Link>
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
 
-      {/* Positions Section */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-          <Activity className="h-4 w-4" />
-          {t.positions}
-        </h3>
-        {positions.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {positions.map((pos, i) => (
-              <Card key={i} className="border-border/40 bg-card/30">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">{pos.symbol}</span>
-                      <Badge variant="outline" className={`text-[10px] border-none ${pos.side === 'long' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                        {pos.side?.toUpperCase()} {pos.lever}x
-                      </Badge>
-                    </div>
-                    <span className={`font-mono font-bold ${Number(pos.upl) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {Number(pos.upl) >= 0 ? '+' : ''}{Number(pos.upl).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>Size:</span>
-                      <span className="text-foreground font-mono">{pos.sz}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Entry:</span>
-                      <span className="text-foreground font-mono">${Number(pos.avgPx).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="border-dashed border-border/40 bg-transparent">
-            <CardContent className="py-10 text-center">
-              <p className="text-sm font-medium text-muted-foreground">{t.noPositions}</p>
-            </CardContent>
-          </Card>
+        {/* Last Sync */}
+        {accountData.lastSync && (
+          <p className="text-[10px] sm:text-xs text-muted-foreground text-center truncate px-2">
+            {t.lastSync}: {new Date(accountData.lastSync).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
+          </p>
         )}
-      </div>
-
-      <OKXTransferModal 
-        open={transferModalOpen} 
-        onOpenChange={setTransferModalOpen} 
-        language={language} 
-        onSuccess={loadAccount} 
+      </CardContent>
+      
+      {/* Transfer Modal */}
+      <OKXTransferModal
+        open={transferModalOpen}
+        onOpenChange={setTransferModalOpen}
+        language={language}
+        onSuccess={() => {
+          loadAccount();
+          if (onRefresh) onRefresh();
+        }}
       />
-    </div>
+    </Card>
   );
 }
 

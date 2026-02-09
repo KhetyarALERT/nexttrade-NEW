@@ -54,17 +54,12 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
     if (!iso) return "-";
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "-";
-    return d.toLocaleString(undefined, {
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return d.toLocaleString();
   };
 
   const formatPrice = (price) => {
     if (!price) return "-";
-    return price >= 1 ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : price.toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    return price >= 1 ? price.toFixed(2) : price.toFixed(6);
   };
 
   const formatSize = (v) => {
@@ -86,27 +81,29 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
 
   if (!trades || trades.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground/60">
-        <div className="mb-2 flex justify-center">
-          <Activity className="h-8 w-8 opacity-20" />
-        </div>
-        <p className="text-sm font-medium">{t.noTrades}</p>
+      <div className="text-center py-12 text-slate-500">
+        {t.noTrades}
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-hidden">
+      <Table className="table-fixed">
         <TableHeader>
-          <TableRow className="hover:bg-transparent border-border/40">
-            <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.symbol}</TableHead>
-            <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.side}</TableHead>
-            <TableHead className="hidden lg:table-cell text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.openedAt}</TableHead>
-            <TableHead className="hidden sm:table-cell text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.size}</TableHead>
-            <TableHead className="hidden md:table-cell text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.entry}</TableHead>
-            <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.pnl}</TableHead>
-            <TableHead className="text-right text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.action}</TableHead>
+          <TableRow className="bg-slate-50">
+            <TableHead className="font-semibold">{t.symbol}</TableHead>
+            <TableHead className="font-semibold">{t.side}</TableHead>
+            <TableHead className="hidden lg:table-cell font-semibold">{t.openedAt}</TableHead>
+            <TableHead className="hidden xl:table-cell font-semibold">{t.closedAt}</TableHead>
+            <TableHead className="hidden xl:table-cell font-semibold">{t.updatedAt}</TableHead>
+            <TableHead className="hidden lg:table-cell font-semibold">{t.liq}</TableHead>
+            <TableHead className="hidden sm:table-cell font-semibold">{t.size}</TableHead>
+            <TableHead className="hidden md:table-cell font-semibold">{t.entry}</TableHead>
+            <TableHead className="hidden md:table-cell font-semibold">{t.current}</TableHead>
+            <TableHead className="font-semibold">{t.pnl}</TableHead>
+            <TableHead className="hidden sm:table-cell font-semibold">{t.status}</TableHead>
+            <TableHead className="font-semibold text-right">{t.action}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -116,44 +113,65 @@ export default function TradesTable({ trades = [], language = "en", onCloseTrade
             const isProfit = unrealizedPnl >= 0;
             
             return (
-              <TableRow key={trade.id} className="border-border/40 hover:bg-muted/30 transition-colors duration-200">
-                <TableCell className="font-bold py-4">
-                  <div className="flex flex-col">
-                    <span>{trade.symbol}</span>
-                    <span className="text-[10px] font-medium text-muted-foreground lg:hidden">{fmtTime(trade.opened_at ?? trade.created_at)}</span>
+              <TableRow key={trade.id} className="hover:bg-slate-50">
+                <TableCell className="font-bold">
+                  <div className="min-w-0 truncate">{trade.symbol}</div>
+                  <div className="mt-1 text-[10px] text-slate-500 md:hidden">
+                    <span className="text-slate-400">{t.entry}:</span> ${formatPrice(trade.entry_price)}
+                    <span className="mx-2 text-slate-300">•</span>
+                    <span className="text-slate-400">{t.current}:</span> ${formatPrice(currentPrice)}
+                    <div className="mt-1">
+                      <span className="text-slate-400">{t.openedAt}:</span> {fmtTime(trade.opened_at ?? trade.created_at)}
+                      {trade.closed_at ? (
+                        <>
+                          <span className="mx-2 text-slate-300">•</span>
+                          <span className="text-slate-400">{t.closedAt}:</span> {fmtTime(trade.closed_at)}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={`border-none px-2 py-0.5 text-[10px] font-bold ${trade.side === 'LONG' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                    {trade.side === 'LONG' ? t.long : t.short}
+                  <Badge className={trade.side === 'LONG' ? 'bg-emerald-500' : 'bg-red-500'}>
+                    {trade.side === 'LONG' ? (
+                      <><TrendingUp className="w-3 h-3 mr-1" /> {t.long}</>
+                    ) : (
+                      <><TrendingDown className="w-3 h-3 mr-1" /> {t.short}</>
+                    )}
                   </Badge>
                 </TableCell>
 
-                <TableCell className="hidden lg:table-cell text-xs font-medium text-muted-foreground">{fmtTime(trade.opened_at ?? trade.created_at)}</TableCell>
-                <TableCell className="hidden sm:table-cell font-mono text-sm">{formatSize(trade.quantity)}</TableCell>
-                <TableCell className="hidden md:table-cell font-mono text-sm">${formatPrice(trade.entry_price)}</TableCell>
-                <TableCell className={`font-bold font-mono ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  <div className="flex flex-col">
-                    <span>{isProfit ? '+' : ''}{unrealizedPnl.toFixed(2)}</span>
-                    <span className="text-[10px] opacity-80">
-                      ({trade.pnl_percent?.toFixed(1) || ((unrealizedPnl / (trade.margin || 1)) * 100).toFixed(1)}%)
-                    </span>
-                  </div>
+                <TableCell className="hidden lg:table-cell text-slate-700">{fmtTime(trade.opened_at ?? trade.created_at)}</TableCell>
+                <TableCell className="hidden xl:table-cell text-slate-700">{fmtTime(trade.closed_at)}</TableCell>
+                <TableCell className="hidden xl:table-cell text-slate-700">{fmtTime(trade.updated_at ?? trade.updated_date ?? trade.updatedAt)}</TableCell>
+                <TableCell className="hidden lg:table-cell font-mono text-slate-700">
+                  {trade.liquidation_price ? `$${formatPrice(trade.liquidation_price)}` : "-"}
+                </TableCell>
+
+                <TableCell className="hidden sm:table-cell">{formatSize(trade.quantity)}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono">${formatPrice(trade.entry_price)}</TableCell>
+                <TableCell className="hidden md:table-cell font-mono">${formatPrice(currentPrice)}</TableCell>
+                <TableCell className={`font-bold ${isProfit ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {isProfit ? '+' : ''}{unrealizedPnl.toFixed(2)}
+                  <span className="text-xs ml-1">
+                    ({trade.pnl_percent?.toFixed(1) || ((unrealizedPnl / trade.margin) * 100).toFixed(1)}%)
+                  </span>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <Badge variant={trade.status === 'OPEN' ? 'default' : 'secondary'}>
+                    {trade.status === 'OPEN' ? t.open : t.closed}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  {trade.status === 'OPEN' && onCloseTrade ? (
+                  {trade.status === 'OPEN' && onCloseTrade && (
                     <Button 
                       size="sm" 
-                      variant="ghost"
+                      variant="destructive"
                       onClick={() => onCloseTrade(trade, currentPrice)}
-                      className="h-8 w-8 p-0 rounded-lg hover:bg-rose-500/10 hover:text-rose-500"
+                      className="h-7"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3 mr-1" /> {t.close}
                     </Button>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px] font-bold border-border/40">
-                      {trade.status === 'OPEN' ? t.open : t.closed}
-                    </Badge>
                   )}
                 </TableCell>
               </TableRow>
