@@ -1336,6 +1336,26 @@ export default function FuturesTradePanel({
           ) : null}
 
 
+          <div className="mt-4 rounded-xl bg-card/60 border border-border/80 p-4 shadow-inner">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-primary/80 animate-pulse" />
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">{labels.orderSummary}</span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {summaryRows.map((row) => (
+                <div key={row.label} className="rounded-lg border border-border bg-background p-3">
+                  <div className="text-[11px] text-muted-foreground mb-1">{row.label}</div>
+                  <div className="font-mono text-sm text-foreground">{row.value}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>{labels.avail}</span>
+              <span className="font-mono text-foreground">{accountSnap.hasAccount ? `${formatNumber(accountSnap.availableMargin, 2)} USDT` : "—"}</span>
+            </div>
+          </div>
+
+
           {/* TP/SL Section - Always Visible & Expanded by Default */}
           <div className="mt-4 rounded-xl bg-gradient-to-br from-card/80 to-card/40 border-2 border-primary/20 p-4">
             <div className="flex items-center justify-between">

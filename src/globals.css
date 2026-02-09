@@ -38,33 +38,33 @@ css
 @layer base {
   :root {
     /* NextTrade Premium Light Theme - PRODUCTION GRADE CONTRAST */
-    --background: 0 0% 98%;
-    --foreground: 222 47% 11%; /* Dark gray - highly readable */
+    --background: 0 0% 96%;
+    --foreground: 222 47% 12%;
     
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 99%;
+    --card-foreground: 222 47% 12%;
     
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 0 0% 99%;
+    --popover-foreground: 222 47% 12%;
     
-    --primary: 160 84% 30%; /* Dark Mint Emerald */
+    --primary: 160 80% 34%; /* refined emerald */
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 220 14% 90%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 220 16% 88%;
+    --secondary-foreground: 222 47% 14%;
     
-    --muted: 220 14% 92%;
-    --muted-foreground: 222 20% 35%; /* DARK for excellent readability */
+    --muted: 220 14% 88%;
+    --muted-foreground: 222 20% 32%;
     
-    --accent: 220 14% 90%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 220 14% 88%;
+    --accent-foreground: 222 47% 14%;
     
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 220 13% 78%;
-    --input: 220 14% 88%;
-    --ring: 160 84% 30%;
+    --border: 220 12% 75%;
+    --input: 220 14% 86%;
+    --ring: 160 80% 34%;
 
     /* Surface layers for depth */
     --surface-1: 0 0% 100%;
@@ -85,38 +85,38 @@ css
 
   .dark {
     /* NextTrade Premium Dark Theme - Deep Charcoal Base */
-    --background: 220 20% 4%; /* #0B0E11 Deep Charcoal */
-    --foreground: 220 13% 91%;
+    --background: 220 18% 8%; /* softened dark base */
+    --foreground: 220 12% 90%;
     
-    --card: 220 17% 7%; /* Slightly lighter for cards */
-    --card-foreground: 220 13% 91%;
+    --card: 220 16% 11%;
+    --card-foreground: 220 12% 90%;
     
-    --popover: 220 17% 7%;
-    --popover-foreground: 220 13% 91%;
+    --popover: 220 16% 11%;
+    --popover-foreground: 220 12% 90%;
     
-    --primary: 160 100% 38%; /* Mint Emerald #00C087 */
-    --primary-foreground: 220 20% 4%;
+    --primary: 160 92% 42%; /* Mint Emerald #00c48a */
+    --primary-foreground: 220 18% 8%;
     
-    --secondary: 220 14% 14%;
-    --secondary-foreground: 220 13% 91%;
+    --secondary: 220 14% 17%;
+    --secondary-foreground: 220 12% 88%;
     
-    --muted: 220 14% 12%;
-    --muted-foreground: 220 9% 56%;
+    --muted: 220 14% 16%;
+    --muted-foreground: 220 10% 60%;
     
-    --accent: 220 14% 14%;
-    --accent-foreground: 220 13% 91%;
+    --accent: 220 14% 17%;
+    --accent-foreground: 220 12% 88%;
     
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 220 14% 16%;
-    --input: 220 14% 14%;
-    --ring: 160 100% 38%;
+    --border: 220 14% 20%;
+    --input: 220 14% 17%;
+    --ring: 160 92% 42%;
 
     /* Surface layers for depth */
-    --surface-1: 220 17% 7%;
-    --surface-2: 220 16% 9%;
-    --surface-3: 220 15% 12%;
+    --surface-1: 220 16% 10%;
+    --surface-2: 220 15% 12%;
+    --surface-3: 220 14% 16%;
     
     /* Trading Colors - Refined */
     --profit: 160 84% 39%; /* Mint Emerald for profit */

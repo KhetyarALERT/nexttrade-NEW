@@ -127,7 +127,12 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
       
       <CardContent className="pt-0">
         <div className="space-y-3">
-          {referrals.map((ref) => (
+          {referrals.map((ref) => {
+            const bonusTiers = ref.depositBonuses
+              ? [ref.depositBonuses.tier500, ref.depositBonuses.tier1000, ref.depositBonuses.tier2000].filter(Boolean)
+              : [];
+
+            return (
             <div 
               key={ref.id} 
               className="p-4 rounded-xl bg-muted/30 border border-border"
@@ -197,21 +202,22 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
               )}
 
               {/* Big Deposit Bonuses Section - Only show if KYC verified and deposited */}
-              {ref.depositBonuses && ref.kycVerified && ref.netDeposit >= 100 && (
+              {bonusTiers.length > 0 && ref.kycVerified && ref.netDeposit >= 100 ? (
                 <div className="mt-3 pt-3 border-t border-border/50">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Gift className="w-3 h-3 text-muted-foreground" />
                     <span className="text-[10px] text-muted-foreground font-medium">{txt.bigDepositBonuses}</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    <DepositBonusBadge tier={ref.depositBonuses.tier500} language={language} />
-                    <DepositBonusBadge tier={ref.depositBonuses.tier1000} language={language} />
-                    <DepositBonusBadge tier={ref.depositBonuses.tier2000} language={language} />
+                    {bonusTiers.map((tier) => (
+                      <DepositBonusBadge key={tier.threshold} tier={tier} language={language} />
+                    ))}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
-          ))}
+          );
+          })}
         </div>
       </CardContent>
     </Card>

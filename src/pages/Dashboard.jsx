@@ -28,90 +28,31 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import PullToRefresh from "@/components/ui/PullToRefresh";
-
-// Dashboard voucher data (inline to avoid missing dependency)
-const DASHBOARD_VOUCHERS = [
-  { 
-    id: 'welcome', 
-    title: { en: '10% Fee Discount', ar: 'خصم 10% على الرسوم' },
-    condition: { en: 'Complete KYC verification', ar: 'أكمل التحقق من الهوية' },
-    status: 'New'
-  },
-  { 
-    id: 'first_trade', 
-    title: { en: '$5 Trading Bonus', ar: 'مكافأة تداول $5' },
-    condition: { en: 'Execute your first trade', ar: 'نفذ أول صفقة' },
-    status: 'Locked'
-  }
-];
-
-const pickLang = (lang, obj) => (obj && typeof obj === 'object') ? (obj[lang] || obj.en || '') : (obj || '');
-
-const translations = {
-  en: {
-    title: "Trading Dashboard",
-    subtitle: "Your complete financial overview",
-    quickActions: "Quick Actions",
-    deposit: "Deposit",
-    transfer: "Transfer",
-    rewards: "Rewards",
-    portfolio: "Portfolio",
-    performance: "Performance",
-    today: "Today",
-    viewReport: "View Report",
-    balance: "Account Balance",
-    totalBalance: "Total Balance",
-    available: "Available",
-    inPositions: "In Positions",
-    pnl: "PnL Statistics",
-    dailyPnl: "Daily PnL",
-    weeklyPnl: "Weekly PnL",
-    monthlyPnl: "Monthly PnL",
-    totalPnl: "Total PnL",
-    positions: "Open Positions",
-    orders: "Pending Orders",
-    referrals: "Referral Program",
-    vouchers: "Available Vouchers",
-    noPositions: "No open positions",
-    noOrders: "No pending orders",
-    refresh: "Refresh",
-    trade: "Trade",
-    viewAll: "View All",
-    size: "Size",
-    entry: "Entry",
-    pnlLabel: "PnL",
-    price: "Price",
-    qty: "Qty",
-    positionsHint: "Place your first trade to see open positions.",
-    ordersHint: "Set a limit or trigger order to track it here.",
-    referralHint: "Share your link to earn rewards when friends trade.",
-    voucherHint: "Complete tasks to unlock vouchers for trading boosts."
-  },
-  ar: {
-    title: "لوحة التداول",
-    subtitle: "نظرة شاملة على حسابك المالي",
-    quickActions: "إجراءات سريعة",
-    deposit: "إيداع",
-    transfer: "تحويل",
-    rewards: "المكافآت",
-    portfolio: "المحفظة",
-    performance: "الأداء",
-    today: "اليوم",
-    viewReport: "عرض التقرير",
-    balance: "رصيد الحساب",
-    totalBalance: "الرصيد الإجمالي",
-    available: "المتاح",
-    inPositions: "في المراكز",
-    pnl: "إحصائيات الربح والخسارة",
-    dailyPnl: "الربح اليومي",
-    weeklyPnl: "الربح الأسبوعي",
-    monthlyPnl: "الربح الشهري",
-    totalPnl: "إجمالي الربح",
-    positions: "المراكز المفتوحة",
-    orders: "الأوامر المعلقة",
-    referrals: "برنامج الإحالة",
-    vouchers: "القسائم المتاحة",
-    noPositions: "لا توجد مراكز مفتوحة",
+        {/* Rewards teaser (referrals/vouchers live in Rewards page) */}
+        <Card variant="solid" className="overflow-hidden">
+          <CardHeader className="border-b border-border/40 py-4 bg-muted/15">
+            <CardTitle className="text-base font-semibold flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/15 to-blue-500/20 flex items-center justify-center">
+                <Gift className="h-4 w-4 text-emerald-500" />
+              </div>
+              <span className="truncate">{language === 'ar' ? 'المكافآت والإحالات' : 'Rewards & Referrals'}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold text-foreground">{language === 'ar' ? 'تتبع الدعوات والقسائم من صفحة المكافآت.' : 'Track invites and vouchers in the Rewards page.'}</p>
+              <p className="text-xs text-muted-foreground">{language === 'ar' ? 'انتقل لعرض الإحالات والقسائم والمكافآت في مكان واحد.' : 'Go to Rewards to see referrals, vouchers, and earning history in one place.'}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="gradient-primary" className="rounded-xl">
+                <Link to={createPageUrl("Rewards")}>{language === 'ar' ? 'افتح المكافآت' : 'Open Rewards'}</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-xl">
+                <Link to={`${createPageUrl("Rewards")}?tab=referrals`}>{language === 'ar' ? 'دعوة الأصدقاء' : 'Invite friends'}</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
     noOrders: "لا توجد أوامر معلقة",
     refresh: "تحديث",
     trade: "تداول",
@@ -368,24 +309,28 @@ export default function Dashboard({ language = "en" }) {
       icon: Zap,
       href: createPageUrl("Futures"),
       variant: "gradient-primary",
+      className: "shadow-lg shadow-emerald-500/25"
     },
     {
       label: t.deposit,
       icon: ArrowDownRight,
       href: `${createPageUrl("Wallet")}?page=deposit`,
       variant: "glass",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-50 dark:border-emerald-500/30"
     },
     {
       label: t.transfer,
       icon: ArrowUpRight,
       href: `${createPageUrl("Wallet")}?page=overview`,
       variant: "outline-glow",
+      className: "text-blue-700 border-blue-200 shadow-[0_0_0_1px_rgba(59,130,246,0.18),0_10px_20px_-10px_rgba(59,130,246,0.35)] hover:text-white hover:bg-blue-500 dark:text-blue-100 dark:border-blue-500/50"
     },
     {
       label: t.rewards,
       icon: Gift,
       href: createPageUrl("Rewards"),
       variant: "glass",
+      className: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-50 dark:border-purple-500/30"
     },
   ], [t, language]);
 
@@ -618,7 +563,7 @@ export default function Dashboard({ language = "en" }) {
                     key={action.label}
                     asChild
                     variant={action.variant}
-                    className="h-12 rounded-xl text-xs sm:text-sm"
+                    className={`h-12 rounded-xl text-xs sm:text-sm ${action.className || ""}`}
                   >
                     <Link to={action.href} className="flex items-center justify-center gap-2">
                       <action.icon className="h-4 w-4" />
@@ -830,90 +775,30 @@ export default function Dashboard({ language = "en" }) {
         </CardContent>
         </Card>
 
-        {/* Referrals & Vouchers */}
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
-          {/* Referral Program */}
-          <Card variant="solid" className="overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                </div>
-                <span className="truncate">{t.referrals}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                {[
-                  { value: '0', label: language === 'ar' ? 'الإجمالي' : 'Total', color: 'text-foreground' },
-                  { value: '0', label: language === 'ar' ? 'نشط' : 'Active', color: 'text-emerald-400' },
-                  { value: '$0', label: language === 'ar' ? 'العمولة' : 'Earned', color: 'text-blue-400' }
-                ].map((stat, i) => (
-                  <div key={i} className="text-center p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40">
-                    <p className={`text-base sm:text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase truncate">{stat.label}</p>
-                  </div>
-                ))}
+        <Card variant="solid" className="overflow-hidden">
+          <CardHeader className="border-b border-border/40 py-4 bg-muted/15">
+            <CardTitle className="text-base font-semibold flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/15 to-blue-500/20 flex items-center justify-center">
+                <Gift className="h-4 w-4 text-emerald-500" />
               </div>
-              
-              <div className="rounded-xl bg-muted/30 border border-border/40 p-2 sm:p-3 space-y-2">
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase mb-1 sm:mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 sm:px-3 py-2 font-mono font-bold text-xs sm:text-sm truncate">
-                    {referralCode || '—'}
-                  </code>
-                  <Button 
-                    variant="secondary" 
-                    size="icon" 
-                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0"
-                    onClick={copyReferralCode} 
-                    disabled={!referralCode}
-                  >
-                    <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </Button>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2">{t.referralHint}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Vouchers */}
-          <Card variant="solid" className="overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
-                  <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
-                </div>
-                <span className="truncate">{t.vouchers}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-3">
-              {vouchers.length === 0 ? (
-                <div className="py-4 sm:py-6 text-center space-y-2">
-                  <Gift className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/40" />
-                  <p className="text-xs sm:text-sm text-muted-foreground px-2">{t.voucherHint}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {vouchers.map(voucher => (
-                  <div key={voucher.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-                      <Gift className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{pickLang(language, voucher.title)}</p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{pickLang(language, voucher.condition)}</p>
-                    </div>
-                    <Badge className={`flex-shrink-0 text-[10px] sm:text-xs ${voucher.status === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
-                      {voucher.status}
-                    </Badge>
-                  </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              <span className="truncate">{language === 'ar' ? 'المكافآت والإحالات' : 'Rewards & Referrals'}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold text-foreground">{language === 'ar' ? 'تتبع الدعوات والقسائم من صفحة المكافآت.' : 'Track invites and vouchers in the Rewards page.'}</p>
+              <p className="text-xs text-muted-foreground">{language === 'ar' ? 'انتقل لعرض الإحالات والقسائم والمكافآت في مكان واحد.' : 'Go to Rewards to see referrals, vouchers, and earning history in one place.'}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="gradient-primary" className="rounded-xl">
+                <Link to={createPageUrl("Rewards")}>{language === 'ar' ? 'افتح المكافآت' : 'Open Rewards'}</Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-xl">
+                <Link to={`${createPageUrl("Rewards")}?tab=referrals`}>{language === 'ar' ? 'دعوة الأصدقاء' : 'Invite friends'}</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         </div>
       </div>
     </PullToRefresh>
