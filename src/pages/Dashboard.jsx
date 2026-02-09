@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -51,6 +51,14 @@ const translations = {
   en: {
     title: "Trading Dashboard",
     subtitle: "Your complete financial overview",
+    quickActions: "Quick Actions",
+    deposit: "Deposit",
+    transfer: "Transfer",
+    rewards: "Rewards",
+    portfolio: "Portfolio",
+    performance: "Performance",
+    today: "Today",
+    viewReport: "View Report",
     balance: "Account Balance",
     totalBalance: "Total Balance",
     available: "Available",
@@ -82,6 +90,14 @@ const translations = {
   ar: {
     title: "لوحة التداول",
     subtitle: "نظرة شاملة على حسابك المالي",
+    quickActions: "إجراءات سريعة",
+    deposit: "إيداع",
+    transfer: "تحويل",
+    rewards: "المكافآت",
+    portfolio: "المحفظة",
+    performance: "الأداء",
+    today: "اليوم",
+    viewReport: "عرض التقرير",
     balance: "رصيد الحساب",
     totalBalance: "الرصيد الإجمالي",
     available: "المتاح",
@@ -123,12 +139,21 @@ const logActivity = (action, details) => {
   return logEntry;
 };
 
-const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg, emphasis = false, className = "" }) => (
-  <div className={`rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-5 shadow-sm transition-shadow hover:shadow-md ${emphasis ? "bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 border-blue-500/20" : ""} ${className}`}>
+const StatCard = ({ title, value, animatedValue, formatValue, change = undefined, icon: Icon, accent, accentBg, emphasis = false, className = "" }) => (
+  <div className={`group relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card/80 via-card/70 to-card/80 p-4 sm:p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-card-hover ${emphasis ? "border-primary/25 bg-gradient-to-br from-primary/10 via-card/70 to-cyan-500/10" : ""} ${className}`}>
+    <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+      <div className="absolute -right-12 -top-10 h-24 w-24 rounded-full bg-primary/15 blur-2xl" />
+    </div>
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
-        <p className={`font-semibold text-foreground mt-1 sm:mt-2 truncate ${emphasis ? "text-xl sm:text-3xl" : "text-lg sm:text-2xl"}`}>{value}</p>
+        <p className={`font-semibold text-foreground mt-1 sm:mt-2 truncate ${emphasis ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"}`}>
+          {animatedValue !== undefined && formatValue ? (
+            <AnimatedNumber value={animatedValue} format={formatValue} />
+          ) : (
+            value
+          )}
+        </p>
         {change !== undefined && (
           <div className={`flex items-center gap-1 mt-1 sm:mt-2 text-xs sm:text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
             {change >= 0 ? <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownRight className="h-3 w-3 sm:h-4 sm:w-4" />}
@@ -136,7 +161,7 @@ const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accent
           </div>
         )}
       </div>
-      <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl ${accentBg} flex items-center justify-center flex-shrink-0 ${emphasis ? "shadow-lg shadow-blue-500/20" : ""}`}>
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${accentBg} flex items-center justify-center flex-shrink-0 ${emphasis ? "shadow-lg shadow-primary/20" : ""}`}>
         <Icon className={`h-4 w-4 sm:h-6 sm:w-6 ${accent}`} />
       </div>
     </div>
@@ -237,6 +262,81 @@ const formatNum = (v, digits = 2) => {
   return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 };
 
+const AnimatedNumber = ({ value, format }) => {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    const startValue = prevValue.current;
+    const endValue = value;
+
+    if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) {
+      setDisplayValue(endValue);
+      prevValue.current = endValue;
+      return;
+    }
+
+    const duration = 700;
+    const startTime = performance.now();
+    let frameId = null;
+
+    const tick = (now) => {
+      const elapsed = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - elapsed, 3);
+      const nextValue = startValue + (endValue - startValue) * eased;
+      setDisplayValue(nextValue);
+      if (elapsed < 1) {
+        frameId = requestAnimationFrame(tick);
+      } else {
+        prevValue.current = endValue;
+      }
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [value]);
+
+  return <span aria-live="polite">{format(displayValue)}</span>;
+};
+
+const Sparkline = ({ data }) => {
+  const width = 320;
+  const height = 90;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const points = data.map((point, index) => {
+    const x = (index / (data.length - 1)) * width;
+    const y = height - ((point - min) / range) * height;
+    return [x, y];
+  });
+
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point[0].toFixed(2)},${point[1].toFixed(2)}`)
+    .join(" ");
+  const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full">
+      <defs>
+        <linearGradient id="portfolioLine" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="hsl(var(--primary))" />
+          <stop offset="100%" stopColor="hsl(190 90% 45%)" />
+        </linearGradient>
+        <linearGradient id="portfolioFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary) / 0.35)" />
+          <stop offset="100%" stopColor="transparent" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill="url(#portfolioFill)" />
+      <path d={linePath} fill="none" stroke="url(#portfolioLine)" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+};
+
 export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { user, isAuthenticated } = useAuth();
@@ -253,6 +353,41 @@ export default function Dashboard({ language = "en" }) {
   const [, setLiveAccount] = useState(null);
   
   const vouchers = DASHBOARD_VOUCHERS;
+
+  const portfolioSeries = useMemo(() => [42, 46, 44, 52, 49, 58, 63, 60, 66, 72, 68, 75], []);
+  const portfolioChange = useMemo(() => {
+    const first = portfolioSeries[0] || 0;
+    const last = portfolioSeries[portfolioSeries.length - 1] || 0;
+    if (!first) return 0;
+    return ((last - first) / first) * 100;
+  }, [portfolioSeries]);
+
+  const quickActions = useMemo(() => [
+    {
+      label: t.trade,
+      icon: Zap,
+      href: createPageUrl("Futures"),
+      variant: "gradient-primary",
+    },
+    {
+      label: t.deposit,
+      icon: ArrowDownRight,
+      href: `${createPageUrl("Wallet")}?page=deposit`,
+      variant: "outline-glow",
+    },
+    {
+      label: t.transfer,
+      icon: ArrowUpRight,
+      href: `${createPageUrl("Wallet")}?page=overview`,
+      variant: "glass",
+    },
+    {
+      label: t.rewards,
+      icon: Gift,
+      href: createPageUrl("Rewards"),
+      variant: "glass",
+    },
+  ], [t, language]);
 
   const loadDashboardData = useCallback(async () => {
     logActivity('LOAD_DASHBOARD', { status: 'started' });
@@ -382,19 +517,19 @@ export default function Dashboard({ language = "en" }) {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 text-foreground pb-20 md:pb-8" dir={language === "ar" ? "rtl" : "ltr"}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 md:space-y-8">
         {/* Header - Mobile Optimized */}
-        <Card className="border-border/60 bg-card/70 shadow-sm">
+        <Card variant="gradient" className="border-border/60">
           <CardContent className="p-5 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{language === "ar" ? "نظرة عامة" : "Overview"}</p>
-                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-2">{t.title}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t.subtitle}</p>
+                <p className="eyebrow">{language === "ar" ? "نظرة عامة" : "Overview"}</p>
+                <h1 className="page-title mt-3">{t.title}</h1>
+                <p className="body-text mt-2">{t.subtitle}</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button
-                  variant="secondary"
+                  variant="glass"
                   size="icon"
                   className="h-11 w-11 rounded-xl"
                   onClick={handleRefresh}
@@ -405,7 +540,8 @@ export default function Dashboard({ language = "en" }) {
                 <Button 
                   asChild={!!nextAction?.route} 
                   disabled={loadingReadiness}
-                  className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                  variant="gradient-primary"
+                  className="h-11 rounded-xl"
                 >
                   {nextAction?.route ? (
                     <Link to={nextAction.route} className="flex items-center justify-center gap-2 px-4">
@@ -424,11 +560,13 @@ export default function Dashboard({ language = "en" }) {
           </CardContent>
         </Card>
 
-        {/* Balance Cards - Mobile Scroll */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Balance Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           <StatCard 
             title={t.totalBalance} 
             value={`$${formatMoney(balanceData.total)}`}
+            animatedValue={balanceData.total}
+            formatValue={(v) => `$${formatMoney(v)}`}
             icon={Wallet}
             accent="text-blue-600"
             accentBg="bg-blue-500/10"
@@ -438,6 +576,8 @@ export default function Dashboard({ language = "en" }) {
           <StatCard 
             title={t.available} 
             value={`$${formatMoney(balanceData.available)}`}
+            animatedValue={balanceData.available}
+            formatValue={(v) => `$${formatMoney(v)}`}
             icon={CheckCircle}
             accent="text-emerald-600"
             accentBg="bg-emerald-500/10"
@@ -445,6 +585,8 @@ export default function Dashboard({ language = "en" }) {
           <StatCard 
             title={t.inPositions} 
             value={`$${formatMoney(balanceData.inPositions)}`}
+            animatedValue={balanceData.inPositions}
+            formatValue={(v) => `$${formatMoney(v)}`}
             icon={Activity}
             accent="text-purple-600"
             accentBg="bg-purple-500/10"
@@ -452,6 +594,8 @@ export default function Dashboard({ language = "en" }) {
           <StatCard 
             title={t.dailyPnl} 
             value={`$${formatMoney(pnlData.daily)}`}
+            animatedValue={pnlData.daily}
+            formatValue={(v) => `$${formatMoney(v)}`}
             change={pnlData.daily !== 0 ? (pnlData.daily / Math.max(1, balanceData.total)) * 100 : undefined}
             icon={TrendingUp}
             accent="text-cyan-600"
@@ -461,13 +605,69 @@ export default function Dashboard({ language = "en" }) {
           />
         </div>
 
+        {/* Quick Actions + Portfolio */}
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
+          <Card variant="glass" className="lg:col-span-1 overflow-hidden">
+            <CardHeader className="border-b border-border/50">
+              <CardTitle className="text-base font-semibold">{t.quickActions}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5">
+              <div className="grid grid-cols-2 gap-3">
+                {quickActions.map((action) => (
+                  <Button
+                    key={action.label}
+                    asChild
+                    variant={action.variant}
+                    className="h-12 rounded-xl text-xs sm:text-sm"
+                  >
+                    <Link to={action.href} className="flex items-center justify-center gap-2">
+                      <action.icon className="h-4 w-4" />
+                      <span className="font-semibold">{action.label}</span>
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card variant="gradient" className="lg:col-span-2 overflow-hidden">
+            <CardHeader className="border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="section-title text-foreground">{t.portfolio}</CardTitle>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mt-1">{t.performance}</p>
+                </div>
+                <Button variant="outline-glow" size="sm" asChild>
+                  <Link to={createPageUrl("Wallet")}>{t.viewReport}</Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid sm:grid-cols-[1.2fr,2fr] gap-4 sm:gap-6 items-center">
+                <div className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t.totalBalance}</p>
+                  <div className="text-2xl sm:text-3xl font-semibold text-foreground">
+                    <AnimatedNumber value={balanceData.total} format={(v) => `$${formatMoney(v)}`} />
+                  </div>
+                  <div className={`text-sm font-semibold ${portfolioChange >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {portfolioChange >= 0 ? "+" : ""}{portfolioChange.toFixed(2)}% {t.today}
+                  </div>
+                </div>
+                <div className="h-24 sm:h-28 w-full">
+                  <Sparkline data={portfolioSeries} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* PnL Statistics - Compact Mobile */}
-        <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-          <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-            <CardTitle className="text-sm sm:text-base font-semibold">{t.pnl}</CardTitle>
+        <Card variant="solid" className="overflow-hidden">
+          <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
+            <CardTitle className="text-base font-semibold">{t.pnl}</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 sm:p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: t.dailyPnl, value: pnlData.daily },
                 { label: t.weeklyPnl, value: pnlData.weekly },
@@ -486,9 +686,9 @@ export default function Dashboard({ language = "en" }) {
         </Card>
 
         {/* Positions & Orders - Mobile Cards */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
           {/* Open Positions */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <Card variant="solid" className="overflow-hidden">
             <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">{t.positions}</CardTitle>
@@ -551,7 +751,7 @@ export default function Dashboard({ language = "en" }) {
           </Card>
 
           {/* Pending Orders */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <Card variant="solid" className="overflow-hidden">
             <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">{t.orders}</CardTitle>
@@ -611,7 +811,7 @@ export default function Dashboard({ language = "en" }) {
         </div>
 
         {/* Quick Actions - Help Center */}
-        <Card className="border-border/50 shadow-sm bg-gradient-to-r from-blue-500/5 via-transparent to-cyan-500/5 rounded-2xl">
+        <Card variant="gradient" className="rounded-2xl">
         <CardContent className="flex items-center justify-between p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
@@ -631,9 +831,9 @@ export default function Dashboard({ language = "en" }) {
         </Card>
 
         {/* Referrals & Vouchers */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
           {/* Referral Program */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <Card variant="solid" className="overflow-hidden">
             <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
               <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
@@ -678,7 +878,7 @@ export default function Dashboard({ language = "en" }) {
           </Card>
 
           {/* Vouchers */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
+          <Card variant="solid" className="overflow-hidden">
             <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
               <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">

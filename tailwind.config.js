@@ -12,6 +12,13 @@ module.exports = {
   			'2xl': 'calc(var(--radius) + 8px)',
   			'3xl': 'calc(var(--radius) + 16px)'
   		},
+		spacing: {
+			18: '4.5rem',
+			22: '5.5rem',
+			26: '6.5rem',
+			30: '7.5rem',
+			34: '8.5rem'
+		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -51,6 +58,11 @@ module.exports = {
   				DEFAULT: 'hsl(var(--warning))',
   				foreground: 'hsl(var(--warning-foreground))'
   			},
+			surface: {
+				1: 'hsl(var(--surface-1))',
+				2: 'hsl(var(--surface-2))',
+				3: 'hsl(var(--surface-3))'
+			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
@@ -73,10 +85,19 @@ module.exports = {
   			}
   		},
   		boxShadow: {
+			'card': '0 12px 30px -18px hsl(var(--foreground) / 0.35)',
+			'card-hover': '0 18px 50px -24px hsl(var(--foreground) / 0.45)',
+			'outline-glow': '0 0 0 1px hsl(var(--primary) / 0.35), 0 0 20px -6px hsl(var(--primary) / 0.6)',
+			'stat': '0 18px 45px -26px hsl(var(--primary) / 0.5)',
   			'glow': '0 0 20px -5px hsl(var(--primary) / 0.4)',
   			'glow-lg': '0 0 40px -10px hsl(var(--primary) / 0.5)',
   			'inner-glow': 'inset 0 0 20px -5px hsl(var(--primary) / 0.2)',
   		},
+		backgroundImage: {
+			'gradient-primary': 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(190 90% 45%) 100%)',
+			'gradient-success': 'linear-gradient(135deg, hsl(var(--profit)) 0%, hsl(160 90% 35%) 100%)',
+			'gradient-surface': 'linear-gradient(180deg, hsl(var(--surface-1)) 0%, hsl(var(--surface-2)) 100%)'
+		},
   		keyframes: {
   			'accordion-down': {
   				from: {
@@ -94,6 +115,16 @@ module.exports = {
   					height: '0'
   				}
   			},
+			'fade-up': {
+				'0%': {
+					opacity: 0,
+					transform: 'translateY(12px)'
+				},
+				'100%': {
+					opacity: 1,
+					transform: 'translateY(0)'
+				}
+			},
   			'shimmer': {
   				'100%': {
   					transform: 'translateX(100%)',
@@ -111,6 +142,7 @@ module.exports = {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
+			'fade-up': 'fade-up 0.6s ease-out',
   			'shimmer': 'shimmer 2s infinite',
   			'pulse-glow': 'pulse-glow 2s ease-in-out infinite'
   		}

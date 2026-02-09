@@ -153,6 +153,8 @@ export default function FuturesTradePanel({
       enter: isAr ? "أدخل" : "Enter",
       estCost: isAr ? "التكلفة التقديرية" : "Est. cost",
       estLiq: isAr ? "سعر التصفية المتوقع" : "Est. Liquidation",
+      orderEntry: isAr ? "إدخال الأمر" : "Order Entry",
+      orderSummary: isAr ? "ملخص الأمر" : "Order Summary",
       fundingIn: isAr ? "التمويل في" : "Funding in",
       fundingRate: isAr ? "معدل التمويل" : "Funding Rate",
       marketHint: isAr ? "أوامر السوق تُنفذ بأفضل سعر متاح." : "Market orders execute at the best available price.",
@@ -174,6 +176,7 @@ export default function FuturesTradePanel({
       slTrigger: isAr ? "تفعيل الوقف" : "SL Trigger",
       slRatio: isAr ? "نسبة الوقف" : "SL Ratio",
       percent: isAr ? "%" : "%",
+      max: isAr ? "الحد الاقصى" : "MAX",
       openLong: isAr ? "فتح شراء" : "Open Long",
       openShort: isAr ? "فتح بيع" : "Open Short",
       note: isAr ? "تداول العقود يحمل مخاطر. تأكد من إدارة المخاطر واستخدام الرافعة بحذر." : "Futures trading carries risk. Manage exposure carefully and use leverage responsibly.",
@@ -708,6 +711,34 @@ export default function FuturesTradePanel({
     const estLiqLong = calcEstimatedLiquidation("LONG", currentRefPrice, leverage, cost);
     const estLiqShort = calcEstimatedLiquidation("SHORT", currentRefPrice, leverage, cost);
 
+    const summaryPrice = currentRefPrice;
+    const summaryQty = parseNum(amount);
+    const summaryNotional = parseNum(total);
+    const summaryCost = parseNum(cost);
+    const summaryLeverage = Math.min(5, Math.max(1, Number(leverage) || 5));
+    const summaryRows = [
+      {
+        label: labels.price,
+        value: summaryPrice ? `$${formatNumber(summaryPrice, summaryPrice < 1 ? 6 : 2)}` : "--",
+      },
+      {
+        label: labels.amount,
+        value: Number.isFinite(summaryQty) && summaryQty > 0 ? formatNumber(summaryQty, 4) : "--",
+      },
+      {
+        label: labels.total,
+        value: Number.isFinite(summaryNotional) && summaryNotional > 0 ? `$${formatNumber(summaryNotional, 2)}` : "--",
+      },
+      {
+        label: labels.cost,
+        value: Number.isFinite(summaryCost) && summaryCost > 0 ? `$${formatNumber(summaryCost, 2)}` : "--",
+      },
+      {
+        label: labels.leverage,
+        value: `${summaryLeverage}x`,
+      },
+    ];
+
     const applyAmountPct = (pct) => {
       const p = Math.min(100, Math.max(0, Number(pct)));
       setAmountPct(p);
@@ -1055,7 +1086,7 @@ export default function FuturesTradePanel({
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
                 <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
-                  {[0, 25, 50, 75, 100].map((p) => (
+                  {[25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
@@ -1066,7 +1097,7 @@ export default function FuturesTradePanel({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {p}%
+                      {p === 100 ? labels.max : `${p}%`}
                     </button>
                   ))}
                 </div>
@@ -1155,7 +1186,7 @@ export default function FuturesTradePanel({
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
                 <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
-                  {[0, 25, 50, 75, 100].map((p) => (
+                  {[25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
@@ -1166,7 +1197,7 @@ export default function FuturesTradePanel({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {p}%
+                      {p === 100 ? labels.max : `${p}%`}
                     </button>
                   ))}
                 </div>
@@ -1272,7 +1303,7 @@ export default function FuturesTradePanel({
                   className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
                 />
                 <div className="mt-2 flex p-[2px] bg-muted/25 rounded-xl">
-                  {[0, 25, 50, 75, 100].map((p) => (
+                  {[25, 50, 75, 100].map((p) => (
                     <button
                       key={p}
                       type="button"
@@ -1283,7 +1314,7 @@ export default function FuturesTradePanel({
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {p}%
+                      {p === 100 ? labels.max : `${p}%`}
                     </button>
                   ))}
                 </div>
