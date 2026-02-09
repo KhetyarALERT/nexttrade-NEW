@@ -438,6 +438,8 @@ export default function WalletPage({ language = "en" }) {
 
   const gatingCard = renderGatingCard();
   const isFullyUnlocked = isKycApproved && hasOkxAccount;
+  const isDepositEnabled = isKycApproved;
+  const isHistoryEnabled = isKycApproved;
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
@@ -481,7 +483,12 @@ export default function WalletPage({ language = "en" }) {
                 {SUB_PAGES.map((item) => {
                   const isActive = activePage === item.id;
                   const Icon = item.icon;
-                  const isDisabled = !isFullyUnlocked && item.id !== "overview";
+                  const isDisabled = (() => {
+                    if (item.id === "overview") return false;
+                    if (item.id === "deposit") return !isDepositEnabled;
+                    if (item.id === "history") return !isHistoryEnabled;
+                    return !isFullyUnlocked;
+                  })();
                   
                   return (
                     <button
@@ -512,7 +519,12 @@ export default function WalletPage({ language = "en" }) {
               {SUB_PAGES.map((item) => {
                 const isActive = activePage === item.id;
                 const Icon = item.icon;
-                const isDisabled = !isFullyUnlocked && item.id !== "overview";
+                const isDisabled = (() => {
+                  if (item.id === "overview") return false;
+                  if (item.id === "deposit") return !isDepositEnabled;
+                  if (item.id === "history") return !isHistoryEnabled;
+                  return !isFullyUnlocked;
+                })();
                 
                 return (
                   <button
@@ -559,6 +571,7 @@ export default function WalletPage({ language = "en" }) {
               <WalletDeposit
                 language={language}
                 hasOkxAccount={hasOkxAccount}
+                wallets={wallets}
                 onRefresh={handleRefresh}
                 showBackButton={true}
               />
