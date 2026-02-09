@@ -32,53 +32,67 @@ const t = {
     autoTrade: "Auto-Trade",
     autoTradeDesc: "Automatically accept signals from experts",
     on: "ON",
-    off: "OFF",
-    amountPerTrade: "Amount per Trade",
+    off: "Off",
+    custom: "Custom",
+    choosePreset: "Choose a preset",
+    presetHint: "Pick a safe starting point",
+    mainControls: "Main controls",
+    amountPerTrade: "Amount per trade",
     amountPerTradeDesc: "USDT allocated per signal",
-    amountPlaceholder: "e.g. 10",
-    maxLeverage: "Max Leverage",
-    maxOpenTrades: "Max Open Trades",
-    safetySettings: "Safety Limit",
-    maxPerTrade: "Max per trade",
-    save: "Save Settings",
+    maxLeverage: "Max leverage",
+    maxLeverageDesc: "Higher leverage increases risk",
+    maxOpenTrades: "Max open trades",
+    maxOpenTradesDesc: "Limit active positions",
+    maxPerTrade: "Safety limit",
+    maxPerTradeDesc: "Maximum USDT allowed per trade",
+    signalExpiry: "Signal expiry (s)",
+    priceDeviation: "Price deviation (%)",
+    advanced: "Advanced",
+    whatToExpect: "What to expect",
+    save: "Save settings",
     saving: "Saving...",
     saved: "Settings saved!",
+    noChanges: "No changes",
     low: "Conservative",
     mid: "Moderate",
     high: "Aggressive",
-    showAdvanced: "Advanced",
-    hideAdvanced: "Hide Advanced",
-    leverageFollows: "Follows signal cap",
     trades: "trades",
-    leverageHelp: "Leverage multiplies your trade size. 10x means $10 controls $100. Higher leverage = higher profit potential AND higher risk.",
-    autoTradeHelp: "When on, new expert signals are executed automatically using your settings. No manual accept needed.",
-    settings: "Settings"
+    summaryUnit: "USDT/trade",
+    autoTradeHelp:
+      "When on, new expert signals are executed automatically using your settings. No manual accept needed."
   },
   ar: {
     autoTrade: "التداول التلقائي",
     autoTradeDesc: "قبول الإشارات تلقائياً من الخبراء",
     on: "مفعّل",
     off: "متوقف",
+    custom: "مخصص",
+    choosePreset: "اختر إعداداً مسبقاً",
+    presetHint: "ابدأ بخيار بسيط وآمن",
+    mainControls: "التحكم الرئيسي",
     amountPerTrade: "المبلغ لكل صفقة",
     amountPerTradeDesc: "USDT مخصص لكل إشارة",
-    amountPlaceholder: "مثال: 10",
     maxLeverage: "أقصى رافعة",
+    maxLeverageDesc: "رافعة أعلى = مخاطرة أعلى",
     maxOpenTrades: "أقصى صفقات مفتوحة",
-    safetySettings: "حد الأمان",
-    maxPerTrade: "أقصى لكل صفقة",
+    maxOpenTradesDesc: "حد المراكز النشطة",
+    maxPerTrade: "حد الأمان",
+    maxPerTradeDesc: "أقصى USDT مسموح لكل صفقة",
+    signalExpiry: "انتهاء الإشارة (ث)",
+    priceDeviation: "انحراف السعر (%)",
+    advanced: "إعدادات متقدمة",
+    whatToExpect: "المتوقع",
     save: "حفظ الإعدادات",
     saving: "جارٍ الحفظ...",
     saved: "تم حفظ الإعدادات!",
+    noChanges: "لا تغييرات",
     low: "محافظ",
     mid: "متوسط",
     high: "مخاطر",
-    showAdvanced: "متقدم",
-    hideAdvanced: "إخفاء المتقدمة",
-    leverageFollows: "تتبع رافعة الإشارة",
     trades: "صفقات",
-    leverageHelp: "الرافعة تضاعف حجم صفقتك. رافعة 10x تعني أن $10 تتحكم بـ $100. رافعة أعلى = ربح محتمل أعلى وخسارة محتملة أعلى.",
-    autoTradeHelp: "عند التفعيل، يتم تنفيذ إشارات الخبراء تلقائياً حسب إعداداتك. لا حاجة لقبول كل إشارة يدوياً.",
-    settings: "الإعدادات"
+    summaryUnit: "USDT/صفقة",
+    autoTradeHelp:
+      "عند التفعيل، يتم تنفيذ إشارات الخبراء تلقائياً حسب إعداداتك. لا حاجة لقبول كل إشارة يدوياً."
   }
 };
 
@@ -92,11 +106,14 @@ function HelpButton({ content, side = "bottom" }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className="text-muted-foreground/60 hover:text-foreground transition-colors ml-1">
+        <button
+          type="button"
+          className="text-muted-foreground/60 hover:text-foreground transition-colors ltr:ml-1 rtl:mr-1"
+        >
           <HelpCircle className="w-3.5 h-3.5" />
         </button>
       </PopoverTrigger>
-      <PopoverContent side={side} className="max-w-[240px] text-xs leading-relaxed p-3 text-foreground/80">
+      <PopoverContent side={side} className="max-w-[260px] text-xs leading-relaxed p-3 text-foreground/80">
         {content}
       </PopoverContent>
     </Popover>
@@ -105,7 +122,7 @@ function HelpButton({ content, side = "bottom" }) {
 
 function ControlBlock({ icon: Icon, title, helper, children }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-muted/10 p-3 space-y-3">
+    <div className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-3">
       <div className="flex items-start gap-2">
         {Icon && <Icon className="w-4 h-4 text-primary mt-0.5" />}
         <div className="space-y-0.5">
@@ -188,16 +205,22 @@ export default function AutoTradeSettings({ language = "en" }) {
     const match = Object.entries(PRESETS).find(([, preset]) =>
       preset.fixed_margin_usdt === settings.fixed_margin_usdt &&
       preset.max_leverage === settings.max_leverage &&
-      preset.max_open_positions_total === settings.max_open_positions_total
+      preset.max_open_positions_total === settings.max_open_positions_total &&
+      preset.max_margin_per_trade_usdt === settings.max_margin_per_trade_usdt
     );
     return match ? match[0] : null;
-  }, [settings.fixed_margin_usdt, settings.max_leverage, settings.max_open_positions_total]);
+  }, [
+    settings.fixed_margin_usdt,
+    settings.max_leverage,
+    settings.max_open_positions_total,
+    settings.max_margin_per_trade_usdt
+  ]);
 
-  const presetLabel = activePreset ? labels[activePreset] : "Custom";
-  const offLabel = language === "ar" ? labels.off : "Off";
+  const presetLabel = activePreset ? labels[activePreset] : labels.custom;
 
   useEffect(() => {
     loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSettings = async () => {
@@ -248,15 +271,20 @@ export default function AutoTradeSettings({ language = "en" }) {
     );
   }
 
+  const summary = settings.auto_enabled
+    ? `${presetLabel} • ${settings.fixed_margin_usdt} ${labels.summaryUnit} • ${settings.max_open_positions_total} ${labels.trades} • ${labels.maxLeverage.toLowerCase()} ${settings.max_leverage}x`
+    : labels.off;
+
   return (
     <div dir={isRTL ? "rtl" : "ltr"} className="space-y-3">
       <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
         <div
           className={cn(
             "rounded-2xl border border-border/60 bg-[#0c1320] text-foreground transition-all",
-            settings.auto_enabled ? "ring-1 ring-primary/30" : ""
+            settings.auto_enabled ? "ring-1 ring-primary/25" : ""
           )}
         >
+          {/* Header */}
           <div className="flex items-center justify-between gap-3 p-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
               <div
@@ -267,18 +295,16 @@ export default function AutoTradeSettings({ language = "en" }) {
               >
                 {settings.auto_enabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
               </div>
+
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-semibold leading-tight">{labels.autoTrade}</span>
                   <HelpButton content={labels.autoTradeHelp} />
                 </div>
-                <p className="text-sm text-muted-foreground leading-snug truncate">
-                  {settings.auto_enabled
-                    ? `${presetLabel} • ${settings.fixed_margin_usdt} USDT/trade • ${settings.max_open_positions_total} trades • up to ${settings.max_leverage}x`
-                    : offLabel}
-                </p>
+                <p className="text-sm text-muted-foreground leading-snug truncate">{summary}</p>
               </div>
             </div>
+
             <div className="flex items-center gap-2 shrink-0">
               <Switch
                 checked={settings.auto_enabled}
@@ -302,45 +328,65 @@ export default function AutoTradeSettings({ language = "en" }) {
 
           <CollapsibleContent>
             <div className="border-t border-border/60" />
+
             <div className="p-4 space-y-5">
+              {/* Quick setup */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">{language === "ar" ? "اختر إعداداً مسبقاً" : "Choose a preset"}</h3>
-                  <span className="text-xs text-muted-foreground">{labels.autoTradeDesc}</span>
+                <div className="flex items-end justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-semibold">{labels.choosePreset}</h3>
+                    <p className="text-xs text-muted-foreground">{labels.presetHint}</p>
+                  </div>
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {["low", "mid", "high"].map((key) => {
                     const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
                     const isActive = activePreset === key;
-                    const descriptions = {
-                      low: language === "ar" ? "أقل مخاطرة" : "Lower risk, smaller size",
-                      mid: language === "ar" ? "متوازن" : "Balanced risk",
-                      high: language === "ar" ? "أعلى مخاطرة" : "Higher risk, larger size"
-                    };
+                    const desc =
+                      key === "low"
+                        ? language === "ar"
+                          ? "أقل مخاطرة وحجم أصغر"
+                          : "Lower risk, smaller size"
+                        : key === "mid"
+                          ? language === "ar"
+                            ? "خيار متوازن"
+                            : "Balanced option"
+                          : language === "ar"
+                            ? "مخاطرة أعلى وحجم أكبر"
+                            : "Higher risk, larger size";
+
                     return (
                       <button
                         key={key}
                         type="button"
                         onClick={() => applyPreset(key)}
                         className={cn(
-                          "flex items-start gap-3 rounded-xl border border-border/60 bg-muted/10 p-3 text-left transition-colors min-h[96px]",
+                          "flex items-start gap-3 rounded-xl border border-border/50 bg-muted/10 p-4 text-left transition-colors min-h-[96px]",
                           "hover:border-primary/40 hover:bg-primary/5",
-                          isActive && "border-primary/60 bg-primary/10 shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
+                          isActive && "border-primary/60 bg-primary/10"
                         )}
                       >
-                        <div className={cn(
-                          "w-9 h-9 rounded-lg flex items-center justify-center border",
-                          isActive ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"
-                        )}>
+                        <div
+                          className={cn(
+                            "w-9 h-9 rounded-lg flex items-center justify-center border",
+                            isActive
+                              ? "border-primary/60 bg-primary/10 text-primary"
+                              : "border-border/60 text-muted-foreground"
+                          )}
+                        >
                           <PresetIcon className="w-4 h-4" />
                         </div>
+
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-semibold truncate">{labels[key]}</span>
                             <span className="text-[11px] text-muted-foreground">{PRESETS[key].max_leverage}x</span>
                           </div>
-                          <p className="text-xs text-muted-foreground leading-snug">{descriptions[key]}</p>
-                          <p className="text-xs text-foreground/80">{PRESETS[key].fixed_margin_usdt} USDT • {PRESETS[key].max_open_positions_total} {labels.trades}</p>
+                          <p className="text-xs text-muted-foreground leading-snug">{desc}</p>
+                          <p className="text-xs text-foreground/80">
+                            {PRESETS[key].fixed_margin_usdt} USDT • {PRESETS[key].max_open_positions_total} {labels.trades}
+                          </p>
                         </div>
                       </button>
                     );
@@ -348,17 +394,12 @@ export default function AutoTradeSettings({ language = "en" }) {
                 </div>
               </section>
 
+              {/* Main controls */}
               <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">{language === "ar" ? "التحكم الرئيسي" : "Main controls"}</h3>
-                </div>
+                <h3 className="text-sm font-semibold">{labels.mainControls}</h3>
 
                 <div className="space-y-4">
-                  <ControlBlock
-                    icon={DollarSign}
-                    title={labels.amountPerTrade}
-                    helper={labels.amountPerTradeDesc}
-                  >
+                  <ControlBlock icon={DollarSign} title={labels.amountPerTrade} helper={labels.amountPerTradeDesc}>
                     <NumberSliderRow
                       value={settings.fixed_margin_usdt}
                       min={1}
@@ -370,11 +411,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                   </ControlBlock>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ControlBlock
-                      icon={SlidersHorizontal}
-                      title={labels.maxOpenTrades}
-                      helper={language === "ar" ? "حد المراكز النشطة" : "Limit active positions"}
-                    >
+                    <ControlBlock icon={SlidersHorizontal} title={labels.maxOpenTrades} helper={labels.maxOpenTradesDesc}>
                       <NumberSliderRow
                         value={settings.max_open_positions_total}
                         min={1}
@@ -384,11 +421,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                       />
                     </ControlBlock>
 
-                    <ControlBlock
-                      icon={Gauge}
-                      title={labels.maxLeverage}
-                      helper={language === "ar" ? "رافعة أعلى = مخاطرة أعلى" : "Higher leverage increases risk"}
-                    >
+                    <ControlBlock icon={Gauge} title={labels.maxLeverage} helper={labels.maxLeverageDesc}>
                       <NumberSliderRow
                         value={settings.max_leverage}
                         min={1}
@@ -399,42 +432,31 @@ export default function AutoTradeSettings({ language = "en" }) {
                       />
                     </ControlBlock>
                   </div>
-                </div>
-              </section>
 
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">{labels.maxPerTrade}</h3>
-                  <span className="text-xs text-muted-foreground">{language === "ar" ? "لكل صفقة" : "Per trade"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/10 p-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-medium leading-tight">{language === "ar" ? "حد الأمان" : "Guardrail"}</p>
-                      <p className="text-xs text-muted-foreground leading-tight">{language === "ar" ? "حماية الحد لكل صفقة" : "Protects per-trade allocation"}</p>
+                  {/* Safety limit */}
+                  <ControlBlock icon={ShieldCheck} title={labels.maxPerTrade} helper={labels.maxPerTradeDesc}>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={settings.max_margin_per_trade_usdt}
+                        onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })}
+                        className="h-11 w-28 text-sm"
+                        min={1}
+                        inputMode="decimal"
+                      />
+                      <span className="text-xs text-muted-foreground">USDT</span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={settings.max_margin_per_trade_usdt}
-                      onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })}
-                      className="h-10 w-24 text-sm"
-                      min={1}
-                      inputMode="decimal"
-                    />
-                    <span className="text-xs text-muted-foreground">USDT</span>
-                  </div>
+                  </ControlBlock>
                 </div>
               </section>
 
+              {/* Outcome */}
               <section className="space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Activity className="w-4 h-4 text-primary" />
-                  <span>{language === "ar" ? "المتوقع" : "What to expect"}</span>
+                  <span>{labels.whatToExpect}</span>
                 </div>
-                <div className="rounded-xl border border-border/60 bg-muted/10 p-3">
+                <div className="rounded-xl border border-border/50 bg-muted/10 p-4">
                   <EstimatedOutcome
                     amount={settings.fixed_margin_usdt}
                     leverage={settings.max_leverage}
@@ -444,38 +466,36 @@ export default function AutoTradeSettings({ language = "en" }) {
                 </div>
               </section>
 
+              {/* Advanced */}
               <section className="space-y-2">
                 <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                   <CollapsibleTrigger asChild>
                     <button
                       type="button"
-                      className="w-full flex items-center justify-between rounded-lg border border-border/60 bg-muted/10 px-3 py-3 text-sm font-semibold text-foreground hover:border-primary/50"
+                      className="w-full flex items-center justify-between rounded-lg border border-border/50 bg-muted/10 px-4 py-3 text-sm font-semibold text-foreground hover:border-primary/50"
                     >
-                      <span>{language === "ar" ? "إعدادات متقدمة" : "Advanced"}</span>
+                      <span>{labels.advanced}</span>
                       <ChevronDown className={cn("w-4 h-4 transition-transform", advancedOpen && "rotate-180")} />
                     </button>
                   </CollapsibleTrigger>
+
                   <CollapsibleContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-                      <FieldBlock
-                        label={language === "ar" ? "انتهاء الإشارة (ث)" : "Signal expiry (s)"}
-                      >
+                      <FieldBlock label={labels.signalExpiry}>
                         <Input
                           type="number"
                           value={settings.signal_expiry_seconds}
                           onChange={(e) => update({ signal_expiry_seconds: Number(e.target.value) || 180 })}
-                          className="h-10 text-sm"
+                          className="h-11 text-sm"
                           inputMode="numeric"
                         />
                       </FieldBlock>
-                      <FieldBlock
-                        label={language === "ar" ? "انحراف السعر %" : "Price deviation %"}
-                      >
+                      <FieldBlock label={labels.priceDeviation}>
                         <Input
                           type="number"
                           value={settings.max_entry_deviation_percent}
                           onChange={(e) => update({ max_entry_deviation_percent: Number(e.target.value) || 0.3 })}
-                          className="h-10 text-sm"
+                          className="h-11 text-sm"
                           step="0.1"
                           inputMode="decimal"
                         />
@@ -485,21 +505,24 @@ export default function AutoTradeSettings({ language = "en" }) {
                 </Collapsible>
               </section>
 
+              {/* Save */}
               <section className="space-y-2">
-                {dirty && (
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    size="sm"
-                    className="w-full h-11 text-sm font-semibold bg-primary hover:bg-primary/90 rounded-lg"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin ltr:mr-2 rtl:ml-2" /> : <Save className="w-4 h-4 ltr:mr-2 rtl:ml-2" />}
-                    {saving ? labels.saving : "Save settings"}
-                  </Button>
-                )}
-                {!dirty && (
-                  <p className="text-xs text-muted-foreground text-center">{saving ? labels.saving : language === "ar" ? "لا تغييرات" : "No changes yet"}</p>
-                )}
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !dirty}
+                  size="sm"
+                  className="w-full h-11 text-sm font-semibold bg-primary hover:bg-primary/90 rounded-lg disabled:opacity-50"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin ltr:mr-2 rtl:ml-2" />
+                  ) : (
+                    <Save className="w-4 h-4 ltr:mr-2 rtl:ml-2" />
+                  )}
+                  {saving ? labels.saving : labels.save}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  {dirty ? (language === "ar" ? "لديك تغييرات غير محفوظة" : "You have unsaved changes") : labels.noChanges}
+                </p>
               </section>
             </div>
           </CollapsibleContent>
