@@ -349,14 +349,16 @@ Deno.serve(async (req) => {
 
       // === AUTO-PROVISION: Create TradingAccount + Wallets for verified user ===
       try {
-        // Check if user already has a non-demo TradingAccount
-        const existingLiveAccounts = await base44.asServiceRole.entities.TradingAccount.filter({
-          user_id: vr.user_id,
-          is_demo: false
+        // Check ALL existing TradingAccounts for this user (any type, non-demo)
+        const allUserAccounts = await base44.asServiceRole.entities.TradingAccount.filter({
+          user_id: vr.user_id
         });
         
-        if (!existingLiveAccounts || existingLiveAccounts.length === 0) {
-          const accountId = `TA_live_${vr.user_id.substring(0, 8)}_${Date.now()}`;
+        const existingLiveAccounts = (allUserAccounts || []).filter(a => !a.is_demo);
+        
+        if (existingLiveAccounts.length === 0) {
+          // Use a deterministic account_id based on user_id to prevent duplicates on retry
+          const accountId = `TA_live_${vr.user_id}`;
           
           const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
             account_id: accountId,
@@ -379,32 +381,35 @@ Deno.serve(async (req) => {
           
           console.log('[verificationService] Auto-provisioned TradingAccount:', newAccount.id, 'for user:', vr.user_id);
           
-          // Create USDT wallets for NOWPayments deposits
-          const walletConfigs = [
-            { currency: 'USDT', network: 'TRC20', is_primary: true },
-            { currency: 'USDT', network: 'ERC20', is_primary: false },
-            { currency: 'USDT', network: 'BEP20', is_primary: false },
-            { currency: 'BTC', network: 'BTC', is_primary: false },
-            { currency: 'ETH', network: 'ERC20', is_primary: false }
-          ];
+          // Create USDT wallet for NOWPayments deposits (only primary needed)
+          await base44.asServiceRole.entities.Wallet.create({
+            trading_account_id: newAccount.id,
+            user_id: vr.user_id,
+            currency: 'USDT',
+            network: 'TRC20',
+            balance: 0,
+            locked_balance: 0,
+            staked_balance: 0,
+            status: 'active',
+            total_deposited: 0,
+            total_withdrawn: 0,
+            is_primary: true
+          });
           
-          for (const wc of walletConfigs) {
-            await base44.asServiceRole.entities.Wallet.create({
-              trading_account_id: newAccount.id,
-              user_id: vr.user_id,
-              currency: wc.currency,
-              network: wc.network,
-              balance: 0,
-              locked_balance: 0,
-              staked_balance: 0,
-              status: 'active',
-              total_deposited: 0,
-              total_withdrawn: 0,
-              is_primary: wc.is_primary
-            });
-          }
+          console.log('[verificationService] Auto-provisioned USDT wallet for user:', vr.user_id);
           
-          console.log('[verificationService] Auto-provisioned wallets for user:', vr.user_id);
+          // Notify user: Trading Account approved
+          await base44.asServiceRole.entities.Notification.create({
+            user_id: vr.user_id,
+            type: 'system',
+            title: 'Trading Account Approved! 🚀',
+            message: 'Your live trading account has been approved and is ready to use. Deposit funds to start trading.',
+            priority: 'high',
+            read: false,
+            data: { link: '/Wallet?page=deposit' }
+          });
+        } else {
+          console.log('[verificationService] User already has', existingLiveAccounts.length, 'live account(s), skipping provisioning');
         }
       } catch (provErr) {
         console.error('[verificationService] Auto-provision failed:', provErr.message);
