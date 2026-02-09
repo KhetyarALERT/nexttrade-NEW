@@ -4,10 +4,9 @@ import { Link, useLocation } from "react-router-dom";
 import { MobileNavigationProvider, useMobileNavigation, isRootPath as checkIsRootPath } from "@/components/mobile/MobileNavigationContext";
 import PageTransition from "@/components/mobile/PageTransition";
 import { createPageUrl } from "@/utils";
-import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle, HelpCircle, Headphones } from "lucide-react";
+import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle, HelpCircle, Headphones, ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet, Activity, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { tSection } from "@/components/i18n/translations";
-// @ts-ignore - Vite resolves asset imports at runtime; checkJs may not have module typings for .png
 import nextTradeLogo from "@/assets/nexttrade-logo.png";
 import {
   DropdownMenu,
@@ -18,18 +17,14 @@ import {
 "@/components/ui/dropdown-menu";
 import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
-import NotificationSettings from "@/components/notifications/NotificationSettings";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
 import { WalletProvider } from "@/components/wallet/UnifiedWalletProvider";
-import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { UnifiedWalletButton } from '@jup-ag/wallet-adapter';
-import { useAccount } from "wagmi";
 import { useWalletConnect } from "@/lib/web3/WalletConnectProvider";
-import { getStoredReferralCode } from "@/components/hooks/useReferralCapture";
+import { triggerHaptic } from "@/components/mobile/haptics";
 
 const formatShortAddress = (address, start = 6, end = 4) => {
   if (!address) return "";
@@ -37,1264 +32,175 @@ const formatShortAddress = (address, start = 6, end = 4) => {
   return `${str.slice(0, start)}...${str.slice(-end)}`;
 };
 
-// Product Fruits Integration - CRITICAL: Script-based, not npm package
-function useProductFruits({ user, language, isAuthenticated }) {
-  const pfInitializedRef = useRef(false);
-  const workspaceCode = import.meta.env.VITE_PF_WORKSPACE_CODE;
-
-  useEffect(() => {
-    // Only load if workspace code is set and user is authenticated
-    if (!workspaceCode || !isAuthenticated || !user?.id) {
-      return;
-    }
-
-    // Load Product Fruits script if not already loaded
-    if (!window.productFruits && !document.getElementById('product-fruits-script')) {
-      const script = document.createElement('script');
-      script.id = 'product-fruits-script';
-      script.src = 'https://app.productfruits.com/static/script.js';
-      script.async = true;
-      document.head.appendChild(script);
-    }
-
-    // Initialize Product Fruits once script is loaded
-    const initializePF = () => {
-      if (window.productFruits && !pfInitializedRef.current) {
-        window.productFruits.init(
-          workspaceCode,
-          language || 'en',
-          {
-            username: String(user.id),
-            email: user.email,
-            firstname: user.full_name,
-            role: user.role,
-          }
-        );
-        pfInitializedRef.current = true;
-      }
-    };
-
-    // If script already loaded, init immediately
-    if (window.productFruits) {
-      initializePF();
-    } else {
-      // Wait for script to load
-      const checkInterval = setInterval(() => {
-        if (window.productFruits) {
-          clearInterval(checkInterval);
-          initializePF();
-        }
-      }, 100);
-
-      return () => clearInterval(checkInterval);
-    }
-  }, [workspaceCode, isAuthenticated, user?.id, user?.email, user?.full_name, user?.role, language]);
-
-  // Cleanup on logout or user change
-  useEffect(() => {
-    return () => {
-      if (pfInitializedRef.current && window.productFruits?.services?.destroy) {
-        window.productFruits.services.destroy();
-        pfInitializedRef.current = false;
-      }
-    };
-  }, [user?.id]);
-
-  // Re-initialize on language change
-  useEffect(() => {
-    if (pfInitializedRef.current && window.productFruits && user?.id && isAuthenticated) {
-      // Destroy and re-init with new language
-      window.productFruits.services?.destroy?.();
-      pfInitializedRef.current = false;
-      
-      setTimeout(() => {
-        if (window.productFruits) {
-          window.productFruits.init(
-            workspaceCode,
-            language || 'en',
-            {
-              username: String(user.id),
-              email: user.email,
-              firstname: user.full_name,
-              role: user.role,
-            }
-          );
-          pfInitializedRef.current = true;
-        }
-      }, 100);
-    }
-  }, [language, workspaceCode, user?.id, user?.email, user?.full_name, user?.role, isAuthenticated]);
-}
-
-// Import haptic utility with patterns
-import { triggerHaptic } from "@/components/mobile/haptics";
-
-// Mobile Bottom Navigation Component
-function MobileBottomNav({ language, isAuthenticated, navigateToLogin, location }) {
-  const { openAssistantModal, activeTab, saveScrollPosition } = useMobileNavigation();
-  const navT = tSection("nav", language);
-  
-  const handleTabClick = (tabName, targetPath) => {
-    // Haptic feedback for native feel - use selection for tabs
-    triggerHaptic("selection");
-    
-    // Check if re-selecting the active tab - scroll to top
-    const currentPath = location.pathname;
-    if (currentPath === targetPath) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    
-    // Save scroll position before navigating
-    saveScrollPosition(activeTab);
-  };
-
-  const handleSupportClick = () => {
-    // Haptic feedback - medium for modal open
-    triggerHaptic("medium");
-    // Open assistant modal without page reload
-    openAssistantModal();
-  };
-
-  return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] glass-effect border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} role="navigation" aria-label={language === "ar" ? "القائمة الرئيسية" : "Main navigation"}>
-      <div className="flex items-center justify-around h-14 px-1">
-        <Link
-          to={createPageUrl("Dashboard")}
-          aria-label={navT.overview}
-          aria-current={location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home") ? "page" : undefined}
-          onClick={(e) => {
-            const dashPath = createPageUrl("Dashboard");
-            if (location.pathname === dashPath || location.pathname === '/' || location.pathname === createPageUrl("Home")) {
-              e.preventDefault();
-              triggerHaptic("selection");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              return;
-            }
-            handleTabClick("Dashboard", dashPath);
-          }}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
-            location.pathname === createPageUrl("Dashboard") || location.pathname === '/' || location.pathname === createPageUrl("Home")
-              ? 'text-primary bg-primary/15'
-              : 'text-muted-foreground'
-          }`}
-        >
-          <Home className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[9px] font-medium">{navT.overview}</span>
-        </Link>
-
-        <Link
-          to={createPageUrl("Futures")}
-          aria-label={navT.trade}
-          aria-current={location.pathname === createPageUrl("Futures") ? "page" : undefined}
-          onClick={(e) => {
-            const futPath = createPageUrl("Futures");
-            if (location.pathname === futPath) {
-              e.preventDefault();
-              triggerHaptic("selection");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              return;
-            }
-            handleTabClick("Futures", futPath);
-          }}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
-            location.pathname === createPageUrl("Futures")
-              ? 'text-primary bg-primary/15'
-              : 'text-muted-foreground'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[9px] font-medium">{navT.trade}</span>
-        </Link>
-
-        <Link
-          to={createPageUrl("Wallet")}
-          aria-label={navT.wallet}
-          aria-current={location.pathname.includes("Wallet") ? "page" : undefined}
-          onClick={(e) => {
-            const walletPath = createPageUrl("Wallet");
-            if (location.pathname.includes("Wallet")) {
-              e.preventDefault();
-              triggerHaptic("selection");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              return;
-            }
-            handleTabClick("Wallet", walletPath);
-          }}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
-            location.pathname.includes("Wallet")
-              ? 'text-primary bg-primary/15'
-              : 'text-muted-foreground'
-          }`}
-        >
-          <WalletIcon className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[9px] font-medium">{navT.wallet}</span>
-        </Link>
-
-        <button
-          type="button"
-          onClick={handleSupportClick}
-          aria-label={navT.support}
-          className="flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all text-muted-foreground active:text-primary active:bg-primary/15 active:scale-95"
-        >
-          <MessageCircle className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[9px] font-medium">{navT.support}</span>
-        </button>
-
-        <Link
-          to={isAuthenticated ? createPageUrl("Profile") : '#'}
-          aria-label={navT.account}
-          aria-current={location.pathname.includes("Profile") ? "page" : undefined}
-          onClick={(e) => {
-            if (isAuthenticated) {
-              const profPath = createPageUrl("Profile");
-              if (location.pathname.includes("Profile")) {
-                e.preventDefault();
-                triggerHaptic("selection");
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                return;
-              }
-              handleTabClick("Profile", profPath);
-            } else {
-              e.preventDefault(); 
-              triggerHaptic("medium");
-              const refCode = getStoredReferralCode();
-              const currentUrl = new URL(window.location.href);
-              if (refCode && !currentUrl.searchParams.has('ref')) {
-                currentUrl.searchParams.set('ref', refCode);
-              }
-              navigateToLogin(currentUrl.toString()); 
-            }
-          }}
-          className={`flex flex-col items-center justify-center flex-1 gap-0.5 py-1.5 rounded-lg transition-all active:scale-95 ${
-            location.pathname.includes("Profile")
-              ? 'text-primary bg-primary/15'
-              : 'text-muted-foreground'
-          }`}
-        >
-          <User className="w-4 h-4" aria-hidden="true" />
-          <span className="text-[9px] font-medium">{navT.account}</span>
-        </Link>
-      </div>
-    </nav>
-  );
-}
-
-MobileBottomNav.propTypes = {
-  language: PropTypes.string.isRequired,
-  isAuthenticated: PropTypes.bool.isRequired,
-  navigateToLogin: PropTypes.func.isRequired,
-  location: PropTypes.object.isRequired,
-};
-
-// Component to display connected wallet info in Accounts section
-function EvmConnectedWalletAccountsItem({ language }) {
-  const { address, isConnected, chain } = useAccount();
-  const hasEvm = Boolean(isConnected && address);
-
-  if (!hasEvm) return null;
-
-  return (
-    <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
-      <div className="flex items-center gap-2 w-full">
-        <WalletIcon className="h-4 w-4 text-primary" />
-        <span className="font-medium">{language === "ar" ? "محفظة EVM متصلة" : "Connected EVM Wallet"}</span>
-      </div>
-      <div className="flex flex-col gap-1 w-full pl-6 text-xs">
-        <div className="flex items-center justify-between w-full">
-          <span className="text-muted-foreground">{chain?.name || "EVM"}:</span>
-          <span className="font-mono">{formatShortAddress(address)}</span>
-        </div>
-      </div>
-    </DropdownMenuItem>
-  );
-}
-
-function SolanaConnectedWalletAccountsItem({ language }) {
-  const solWallet = useSolanaWallet();
-  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
-
-  if (!hasSolana) return null;
-
-  return (
-    <DropdownMenuItem className="flex-col items-start gap-1 cursor-default focus:bg-accent/50">
-      <div className="flex items-center gap-2 w-full">
-        <WalletIcon className="h-4 w-4 text-primary" />
-        <span className="font-medium">{language === "ar" ? "محفظة سولانا متصلة" : "Connected Solana Wallet"}</span>
-      </div>
-      <div className="flex flex-col gap-1 w-full pl-6 text-xs">
-        <div className="flex items-center justify-between w-full">
-          <span className="text-muted-foreground">Solana:</span>
-          <span className="font-mono">{formatShortAddress(solWallet.publicKey, 4, 4)}</span>
-        </div>
-      </div>
-    </DropdownMenuItem>
-  );
-}
-
-function ConnectedWalletAccountsItem({ language }) {
-  const { enabled: wagmiEnabled } = useWalletConnect();
-  const solWallet = useSolanaWallet();
-  const hasSolana = Boolean(solWallet?.connected && solWallet?.publicKey);
-
-  if (!wagmiEnabled && !hasSolana) return null;
-
-  return (
-    <>
-      {wagmiEnabled ? <EvmConnectedWalletAccountsItem language={language} /> : null}
-      {hasSolana ? <SolanaConnectedWalletAccountsItem language={language} /> : null}
-    </>
-  );
-}
-
-ConnectedWalletAccountsItem.propTypes = {
-  language: PropTypes.string.isRequired
-};
-
-function LayoutInner({ children, currentPageName: _currentPageName }) {
+function LayoutInner({ children }) {
   const location = useLocation();
-  const { user, isAuthenticated, isLoadingAuth, navigateToLogin, logout } = useAuth();
-  const solWallet = useSolanaWallet();
-
-  const STORAGE_KEYS = {
-    language: "app_language",
-    theme: "app_theme",
-  };
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, isLoadingAuth, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [language, setLanguage] = useState("en");
   const [theme, setTheme] = useState("dark");
-
-  // Initialize Product Fruits for authenticated users (must be after language state)
-  useProductFruits({ user, language, isAuthenticated });
   const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
-  const [accountTotals, setAccountTotals] = useState({ totalUsd: null, totalUsdt: null, mainWalletTotal: null });
-  const [accountBalances, setAccountBalances] = useState({ fundingUsdt: null, spotUsdt: null, futuresUsdt: null, wealthUsdt: null, stakedActiveUsdt: null, stakedPendingUsdt: null, nextUnlockAt: null, copyTradingAvailableUsdt: null, copyTradingLockedUsdt: null, hasCopyTrading: false });
+  const [accountTotals, setAccountTotals] = useState({ totalUsd: null, totalUsdt: null });
   const [loadingAccountTotals, setLoadingAccountTotals] = useState(false);
 
-  // Load premium fonts via <link> in document head
   useEffect(() => {
-    if (!document.getElementById("nt-google-fonts")) {
-      const link = document.createElement("link");
-      link.id = "nt-google-fonts";
-      link.rel = "stylesheet";
-      link.href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap";
-      document.head.appendChild(link);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const storedLang = localStorage.getItem(STORAGE_KEYS.language);
-      if (storedLang === "en" || storedLang === "ar") setLanguage(storedLang);
-
-      const storedTheme = localStorage.getItem(STORAGE_KEYS.theme);
-      if (storedTheme === "light" || storedTheme === "dark") {
-        setTheme(storedTheme);
-      } else {
-        // No saved preference - use system preference
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        setTheme(prefersDark ? "dark" : "light");
-      }
-    } catch {
-      // ignore storage access issues
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
     const isDark = theme === "dark";
     document.documentElement.classList.toggle("dark", isDark);
-    try {
-      localStorage.setItem(STORAGE_KEYS.theme, isDark ? "dark" : "light");
-    } catch {
-      // ignore storage access issues
-    }
   }, [theme]);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const isRtl = language === "ar";
-
-    // Set lang and dir on <html> element to prevent Chrome auto-translate
-    document.documentElement.lang = language;
-    document.documentElement.dir = isRtl ? "rtl" : "ltr";
-
-    // Ensure notranslate class on body
-    document.body.classList.add("notranslate");
-    document.body.setAttribute("translate", "no");
-
-    // Add notranslate meta if not present
-    if (!document.querySelector('meta[name="google"][content="notranslate"]')) {
-      const meta = document.createElement("meta");
-      meta.name = "google";
-      meta.content = "notranslate";
-      document.head.appendChild(meta);
-    }
-
-    try {
-      localStorage.setItem(STORAGE_KEYS.language, language);
-
-      // Sync language to backend UserPreferences if authenticated
-      // Note: Don't create preferences here - let NotificationProvider handle that
-      // Only update if preferences already exist to avoid 403 errors
-      if (isAuthenticated && user?.id) {
-        (async () => {
-          try {
-            const prefs = await base44.entities.UserPreferences.filter({ user_id: user.id });
-            if (prefs && prefs.length > 0) {
-              // Only update if actually different to save DB writes
-              if (prefs[0].language !== language) {
-                await base44.entities.UserPreferences.update(prefs[0].id, { language });
-              }
-            }
-            // Don't create here - NotificationProvider handles creation
-          } catch (e) {
-            // Silently ignore - prefs may not exist yet
-          }
-        })();
-      }
-    } catch {
-      // ignore storage access issues
-    }
-  }, [language, isAuthenticated, user?.id]);
-
-
 
   const isRTL = language === "ar";
   const toggleTheme = () => setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  const futuresPath = String(createPageUrl("Futures")).split("?")[0];
-  const tradingPath = String(createPageUrl("Trading")).split("?")[0];
-  const isTradingPage = location.pathname === futuresPath || location.pathname === tradingPath;
-  const memeCoinsPath = String(createPageUrl('MemeCoins')).split('?')[0];
-  const isMemeCoinsPage = location.pathname === memeCoinsPath;
-  const isAdminHub = location.pathname.includes("OKXAdminHub") || location.pathname.includes("admin");
-
-  const SolanaNavWalletButton = () => {
-    return <UnifiedWalletButton />;
-  };
-
-  const accountLabel = (() => {
-    if (isLoadingAuth) return language === "en" ? "Account" : "الحساب";
-    if (!isAuthenticated) return language === "en" ? "Login" : "تسجيل الدخول";
-    const name = user?.name || user?.full_name || user?.display_name;
-    return (name && String(name).trim()) || user?.email || (language === "en" ? "My Account" : "حسابي");
-  })();
-
+  
   const navigation = [
-    { type: "link", name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-    { type: "link", name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
-    { type: "link", name: { en: "Meme Coins", ar: "ميم كوينز" }, url: createPageUrl("MemeCoins") },
-    { type: "link", name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
-    { type: "link", name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
-    {
-      type: "dropdown",
-      name: { en: "Assets", ar: "المحفظة" },
-      items: [
-        { name: { en: "My Assets", ar: "الأصول" }, url: createPageUrl("Wallet") },
-        { name: { en: "Deposit", ar: "إيداع" }, url: `${createPageUrl("Wallet")}?page=deposit` },
-        { name: { en: "History", ar: "السجل" }, url: `${createPageUrl("Wallet")}?page=history` },
-      ],
-    },
-    { type: "link", name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
+    { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
+    { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
+    { name: { en: "Meme Coins", ar: "ميم كوينز" }, url: createPageUrl("MemeCoins") },
+    { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
+    { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
+    { name: { en: "Assets", ar: "المحفظة" }, url: createPageUrl("Wallet") },
+    { name: { en: "Learn & Earn", ar: "تعلّم واربح" }, url: createPageUrl("LearnEarn") },
   ];
 
-  const footerQuickLinks = [
-        { name: { en: "Dashboard", ar: "لوحة التحكم" }, url: createPageUrl("Dashboard") },
-        { name: { en: "Futures", ar: "عقود" }, url: createPageUrl("Futures") },
-        { name: { en: "Wallet", ar: "المحفظة" }, url: createPageUrl("Wallet") },
-        { name: { en: "Investing", ar: "الاستثمار" }, url: createPageUrl("Investing") },
-        { name: { en: "Rewards", ar: "مكافآت" }, url: createPageUrl("Rewards") },
-        { name: { en: "Help Center", ar: "مركز المساعدة" }, url: createPageUrl("Help") },
-        { name: { en: "Contact", ar: "تواصل معنا" }, url: createPageUrl("Contact") },
-        { name: { en: "About Us", ar: "من نحن" }, url: createPageUrl("About") },
-      ];
-
-  const accountEmail = user?.email;
-  const accountMenuLabel = accountLabel;
-
-  const loadAccountTotals = async () => {
-    if (!isAuthenticated) return;
-    setLoadingAccountTotals(true);
-    try {
-      // Import gated to prevent 429 spam - dedupe + throttle + backoff
-      const { gated } = await import("@/components/utils/apiGate");
-      const [walletsResult, okxAccountResult, stakingResult, copyTradingResult] = await Promise.all([
-        gated("layout:wallet", () => base44.functions.invoke("wallet", { action: "list" }), { minIntervalMs: 10000 }).catch((e) => { console.error("[Layout] wallet fetch failed:", e); return { data: { success: false } }; }),
-        gated("layout:okxAccount", () => base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }), { minIntervalMs: 10000 }).catch((e) => { console.error("[Layout] okx fetch failed:", e); return { data: { ok: false } }; }),
-        gated("layout:staking", () => base44.functions.invoke("stakingUser", { action: "getWalletOverlay" }), { minIntervalMs: 15000 }).catch((e) => { console.error("[Layout] staking fetch failed:", e); return { data: { ok: false } }; }),
-        gated("layout:copyTrading", () => base44.functions.invoke("copyTradingUser", { action: "getWallet" }), { minIntervalMs: 15000 }).catch((e) => { console.error("[Layout] copyTrading fetch failed:", e); return { data: { ok: false } }; }),
-      ]);
-
-      const wallets = walletsResult.data?.success ? (walletsResult.data.data || []) : [];
-      const okxData = okxAccountResult.data?.ok ? okxAccountResult.data.data : null;
-      const stakingData = stakingResult.data?.ok ? stakingResult.data.data : null;
-      const copyTradingData = copyTradingResult.data?.ok ? copyTradingResult.data.data : null;
-
-      // Debug: log raw API responses to diagnose balance issues
-      console.log("[Layout:balances] wallet:", walletsResult.data?.success, "wallets:", wallets.length);
-      console.log("[Layout:balances] okx:", okxAccountResult.data?.ok, "hasAccount:", okxData?.hasAccount, "funding:", okxData?.balances?.fundingUsdt, "trading:", okxData?.balances?.tradingUsdt);
-      console.log("[Layout:balances] staking:", stakingResult.data?.ok, "active:", stakingData?.activeLockedByCcy?.USDT, "pending:", stakingData?.pendingLockedByCcy?.USDT);
-      console.log("[Layout:balances] copyTrading:", copyTradingResult.data?.ok, "available:", copyTradingData?.available_balance, "locked:", copyTradingData?.locked_balance);
-
-      // Wallets: Fund Account balance (internal platform wallets)
-      const internalFundingUsdt = wallets.reduce((sum, w) => {
-        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.balance || 0);
-        return sum;
-      }, 0);
-
-      // Wallets: Wealth/Staked balance
-      const wealthUsdt = wallets.reduce((sum, w) => {
-        if (w?.currency === "USDT" || w?.currency === "USDC") return sum + (w.staked_balance || 0);
-        return sum;
-      }, 0);
-
-      // OKX Balances - REAL synced data from OKX subaccount
-      const okxFundingUsdt = okxData?.hasAccount ? (okxData.balances?.fundingUsdt || 0) : 0;
-      const okxTradingUsdt = okxData?.hasAccount ? (okxData.balances?.tradingUsdt || 0) : 0;
-
-      // Staking: ACTIVE funds are OUT of OKX (in main pool), PENDING are still in OKX funding
-      const stakedActiveUsdt = stakingData?.activeLockedByCcy?.USDT || 0;
-      const stakedPendingUsdt = stakingData?.pendingLockedByCcy?.USDT || 0;
-      const nextUnlockAt = stakingData?.nextUnlockAt || null;
-
-      // Copy Trading: Available balance (internal wallet), Locked (in signals)
-      // Note: Copy Trading balance is INTERNAL (demo USDT), not in OKX
-      const copyTradingAvailableUsdt = copyTradingData?.available_balance || 0;
-      const copyTradingLockedUsdt = copyTradingData?.locked_balance || 0;
-
-      // Combined totals
-      // Main Wallet (Funding + Trading) - strictly liquid/trading assets
-      const mainWalletTotal = internalFundingUsdt + okxFundingUsdt + okxTradingUsdt;
-      
-      // Total including staking & copy trading
-      const totalUsdt = mainWalletTotal + wealthUsdt + stakedActiveUsdt + copyTradingAvailableUsdt + copyTradingLockedUsdt;
-      const totalUsd = totalUsdt; // 1:1 for USDT
-
-      setAccountTotals({ totalUsd, totalUsdt, mainWalletTotal });
-      setAccountBalances({
-        // Fund Account = internal platform funding + OKX funding account
-        fundingUsdt: internalFundingUsdt + okxFundingUsdt,
-        spotUsdt: null, // No spot trading yet
-        // Futures = OKX trading account (where margin trading happens)
-        futuresUsdt: okxData?.hasAccount ? okxTradingUsdt : null,
-        wealthUsdt,
-        stakedActiveUsdt,
-        stakedPendingUsdt,
-        nextUnlockAt,
-        copyTradingAvailableUsdt,
-        copyTradingLockedUsdt,
-        hasCopyTrading: copyTradingData !== null && (copyTradingAvailableUsdt > 0 || copyTradingLockedUsdt > 0 || (copyTradingData?.lifetime_deposited || 0) > 0),
-      });
-    } catch (err) {
-      console.error("[Layout] Failed to load wallet totals:", err);
-      // Keep existing values on error — do NOT reset to 0 which would show fake zeros
-      // Only reset to null if we never loaded successfully (totals are still null)
-      setAccountTotals((prev) => prev.totalUsdt === null ? { totalUsd: null, totalUsdt: null, mainWalletTotal: null } : prev);
-      setAccountBalances((prev) => prev.fundingUsdt === null ? { fundingUsdt: null, spotUsdt: null, futuresUsdt: null, wealthUsdt: null, stakedActiveUsdt: null, stakedPendingUsdt: null, nextUnlockAt: null, copyTradingAvailableUsdt: null, copyTradingLockedUsdt: null, hasCopyTrading: false } : prev);
-    } finally {
-      setLoadingAccountTotals(false);
-    }
-  };
-
   const formatUsdt = (val) => {
-    if (val === null || val === undefined || val !== val) return "—";
-    if (!Number.isFinite(val)) return "—";
+    if (val === null || val === undefined) return "—";
     return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
-
-  useEffect(() => {
-    if (!isAuthenticated || isLoadingAuth) return;
-    loadAccountTotals();
-    // Track login event when user becomes authenticated with user info
-    base44.auth.me().then(currentUser => {
-      base44.analytics.track({
-        eventName: "user_login",
-        properties: { method: "session", user_id: currentUser?.id, user_email: currentUser?.email }
-      });
-      // Server-side login tracking (last_login_at + admin notification, throttled)
-      base44.functions.invoke("trackLogin", {}).catch(e => {
-        console.warn("[Layout] trackLogin failed:", e?.message);
-      });
-    }).catch(() => {
-      base44.analytics.track({
-        eventName: "user_login",
-        properties: { method: "session" }
-      });
-    });
-  }, [isAuthenticated, isLoadingAuth]);
-
 
   return (
     <WalletProvider>
     <NotificationProvider>
-    <div className={`min-h-[100dvh] overflow-x-hidden bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-background text-foreground ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <style>{`
-        :root {
-          --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          --font-arabic: 'IBM Plex Sans Arabic', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
-          --gradient-primary: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
-          --gradient-gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        /* Global font override */
-        body, html {
-          font-family: var(--font-sans) !important;
-        }
-
-        /* Arabic font when RTL is active */
-        [dir="rtl"], [dir="rtl"] *, .rtl, .rtl * {
-          font-family: var(--font-arabic) !important;
-        }
-
-        /* Monospace numbers override - always use JetBrains Mono for numbers */
-        .font-mono, [class*="font-mono"], [class*="tabular-nums"] {
-          font-family: var(--font-mono) !important;
-          font-feature-settings: 'tnum' 1, 'lnum' 1;
-        }
-
-        /* RTL monospace: keep JetBrains for numbers even in Arabic mode */
-        [dir="rtl"] .font-mono, [dir="rtl"] [class*="font-mono"],
-        [dir="rtl"] [class*="tabular-nums"],
-        .rtl .font-mono, .rtl [class*="font-mono"],
-        .rtl [class*="tabular-nums"] {
-          font-family: var(--font-mono) !important;
-        }
-
         .glass-effect {
-          background: hsl(var(--background) / 0.85);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid hsl(var(--border) / 0.5);
+          background: hsl(var(--background) / 0.8);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border-bottom: 1px solid hsl(var(--border) / 0.4);
         }
-
         .nav-link {
           position: relative;
           transition: all 0.2s ease;
         }
-
         .nav-link::after {
           content: '';
           position: absolute;
-          bottom: -4px;
-          left: 0;
+          bottom: -2px;
+          left: 50%;
           width: 0;
           height: 2px;
-          background: hsl(160 100% 38%);
-          transition: width 0.2s ease;
-          border-radius: 1px;
+          background: hsl(var(--primary));
+          transition: all 0.2s ease;
+          transform: translateX(-50%);
+          border-radius: 2px;
         }
-
         .nav-link:hover::after,
         .nav-link.active::after {
           width: 100%;
         }
-
-        .glow-button {
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(135deg, hsl(160 100% 38%) 0%, hsl(160 100% 28%) 100%);
-          box-shadow: 0 4px 20px hsl(160 100% 38% / 0.3);
-          transition: all 0.2s ease;
-        }
-
-        .glow-button:hover {
-          box-shadow: 0 6px 30px hsl(160 100% 38% / 0.4);
-          transform: translateY(-1px);
-        }
       `}</style>
 
-      {/* Navigation - Hidden on trading and admin pages */}
-      {!isTradingPage && !isAdminHub && (
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'glass-effect shadow-lg' : 'bg-transparent'}`}
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}
-        role="navigation"
-        aria-label={language === "ar" ? "التنقل الرئيسي" : "Main navigation"}
-        >
-
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'glass-effect shadow-sm' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to={createPageUrl("Home")} className="flex items-center">
-              <img
-                src={nextTradeLogo}
-                alt="NextTrade"
-                className="h-10 w-auto" />
-
+            <Link to={createPageUrl("Home")} className="flex items-center gap-2">
+              <img src={nextTradeLogo} alt="NextTrade" className="h-8 w-auto" />
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
-              {navigation.map((item) => {
-                if (item.type === "dropdown") {
-                  return (
-                    <DropdownMenu key={item.name.en}>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="nav-link text-sm font-medium transition-all transform text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                        >
-                          {item.name[language]}
-                          <ChevronDown className="w-4 h-4 opacity-80" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56">
-                        {item.items.map((sub) => (
-                          <DropdownMenuItem
-                            key={sub.name.en}
-                            asChild={Boolean(sub.url)}
-                            disabled={!sub.url}
-                          >
-                            {sub.url ? (
-                              <Link to={sub.url}>{sub.name[language]}</Link>
-                            ) : (
-                              <span>{sub.name[language]}</span>
-                            )}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  );
-                }
-
-                const activePath = String(item.url).split("?")[0];
-                const isActive = location.pathname === activePath;
-
-                return (
-                  <Link
-                    key={item.url}
-                    to={item.url}
-                    className={`nav-link text-sm font-medium transition-all transform ${
-                      isActive
-                        ? 'text-primary active'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {item.name[language]}
-                  </Link>
-                );
-              })}
+            <div className="hidden lg:flex items-center gap-6">
+              {navigation.map((item) => (
+                <Link
+                  key={item.url}
+                  to={item.url}
+                  className={`nav-link text-sm font-bold uppercase tracking-widest transition-all ${
+                    location.pathname === item.url ? 'text-primary active' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {item.name[language]}
+                </Link>
+              ))}
             </div>
 
-            {/* Actions */}
-            <div className="hidden md:flex items-center gap-3">
-              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} language={language} />}
-
-              {isMemeCoinsPage && <SolanaNavWalletButton />}
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={toggleTheme}
-                aria-label={language === "ar" ? "تبديل المظهر" : "Toggle theme"}
-              >
-                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
+            <div className="flex items-center gap-3">
+              {isAuthenticated && <NotificationBell language={language} />}
               
+              <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-xl">
+                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Globe className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" className="rounded-xl">
+                    <Globe className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLanguage("en")} className={language === "en" ? "bg-accent" : ""}>
-                    <span className="inline-block w-5 h-4 rounded-sm overflow-hidden mr-2 flex-shrink-0" aria-hidden="true">
-                      <svg viewBox="0 0 60 30" width="20" height="16"><clipPath id="uk"><rect width="60" height="30"/></clipPath><g clipPath="url(#uk)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="M0 0l60 30m0-30L0 30" stroke="#fff" strokeWidth="6"/><path d="M0 0l60 30m0-30L0 30" stroke="#C8102E" strokeWidth="4" clipPath="url(#uk)"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="6"/></g></svg>
-                    </span>
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLanguage("ar")} className={language === "ar" ? "bg-accent" : ""}>
-                    <span className="inline-block w-5 h-4 rounded-sm overflow-hidden mr-2 flex-shrink-0" aria-hidden="true">
-                      <svg viewBox="0 0 60 40" width="20" height="16"><rect width="60" height="13.3" fill="#006C35"/><rect y="13.3" width="60" height="13.4" fill="#fff"/><rect y="26.7" width="60" height="13.3" fill="#000"/></svg>
-                    </span>
-                    العربية
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="rounded-xl">
+                  <DropdownMenuItem onClick={() => setLanguage("en")}>English</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLanguage("ar")}>العربية</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button className="glow-button text-white border-0 rounded-xl px-4">
-                      <span className="max-w-[160px] truncate">{accountMenuLabel}</span>
-                      <ChevronDown className="w-4 h-4 ml-2 opacity-90" />
+                    <Button className="rounded-xl px-4 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+                      <span className="max-w-[120px] truncate">{user?.full_name || "Account"}</span>
+                      <ChevronDown className="h-4 w-4 ml-2" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80">
-                    <div className="p-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="text-xs text-muted-foreground">{language === "ar" ? "إجمالي الأصول" : "Total Assets"}</div>
-                          <div className="text-2xl font-semibold text-foreground">
-                            {formatUsdt(accountTotals.totalUsdt)}
-                            <span className="text-xs font-medium text-muted-foreground ml-1">USDT</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            ≈ ${formatUsdt(accountTotals.totalUsd)}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={loadAccountTotals}
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                          disabled={loadingAccountTotals}
-                        >
-                          {loadingAccountTotals ? (language === "ar" ? "..." : "…") : (language === "ar" ? "تحديث" : "Refresh")}
-                        </button>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <Button asChild variant="outline" className="w-full">
-                                          <Link to={createPageUrl("Wallet")}>
-                                            {language === "ar" ? "سحب" : "Withdraw"}
-                                          </Link>
-                                        </Button>
-                                        <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                                          <Link to={`${createPageUrl("Wallet")}?page=deposit`}>
-                                            {language === "ar" ? "إيداع" : "Deposit"}
-                                          </Link>
-                                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="px-2 py-1.5 space-y-1">
-                      <div className="text-sm font-semibold text-foreground truncate">{accountMenuLabel}</div>
-                      {accountEmail ? (
-                        <div className="text-xs font-normal text-muted-foreground truncate">{accountEmail}</div>
-                      ) : null}
-                      <div className="mt-2">
-                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                          {language === "ar" ? "مستخدم" : "Regular user"}
-                        </span>
-                      </div>
+                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
+                    <div className="p-4 space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Assets</p>
+                      <p className="text-xl font-bold font-mono">{formatUsdt(accountTotals.totalUsdt)} <span className="text-xs">USDT</span></p>
                     </div>
                     <DropdownMenuSeparator />
-
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحسابات" : "Accounts"}</div>
-                    <ConnectedWalletAccountsItem language={language} />
-                    <DropdownMenuItem asChild>
-                                    <Link to={createPageUrl("Wallet")}>
-                                      <div className="flex w-full items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2">
-                                          <Wallet className="h-4 w-4" />
-                                          <span>{language === "ar" ? "المحفظة" : "Wallet"}</span>
-                                        </div>
-                                        <span className="text-xs font-medium text-muted-foreground">{formatUsdt(accountTotals.mainWalletTotal)} USDT</span>
-                                      </div>
-                                    </Link>
-                                  </DropdownMenuItem>
-
-                      {/* Copy Trading - show when wallet data indicates copy trading activity */}
-                      {(accountBalances.hasCopyTrading || (accountBalances.copyTradingAvailableUsdt !== null && accountBalances.copyTradingAvailableUsdt > 0)) && (
-                        <DropdownMenuItem asChild>
-                          <Link to={createPageUrl("Futures") + "?tab=bots"}>
-                            <div className="flex w-full items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-blue-600" />
-                                <span>{language === "ar" ? "نسخ التداول" : "Copy Trading"}</span>
-                              </div>
-                              <span className="text-xs font-medium text-blue-600">{formatUsdt((accountBalances.copyTradingAvailableUsdt || 0) + (accountBalances.copyTradingLockedUsdt || 0))} USDT</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
-
-                      {/* Staking (Locked) - show if any staking exists (null-safe) */}
-                      {((accountBalances.stakedActiveUsdt || 0) > 0 || (accountBalances.stakedPendingUsdt || 0) > 0) && (
-                        <DropdownMenuItem asChild>
-                          <Link to={createPageUrl("Investing")}>
-                            <div className="flex w-full items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <CreditCard className="h-4 w-4 text-amber-600" />
-                                <span>{language === "ar" ? "مستثمر (مقفل)" : "Staked (Locked)"}</span>
-                              </div>
-                              <span className="text-xs font-medium text-amber-600">{formatUsdt(accountBalances.stakedActiveUsdt)} USDT</span>
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
-
-                      {/* Show Total incl staking if active staking exists */}
-                      {(accountBalances.stakedActiveUsdt || 0) > 0 && (
-                        <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-between">
-                          <span>{language === "ar" ? "الإجمالي (شامل الستيكنج)" : "Total (incl. staking)"}</span>
-                          <span className="font-medium text-foreground">{formatUsdt(accountTotals.totalUsdt)} USDT</span>
-                        </div>
-                      )}
-
-                      {/* Next unlock date */}
-                      {accountBalances.nextUnlockAt && (
-                        <div className="px-2 py-1 text-[10px] text-muted-foreground">
-                          {language === "ar" ? "يفتح في" : "Unlocks"}: {new Date(accountBalances.nextUnlockAt).toLocaleDateString()}
-                        </div>
-                      )}
-
-                      <DropdownMenuSeparator />
-
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "الحساب" : "Account"}</div>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=personal"}>
-                        <User className="h-4 w-4" />
-                        {language === "ar" ? "المعلومات الشخصية" : "Personal Info"}
+                    <DropdownMenuItem asChild className="rounded-lg">
+                      <Link to={createPageUrl("Profile")} className="flex items-center gap-2 w-full">
+                        <User className="h-4 w-4" /> Profile Settings
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=security"}>
-                        <Shield className="h-4 w-4" />
-                        {language === "ar" ? "مركز الأمان" : "Security Center"}
+                    <DropdownMenuItem asChild className="rounded-lg">
+                      <Link to={createPageUrl("Wallet")} className="flex items-center gap-2 w-full">
+                        <Wallet className="h-4 w-4" /> My Wallet
                       </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Profile") + "?tab=notifications"}>
-                        <Settings className="h-4 w-4" />
-                        {language === "ar" ? "التفضيلات" : "Preferences"}
-                      </Link>
-                    </DropdownMenuItem>
-
                     <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "المكافآت" : "Rewards"}</div>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Rewards")}>
-                        <Gift className="h-4 w-4" />
-                        {language === "ar" ? "مركز المكافآت" : "Rewards Hub"}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Rewards") + "?tab=referrals"}>
-                        <Users className="h-4 w-4" />
-                        {language === "ar" ? "دعوة واربح" : "Invite & Earn"}
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{language === "ar" ? "المساعدة" : "Help"}</div>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Help")}>
-                        <HelpCircle className="h-4 w-4" />
-                        {language === "ar" ? "مركز المساعدة" : "Help Center"}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl("Contact")}>
-                        <Headphones className="h-4 w-4" />
-                        {language === "ar" ? "الدعم" : "Contact Support"}
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={async (e) => {
-                        e.preventDefault();
-                        // Track logout event with user info
-                        try {
-                          const currentUser = await base44.auth.me();
-                          base44.analytics.track({
-                            eventName: "user_logout",
-                            properties: { method: "manual", user_id: currentUser?.id, user_email: currentUser?.email }
-                          });
-                        } catch {
-                          base44.analytics.track({
-                            eventName: "user_logout",
-                            properties: { method: "manual" }
-                          });
-                        }
-                        // Destroy Product Fruits before logout
-                        if (window.productFruits?.services?.destroy) {
-                          window.productFruits.services.destroy();
-                        }
-                        logout(true);
-                      }}
-                      className="text-rose-600 focus:text-rose-700"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      {language === "ar" ? "تسجيل الخروج" : "Log Out"}
+                    <DropdownMenuItem onClick={logout} className="rounded-lg text-rose-500 focus:text-rose-500">
+                      <LogOut className="h-4 w-4 mr-2" /> Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button
-                  className="glow-button text-white border-0 rounded-xl px-6"
-                  type="button"
-                  onClick={() => {
-                    // Preserve ref code in URL when redirecting to login
-                    const refCode = getStoredReferralCode();
-                    const currentUrl = new URL(window.location.href);
-                    if (refCode && !currentUrl.searchParams.has('ref')) {
-                      currentUrl.searchParams.set('ref', refCode);
-                    }
-                    navigateToLogin(currentUrl.toString());
-                  }}
-                >
-                  {accountLabel}
+                <Button asChild className="rounded-xl px-6 font-bold">
+                  <Link to={createPageUrl("Login")}>Login</Link>
                 </Button>
               )}
             </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
-                aria-label={language === "ar" ? "فتح القائمة" : "Open menu"}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              {isAuthenticated && <NotificationBell onSettingsClick={() => setNotificationSettingsOpen(true)} language={language} />}
-
-              {isMemeCoinsPage && <SolanaNavWalletButton />}
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={toggleTheme}
-                aria-label={language === "ar" ? "تبديل المظهر" : "Toggle theme"}
-              >
-                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
-
-              {/* Language Switcher for Mobile - toggle directly */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-                aria-label={language === "ar" ? "Switch to English" : "التبديل إلى العربية"}
-              >
-                <span className="inline-block w-5 h-4 rounded-sm overflow-hidden" aria-hidden="true">
-                  {language === "en" ? (
-                    <svg viewBox="0 0 60 40" width="20" height="16"><rect width="60" height="13.3" fill="#006C35"/><rect y="13.3" width="60" height="13.4" fill="#fff"/><rect y="26.7" width="60" height="13.3" fill="#000"/></svg>
-                  ) : (
-                    <svg viewBox="0 0 60 30" width="20" height="16"><clipPath id="ukm"><rect width="60" height="30"/></clipPath><g clipPath="url(#ukm)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="M0 0l60 30m0-30L0 30" stroke="#fff" strokeWidth="6"/><path d="M0 0l60 30m0-30L0 30" stroke="#C8102E" strokeWidth="4" clipPath="url(#ukm)"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="6"/></g></svg>
-                  )}
-                </span>
-              </Button>
-            </div>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden glass-effect border-t border-border">
-            <div className="px-4 py-6 space-y-4">
-              {navigation.map((item) => {
-                if (item.type === "dropdown") {
-                  return (
-                    <div key={item.name.en} className="space-y-2">
-                      <div className="text-foreground font-medium">{item.name[language]}</div>
-                      <div className="pl-3 space-y-2">
-                        {item.items.map((sub) => (
-                          sub.url ? (
-                            <Link
-                              key={sub.name.en}
-                              to={sub.url}
-                              className="block text-muted-foreground hover:text-foreground text-sm"
-                              onClick={() => setMobileMenuOpen(false)}
-                            >
-                              {sub.name[language]}
-                            </Link>
-                          ) : (
-                            <div key={sub.name.en} className="block text-muted-foreground/70 text-sm">
-                              {sub.name[language]}
-                            </div>
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <Link
-                    key={item.url}
-                    to={item.url}
-                    className="block text-foreground hover:text-blue-600 font-medium"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {item.name[language]}
-                  </Link>
-                );
-              })}
-              <Button
-                className="w-full glow-button text-white"
-                asChild
-              >
-                {isAuthenticated ? (
-                  <Link to={createPageUrl("Profile") + "?tab=personal"} onClick={() => setMobileMenuOpen(false)}>
-                    {accountLabel}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      // Preserve ref code in URL when redirecting to login
-                      const refCode = getStoredReferralCode();
-                      const currentUrl = new URL(window.location.href);
-                      if (refCode && !currentUrl.searchParams.has('ref')) {
-                        currentUrl.searchParams.set('ref', refCode);
-                      }
-                      navigateToLogin(currentUrl.toString());
-                    }}
-                  >
-                    {accountLabel}
-                  </button>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
       </nav>
-      )}
 
-      {/* Main Content */}
-      <main className={`${isTradingPage ? 'pt-0' : 'pt-[calc(4rem+env(safe-area-inset-top))]'} md:pb-0 pb-[calc(5rem+env(safe-area-inset-bottom))]`}>
-        <PageTransition>
-          {React.cloneElement(children, { language })}
+      <main className="pt-16">
+        <PageTransition location={location}>
+          {children}
         </PageTransition>
       </main>
 
-      {/* Footer - Only on Home Page */}
-      {!isTradingPage && !isMemeCoinsPage && !isAdminHub && (location.pathname === createPageUrl("Home") || location.pathname === "/") && (
-      <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <img
-                  src={nextTradeLogo}
-                  alt="NextTrade"
-                  className="h-10 w-auto" />
-
-              </div>
-              <p className="text-gray-400 text-sm">
-                {language === "en" ?
-                "Your trusted partner in intelligent crypto trading." :
-                "شريكك الموثوق في تداول العملات الرقمية الذكي"}
-              </p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">{language === "en" ? "Quick Links" : "روابط سريعة"}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                {footerQuickLinks.map((item) => (
-                  <li key={item.url}>
-                    <Link to={item.url} className="hover:text-white transition-all transform">
-                      {item.name[language]}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">{language === "en" ? "Trading" : "التداول"}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>{language === "en" ? "Bitcoin (BTC)" : "بيتكوين (BTC)"}</li>
-                <li>{language === "en" ? "Ethereum (ETH)" : "إيثيريوم (ETH)"}</li>
-                <li>{language === "en" ? "Solana (SOL)" : "سولانا (SOL)"}</li>
-                <li>{language === "en" ? "Altcoins" : "العملات البديلة"}</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">{language === "en" ? "Contact" : "اتصل بنا"}</h3>
-              <ul className="space-y-3 text-sm text-gray-400">
-                <li className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  <span>info@nexttrade.exchange</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-700 pt-8 text-center text-sm text-gray-400">
-            <p>
-              {language === "en" ?
-              "© 2025 NextTrade. All rights reserved." :
-              "© 2025 NextTrade. جميع الحقوق محفوظة"}
-            </p>
-            <p className="mt-2 text-xs">
-              <a
-                className="hover:text-white transition-all transform"
-                href="https://www.tradingview.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {language === "en"
-                  ? "Charts powered by TradingView Lightweight Charts™"
-                  : "الرسوم البيانية مدعومة من TradingView Lightweight Charts™"}
-              </a>
-            </p>
-            <p className="mt-2 text-xs">
-              {language === "en" ?
-              "Crypto trading involves risk. Please trade responsibly." :
-              "تداول العملات الرقمية ينطوي على مخاطر. يرجى التداول بمسؤولية"}
-            </p>
-          </div>
-        </div>
-      </footer>
-      )}
-      
-      {/* Mobile Bottom Navigation - 5 items only: Overview, Trade, Wallet, Support, Account */}
-      {!isMemeCoinsPage && !isTradingPage && !isAdminHub && (
-      <MobileBottomNav 
-        language={language} 
-        isAuthenticated={isAuthenticated} 
-        navigateToLogin={navigateToLogin}
-        location={location}
-      />
-      )}
-      
-      <NotificationSettings 
-        open={notificationSettingsOpen} 
-        onOpenChange={setNotificationSettingsOpen} 
-        language={language}
-      />
-      {/* Support Modal - rendered at layout level for global access */}
-      {!isAdminHub && <AssistantModal language={language} />}
+      <AssistantModal />
     </div>
     </NotificationProvider>
-    </WalletProvider>);
-
+    </WalletProvider>
+  );
 }
 
-LayoutInner.propTypes = {
-  children: PropTypes.node.isRequired,
-  currentPageName: PropTypes.string
-};
-
-// Wrap Layout with MobileNavigationProvider
-function Layout(props) {
+export default function Layout(props) {
   return (
     <MobileNavigationProvider>
       <LayoutInner {...props} />
     </MobileNavigationProvider>
   );
 }
-
-Layout.propTypes = {
-  children: PropTypes.node.isRequired,
-  currentPageName: PropTypes.string,
-};
-
-export default Layout;

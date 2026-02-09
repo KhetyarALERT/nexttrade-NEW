@@ -21,7 +21,8 @@ import {
   Lock,
   Clock,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Activity
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";
 import RecentTransfersCard from "./RecentTransfersCard";
@@ -103,75 +104,46 @@ export default function WalletOverview({
 }) {
   const t = translations[language] || translations.en;
   const navigate = useNavigate();
-  const [assetView, setAssetView] = useState("total"); // total | funding | trading | staked
+  const [assetView, setAssetView] = useState("total");
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
-  // Staking amounts (from overlay)
   const activeLockedUsdt = stakingOverlay?.activeLockedByCcy?.USDT || 0;
-  const pendingLockedUsdt = stakingOverlay?.pendingLockedByCcy?.USDT || 0;
-  const nextUnlockAt = stakingOverlay?.nextUnlockAt;
-  const hasStaking = activeLockedUsdt > 0 || pendingLockedUsdt > 0;
-  
-  // Total including staking: OKX total + ACTIVE locked (pending is still in OKX funding)
   const totalWithStaking = totalBalance + activeLockedUsdt;
-
-  const formatBalance = (val) => {
-    if (!showBalances) return "****";
-    if (val === null || val === undefined) return "0.00";
-    return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
-  };
 
   const formatUSD = (val) => {
     if (!showBalances) return "$****";
     return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Calculate internal funding balance
   const fundingBalance = wallets.reduce((sum, w) => {
     if (w.currency === "USDT" || w.currency === "USDC") return sum + (w.balance || 0);
     return sum;
   }, 0);
 
-  // OKX balances
   const tradingBalance = okxBalances?.tradingUsdt || 0;
   const fundingOkx = okxBalances?.fundingUsdt || 0;
-  
-  // Withdrawable calculation: total funding - trading (locked in positions)
-  const totalFunding = fundingBalance + fundingOkx;
-  const lockedInPositions = tradingBalance;
-  const withdrawableBalance = Math.max(0, totalFunding - lockedInPositions);
-  
-  // perCcy from OKX (contains funding + trading per currency)
   const perCcy = okxBalances?.perCcy || {};
   
-  // Build unified asset list from perCcy
   const buildAssetList = () => {
     const assets = [];
     const assetMap = { ...perCcy };
 
-    // Inject Copy Trading balance into USDT
     if (copyTradingWallet) {
       const ctTotal = (copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0);
       if (ctTotal > 0) {
         if (!assetMap["USDT"]) assetMap["USDT"] = { total: 0, funding: 0, trading: 0 };
-        // We track it in 'total' but separate from funding/trading
-        // This ensures it shows up in "Total" view
       }
     }
     
-    // Add all currencies
     for (const [ccy, data] of Object.entries(assetMap)) {
       let displayBalance = 0;
       let funding = data.funding || 0;
       let trading = data.trading || 0;
       let total = data.total || 0;
 
-      // Add Internal Funding (from props.wallets) if USDT
       if (ccy === "USDT") {
-        funding += fundingBalance; // Add internal wallet funding
+        funding += fundingBalance;
         total += fundingBalance;
-        
-        // Add Copy Trading if USDT
         if (copyTradingWallet) {
           const ctTotal = (copyTradingWallet.available_balance || 0) + (copyTradingWallet.locked_balance || 0);
           total += ctTotal;
@@ -198,7 +170,6 @@ export default function WalletOverview({
       }
     }
     
-    // Sort by USD value descending
     assets.sort((a, b) => b.usdValue - a.usdValue);
     return assets;
   };
@@ -206,42 +177,27 @@ export default function WalletOverview({
   const assetList = buildAssetList();
 
   return (
-    <div className="space-y-6">
-      {/* Mobile Back Button */}
-      {showBackButton && (
-        <div className="lg:hidden mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {language === "ar" ? "رجوع" : "Back"}
-          </Button>
-        </div>
-      )}
-      
+    <div className="space-y-8">
       {/* Total Balance Card */}
-      <Card className="border-border/60 bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">{t.totalBalance}</p>
-              <p className="text-3xl sm:text-4xl font-bold text-foreground">
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-transparent to-transparent overflow-hidden">
+        <CardContent className="p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t.totalBalance}</p>
+              <p className="text-4xl sm:text-5xl font-bold tracking-tighter text-foreground">
                 {formatUSD(totalBalance)}
               </p>
               {activeLockedUsdt > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t.totalInclStaking}: <span className="font-medium text-foreground">{formatUSD(totalWithStaking)}</span>
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t.totalInclStaking}: <span className="text-foreground">{formatUSD(totalWithStaking)}</span>
                 </p>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               <Button
                 onClick={onDeposit}
                 disabled={!isFullyUnlocked}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl flex-1 sm:flex-none"
+                className="rounded-xl h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20"
               >
                 <ArrowDownToLine className="h-4 w-4 mr-2" />
                 {t.deposit}
@@ -250,7 +206,7 @@ export default function WalletOverview({
                 variant="outline"
                 disabled={!isFullyUnlocked}
                 onClick={() => setWithdrawModalOpen(true)}
-                className="rounded-xl border-border flex-1 sm:flex-none"
+                className="rounded-xl h-11 px-6 border-border/40 bg-background/50 backdrop-blur-sm font-bold"
               >
                 <ArrowUpFromLine className="h-4 w-4 mr-2" />
                 {t.withdraw}
@@ -259,7 +215,7 @@ export default function WalletOverview({
                 variant="outline"
                 disabled={!isFullyUnlocked}
                 onClick={onTransfer}
-                className="rounded-xl border-border flex-1 sm:flex-none"
+                className="rounded-xl h-11 px-6 border-border/40 bg-background/50 backdrop-blur-sm font-bold"
               >
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
                 {t.transfer}
@@ -269,289 +225,158 @@ export default function WalletOverview({
         </CardContent>
       </Card>
 
-      {/* Account Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Account Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {/* Funding Account */}
-        <Card className="border-border/60">
-          <CardHeader className="pb-2">
+        <Card className="border-border/40 bg-card/30">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-blue-500" />
                 {t.fundingAccount}
               </CardTitle>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-[10px] font-bold border-none bg-blue-500/10 text-blue-500">
                 {t.available}
               </Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">
+          <CardContent className="space-y-4">
+            <p className="text-2xl font-bold tracking-tight">
               {formatUSD(fundingBalance + fundingOkx)}
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onDeposit}
-                disabled={!isFullyUnlocked}
-                className="rounded-lg text-xs flex-1"
-              >
-                <ArrowDownToLine className="h-3 w-3 mr-1" />
-                {t.deposit}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!isFullyUnlocked}
-                onClick={() => setWithdrawModalOpen(true)}
-                className="rounded-lg text-xs flex-1"
-              >
-                <ArrowUpFromLine className="h-3 w-3 mr-1" />
-                {t.withdraw}
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="w-full rounded-lg h-9 text-xs font-bold"
+              onClick={onDeposit}
+            >
+              Add Funds
+            </Button>
           </CardContent>
         </Card>
 
         {/* Trading Account */}
-        <Card className="border-border/60">
-          <CardHeader className="pb-2">
+        <Card className="border-border/40 bg-card/30">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Activity className="h-4 w-4 text-emerald-500" />
                 {t.tradingAccount}
               </CardTitle>
-              {hasOkxAccount && (
-                <Badge className="bg-emerald-500/20 text-emerald-700 border-0 text-xs">
-                  Active
-                </Badge>
-              )}
+              <Badge variant="outline" className="text-[10px] font-bold border-none bg-emerald-500/10 text-emerald-500">
+                Live
+              </Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">
-              {hasOkxAccount ? formatUSD(tradingBalance) : "$0.00"}
+          <CardContent className="space-y-4">
+            <p className="text-2xl font-bold tracking-tight">
+              {formatUSD(tradingBalance)}
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!isFullyUnlocked}
-                onClick={onTransfer}
-                className="rounded-lg text-xs flex-1"
-              >
-                <ArrowLeftRight className="h-3 w-3 mr-1" />
-                {t.transfer}
-              </Button>
-              <Button
-                size="sm"
-                asChild
-                disabled={!isFullyUnlocked}
-                className="rounded-lg text-xs flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <Link to={createPageUrl("Futures")}>
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  {t.trade}
-                </Link>
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="w-full rounded-lg h-9 text-xs font-bold"
+              asChild
+            >
+              <Link to={createPageUrl("Futures")}>Go to Trading</Link>
+            </Button>
           </CardContent>
         </Card>
 
-        {/* Staking (Locked) Card */}
-        <Card className="border-border/60 border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
-          <CardHeader className="pb-2">
+        {/* Staking Account */}
+        <Card className="border-border/40 bg-card/30">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Lock className="h-4 w-4 text-amber-600" />
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Lock className="h-4 w-4 text-purple-500" />
                 {t.stakingLocked}
               </CardTitle>
-              {activeLockedUsdt > 0 && (
-                <Badge className="bg-amber-500/20 text-amber-700 border-0 text-xs">
-                  {t.locked}
-                </Badge>
-              )}
+              <Badge variant="outline" className="text-[10px] font-bold border-none bg-purple-500/10 text-purple-500">
+                Staked
+              </Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">
+          <CardContent className="space-y-4">
+            <p className="text-2xl font-bold tracking-tight">
               {formatUSD(activeLockedUsdt)}
             </p>
-            {nextUnlockAt ? (
-              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {t.unlocks}: {new Date(nextUnlockAt).toLocaleDateString()}
-              </p>
-            ) : activeLockedUsdt > 0 ? (
-              <p className="text-xs text-amber-600 mt-1">Unlock date pending</p>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-1">{t.noActiveStakes}</p>
-            )}
-            {pendingLockedUsdt > 0 && (
-              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                {t.pendingApproval}: {formatUSD(pendingLockedUsdt)}
-              </p>
-            )}
-            <div className="mt-3">
-              <Button
-                size="sm"
-                asChild
-                variant="outline"
-                className="rounded-lg text-xs w-full border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
-              >
-                <Link to={createPageUrl("Investing")}>
-                  <Lock className="h-3 w-3 mr-1" />
-                  {t.viewStaking}
-                </Link>
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="w-full rounded-lg h-9 text-xs font-bold"
+              asChild
+            >
+              <Link to={createPageUrl("Investing")}>Manage Staking</Link>
+            </Button>
           </CardContent>
         </Card>
-
-        {/* Copy Trading Card - Removed and merged into Total/Assets as requested */}
       </div>
 
       {/* Assets List */}
-      <Card className="border-border/60">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between mb-3">
-            <CardTitle className="text-base font-semibold">
-              {language === "ar" ? "الأصول" : "Assets"}
-            </CardTitle>
-          </div>
-          {/* View Toggle */}
-          <Tabs value={assetView} onValueChange={setAssetView} className="w-full">
-            <TabsList className={`grid w-full max-w-md ${hasStaking ? 'grid-cols-4' : 'grid-cols-3'}`}>
-              <TabsTrigger value="total" className="text-xs">{t.total}</TabsTrigger>
-              <TabsTrigger value="funding" className="text-xs">{t.funding}</TabsTrigger>
-              <TabsTrigger value="trading" className="text-xs">{t.trading}</TabsTrigger>
-              {hasStaking && (
-                <TabsTrigger value="staked" className="text-xs">{t.staked}</TabsTrigger>
-              )}
-            </TabsList>
-          </Tabs>
-        </CardHeader>
-        <CardContent>
-          {/* Staked Tab Content */}
-          {assetView === "staked" ? (
-            <div className="space-y-3">
-              {/* Info banner */}
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                  <Info className="h-3.5 w-3.5 flex-shrink-0" />
-                  {t.stakedFundsLocked}
-                </p>
-              </div>
-              
-              {/* Active locked */}
-              {activeLockedUsdt > 0 && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <CryptoIcon currency="USDT" size="md" />
-                    <div>
-                      <p className="font-medium text-foreground">USDT</p>
-                      <p className="text-xs text-emerald-600">{t.activeLocked}</p>
-                      {nextUnlockAt && (
-                        <p className="text-xs text-muted-foreground">
-                          {t.unlocks}: {new Date(nextUnlockAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-foreground font-mono">{formatBalance(activeLockedUsdt)}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Pending locked */}
-              {pendingLockedUsdt > 0 && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-amber-500/20">
-                  <div className="flex items-center gap-3">
-                    <CryptoIcon currency="USDT" size="md" />
-                    <div>
-                      <p className="font-medium text-foreground">USDT</p>
-                      <p className="text-xs text-amber-600">{t.pendingApproval}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-foreground font-mono">{formatBalance(pendingLockedUsdt)}</p>
-                  </div>
-                </div>
-              )}
-              
-              {!activeLockedUsdt && !pendingLockedUsdt && (
-                <div className="text-center py-8">
-                  <Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-sm font-medium text-muted-foreground">{t.noActiveStakes}</p>
-                  <Button
-                    asChild
-                    className="mt-4 bg-amber-600 hover:bg-amber-700 rounded-xl"
-                  >
-                    <Link to={createPageUrl("Investing")}>
-                      <Lock className="h-4 w-4 mr-2" />
-                      {t.viewStaking}
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : assetList.length === 0 ? (
-            <div className="text-center py-8">
-              <Wallet className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">{t.noAssets}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t.noAssetsDesc}</p>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            Your Assets
+          </h2>
+          <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/40 rounded-lg">
+            {["total", "funding", "trading"].map((view) => (
               <Button
-                onClick={onDeposit}
-                disabled={!isFullyUnlocked}
-                className="mt-4 bg-primary hover:bg-primary/90 rounded-xl"
+                key={view}
+                variant={assetView === view ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setAssetView(view)}
+                className={`rounded-md px-3 h-7 text-[10px] font-bold uppercase tracking-wider ${assetView === view ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
               >
-                <ArrowDownToLine className="h-4 w-4 mr-2" />
-                {t.deposit}
+                {t[view]}
               </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {assetList.map((asset, idx) => (
-                <div
-                  key={asset.currency}
-                  className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
+            ))}
+          </div>
+        </div>
+
+        <Card className="border-border/40 bg-card/30 overflow-hidden">
+          <div className="divide-y divide-border/40">
+            {assetList.length > 0 ? (
+              assetList.map((asset) => (
+                <div key={asset.currency} className="p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
                   <div className="flex items-center gap-3">
-                    <CryptoIcon currency={asset.currency} size="md" />
+                    <div className="p-2 rounded-xl bg-background border border-border/40">
+                      <CryptoIcon currency={asset.currency} className="h-6 w-6" />
+                    </div>
                     <div>
-                      <p className="font-medium text-foreground">{asset.currency}</p>
-                      {assetView === "total" && (asset.funding > 0 || asset.trading > 0) && (
-                        <p className="text-xs text-muted-foreground">
-                          {asset.funding > 0 && `F: ${formatBalance(asset.funding)}`}
-                          {asset.funding > 0 && asset.trading > 0 && " • "}
-                          {asset.trading > 0 && `T: ${formatBalance(asset.trading)}`}
-                        </p>
-                      )}
+                      <p className="font-bold text-foreground">{asset.currency}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground">
+                        {asset.currency === "USDT" ? "Tether USD" : asset.currency}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-foreground font-mono">{formatBalance(asset.balance)}</p>
-                    {asset.currency !== "USDT" && asset.currency !== "USDC" && (
-                      <p className="text-xs text-muted-foreground">{formatUSD(asset.usdValue)}</p>
-                    )}
+                    <p className="font-mono font-bold text-foreground">
+                      {showBalances ? asset.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) : "****"}
+                    </p>
+                    <p className="text-[10px] font-bold text-muted-foreground">
+                      {formatUSD(asset.usdValue)}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            ) : (
+              <div className="p-12 text-center">
+                <p className="text-sm font-medium text-muted-foreground">{t.noAssets}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t.noAssetsDesc}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
 
-      {/* Recent Transfers */}
-      <RecentTransfersCard language={language} limit={5} />
-      
-      {/* Withdraw Modal */}
+      <RecentTransfersCard language={language} />
+
       <WithdrawModal
         open={withdrawModalOpen}
         onOpenChange={setWithdrawModalOpen}
         language={language}
+        withdrawableBalance={withdrawableBalance}
         onSuccess={onRefresh}
       />
     </div>

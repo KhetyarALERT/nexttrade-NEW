@@ -179,17 +179,14 @@ const normalizeUserProfile = (user = {}) => ({
   createdDate: user.created_date || user.createdDate || new Date().toISOString()
 });
 
-// Verification Badge Component - reads status directly from VerificationRequest entity
+// Verification Badge Component
 function VerificationBadge({ status, language, onClickNotVerified, onClickPending }) {
   const t = translations[language] || translations.en;
   
-  // Status comes directly from VerificationRequest.status field
-  // Values: 'pending', 'under_review', 'approved', 'rejected', 'needs_help'
-  
   if (status === 'approved') {
     return (
-      <Badge className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-default">
-        <CheckCircle2 className="mr-1 h-3 w-3" /> {t.verified}
+      <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 px-3 py-1 font-medium cursor-default">
+        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> {t.verified}
       </Badge>
     );
   }
@@ -197,12 +194,12 @@ function VerificationBadge({ status, language, onClickNotVerified, onClickPendin
   if (status === 'rejected') {
     return (
       <Badge 
-        className="bg-gradient-to-r from-rose-500 to-rose-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-rose-600 hover:to-rose-700 transition-all duration-300 hover:scale-105"
+        className="bg-rose-500/10 text-rose-500 border-rose-500/20 px-3 py-1 font-medium cursor-pointer hover:bg-rose-500/20 transition-all duration-300"
         onClick={onClickNotVerified}
         role="button"
         tabIndex={0}
       >
-        <AlertCircle className="mr-1 h-3 w-3" /> {language === "en" ? "Rejected" : "مرفوض"}
+        <AlertCircle className="mr-1.5 h-3.5 w-3.5" /> {language === "en" ? "Rejected" : "مرفوض"}
       </Badge>
     );
   }
@@ -210,25 +207,24 @@ function VerificationBadge({ status, language, onClickNotVerified, onClickPendin
   if (status === 'pending' || status === 'under_review' || status === 'needs_help') {
     return (
       <Badge 
-        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
+        className="bg-blue-500/10 text-blue-500 border-blue-500/20 px-3 py-1 font-medium cursor-pointer hover:bg-blue-500/20 transition-all duration-300"
         onClick={onClickPending}
         role="button"
         tabIndex={0}
       >
-        <Clock className="mr-1 h-3 w-3 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
+        <Clock className="mr-1.5 h-3.5 w-3.5 animate-pulse" /> {language === "en" ? "Pending" : "قيد المراجعة"}
       </Badge>
     );
   }
   
-  // No verification request exists (status is null/undefined) - show "Not Verified"
   return (
     <Badge 
-      className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg px-3 py-1 font-medium cursor-pointer hover:from-amber-600 hover:to-amber-700 transition-all duration-300 hover:scale-105"
+      className="bg-amber-500/10 text-amber-500 border-amber-500/20 px-3 py-1 font-medium cursor-pointer hover:bg-amber-500/20 transition-all duration-300"
       onClick={onClickNotVerified}
       role="button"
       tabIndex={0}
     >
-      <AlertCircle className="mr-1 h-3 w-3" /> {t.notVerified}
+      <AlertCircle className="mr-1.5 h-3.5 w-3.5" /> {t.notVerified}
     </Badge>
   );
 }
@@ -272,36 +268,25 @@ export default function Profile({ language = "en" }) {
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [existingVerification, setExistingVerification] = useState(null);
+  const [allocationModalOpen, setAllocationModalOpen] = useState(false);
   const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
   const [kycVideoOpen, setKycVideoOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const loadUser = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const data = await base44.auth.me();
-      let profile = normalizeUserProfile(data);
+      setLoading(true);
+      const user = await base44.auth.me();
+      if (!user) throw new Error("User not found");
+      setFormState(normalizeUserProfile(user));
       
-      // Fetch referral info (code + stats)
-      try {
-        const refRes = await base44.functions.invoke("referral", { action: "getMyReferralInfo" });
-        if (refRes.data?.success) {
-          if (refRes.data.data?.code) {
-            profile.referralCode = refRes.data.data.code;
-            profile.referralLink = refRes.data.data.link;
-          }
-          if (refRes.data.data?.stats) {
-            setReferralStats(refRes.data.data.stats);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load referral info", err);
+      // Load verification status
+      const verifications = await base44.entities.VerificationRequest.filter({ user_id: user.id }, '-created_date', 1);
+      if (verifications?.length > 0) {
+        setExistingVerification(verifications[0]);
       }
-      
-      setFormState(profile);
     } catch (err) {
-      console.error("Failed to load user", err);
+      console.error("Failed to load user:", err);
       setError(t.loadError);
     } finally {
       setLoading(false);
@@ -309,194 +294,69 @@ export default function Profile({ language = "en" }) {
   }, [t.loadError]);
 
   const loadTradingAccounts = useCallback(async () => {
-    setLoadingAccount(true);
     try {
-      // Note: We don't auto-create live accounts from frontend. Only demo accounts are auto-created.
-      const [demoResult, walletsResult, tradesResult, okxResult, copyTradingResult] = await Promise.all([
-        base44.functions.invoke('tradingAccount', { action: 'getOrCreate', accountType: 'demo' }),
-        base44.functions.invoke('wallet', { action: 'list' }),
-        base44.functions.invoke('tradingAccount', { action: 'getTrades' }),
-        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }),
-        base44.functions.invoke('copyTradingUser', { action: 'getWallet' }).catch(() => ({ data: { ok: false } }))
+      setLoadingAccount(true);
+      const user = await base44.auth.me();
+      if (!user) return;
+
+      const [demo, live, okx, walletsRes, tradesRes, referralRes, copyTradingRes] = await Promise.all([
+        base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: true }, '-created_date', 1),
+        base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: false }, '-created_date', 1),
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch(() => ({ data: { ok: false } })),
+        base44.functions.invoke("wallet", { action: "list" }),
+        base44.entities.Trade.filter({ user_id: user.id }, '-opened_at', 50),
+        base44.functions.invoke("referral", { action: "getStats" }),
+        base44.functions.invoke("copyTradingUser", { action: "getWallet" }).catch(() => ({ data: { ok: false } }))
       ]);
-      
-      if (demoResult.data?.success) setDemoAccount(demoResult.data.data);
-      // Don't set liveAccount from demo result - live accounts are OKX-based only
-      setLiveAccount(null);
-      if (walletsResult.data?.success) setWallets(walletsResult.data.data || []);
-      if (tradesResult.data?.success) setTrades(tradesResult.data.data || []);
-      if (okxResult.data?.ok && okxResult.data.data?.hasAccount) {
-        setOkxAccount(okxResult.data.data);
-      }
-      if (copyTradingResult.data?.ok) {
-        setCopyTradingWallet(copyTradingResult.data.data);
-      }
+
+      if (demo?.length > 0) setDemoAccount(demo[0]);
+      if (live?.length > 0) setLiveAccount(live[0]);
+      if (okx.data?.ok) setOkxAccount(okx.data.data);
+      if (walletsRes.data?.success) setWallets(walletsRes.data.data);
+      if (tradesRes) setTrades(tradesRes);
+      if (referralRes.data?.success) setReferralStats(referralRes.data.data);
+      if (copyTradingRes.data?.ok) setCopyTradingWallet(copyTradingRes.data.data);
+
     } catch (err) {
-      console.error("Failed to load accounts", err);
+      console.error("Failed to load trading accounts:", err);
     } finally {
       setLoadingAccount(false);
     }
   }, []);
 
-  const loadVerificationRequest = useCallback(async () => {
-    try {
-      // Use verificationService to get status from UserVerification (single source of truth)
-      const res = await base44.functions.invoke("verificationService", { action: "getStatus" });
-      
-      if (res.data?.ok) {
-        const uvData = res.data.data;
-        
-        if (uvData.exists) {
-          // Map status: verified → approved for UI compatibility
-          const mappedStatus = uvData.status === "verified" ? "approved" : uvData.status;
-          
-          // If we have current request details, include them
-          if (uvData.current_request) {
-            setExistingVerification({
-              ...uvData.current_request,
-              status: mappedStatus
-            });
-          } else {
-            // No current request but status exists
-            setExistingVerification({
-              status: mappedStatus,
-              rejection_reason: uvData.rejection_reason
-            });
-          }
-        } else {
-          // No UserVerification record = unverified
-          setExistingVerification(null);
-        }
-      } else {
-        setExistingVerification(null);
-      }
-    } catch (err) {
-      console.error("Failed to load verification:", err);
-      setExistingVerification(null);
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadUser();
+      loadTradingAccounts();
     }
-  }, []);
+  }, [isAuthenticated, loadUser, loadTradingAccounts]);
 
   useEffect(() => {
-    if (isLoadingAuth) return;
-    if (!isAuthenticated) {
-      setLoading(false);
-      setError(null);
-      return;
-    }
-    loadUser();
-    loadTradingAccounts();
-    loadVerificationRequest();
-  }, [isAuthenticated, isLoadingAuth, loadUser, loadTradingAccounts, loadVerificationRequest]);
-
-  // Subscribe to UserVerification changes for real-time badge update
-  useEffect(() => {
-    if (!isAuthenticated || isLoadingAuth) return;
-
-    let userId = null;
-    
-    // Get current user ID first
-    base44.auth.me().then(user => {
-      userId = user.id;
-    }).catch(() => {});
-
-    const unsubscribe = base44.entities.UserVerification.subscribe((event) => {
-      // Check if this update is for the current user
-      if (userId && event.data?.user_id === userId) {
-        // Reload verification status when UserVerification changes
-        loadVerificationRequest();
-      }
-    });
-
-    return () => unsubscribe();
-  }, [isAuthenticated, isLoadingAuth, loadVerificationRequest]);
-
-  // Poll for verification status changes as backup (every 5 seconds)
-  useEffect(() => {
-    if (!isAuthenticated || isLoadingAuth) return;
-    
-    const pollInterval = setInterval(() => {
-      loadVerificationRequest();
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
-  }, [isAuthenticated, isLoadingAuth, loadVerificationRequest]);
-
-  // Auto-open verification modal if requested via URL
-  useEffect(() => {
-    if (shouldOpenVerification && !isLoadingAuth && isAuthenticated) {
+    if (shouldOpenVerification && !verificationModalOpen) {
       setVerificationModalOpen(true);
-      // Clear the query param after opening
       setSearchParams({ openVerification: null });
     }
-  }, [shouldOpenVerification, isLoadingAuth, isAuthenticated]);
+  }, [shouldOpenVerification, verificationModalOpen]);
 
   const handleCopy = useCallback((text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({ 
-        title: t.copySuccess, 
-        duration: 2000,
-        className: "bg-emerald-50 border-emerald-200 text-emerald-900"
-      });
-    });
+    navigator.clipboard.writeText(text);
+    toast({ title: t.copySuccess, duration: 2000 });
   }, [toast, t.copySuccess]);
 
-  const handleShareReferral = useCallback(async () => {
-    const referralLink = formState?.referralLink;
-    if (!referralLink) return;
-
-    const shareTitle = t.inviteMessage;
-    const shareText = `${t.inviteMessageBody} ${referralLink}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: referralLink
-        });
-        return;
-      }
-    } catch {
-      // Fall through to copy.
-    }
-
-    try {
-      await navigator.clipboard.writeText(referralLink);
-      toast({
-        title: t.shareNotSupported,
-        duration: 2500,
-        className: "bg-slate-50 border-slate-200 text-slate-900"
-      });
-    } catch {
-      // If clipboard isn't available, we still avoid throwing in UI.
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: language === "ar" ? "تعذر مشاركة الرابط" : "Couldn't share the link"
-      });
-    }
-  }, [formState?.referralLink, language, t.inviteMessage, t.inviteMessageBody, t.shareNotSupported, toast]);
-
-  const handleSave = useCallback(async () => {
+  const handleSaveProfile = useCallback(async (e) => {
+    e.preventDefault();
+    if (!formState) return;
     setSaving(true);
     try {
-      // Use base44.auth.updateMe() to persist custom user fields
-      await base44.auth.updateMe({
+      await base44.auth.update({
         full_name: formState.fullName,
         bio: formState.bio,
         avatar_url: formState.avatarUrl
       });
-      toast({ 
-        title: t.updateSuccess, 
-        duration: 2000,
-        className: "bg-emerald-50 border-emerald-200 text-emerald-900"
-      });
+      toast({ title: t.updateSuccess, duration: 2000 });
     } catch (err) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: err.message 
-      });
+      console.error("Failed to update profile:", err);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update profile' });
     } finally {
       setSaving(false);
     }
@@ -509,7 +369,6 @@ export default function Profile({ language = "en" }) {
       return;
     }
 
-    // Max 5MB for avatar upload
     const maxBytes = 5_000_000;
     if (file.size > maxBytes) {
       toast({ variant: 'destructive', title: 'Error', description: t.photoTooLarge });
@@ -517,11 +376,9 @@ export default function Profile({ language = "en" }) {
     }
 
     try {
-      // Upload to Base44 storage for permanent URL
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      
       setFormState((prev) => ({ ...prev, avatarUrl: file_url }));
-      toast({ title: t.photoUpdated, duration: 1500, className: "bg-emerald-50 border-emerald-200 text-emerald-900" });
+      toast({ title: t.photoUpdated, duration: 1500 });
     } catch (err) {
       console.error("Failed to upload avatar:", err);
       toast({ variant: 'destructive', title: 'Error', description: language === "ar" ? "فشل رفع الصورة" : "Failed to upload image" });
@@ -567,14 +424,14 @@ export default function Profile({ language = "en" }) {
     return (
       <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
-          <Skeleton className="h-48 w-full rounded-3xl" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
           <div className="grid gap-4 lg:grid-cols-4">
-            <Skeleton className="h-32 rounded-2xl" />
-            <Skeleton className="h-32 rounded-2xl" />
-            <Skeleton className="h-32 rounded-2xl" />
-            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
           </div>
-          <Skeleton className="h-[400px] w-full rounded-3xl" />
+          <Skeleton className="h-[400px] w-full rounded-2xl" />
         </div>
       </div>
     );
@@ -584,13 +441,13 @@ export default function Profile({ language = "en" }) {
     return (
       <div className="min-h-screen bg-background text-foreground p-8">
         <div className="mx-auto max-w-2xl">
-          <Alert variant="destructive" className="border-destructive/30 bg-destructive/10">
+          <Alert variant="destructive" className="border-destructive/20 bg-destructive/5">
             <AlertCircle className="h-5 w-5" />
             <AlertDescription className="text-sm">{error}</AlertDescription>
           </Alert>
           <Button 
             onClick={loadUser} 
-            className="mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 rounded-xl"
+            className="mt-6 rounded-xl"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Retry
           </Button>
@@ -613,339 +470,202 @@ export default function Profile({ language = "en" }) {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
-        {/* Enhanced Header with Gradient Background */}
-        <div className="mb-8 overflow-hidden rounded-3xl border border-border bg-card shadow-xl backdrop-blur-sm">
+        {/* Profile Header */}
+        <div className="mb-8 overflow-hidden rounded-2xl border border-border/40 bg-card/50 backdrop-blur-md shadow-sm">
           <div className="relative p-6 sm:p-8">
-            {/* Decorative Background Pattern */}
-            <div className="absolute inset-0 bg-grid-slate-100 dark:bg-grid-slate-900 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10" />
-            
-            <div className="flex flex-col gap-6">
-              {/* Top Row: Avatar and Info */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                <div
-                  className="relative group"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleAvatarDrop}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div
+                className="relative group"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleAvatarDrop}
+              >
+                <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-2 border-border/40 shadow-sm">
+                  <AvatarImage src={formState.avatarUrl} alt={formState.fullName} />
+                  <AvatarFallback className="bg-muted text-2xl sm:text-3xl font-bold text-muted-foreground">
+                    {formState.fullName?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border border-border/40 bg-background text-foreground shadow-sm hover:bg-muted transition-all duration-300"
+                  aria-label={t.changePhoto}
                 >
-                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full opacity-75 blur group-hover:opacity-100 transition duration-300" />
-                  <Avatar className="relative h-24 w-24 sm:h-28 sm:w-28 border-4 border-white shadow-2xl ring-2 ring-blue-100">
-                    <AvatarImage src={formState.avatarUrl} alt={formState.fullName} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 text-2xl sm:text-3xl font-bold text-white">
-                      {formState.fullName?.charAt(0)?.toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <button
-                    type="button"
-                    onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full border-4 border-white bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 hover:scale-110"
-                    aria-label={t.changePhoto}
-                    title={t.changePhoto}
-                  >
-                    <Upload className="h-4 w-4" />
-                  </button>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarInputChange}
+                  <Upload className="h-3.5 w-3.5" />
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarInputChange}
+                />
+              </div>
+              
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                    {formState.fullName || "User"}
+                  </h1>
+                  <VerificationBadge 
+                    status={existingVerification?.status} 
+                    language={language}
+                    onClickNotVerified={() => setVerificationModalOpen(true)}
+                    onClickPending={() => setVerificationModalOpen(true)}
                   />
                 </div>
-                
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                      {formState.fullName || "User"}
-                    </h1>
-                    {/* Verification Badge - reads directly from existingVerification.status */}
-                    <VerificationBadge 
-                      status={existingVerification?.status} 
-                      language={language}
-                      onClickNotVerified={() => {
-                        setSearchParams({ tab: 'security' });
-                        setVerificationModalOpen(true);
-                      }}
-                      onClickPending={() => setSearchParams({ tab: 'security' })}
-                    />
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {t.memberSince} {memberSinceDate}
                   </div>
-                  
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    {t.memberSince}: <span className="font-medium text-foreground">{memberSinceDate}</span>
-                  </p>
-                  
-                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5 font-mono">
                     <User className="h-3.5 w-3.5" />
-                    <span className="min-w-0 truncate font-mono">{formState.uuid}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleCopy(formState.uuid)}
-                      className="h-6 w-6 p-0 hover:bg-muted rounded-lg"
-                    >
+                    {formState.uuid.slice(0, 8)}...
+                    <button onClick={() => handleCopy(formState.uuid)} className="hover:text-foreground transition-colors">
                       <Copy className="h-3 w-3" />
-                    </Button>
+                    </button>
                   </div>
-                </div>
-
-                {/* Quick Action Buttons */}
-                <div className="flex flex-wrap gap-2 sm:ml-auto w-full sm:w-auto">
-                  <Button 
-                    size="sm" 
-                    onClick={() => navigate(createPageUrl("Futures"))} 
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 rounded-xl flex-1 sm:flex-none transition-all duration-300 hover:scale-105"
-                  >
-                    <TrendingUp className="mr-2 h-4 w-4" /> Trade Now
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => { loadUser(); loadTradingAccounts(); }} 
-                    className="rounded-xl border-border bg-background/50 backdrop-blur-sm text-foreground hover:bg-muted flex-1 sm:flex-none transition-all duration-300"
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" /> {t.refresh}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleLogout} 
-                    className="rounded-xl border-destructive/30 bg-background/50 backdrop-blur-sm text-destructive hover:bg-destructive/10 flex-1 sm:flex-none transition-all duration-300"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" /> {t.logout}
-                  </Button>
                 </div>
               </div>
 
-              {/* Stats Overview Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-border">
-                {[
-                  { 
-                    label: language === "en" ? "Total Balance" : "الرصيد الكلي", 
-                    // Show OKX real balance + Copy Trading balance (no demo)
-                    value: `$${((okxAccount?.balances?.tradingUsdt || 0) + (okxAccount?.balances?.fundingUsdt || 0) + (copyTradingWallet?.available_balance || 0)).toFixed(2)}`,
-                    icon: DollarSign,
-                    gradient: "from-emerald-500 to-teal-600",
-                    bgGradient: "from-emerald-50 to-teal-50"
-                  },
-                  { 
-                    label: language === "en" ? "Total P&L" : "الربح/الخسارة", 
-                    value: `$${trades.reduce((sum, t) => sum + (t.pnl || 0), 0).toFixed(2)}`,
-                    icon: BarChart3,
-                    gradient: "from-blue-500 to-indigo-600",
-                    bgGradient: "from-blue-50 to-indigo-50"
-                  },
-                  { 
-                    label: language === "en" ? "Open Trades" : "الصفقات المفتوحة", 
-                    value: trades.filter(t => t.status === 'OPEN').length,
-                    icon: Activity,
-                    gradient: "from-indigo-500 to-blue-600",
-                    bgGradient: "from-indigo-50 to-blue-50"
-                  },
-                  { 
-                    label: language === "en" ? "Referrals" : "الإحالات", 
-                    value: (referralStats?.signups || 0).toString(),
-                    icon: Users,
-                    gradient: "from-orange-500 to-red-600",
-                    bgGradient: "from-orange-50 to-red-50"
-                  }
-                ].map((stat, i) => (
-                  <Card 
-                    key={i} 
-                    className="border border-border bg-card shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer overflow-hidden relative group"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300`} />
-                    <CardContent className="p-4 relative">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                        <div className={`p-2 rounded-lg bg-gradient-to-br ${stat.gradient} shadow-lg`}>
-                          <stat.icon className="h-4 w-4 text-white" />
-                        </div>
-                      </div>
-                      <p className="text-xl sm:text-2xl font-bold text-foreground">
-                        {stat.value}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadTradingAccounts}
+                  className="rounded-lg border-border/40 h-9 flex-1 sm:flex-none"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-2 ${loadingAccount ? 'animate-spin' : ''}`} />
+                  {t.refresh}
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleLogout}
+                  className="rounded-lg h-9 flex-1 sm:flex-none"
+                >
+                  <LogOut className="h-3.5 w-3.5 mr-2" />
+                  {t.logout}
+                </Button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Tabs */}
-        <Tabs
-          value={activeProfileTab}
-          onValueChange={(tab) => setSearchParams({ tab })}
-          className="space-y-6"
-        >
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg rounded-2xl border-2 border-border shadow-xl p-3">
-            <TabsList className="w-full justify-start gap-1.5 sm:gap-2 bg-transparent p-0 flex overflow-x-auto scrollbar-hide pb-1">
+        {/* Main Navigation Tabs */}
+        <Tabs value={activeProfileTab} onValueChange={(v) => setSearchParams({ tab: v })} className="space-y-8">
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="w-full sm:w-auto justify-start bg-transparent border-b border-border/40 rounded-none h-auto p-0 gap-6">
               {[
-                { value: "personal", label: t.personalInfo, icon: User },
-                { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Activity },
-                { value: "notifications", label: language === "en" ? "Notifications" : "الإشعارات", icon: Bell },
-                { value: "security", label: t.security, icon: Shield },
-                { value: "referrals", label: t.referrals, icon: Users },
-                { value: "trades", label: t.trades, icon: BarChart3 },
-                { value: "copy_settings", label: language === "en" ? "Copy Settings" : "إعدادات النسخ", icon: TrendingUp }
+                { id: "personal", label: t.personalInfo, icon: User },
+                { id: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Wallet },
+                { id: "notifications", label: language === "en" ? "Notifications" : "الإشعارات", icon: Bell },
+                { id: "security", label: t.security, icon: Shield },
+                { id: "referrals", label: t.referrals, icon: Users },
+                { id: "trades", label: t.trades, icon: BarChart3 },
+                { id: "copy_settings", label: language === "en" ? "Copy Settings" : "إعدادات النسخ", icon: TrendingUp }
               ].map((tab) => (
                 <TabsTrigger 
-                  key={tab.value}
-                  value={tab.value} 
-                  className="group relative rounded-xl px-2 py-2 sm:px-4 sm:py-3 font-medium text-[10px] sm:text-sm whitespace-nowrap transition-all duration-300 border-2 border-transparent flex-shrink-0 data-[state=active]:border-blue-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/40 data-[state=inactive]:bg-muted/50 hover:bg-muted hover:border-muted-foreground/20"
+                  key={tab.id}
+                  value={tab.id}
+                  className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary border-b-2 border-transparent data-[state=active]:border-primary rounded-none px-0 py-3 gap-2 transition-all"
                 >
-                  <tab.icon className="mr-1 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 inline-block" />
-                  <span className="hidden xs:inline sm:inline">{tab.label}</span>
-                  <span className="xs:hidden sm:hidden">
-                    {tab.value === "personal" ? (language === "en" ? "Info" : "معلومات") :
-                     tab.value === "accounts" ? (language === "en" ? "Acc" : "حساب") :
-                     tab.value === "notifications" ? (language === "en" ? "Notif" : "إشعار") :
-                     tab.value === "security" ? (language === "en" ? "Sec" : "أمان") :
-                     tab.value === "referrals" ? (language === "en" ? "Ref" : "إحالة") :
-                     tab.value === "trades" ? (language === "en" ? "Trade" : "تداول") : 
-                     tab.value === "copy_settings" ? (language === "en" ? "Copy" : "نسخ") : tab.label}
-                  </span>
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
 
-          {/* Personal Information Tab */}
-          <TabsContent value="personal" className="space-y-6">
+          {/* Personal Info Tab */}
+          <TabsContent value="personal" className="mt-0">
             <div className="grid gap-6 lg:grid-cols-3">
-              <Card className="lg:col-span-2 border-border shadow-xl rounded-3xl overflow-hidden">
-                <CardHeader className="border-b border-border bg-muted/30 p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-bold text-foreground">{t.personalInfo}</CardTitle>
-                      <CardDescription className="text-sm text-muted-foreground">
-                        {language === "en" ? "Manage your personal details" : "إدارة معلوماتك الشخصية"}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6 p-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      User ID
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input 
-                        value={formState.uuid} 
-                        readOnly 
-                        className="bg-muted/30 font-mono text-sm border-border rounded-xl" 
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => handleCopy(formState.uuid)} 
-                        className="flex-shrink-0 rounded-xl border-border hover:bg-muted transition-all duration-300"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-blue-600" />
-                      {t.displayNameLabel}
-                    </Label>
-                    <Input 
-                      value={formState.fullName} 
-                      onChange={(e) => setFormState({...formState, fullName: e.target.value})}
-                      className="border-border rounded-xl"
-                      placeholder={language === "en" ? "Enter your display name" : "أدخل اسمك"}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-blue-600" />
-                      {t.bioLabel}
-                    </Label>
-                    <Textarea 
-                      value={formState.bio} 
-                      onChange={(e) => setFormState({...formState, bio: e.target.value})}
-                      className="min-h-[120px] border-border rounded-xl resize-none"
-                      placeholder={language === "en" ? "Tell us about yourself..." : "أخبرنا عن نفسك..."}
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter className="border-t border-border bg-muted/30 p-6">
-                  <Button 
-                    onClick={handleSave} 
-                    disabled={saving} 
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 rounded-xl transition-all duration-300 hover:scale-105"
-                  >
-                    {saving ? (
-                      <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> {t.saving}</>
-                    ) : (
-                      <><CheckCircle2 className="mr-2 h-4 w-4" /> {t.saveChanges}</>
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-              
-              <div className="space-y-6">
-                <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-                  <CardHeader className="border-b border-border bg-muted/30 p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                        <LifeBuoy className="h-5 w-5 text-white" />
-                      </div>
-                      <CardTitle className="text-lg font-bold text-foreground">{t.support}</CardTitle>
-                    </div>
+              <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      {t.personalInfo}
+                    </CardTitle>
+                    <CardDescription>Manage your public profile and personal details</CardDescription>
                   </CardHeader>
-                  <CardContent className="p-6 space-y-3">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {language === "en" 
-                        ? "Need help? Check our guides or contact support."
-                        : "تحتاج مساعدة؟ اطلع على أدلتنا أو اتصل بالدعم."}
-                    </p>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{language === "en" ? "User ID" : "معرف المستخدم"}</Label>
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border/40 font-mono text-sm">
+                          <span className="truncate flex-1">{formState.uuid}</span>
+                          <Button variant="ghost" size="sm" onClick={() => handleCopy(formState.uuid)} className="h-7 w-7 p-0">
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.displayNameLabel}</Label>
+                        <Input 
+                          value={formState.fullName} 
+                          onChange={(e) => setFormState(prev => ({ ...prev, fullName: e.target.value }))}
+                          className="rounded-lg border-border/40 bg-background"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.bioLabel}</Label>
+                      <Textarea 
+                        value={formState.bio} 
+                        onChange={(e) => setFormState(prev => ({ ...prev, bio: e.target.value }))}
+                        className="rounded-lg border-border/40 bg-background min-h-[100px] resize-none"
+                        placeholder="Tell us about yourself..."
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="border-t border-border/40 bg-muted/10 pt-6">
                     <Button 
-                      variant="outline" 
-                      className="w-full rounded-xl border-border text-foreground hover:bg-muted transition-all duration-300 hover:scale-105" 
-                      asChild
+                      onClick={handleSaveProfile} 
+                      disabled={saving}
+                      className="rounded-lg px-8"
                     >
+                      {saving ? t.saving : t.saveChanges}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <LifeBuoy className="h-5 w-5 text-primary" />
+                      {t.support}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Need help? Check our guides or contact support.</p>
+                    <Button variant="outline" className="w-full justify-start rounded-lg border-border/40" asChild>
                       <Link to={createPageUrl("Help")}>
-                        <HelpCircle className="mr-2 h-4 w-4" /> 
-                        {language === "en" ? "Help Center" : "مركز المساعدة"}
+                        <HelpCircle className="mr-2 h-4 w-4" /> Help Center
                       </Link>
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="w-full rounded-xl border-border text-foreground hover:bg-muted transition-all duration-300 hover:scale-105" 
-                      asChild
-                    >
+                    <Button variant="outline" className="w-full justify-start rounded-lg border-border/40" asChild>
                       <Link to={createPageUrl("Contact")}>
-                        <LifeBuoy className="mr-2 h-4 w-4" /> 
-                        {language === "en" ? "Contact Support" : "اتصل بالدعم"}
+                        <Headphones className="mr-2 h-4 w-4" /> Contact Support
                       </Link>
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card className="border-border shadow-xl rounded-3xl overflow-hidden bg-card">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg">
-                        <Award className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="space-y-2">
-                        <h3 className="font-bold text-foreground">
-                          {language === "en" ? "Account Status" : "حالة الحساب"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {language === "en" 
-                            ? "Premium Member" 
-                            : "عضو مميز"}
-                        </p>
-                      </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Account Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <span className="text-sm font-medium">Premium Member</span>
+                      <Badge className="bg-primary/20 text-primary border-none">Active</Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -953,567 +673,291 @@ export default function Profile({ language = "en" }) {
             </div>
           </TabsContent>
 
-          {/* Trading Accounts Tab */}
-          <TabsContent value="accounts" className="space-y-6">
-            {loadingAccount ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <RefreshCw className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-                <p className="text-muted-foreground font-medium">
-                  {language === "en" ? "Loading accounts..." : "جاري تحميل الحسابات..."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-                  {/* Copy Trading Wallet Card */}
-                  <div className="space-y-3">
+          {/* Accounts Tab */}
+          <TabsContent value="accounts" className="mt-0 space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2 space-y-6">
+                {/* Copy Trading Wallet */}
+                <Card className="overflow-hidden">
+                  <CardHeader className="bg-muted/30 border-b border-border/40">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse" />
-                        {language === "en" ? "Copy Trading Account" : "حساب نسخ التداول"}
-                      </h3>
-                      <Badge className="bg-blue-100 text-blue-700 border-0">
-                        {language === "en" ? "Managed" : "مُدار"}
-                      </Badge>
-                    </div>
-                    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
-                      <CardContent className="p-0">
-                        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                              <Wallet className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-slate-900">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
-                              <Badge className={`text-[10px] ${copyTradingWallet?.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                                {copyTradingWallet?.status === 'ACTIVE' ? (language === "en" ? "Active" : "نشط") : (language === "en" ? "Inactive" : "غير نشط")}
-                              </Badge>
-                            </div>
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={loadTradingAccounts} className="h-8 w-8">
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50">
-                          <p className="text-xs text-slate-500 mb-1">{language === "en" ? "Available Balance" : "الرصيد المتاح"}</p>
-                          <p className="text-2xl sm:text-3xl font-bold text-slate-900">
-                            ${(copyTradingWallet?.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-px bg-slate-100">
-                          <div className="p-3 bg-white">
-                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Locked" : "مقفل"}</p>
-                            <p className="text-sm font-bold text-slate-900">
-                              ${(copyTradingWallet?.locked_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
-                          </div>
-                          <div className="p-3 bg-white">
-                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Total Deposited" : "إجمالي الإيداع"}</p>
-                            <p className="text-sm font-bold text-slate-900">
-                              ${(copyTradingWallet?.lifetime_deposited || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="p-3 border-t border-slate-100">
-                          <Button
-                            size="sm"
-                            onClick={() => setCopyTradingDepositOpen(true)}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs"
-                          >
-                            <ArrowDownToLine className="h-3 w-3 mr-1" />
-                            {language === "en" ? "Transfer to Copy Trading" : "تحويل إلى نسخ التداول"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    {/* Copy Trading Deposit History */}
-                    <CopyTradingDepositHistory language={language} limit={5} />
-                  </div>
-                  {/* OKX Live Account - Priority */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 animate-pulse" />
-                        {language === "en" ? "Trading Account" : "حساب تداول"}
-                      </h3>
-                      {/* Real Money badge removed */}
-                    </div>
-                    <OKXLiveAccountCard language={language} onRefresh={loadTradingAccounts} />
-                  </div>
-                </div>
-
-                <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-                  <CardHeader className="border-b border-border bg-muted/30 p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-lg">
-                          <Activity className="h-5 w-5 text-white" />
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <TrendingUp className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <CardTitle className="text-xl font-bold text-foreground">
-                            {language === "en" ? "Open Positions" : "المراكز المفتوحة"}
-                          </CardTitle>
-                          <CardDescription className="text-sm text-muted-foreground">
-                            {trades.filter(t => t.status === 'OPEN').length} {language === "en" ? "active trades" : "صفقة نشطة"}
-                          </CardDescription>
+                          <CardTitle className="text-lg">Copy Trading Wallet</CardTitle>
+                          <CardDescription>Funds allocated for copy trading</CardDescription>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => navigate(createPageUrl("Futures"))} 
-                        className="rounded-xl border-border bg-background hover:bg-muted transition-all duration-300 hover:scale-105"
-                      >
-                        <TrendingUp className="mr-2 h-4 w-4" />
-                        {language === "en" ? "New Trade" : "صفقة جديدة"}
-                      </Button>
+                      <Badge variant="outline" className="rounded-md border-border/40">USDT</Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <TradesTable 
-                      trades={trades.filter(t => t.status === 'OPEN')} 
-                      language={language}
-                      onCloseTrade={async (trade, currentPrice) => {
-                        try {
-                          await base44.functions.invoke('tradingAccount', {
-                            action: 'closeTrade',
-                            tradeId: trade.id,
-                            exitPrice: currentPrice
-                          });
-                          loadTradingAccounts();
-                          toast({ 
-                            title: language === "en" ? "Trade closed successfully" : "تم إغلاق الصفقة بنجاح",
-                            className: "bg-emerald-50 border-emerald-200 text-emerald-900"
-                          });
-                        } catch (err) {
-                          console.error("Failed to close trade", err);
-                          toast({ 
-                            variant: "destructive", 
-                            title: "Error", 
-                            description: err.message 
-                          });
-                        }
-                      }}
-                    />
+                    <div className="grid grid-cols-2 divide-x divide-border/40">
+                      <div className="p-6">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Available</p>
+                        <p className="text-2xl font-bold font-mono">
+                          ${(copyTradingWallet?.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <div className="p-6">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Locked</p>
+                        <p className="text-2xl font-bold font-mono">
+                          ${(copyTradingWallet?.locked_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
+                  <CardFooter className="bg-muted/10 border-t border-border/40 p-4">
+                    <Button 
+                      size="sm" 
+                      onClick={() => setCopyTradingDepositOpen(true)}
+                      className="w-full rounded-lg"
+                    >
+                      <ArrowDownToLine className="h-4 w-4 mr-2" />
+                      Transfer to Copy Trading
+                    </Button>
+                  </CardFooter>
                 </Card>
 
-                <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-                  <CardHeader className="border-b border-border bg-muted/30 p-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                        <History className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl font-bold text-foreground">
-                          {language === "en" ? "Trade History" : "سجل الصفقات"}
-                        </CardTitle>
-                        <CardDescription className="text-sm text-muted-foreground">
-                          {language === "en" ? "Your recent closed trades" : "صفقاتك المغلقة الأخيرة"}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <TradesTable trades={trades.filter(t => t.status === 'CLOSED').slice(0, 10)} language={language} />
-                  </CardContent>
-                </Card>
+                {/* Trading Account */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Trading Account
+                    </h3>
+                  </div>
+                  <OKXLiveAccountCard language={language} onRefresh={loadTradingAccounts} />
+                </div>
               </div>
-            )}
+
+              <div className="space-y-6">
+                <CopyTradingDepositHistory language={language} limit={5} />
+              </div>
+            </div>
           </TabsContent>
 
           {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
+          <TabsContent value="notifications" className="mt-0">
             <NotificationPreferencesTab language={language} />
           </TabsContent>
 
           {/* Security Tab */}
-          <TabsContent value="security" className="space-y-6">
-            {/* Identity Verification Card - Prominent */}
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
+          <TabsContent value="security" className="mt-0 space-y-6">
+            <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
               <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg">
-                      <ShieldCheck className="h-6 w-6 text-white" />
+                    <div className="p-3 rounded-xl bg-primary/10">
+                      <ShieldCheck className="h-6 w-6 text-primary" />
                     </div>
-                    <div>
+                    <div className="space-y-1">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="text-lg font-bold text-foreground">
-                          {language === "en" ? "Identity Verification (KYC)" : "التحقق من الهوية (KYC)"}
-                        </h3>
-                        {/* Watch How Button */}
+                        <h3 className="text-lg font-bold">Identity Verification (KYC)</h3>
                         <button
                           type="button"
                           onClick={() => setKycVideoOpen(true)}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-100/80 dark:bg-blue-900/30 px-2.5 py-1 rounded-full transition-colors"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                         >
                           <PlayCircle className="h-3.5 w-3.5" />
-                          {language === "en" ? "Watch how" : "شاهد الشرح"}
+                          Watch how
                         </button>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-sm text-muted-foreground">
                         {existingVerification?.status === 'approved'
-                          ? (language === "en" 
-                              ? "Your identity has been verified successfully"
-                              : "تم التحقق من هويتك بنجاح")
-                          : (language === "en" 
-                              ? "Complete verification to unlock withdrawals and higher limits"
-                              : "أكمل التحقق لفتح السحوبات والحدود الأعلى")
-                        }
-                      </p>
-                      {existingVerification && (
-                          <Badge className={`mt-2 ${
-                            existingVerification.status === 'approved' ? 'bg-emerald-500' :
-                            existingVerification.status === 'rejected' ? 'bg-rose-500' :
-                            existingVerification.status === 'needs_help' ? 'bg-amber-500' :
-                            'bg-amber-500'
-                          } text-white`}>
-                            {existingVerification.status === 'approved' ? (language === "en" ? "Verified" : "موثق") :
-                             existingVerification.status === 'rejected' ? (language === "en" ? "Rejected" : "مرفوض") :
-                             existingVerification.status === 'under_review' ? (language === "en" ? "Under Review" : "قيد المراجعة") :
-                             existingVerification.status === 'needs_help' ? (language === "en" ? "Help Requested" : "طلب مساعدة") :
-                             (language === "en" ? "Pending" : "قيد الانتظار")}
-                          </Badge>
-                        )}
-                        {existingVerification?.admin_response && existingVerification.status !== 'approved' && (
-                          <div className="mt-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-xs">
-                            <p className="font-medium text-blue-700 dark:text-blue-400">
-                              {language === "en" ? "Admin Response:" : "رد الإدارة:"}
-                            </p>
-                            <p className="text-blue-600 dark:text-blue-300">{existingVerification.admin_response}</p>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                  {/* Hide button when verified */}
-                  {existingVerification?.status !== 'approved' && (
-                    <Button
-                      data-pf="verify-button"
-                      onClick={() => setVerificationModalOpen(true)}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl px-6 shadow-lg"
-                    >
-                      {existingVerification 
-                        ? (language === "en" ? "Check Status" : "تحقق من الحالة")
-                        : (language === "en" ? "Start Verification" : "بدء التحقق")}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Password Management Card */}
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="border-b border-border bg-muted/30 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                    <Lock className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-bold text-foreground">{t.passwordLabel}</CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground">
-                      {language === "en" ? "Manage your password" : "إدارة كلمة المرور"}
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-50 to-blue-50 border border-border shadow-sm">
-                      <Lock className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{t.passwordLabel}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {language === "en" ? "Manage your password" : "إدارة كلمة المرور"}
+                          ? "Your identity has been verified successfully"
+                          : "Complete verification to unlock withdrawals and higher limits"}
                       </p>
                     </div>
                   </div>
                   <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setChangePasswordOpen(true)}
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all duration-300"
+                    onClick={() => setVerificationModalOpen(true)}
+                    variant={existingVerification?.status === 'approved' ? "outline" : "default"}
+                    className="rounded-lg px-6"
                   >
-                    {t.managePassword} <ChevronRight className="ml-1 h-4 w-4" />
+                    {existingVerification?.status === 'approved' ? "View Status" : "Start Verification"}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* 2FA Section - Coming Soon */}
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden opacity-60">
-              <CardHeader className="border-b border-border bg-muted/30 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 shadow-lg">
-                    <ShieldCheck className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-xl font-bold text-foreground">{t.twoFactor}</CardTitle>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {language === "en" ? "Coming Soon" : "قريباً"}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  {language === "en" 
-                    ? "Two-factor authentication adds an extra layer of security to your account. This feature is coming soon."
-                    : "المصادقة الثنائية تضيف طبقة إضافية من الأمان لحسابك. هذه الميزة قادمة قريباً."}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-primary" />
+                    Password Management
+                  </CardTitle>
+                  <CardDescription>Update your account password regularly</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" onClick={() => setChangePasswordOpen(true)} className="w-full rounded-lg border-border/40">
+                    Change Password
+                  </Button>
+                </CardContent>
+              </Card>
 
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="border-b border-border bg-muted/30 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                    <Clock className="h-5 w-5 text-white" />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    Two-Factor Authentication
+                  </CardTitle>
+                  <CardDescription>Add an extra layer of security</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/40">
+                    <span className="text-sm font-medium">Status</span>
+                    <Badge variant="secondary" className="rounded-md">Disabled</Badge>
                   </div>
-                  <CardTitle className="text-xl font-bold text-foreground">{t.loginActivity}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  {language === "en" 
-                    ? "Monitor your recent login activity and sessions."
-                    : "راقب نشاط تسجيل الدخول والجلسات الأخيرة."}
-                </p>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* Danger Zone */}
             <DangerZone language={language} />
-
-            <VerificationModal
-              open={verificationModalOpen}
-              onOpenChange={setVerificationModalOpen}
-              language={language}
-              existingRequest={existingVerification}
-              onSuccess={loadVerificationRequest}
-            />
-
-            {/* Copy Trading Deposit Modal */}
-            <AllocationModal
-              open={copyTradingDepositOpen}
-              onOpenChange={setCopyTradingDepositOpen}
-              language={language}
-              onSuccess={loadTradingAccounts}
-            />
-
-            {/* KYC Help Video Modal */}
-            {kycVideoOpen && (
-              <VideoModal
-                open={kycVideoOpen}
-                onClose={() => setKycVideoOpen(false)}
-                youtubeId={getHelpVideo("kyc_verification")?.youtube_id || "R7IeJxSWkP8"}
-                title={language === "en" ? "Verify account (KYC)" : "توثيق الحساب (KYC)"}
-              />
-            )}
-
-            {/* Change Password Modal */}
-            <ChangePasswordModal
-              open={changePasswordOpen}
-              onOpenChange={setChangePasswordOpen}
-              language={language}
-              userId={formState?.uuid}
-              userEmail={formState?.email}
-            />
           </TabsContent>
 
-          {/* Referrals Tab - Link to Rewards Hub */}
-          <TabsContent value="referrals" className="space-y-6">
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-              <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center mx-auto mb-4">
-                  <Gift className="h-8 w-8 text-white" />
+          {/* Referrals Tab */}
+          <TabsContent value="referrals" className="mt-0">
+            <Card className="max-w-2xl mx-auto text-center">
+              <CardContent className="p-10 space-y-6">
+                <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                  <Gift className="h-10 w-10 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">
-                  {language === "en" ? "Rewards Hub" : "مركز المكافآت"}
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  {language === "en" 
-                    ? "Earn through referrals, daily check-ins, and milestones!" 
-                    : "اربح من الإحالات والتسجيل اليومي والإنجازات!"}
-                </p>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold">Rewards Hub</h3>
+                  <p className="text-muted-foreground">Earn through referrals, daily check-ins, and milestones!</p>
+                </div>
                 
-                {/* Earnings Preview */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30">
-                    <p className="text-xs text-muted-foreground">Level 1</p>
-                    <p className="text-lg font-bold text-blue-600">$10</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30">
-                    <p className="text-xs text-muted-foreground">Level 2</p>
-                    <p className="text-lg font-bold text-purple-600">$2</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30">
-                    <p className="text-xs text-muted-foreground">Level 3</p>
-                    <p className="text-lg font-bold text-orange-600">$0.50</p>
-                  </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: "Level 1", value: "$10", color: "text-primary" },
+                    { label: "Level 2", value: "$2", color: "text-blue-500" },
+                    { label: "Level 3", value: "$0.50", color: "text-purple-500" }
+                  ].map((lvl) => (
+                    <div key={lvl.label} className="p-4 rounded-xl bg-muted/30 border border-border/40">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{lvl.label}</p>
+                      <p className={`text-xl font-bold ${lvl.color}`}>{lvl.value}</p>
+                    </div>
+                  ))}
                 </div>
                 
                 {formState?.referralCode && (
-                  <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border">
-                    <p className="text-xs text-muted-foreground mb-2">{t.referralCode}</p>
-                    <div className="flex items-center justify-center gap-2">
-                      <code className="text-lg font-bold font-mono text-foreground">{formState.referralCode}</code>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleCopy(formState.referralCode)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Copy className="h-4 w-4" />
+                  <div className="p-6 rounded-xl bg-muted/30 border border-border/40 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t.referralCode}</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <code className="text-2xl font-bold font-mono tracking-tighter">{formState.referralCode}</code>
+                      <Button variant="ghost" size="sm" onClick={() => handleCopy(formState.referralCode)} className="h-10 w-10 p-0">
+                        <Copy className="h-5 w-5" />
                       </Button>
                     </div>
                   </div>
                 )}
                 
-                <Button
-                  asChild
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl px-8"
-                >
+                <Button asChild className="w-full sm:w-auto rounded-xl px-10 h-12 text-base">
                   <Link to={createPageUrl("Rewards")}>
-                    <Gift className="mr-2 h-4 w-4" />
-                    {language === "en" ? "Go to Rewards Hub" : "اذهب إلى مركز المكافآت"}
+                    Go to Rewards Hub
                   </Link>
                 </Button>
               </CardContent>
             </Card>
-
-          </TabsContent>
-
-          {/* Copy Settings Tab */}
-          <TabsContent value="copy_settings" className="space-y-6">
-            <CopyTradingSettingsForm language={language} />
           </TabsContent>
 
           {/* Trades Tab */}
-          <TabsContent value="trades" className="space-y-6">
-            <Card className="border-border shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 border-b border-border bg-muted/30 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg">
-                    <BarChart3 className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-bold text-foreground">{t.trades}</CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground">
-                      {language === "en" ? "Complete trading history" : "سجل التداول الكامل"}
-                    </CardDescription>
-                  </div>
+          <TabsContent value="trades" className="mt-0 space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle>Trade History</CardTitle>
+                  <CardDescription>Your complete trading activity</CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-xl border-border hover:bg-muted transition-all duration-300"
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" /> 
-                  {language === "en" ? "Export" : "تصدير"}
+                <Button variant="outline" size="sm" className="rounded-lg border-border/40">
+                  <ExternalLink className="h-4 w-4 mr-2" /> Export
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead className="font-semibold text-foreground">
-                          {language === "en" ? "Symbol" : "الرمز"}
-                        </TableHead>
-                        <TableHead className="font-semibold text-foreground">
-                          {language === "en" ? "Side" : "الجانب"}
-                        </TableHead>
-                        <TableHead className="font-semibold text-foreground">
-                          {language === "en" ? "Size" : "الحجم"}
-                        </TableHead>
-                        <TableHead className="font-semibold text-foreground">P&L</TableHead>
-                        <TableHead className="hidden sm:table-cell font-semibold text-foreground">
-                          {language === "en" ? "Opened" : "فتح"}
-                        </TableHead>
-                        <TableHead className="hidden md:table-cell font-semibold text-foreground">
-                          {language === "en" ? "Closed" : "إغلاق"}
-                        </TableHead>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-border/40">
+                        <TableHead>Symbol</TableHead>
+                        <TableHead>Side</TableHead>
+                        <TableHead>Size</TableHead>
+                        <TableHead>P&L</TableHead>
+                        <TableHead className="hidden sm:table-cell">Opened</TableHead>
+                        <TableHead className="hidden md:table-cell">Closed</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(() => {
-                        const fmtTime = (iso) => {
-                          if (!iso) return "—";
-                          const d = new Date(iso);
-                          if (Number.isNaN(d.getTime())) return "—";
-                          return d.toLocaleString(language === "ar" ? "ar-AE" : undefined, {
-                            year: "numeric",
-                            month: "short",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          });
-                        };
-
-                        const calcPnl = (trade) => {
-                          if (typeof trade?.pnl === "number") return trade.pnl;
-                          if (trade?.status === "OPEN" && typeof trade?.unrealized_pnl === "number") return trade.unrealized_pnl;
-                          return 0;
-                        };
-
-                        return trades
-                          .slice(0, 20)
-                          .map((trade, i) => {
-                            const pnlVal = calcPnl(trade);
-                            const opened = trade.opened_at || trade.created_at || trade.created_date;
-                            const closed = trade.closed_at || trade.updated_at;
-
-                            return (
-                              <TableRow key={trade.id || i} className="hover:bg-slate-50 transition-colors duration-200">
-                                <TableCell className="font-semibold text-slate-900">
-                                  {trade.symbol}
-                                  <div className="mt-1 text-[10px] text-slate-500 sm:hidden">
-                                    <span className="text-slate-400">{language === "en" ? "Opened" : "فتح"}:</span> {fmtTime(opened)}
-                                    <span className="mx-2 text-slate-300">•</span>
-                                    <span className="text-slate-400">{language === "en" ? "Closed" : "إغلاق"}:</span> {fmtTime(closed)}
-                                  </div>
-                                </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant="outline" 
-                              className={`${
-                                trade.side === 'LONG' 
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
-                                  : 'bg-rose-50 text-rose-700 border-rose-300'
-                              } font-medium`}
-                            >
-                              {trade.side === 'LONG' ? (
-                                <><TrendingUp className="mr-1 h-3 w-3" /> {trade.side}</>
-                              ) : (
-                                <><TrendingDown className="mr-1 h-3 w-3" /> {trade.side}</>
-                              )}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">{formatSize(trade.quantity)}</TableCell>
-                          <TableCell className={`font-bold ${pnlVal >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {pnlVal >= 0 ? '+' : ''}{Number(pnlVal).toFixed(2)}
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell text-xs text-slate-600">
-                            {fmtTime(opened)}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell text-xs text-slate-600">
-                            {fmtTime(closed)}
-                          </TableCell>
-                              </TableRow>
-                            );
-                          });
-                      })()}
+                      {trades.slice(0, 20).map((trade, i) => {
+                        const pnlVal = trade.pnl || trade.unrealized_pnl || 0;
+                        const opened = trade.opened_at || trade.created_at;
+                        const closed = trade.closed_at || trade.updated_at;
+                        return (
+                          <TableRow key={trade.id || i} className="border-border/40">
+                            <TableCell className="font-bold">{trade.symbol}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={trade.side === 'LONG' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-rose-500 border-rose-500/20 bg-rose-500/5'}>
+                                {trade.side}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono">{formatSize(trade.quantity)}</TableCell>
+                            <TableCell className={`font-bold font-mono ${pnlVal >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {pnlVal >= 0 ? '+' : ''}{Number(pnlVal).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                              {new Date(opened).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                              {closed ? new Date(closed).toLocaleString() : '—'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Copy Settings Tab */}
+          <TabsContent value="copy_settings" className="mt-0">
+            <CopyTradingSettingsForm language={language} />
+          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      <VerificationModal 
+        open={verificationModalOpen} 
+        onOpenChange={setVerificationModalOpen} 
+        language={language}
+        onSuccess={loadUser}
+      />
+      <AllocationModal
+        open={allocationModalOpen}
+        onOpenChange={setAllocationModalOpen}
+        language={language}
+        onSuccess={loadTradingAccounts}
+      />
+      <ChangePasswordModal
+        open={changePasswordOpen}
+        onOpenChange={setChangePasswordOpen}
+        language={language}
+        userId={formState?.uuid}
+        userEmail={formState?.email}
+      />
+      {kycVideoOpen && (
+        <VideoModal
+          open={kycVideoOpen}
+          onClose={() => setKycVideoOpen(false)}
+          youtubeId={getHelpVideo("kyc_verification")?.youtube_id || "R7IeJxSWkP8"}
+          title={language === "en" ? "Verify account (KYC)" : "توثيق الحساب (KYC)"}
+        />
+      )}
     </div>
   );
 }

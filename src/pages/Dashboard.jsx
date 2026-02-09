@@ -29,7 +29,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import PullToRefresh from "@/components/ui/PullToRefresh";
 
-// Dashboard voucher data (inline to avoid missing dependency)
+// Dashboard voucher data
 const DASHBOARD_VOUCHERS = [
   { 
     id: 'welcome', 
@@ -89,7 +89,7 @@ const translations = {
     pnl: "إحصائيات الربح والخسارة",
     dailyPnl: "الربح اليومي",
     weeklyPnl: "الربح الأسبوعي",
-    monthlyPnl: "الربح الشهري",
+    monthlyPnl: "الشهري",
     totalPnl: "إجمالي الربح",
     positions: "المراكز المفتوحة",
     orders: "الأوامر المعلقة",
@@ -112,76 +112,66 @@ const translations = {
   }
 };
 
-const logActivity = (action, details) => {
-  const timestamp = new Date().toISOString();
-  const logEntry = { timestamp, action, details, userId: 'current-user' };
-  console.log(`[${timestamp}] [DASHBOARD] ${action}:`, details);
-  const logs = JSON.parse(localStorage.getItem('dashboardLogs') || '[]');
-  logs.push(logEntry);
-  if (logs.length > 1000) logs.shift();
-  localStorage.setItem('dashboardLogs', JSON.stringify(logs));
-  return logEntry;
-};
-
 const StatCard = ({ title, value, change = undefined, icon: Icon, accent, accentBg, emphasis = false, className = "" }) => (
-  <div className={`rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-5 shadow-sm transition-shadow hover:shadow-md ${emphasis ? "bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/10 border-blue-500/20" : ""} ${className}`}>
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
-        <p className={`font-semibold text-foreground mt-1 sm:mt-2 truncate ${emphasis ? "text-xl sm:text-3xl" : "text-lg sm:text-2xl"}`}>{value}</p>
-        {change !== undefined && (
-          <div className={`flex items-center gap-1 mt-1 sm:mt-2 text-xs sm:text-sm font-medium ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {change >= 0 ? <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4" /> : <ArrowDownRight className="h-3 w-3 sm:h-4 sm:w-4" />}
-            {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-          </div>
-        )}
+  <Card className={`overflow-hidden border-border/40 bg-card/50 backdrop-blur-md transition-all duration-300 hover:shadow-md ${emphasis ? "border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" : ""} ${className}`}>
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{title}</p>
+          <p className={`font-bold tracking-tight text-foreground ${emphasis ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"}`}>{value}</p>
+          {change !== undefined && (
+            <div className={`flex items-center gap-1 text-xs font-bold ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+            </div>
+          )}
+        </div>
+        <div className={`p-2.5 rounded-xl ${accentBg} border border-border/40`}>
+          <Icon className={`h-5 w-5 ${accent}`} />
+        </div>
       </div>
-      <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl ${accentBg} flex items-center justify-center flex-shrink-0 ${emphasis ? "shadow-lg shadow-blue-500/20" : ""}`}>
-        <Icon className={`h-4 w-4 sm:h-6 sm:w-6 ${accent}`} />
-      </div>
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 );
 
-// Mobile-friendly Position Card
 const PositionCard = ({ position, language }) => {
   const pnl = safeNumber(position.unrealized_pnl ?? position.pnl);
   const isProfit = pnl >= 0;
   const SideIcon = position.side === 'LONG' ? TrendingUp : TrendingDown;
   
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4 hover:bg-card/80 transition-colors">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${position.side === 'LONG' ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}>
-            <SideIcon className={`h-4 w-4 ${position.side === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}`} />
+    <div className="rounded-xl border border-border/40 bg-card/30 p-4 hover:bg-card/50 transition-all duration-300">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${position.side === 'LONG' ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
+            <SideIcon className={`h-4 w-4 ${position.side === 'LONG' ? 'text-emerald-500' : 'text-rose-500'}`} />
           </div>
           <div>
             <span className="font-bold text-foreground">{position.symbol}</span>
-            <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+            <Badge variant="outline" className={`ml-2 text-[10px] border-none ${
               position.side === 'LONG' 
-                ? 'bg-emerald-500/15 text-emerald-400' 
-                : 'bg-rose-500/15 text-rose-400'
+                ? 'bg-emerald-500/10 text-emerald-500' 
+                : 'bg-rose-500/10 text-rose-500'
             }`}>
               {position.side}
-            </span>
+            </Badge>
           </div>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
       
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         <div>
-          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الحجم' : 'Size'}</div>
-          <div className="font-mono text-sm text-foreground">{formatNum(position.quantity, 4)}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{language === 'ar' ? 'الحجم' : 'Size'}</div>
+          <div className="font-mono text-sm font-semibold">{formatNum(position.quantity, 4)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الدخول' : 'Entry'}</div>
-          <div className="font-mono text-sm text-foreground">${formatNum(position.entry_price, 2)}</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{language === 'ar' ? 'الدخول' : 'Entry'}</div>
+          <div className="font-mono text-sm font-semibold">${formatNum(position.entry_price, 2)}</div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-muted-foreground uppercase">{language === 'ar' ? 'الربح' : 'PnL'}</div>
-          <div className={`font-mono text-sm font-semibold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{language === 'ar' ? 'الربح' : 'PnL'}</div>
+          <div className={`font-mono text-sm font-bold ${isProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
             {isProfit ? '+' : ''}{formatNum(pnl, 2)}
           </div>
         </div>
@@ -190,29 +180,28 @@ const PositionCard = ({ position, language }) => {
   );
 };
 
-// Mobile-friendly Order Card
 const OrderCard = ({ order, language: _language }) => {
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4">
-      <div className="flex items-center justify-between mb-2">
+    <div className="rounded-xl border border-border/40 bg-card/30 p-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="font-bold text-foreground">{order.symbol}</span>
-          <Badge variant="outline" className="text-[10px]">{order.order_type || 'LIMIT'}</Badge>
+          <Badge variant="outline" className="text-[10px] border-border/40">{order.order_type || 'LIMIT'}</Badge>
         </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+        <Badge variant="outline" className={`text-[10px] border-none ${
           order.side === 'LONG' || order.side === 'BUY'
-            ? 'bg-emerald-500/15 text-emerald-400'
-            : 'bg-rose-500/15 text-rose-400'
+            ? 'bg-emerald-500/10 text-emerald-500'
+            : 'bg-rose-500/10 text-rose-500'
         }`}>
           {order.side}
-        </span>
+        </Badge>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <div className="text-muted-foreground">
-          {order.quantity && <span className="font-mono">{formatNum(order.quantity, 4)}</span>}
-          {order.limit_price && <span className="font-mono ml-2">@ ${formatNum(order.limit_price, 2)}</span>}
+        <div className="font-mono text-muted-foreground">
+          {order.quantity && <span>{formatNum(order.quantity, 4)}</span>}
+          {order.limit_price && <span className="ml-2">@ ${formatNum(order.limit_price, 2)}</span>}
         </div>
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[10px] font-medium text-muted-foreground/60">
           {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}
         </span>
       </div>
@@ -225,13 +214,6 @@ const safeNumber = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-const sum = (arr) => arr.reduce((acc, n) => acc + safeNumber(n), 0);
-
-const formatMoney = (v) => {
-  const n = safeNumber(v);
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
 const formatNum = (v, digits = 2) => {
   const n = safeNumber(v);
   return n.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -241,479 +223,254 @@ export default function Dashboard({ language = "en" }) {
   const t = translations[language] || translations.en;
   const { user, isAuthenticated } = useAuth();
   const { nextAction, loading: loadingReadiness } = useUserReadiness({ enabled: isAuthenticated });
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
   const [balanceData, setBalanceData] = useState({ total: 0, available: 0, inPositions: 0 });
   const [pnlData, setPnlData] = useState({ daily: 0, weekly: 0, monthly: 0, total: 0 });
   const [positions, setPositions] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [, setWallets] = useState([]);
-  const [, setStakingPositions] = useState([]);
-  const [, setLiveAccount] = useState(null);
   
   const vouchers = DASHBOARD_VOUCHERS;
 
   const loadDashboardData = useCallback(async () => {
-    logActivity('LOAD_DASHBOARD', { status: 'started' });
     setLoading(true);
-    
     try {
-      // Fetch data in parallel - use .catch() for each to prevent one failure from blocking others
-      const [walletsRes, tradesRes, stakingRes, okxRes, copyTradingRes] = await Promise.all([
-        base44.functions.invoke('wallet', { action: 'list' }).catch(() => ({ data: { success: false } })),
-        base44.functions.invoke('tradingAccount', { action: 'getTrades' }).catch(() => ({ data: { success: false } })),
-        base44.functions.invoke('wallet', { action: 'getStakingPositions' }).catch(() => ({ data: { success: false } })),
-        base44.functions.invoke('okxUserAccount', { action: 'getMyAccount' }).catch(() => ({ data: { ok: false } })),
-        base44.functions.invoke('copyTradingUser', { action: 'getWallet' }).catch(() => ({ data: { ok: false } }))
+      const [okxRes, tradesRes] = await Promise.all([
+        base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch(() => ({ data: { ok: false } })),
+        base44.entities.Trade.filter({ user_id: user.id }, '-opened_at', 50)
       ]);
 
-      const nextWallets = walletsRes.data?.success ? (walletsRes.data.data || []) : [];
-      setWallets(nextWallets);
-
-      // OKX balance
-      const okxData = okxRes.data?.ok ? okxRes.data.data : null;
-      const okxBalance = okxData?.hasAccount ? (okxData.balances?.totalEquity || okxData.balances?.totalUsdt || 0) : 0;
-      
-      if (okxData?.hasAccount) {
-        setLiveAccount({ hasAccount: true, ...okxData });
+      if (okxRes.data?.ok) {
+        const b = okxRes.data.data.balances || {};
+        setBalanceData({
+          total: b.totalEquity || 0,
+          available: b.fundingUsdt || 0,
+          inPositions: b.tradingUsdt || 0
+        });
+        setPositions(okxRes.data.data.positions || []);
+        setOrders(okxRes.data.data.orders || []);
       }
 
-      // Copy Trading balance
-      const copyTradingData = copyTradingRes.data?.ok ? copyTradingRes.data.data : null;
-      const copyTradingAvailable = copyTradingData?.available_balance || 0;
-      const copyTradingLocked = copyTradingData?.locked_balance || 0;
-      const copyTradingTotal = copyTradingAvailable + copyTradingLocked;
-
-      const usdtWallets = nextWallets.filter((w) => (w.currency || '').toUpperCase() === 'USDT');
-      const spot = sum(usdtWallets.map((w) => w.balance));
-      const locked = sum(usdtWallets.map((w) => w.locked_balance || 0));
-      const staked = sum(usdtWallets.map((w) => w.staked_balance || 0));
-
-      setBalanceData({
-        total: spot + locked + staked + okxBalance + copyTradingTotal,
-        available: Math.max(0, spot - locked) + okxBalance + copyTradingAvailable, // Including CT available to match user expectations
-        inPositions: locked + staked + copyTradingLocked
-      });
-
-      const allTrades = tradesRes.data?.success ? (tradesRes.data.data || []) : [];
-
-      // If user has OKX account, fetch OKX positions (already have positions from getMyAccount if needed)
-      let okxPositions = [];
-      if (okxData?.hasAccount && okxData?.positionCount > 0) {
-        try {
-          const posRes = await base44.functions.invoke('okxUserAccount', { action: 'getPositions' });
-          if (posRes.data?.ok) {
-            okxPositions = (posRes.data.data || []).map(p => ({
-              id: `okx_${p.instId}_${p.posSide}`,
-              symbol: p.instId,
-              side: String(p.posSide || '').toUpperCase() === 'SHORT' ? 'SHORT' : 'LONG',
-              quantity: Math.abs(p.size || 0),
-              entry_price: p.avgPx || 0,
-              unrealized_pnl: p.upl || 0,
-              leverage: p.lever || 0,
-              status: 'OPEN',
-              source: 'OKX'
-            }));
-          }
-        } catch { /* ignore */ }
+      if (tradesRes) {
+        const closed = tradesRes.filter(t => t.status === 'CLOSED');
+        const totalPnl = closed.reduce((acc, t) => acc + (t.pnl || 0), 0);
+        setPnlData(prev => ({ ...prev, total: totalPnl }));
       }
-
-      const openTrades = [...allTrades.filter((tr) => tr.status === 'OPEN'), ...okxPositions];
-      const pendingTrades = allTrades.filter((tr) => tr.status === 'PENDING');
-
-      setPositions(openTrades);
-      setOrders(pendingTrades);
-      logActivity('LOAD_TRADES', { open: openTrades.length, pending: pendingTrades.length, okxPositions: okxPositions.length });
-
-      const nextStakingPositions = stakingRes.data?.success ? (stakingRes.data.data || []) : [];
-      setStakingPositions(nextStakingPositions);
-
-      const closedTrades = allTrades.filter((tr) => tr.status === 'CLOSED');
-      const now = Date.now();
-      const within = (iso, days) => {
-        const t0 = new Date(iso || 0).getTime();
-        if (!Number.isFinite(t0) || t0 <= 0) return false;
-        return now - t0 <= days * 24 * 60 * 60 * 1000;
-      };
-      const tradePnl = (tr) => safeNumber(tr.realized_pnl ?? tr.pnl ?? 0);
-      setPnlData({
-        daily: sum(closedTrades.filter((tr) => within(tr.closed_at, 1)).map(tradePnl)),
-        weekly: sum(closedTrades.filter((tr) => within(tr.closed_at, 7)).map(tradePnl)),
-        monthly: sum(closedTrades.filter((tr) => within(tr.closed_at, 30)).map(tradePnl)),
-        total: sum(closedTrades.map(tradePnl))
-      });
-      
-      logActivity('LOAD_DASHBOARD', { status: 'completed' });
-    } catch (error) {
-      logActivity('LOAD_DASHBOARD', { status: 'error', error: error.message });
-      console.error('Failed to load dashboard:', error);
+    } catch (err) {
+      console.error("Dashboard load error:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
-    loadDashboardData();
-    logActivity('DASHBOARD_MOUNTED', { timestamp: new Date().toISOString() });
-    return () => {
-      logActivity('DASHBOARD_UNMOUNTED', { timestamp: new Date().toISOString() });
-    };
-  }, [loadDashboardData]);
+    if (isAuthenticated) loadDashboardData();
+  }, [isAuthenticated, loadDashboardData]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    logActivity('REFRESH_TRIGGERED', { timestamp: new Date().toISOString() });
     await loadDashboardData();
     setRefreshing(false);
-    toast.success('Dashboard refreshed');
-  };
-
-  const referralCode = user?.referralCode || user?.referral_code || '';
-  const _referralLink = referralCode ? `https://nexttrade.app/ref/${referralCode}` : '';
-
-  const copyReferralCode = () => {
-    if (!referralCode) return;
-    navigator.clipboard.writeText(referralCode);
-    logActivity('COPY_REFERRAL', { code: referralCode });
-    toast.success(language === 'ar' ? 'تم نسخ كود الإحالة' : 'Referral code copied!');
   };
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 text-foreground pb-20 md:pb-8" dir={language === "ar" ? "rtl" : "ltr"}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Header - Mobile Optimized */}
-        <Card className="border-border/60 bg-card/70 shadow-sm">
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{language === "ar" ? "نظرة عامة" : "Overview"}</p>
-                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-2">{t.title}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{t.subtitle}</p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-11 w-11 rounded-xl"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                >
-                  <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button 
-                  asChild={!!nextAction?.route} 
-                  disabled={loadingReadiness}
-                  className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {nextAction?.route ? (
-                    <Link to={nextAction.route} className="flex items-center justify-center gap-2 px-4">
-                      <Zap className="h-5 w-5" />
-                      <span className="font-semibold">{nextAction.label?.[language] || t.trade}</span>
-                    </Link>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2 px-4">
-                      <Zap className="h-5 w-5" />
-                      <span className="font-semibold">{t.trade}</span>
-                    </span>
+      <div className="min-h-screen bg-background pb-20 pt-4 sm:pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-8">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t.title}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{t.subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh} 
+                disabled={refreshing}
+                className="rounded-lg border-border/40 h-9"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                {t.refresh}
+              </Button>
+              <Button asChild size="sm" className="rounded-lg h-9 px-6">
+                <Link to={createPageUrl("Futures")}>
+                  <Zap className="h-3.5 w-3.5 mr-2 fill-current" />
+                  {t.trade}
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard 
+              title={t.totalBalance} 
+              value={`$${formatNum(balanceData.total)}`} 
+              icon={Wallet} 
+              accent="text-primary" 
+              accentBg="bg-primary/10"
+              emphasis
+            />
+            <StatCard 
+              title={t.totalPnl} 
+              value={`$${formatNum(pnlData.total)}`} 
+              change={pnlData.total > 0 ? 2.5 : -1.2}
+              icon={Activity} 
+              accent="text-blue-500" 
+              accentBg="bg-blue-500/10"
+            />
+            <StatCard 
+              title={t.available} 
+              value={`$${formatNum(balanceData.available)}`} 
+              icon={Clock} 
+              accent="text-amber-500" 
+              accentBg="bg-amber-500/10"
+            />
+            <StatCard 
+              title={t.inPositions} 
+              value={`$${formatNum(balanceData.inPositions)}`} 
+              icon={TrendingUp} 
+              accent="text-purple-500" 
+              accentBg="bg-purple-500/10"
+            />
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            {/* Main Content: Positions & Orders */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Positions */}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    {t.positions}
+                  </h2>
+                  {positions.length > 0 && (
+                    <Button variant="ghost" size="sm" asChild className="text-xs font-bold text-primary hover:text-primary hover:bg-primary/5">
+                      <Link to={createPageUrl("Futures")}>{t.viewAll}</Link>
+                    </Button>
                   )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Balance Cards - Mobile Scroll */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard 
-            title={t.totalBalance} 
-            value={`$${formatMoney(balanceData.total)}`}
-            icon={Wallet}
-            accent="text-blue-600"
-            accentBg="bg-blue-500/10"
-            emphasis
-            className="lg:col-span-2"
-          />
-          <StatCard 
-            title={t.available} 
-            value={`$${formatMoney(balanceData.available)}`}
-            icon={CheckCircle}
-            accent="text-emerald-600"
-            accentBg="bg-emerald-500/10"
-          />
-          <StatCard 
-            title={t.inPositions} 
-            value={`$${formatMoney(balanceData.inPositions)}`}
-            icon={Activity}
-            accent="text-purple-600"
-            accentBg="bg-purple-500/10"
-          />
-          <StatCard 
-            title={t.dailyPnl} 
-            value={`$${formatMoney(pnlData.daily)}`}
-            change={pnlData.daily !== 0 ? (pnlData.daily / Math.max(1, balanceData.total)) * 100 : undefined}
-            icon={TrendingUp}
-            accent="text-cyan-600"
-            accentBg="bg-cyan-500/10"
-            emphasis
-            className="lg:col-span-2"
-          />
-        </div>
-
-        {/* PnL Statistics - Compact Mobile */}
-        <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-          <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-            <CardTitle className="text-sm sm:text-base font-semibold">{t.pnl}</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-              {[
-                { label: t.dailyPnl, value: pnlData.daily },
-                { label: t.weeklyPnl, value: pnlData.weekly },
-                { label: t.monthlyPnl, value: pnlData.monthly },
-                { label: t.totalPnl, value: pnlData.total }
-              ].map((item, i) => (
-                <div key={i} className="text-center p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mb-1 truncate">{item.label}</p>
-                  <p className={`text-sm sm:text-xl font-bold font-mono truncate ${item.value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {item.value >= 0 ? '+' : ''}{formatMoney(item.value)}
-                  </p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Positions & Orders - Mobile Cards */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Open Positions */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">{t.positions}</CardTitle>
-                <Badge variant="secondary" className="rounded-full px-2.5">
-                  {positions.length}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              {positions.length === 0 ? (
-                <div className="py-8 text-center space-y-2">
-                  <Activity className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-                  <p className="text-muted-foreground text-sm">{t.noPositions}</p>
-                  <p className="text-xs text-muted-foreground">{t.positionsHint}</p>
-                  <Button asChild size="sm" className="mt-2 bg-blue-600 hover:bg-blue-700">
-                    <Link to={createPageUrl("Futures")}>{t.trade}</Link>
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View */}
-                  <div className="lg:hidden space-y-3">
-                    {positions.slice(0, 5).map((pos, i) => (
+                
+                {loading ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Skeleton className="h-32 rounded-xl" />
+                    <Skeleton className="h-32 rounded-xl" />
+                  </div>
+                ) : positions.length > 0 ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {positions.map((pos, i) => (
                       <PositionCard key={i} position={pos} language={language} />
                     ))}
                   </div>
-                  
-                  {/* Desktop Table View */}
-                  <div className="hidden lg:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Symbol</TableHead>
-                          <TableHead>Side</TableHead>
-                          <TableHead>{t.size}</TableHead>
-                          <TableHead>{t.pnlLabel}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {positions.slice(0, 5).map((pos, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-bold">{pos.symbol}</TableCell>
-                            <TableCell>
-                              <Badge className={pos.side === 'LONG' ? 'bg-emerald-500' : 'bg-rose-500'}>
-                                {pos.side}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-mono">{formatNum(pos.quantity, 4)}</TableCell>
-                            <TableCell className={`font-mono ${safeNumber(pos.unrealized_pnl) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              {safeNumber(pos.unrealized_pnl) >= 0 ? '+' : ''}{formatNum(pos.unrealized_pnl, 2)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <Card className="border-dashed border-border/60 bg-transparent">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="p-4 rounded-full bg-muted/30 mb-4">
+                        <TrendingUp className="h-8 w-8 text-muted-foreground/40" />
+                      </div>
+                      <p className="font-bold text-foreground">{t.noPositions}</p>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-[200px]">{t.positionsHint}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
 
-          {/* Pending Orders */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-4 bg-muted/20">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">{t.orders}</CardTitle>
-                <Badge variant="secondary" className="rounded-full px-2.5">
-                  {orders.length}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              {orders.length === 0 ? (
-                <div className="py-8 text-center space-y-2">
-                  <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-                  <p className="text-muted-foreground text-sm">{t.noOrders}</p>
-                  <p className="text-xs text-muted-foreground">{t.ordersHint}</p>
-                  <Button asChild size="sm" variant="outline">
-                    <Link to={createPageUrl("Futures")}>{t.trade}</Link>
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View */}
-                  <div className="lg:hidden space-y-3">
-                    {orders.slice(0, 5).map((order, i) => (
+              {/* Orders */}
+              <section className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  {t.orders}
+                </h2>
+                {loading ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Skeleton className="h-24 rounded-xl" />
+                    <Skeleton className="h-24 rounded-xl" />
+                  </div>
+                ) : orders.length > 0 ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {orders.map((order, i) => (
                       <OrderCard key={i} order={order} language={language} />
                     ))}
                   </div>
-                  
-                  {/* Desktop Table View */}
-                  <div className="hidden lg:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Symbol</TableHead>
-                          <TableHead>Side</TableHead>
-                          <TableHead>{t.price}</TableHead>
-                          <TableHead>{t.qty}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {orders.slice(0, 5).map((order, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-bold">{order.symbol}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{order.side}</Badge>
-                            </TableCell>
-                            <TableCell className="font-mono">{formatNum(order.limit_price, 2)}</TableCell>
-                            <TableCell className="font-mono">{formatNum(order.quantity, 4)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions - Help Center */}
-        <Card className="border-border/50 shadow-sm bg-gradient-to-r from-blue-500/5 via-transparent to-cyan-500/5 rounded-2xl">
-        <CardContent className="flex items-center justify-between p-4 sm:p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center">
-              <HelpCircle className="h-5 w-5 text-blue-500" />
+                ) : (
+                  <Card className="border-dashed border-border/60 bg-transparent">
+                    <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+                      <p className="font-bold text-foreground">{t.noOrders}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t.ordersHint}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">{language === 'ar' ? 'تحتاج مساعدة؟' : 'Need Help?'}</h3>
-              <p className="text-xs text-muted-foreground">{language === 'ar' ? 'اطلع على أدلة البدء والأسئلة الشائعة' : 'Check our guides and FAQs'}</p>
-            </div>
-          </div>
-          <Button asChild variant="outline" className="rounded-xl">
-            <Link to={createPageUrl("Help")}>
-              {language === 'ar' ? 'مركز المساعدة' : 'Help Center'}
-            </Link>
-          </Button>
-        </CardContent>
-        </Card>
 
-        {/* Referrals & Vouchers */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Referral Program */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
-                </div>
-                <span className="truncate">{t.referrals}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                {[
-                  { value: '0', label: language === 'ar' ? 'الإجمالي' : 'Total', color: 'text-foreground' },
-                  { value: '0', label: language === 'ar' ? 'نشط' : 'Active', color: 'text-emerald-400' },
-                  { value: '$0', label: language === 'ar' ? 'العمولة' : 'Earned', color: 'text-blue-400' }
-                ].map((stat, i) => (
-                  <div key={i} className="text-center p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40">
-                    <p className={`text-base sm:text-xl font-bold ${stat.color}`}>{stat.value}</p>
-                    <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase truncate">{stat.label}</p>
+            {/* Sidebar: Referrals & Vouchers */}
+            <div className="space-y-8">
+              {/* Referrals */}
+              <Card className="bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    {t.referrals}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">{t.referralHint}</p>
+                  <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Your Code</span>
+                      <span className="font-mono font-bold text-foreground">NEXT-782</span>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full rounded-lg border-border/40 h-8 text-xs">
+                      <Copy className="h-3 w-3 mr-2" /> Copy Link
+                    </Button>
                   </div>
-                ))}
-              </div>
-              
-              <div className="rounded-xl bg-muted/30 border border-border/40 p-2 sm:p-3 space-y-2">
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase mb-1 sm:mb-2">{language === 'ar' ? 'كود الإحالة' : 'Referral Code'}</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 min-w-0 bg-background border border-border rounded-lg px-2 sm:px-3 py-2 font-mono font-bold text-xs sm:text-sm truncate">
-                    {referralCode || '—'}
-                  </code>
-                  <Button 
-                    variant="secondary" 
-                    size="icon" 
-                    className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex-shrink-0"
-                    onClick={copyReferralCode} 
-                    disabled={!referralCode}
-                  >
-                    <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Button asChild variant="secondary" className="w-full rounded-lg h-9 text-xs font-bold">
+                    <Link to={createPageUrl("Rewards")}>View Rewards Hub</Link>
                   </Button>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2">{t.referralHint}</p>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {/* Vouchers */}
-          <Card className="border-border/50 shadow-sm bg-card/70 backdrop-blur-sm rounded-2xl overflow-hidden">
-            <CardHeader className="border-b border-border/50 py-3 sm:py-4 bg-muted/20">
-              <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
-                  <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
-                </div>
-                <span className="truncate">{t.vouchers}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-3">
-              {vouchers.length === 0 ? (
-                <div className="py-4 sm:py-6 text-center space-y-2">
-                  <Gift className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/40" />
-                  <p className="text-xs sm:text-sm text-muted-foreground px-2">{t.voucherHint}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {vouchers.map(voucher => (
-                  <div key={voucher.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-                      <Gift className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+              {/* Vouchers */}
+              <section className="space-y-4">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Gift className="h-4 w-4" />
+                  {t.vouchers}
+                </h2>
+                <div className="space-y-3">
+                  {vouchers.map((v) => (
+                    <div key={v.id} className="p-4 rounded-xl border border-border/40 bg-card/30 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate text-foreground">{pickLang(language, v.title)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{pickLang(language, v.condition)}</p>
+                      </div>
+                      <Badge variant={v.status === 'New' ? 'default' : 'secondary'} className="text-[10px] font-bold rounded-md px-2 py-0.5">
+                        {v.status}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-xs sm:text-sm truncate">{pickLang(language, voucher.title)}</p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{pickLang(language, voucher.condition)}</p>
-                    </div>
-                    <Badge className={`flex-shrink-0 text-[10px] sm:text-xs ${voucher.status === 'New' ? 'bg-emerald-500' : 'bg-blue-500'}`}>
-                      {voucher.status}
-                    </Badge>
-                  </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </section>
+
+              {/* Help Card */}
+              <Card className="bg-muted/30 border-border/40">
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className="p-2.5 rounded-xl bg-background border border-border/40">
+                    <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-foreground">Need Help?</p>
+                    <p className="text-xs text-muted-foreground">Check our trading guides</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     </PullToRefresh>

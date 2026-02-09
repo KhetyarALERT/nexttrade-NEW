@@ -51,7 +51,6 @@ const translations = {
     available: "Available",
     inOrder: "In Orders",
     refresh: "Refresh",
-    // KYC Gating
     verifyIdentity: "Verify Your Identity",
     verifyDesc: "Complete KYC verification to unlock all wallet features",
     startKyc: "Start Verification",
@@ -60,13 +59,11 @@ const translations = {
     kycRejected: "Verification Rejected",
     kycRejectedDesc: "Please review the reason and resubmit your documents.",
     resubmit: "Resubmit Documents",
-    // Account Gating
     activateAccount: "Activate Trading Account",
     activateDesc: "Request a trading account to start depositing and trading",
     requestAccount: "Request Account",
     accountPending: "Account Request Pending",
     accountPendingDesc: "Your trading account request is being processed.",
-    // Auth
     loginRequired: "Login Required",
     loginDesc: "Please log in to access your wallet",
     login: "Log In",
@@ -104,7 +101,6 @@ const translations = {
   }
 };
 
-// Sub-navigation items
 const SUB_PAGES = [
   { id: "overview", icon: Wallet, labelKey: "overview" },
   { id: "deposit", icon: ArrowDownToLine, labelKey: "deposit" },
@@ -117,7 +113,6 @@ export default function WalletPage({ language = "en" }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get current sub-page from URL
   const getSubPage = () => {
     const params = new URLSearchParams(location.search);
     const page = params.get("page");
@@ -130,28 +125,21 @@ export default function WalletPage({ language = "en" }) {
   const [showBalances, setShowBalances] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // KYC Status - uses useUserVerification hook with real-time subscription
   const { status: verificationStatus, isVerified, verificationData, refresh: refreshVerification } = useUserVerification({ enabled: isAuthenticated });
   
-  // Account status
   const [hasOkxAccount, setHasOkxAccount] = useState(false);
-  const [accountRequestStatus, setAccountRequestStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
+  const [accountRequestStatus, setAccountRequestStatus] = useState(null);
 
-  // Wallet Data
   const [wallets, setWallets] = useState([]);
   const [okxBalances, setOkxBalances] = useState(null);
   const [totalBalance, setTotalBalance] = useState(0);
   const [stakingOverlay, setStakingOverlay] = useState(null);
   const [copyTradingWallet, setCopyTradingWallet] = useState(null);
   
-  // Transfer Modal
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [copyTradingDepositOpen, setCopyTradingDepositOpen] = useState(false);
-  
-  // Refresh key to trigger child component reloads
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Update URL when sub-page changes
   const setSubPage = useCallback((page) => {
     setActivePage(page);
     const params = new URLSearchParams(location.search);
@@ -159,13 +147,11 @@ export default function WalletPage({ language = "en" }) {
     navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
   }, [location.pathname, location.search, navigate]);
 
-  // Sync URL changes
   useEffect(() => {
     const newPage = getSubPage();
     if (newPage !== activePage) setActivePage(newPage);
   }, [location.search]);
 
-  // Load user status and wallets
   const loadData = useCallback(async () => {
     if (!isAuthenticated) return;
     
@@ -173,10 +159,6 @@ export default function WalletPage({ language = "en" }) {
     try {
       const user = await base44.auth.me();
 
-      // KYC status is handled by useUserVerification hook (real-time subscription)
-      // No need to manually load it here
-
-      // Load OKX account status + check for live TradingAccount
       const [okxResult, liveTradingAccounts] = await Promise.all([
         base44.functions.invoke("okxUserAccount", { action: "getMyAccount" }).catch(() => ({ data: { ok: false } })),
         base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: false }, '-created_date', 1)
@@ -191,12 +173,7 @@ export default function WalletPage({ language = "en" }) {
         setAccountRequestStatus(null);
       } else {
         setHasOkxAccount(false);
-        // Check for pending account request
-        const requests = await base44.entities.LiveAccountRequest.filter(
-          { user_id: user.id },
-          "-created_date",
-          1
-        );
+        const requests = await base44.entities.LiveAccountRequest.filter({ user_id: user.id }, "-created_date", 1);
         if (requests?.length > 0 && requests[0].status !== "rejected") {
           setAccountRequestStatus(requests[0].status);
         } else {
@@ -204,40 +181,27 @@ export default function WalletPage({ language = "en" }) {
         }
       }
 
-      // Load internal wallets
       const walletsResult = await base44.functions.invoke("wallet", { action: "list" });
       if (walletsResult.data?.success) {
         setWallets(walletsResult.data.data || []);
       }
 
-      // Load staking overlay
       try {
         const stakingRes = await base44.functions.invoke("stakingUser", { action: "getWalletOverlay" });
-        if (stakingRes.data?.ok) {
-          setStakingOverlay(stakingRes.data.data);
-        }
-      } catch (e) {
-        console.log("[Wallet] Failed to load staking overlay:", e);
-      }
+        if (stakingRes.data?.ok) setStakingOverlay(stakingRes.data.data);
+      } catch (e) {}
 
-      // Load copy trading wallet
       let copyTradingRes = null;
       try {
         copyTradingRes = await base44.functions.invoke("copyTradingUser", { action: "getWallet" });
-        if (copyTradingRes.data?.ok) {
-          setCopyTradingWallet(copyTradingRes.data.data);
-        }
-      } catch (e) {
-        console.log("[Wallet] Failed to load copy trading wallet:", e);
-      }
+        if (copyTradingRes.data?.ok) setCopyTradingWallet(copyTradingRes.data.data);
+      } catch (e) {}
 
-      // Calculate total balance
       const internalBalance = (walletsResult.data?.data || []).reduce((sum, w) => {
         if (w.currency === "USDT" || w.currency === "USDC") return sum + (w.balance || 0);
         return sum;
       }, 0);
       const okxBalance = okxResult.data?.data?.balances?.totalEquity || 0;
-      
       const ctAvailable = copyTradingRes?.data?.data?.available_balance || 0;
       const ctLocked = copyTradingRes?.data?.data?.locked_balance || 0;
       
@@ -261,12 +225,10 @@ export default function WalletPage({ language = "en" }) {
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadData(), refreshVerification()]);
-    // Increment refresh key to trigger child component reloads (WalletHistory)
     setRefreshKey(prev => prev + 1);
     setRefreshing(false);
   };
 
-  // Auth Required
   if (!isLoadingAuth && !isAuthenticated) {
     return (
       <AuthRequiredState
@@ -280,321 +242,178 @@ export default function WalletPage({ language = "en" }) {
     );
   }
 
-  // Loading
   if (loading || isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-background p-4 sm:p-6">
-        <div className="max-w-7xl mx-auto">
-          <Skeleton className="h-12 w-48 mb-6" />
-          <div className="flex gap-6">
-            <Skeleton className="hidden lg:block h-[400px] w-64 rounded-2xl" />
-            <div className="flex-1 space-y-4">
-              <Skeleton className="h-32 w-full rounded-2xl" />
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </div>
+      <div className="min-h-screen bg-background p-4 sm:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
           </div>
+          <Skeleton className="h-[400px] w-full rounded-2xl" />
         </div>
       </div>
     );
   }
 
-  // Determine access level - derived from useUserVerification hook (real-time)
-  const isKycApproved = isVerified;
-  const isKycPending = verificationStatus === "pending";
-  const isKycRejected = verificationStatus === "rejected";
-  const needsKyc = verificationStatus === "unverified";
-  const kycRejectionReason = verificationData?.rejection_reason || null;
-  const needsAccount = !hasOkxAccount && !accountRequestStatus;
-  const accountPending = !hasOkxAccount && accountRequestStatus === "pending";
-
-  // KYC/Account Gating Component
-  const renderGatingCard = () => {
-    // Priority: KYC > Account
-    if (needsKyc) {
-      return (
-        <Card className="border-amber-500/30 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="p-3 rounded-2xl bg-amber-500/20">
-                <Shield className="h-8 w-8 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">{t.verifyIdentity}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t.verifyDesc}</p>
-              </div>
-              <Button
-                asChild
-                className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl w-full sm:w-auto"
-              >
-                <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
-                  {t.startKyc}
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (isKycPending) {
-      return (
-        <Card className="border-blue-500/30 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-2xl bg-blue-500/20">
-                <Clock className="h-8 w-8 text-blue-600 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-foreground">{t.kycPending}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t.kycPendingDesc}</p>
-                <Badge className="mt-2 bg-blue-500/20 text-blue-700 border-0">
-                  {language === "ar" ? "قيد المراجعة" : "Under Review"}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (isKycRejected) {
-      return (
-        <Card className="border-rose-500/30 bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="p-3 rounded-2xl bg-rose-500/20">
-                <AlertCircle className="h-8 w-8 text-rose-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">{t.kycRejected}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t.kycRejectedDesc}</p>
-                {kycRejectionReason && (
-                  <p className="text-xs text-rose-600 mt-2 p-2 bg-rose-100 dark:bg-rose-900/30 rounded-lg">
-                    {kycRejectionReason}
-                  </p>
-                )}
-              </div>
-              <Button
-                asChild
-                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl w-full sm:w-auto"
-              >
-                <Link to={`${createPageUrl("Profile")}?tab=security&openVerification=true`}>
-                  {t.resubmit}
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    // KYC approved but no account
-    if (needsAccount && isKycApproved) {
-      return (
-        <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <div className="p-3 rounded-2xl bg-emerald-500/20">
-                <Rocket className="h-8 w-8 text-emerald-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-foreground">{t.activateAccount}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t.activateDesc}</p>
-              </div>
-              <Button
-                asChild
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl w-full sm:w-auto"
-              >
-                <Link to={`${createPageUrl("Profile")}?tab=accounts`}>
-                  {t.requestAccount}
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    if (accountPending) {
-      return (
-        <Card className="border-blue-500/30 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-2xl bg-blue-500/20">
-                <Clock className="h-8 w-8 text-blue-600 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-foreground">{t.accountPending}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{t.accountPendingDesc}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    return null;
-  };
-
-  const gatingCard = renderGatingCard();
-  const isFullyUnlocked = isKycApproved && hasOkxAccount;
+  const isFullyUnlocked = isVerified && hasOkxAccount;
 
   return (
     <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-background pb-24 lg:pb-8 pt-4 sm:pt-6" dir={language === "ar" ? "rtl" : "ltr"}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{t.title}</h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowBalances(!showBalances)}
-              className="rounded-xl"
-            >
-              {showBalances ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="rounded-xl"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Gating Card (if applicable) */}
-        {gatingCard && <div className="mb-6">{gatingCard}</div>}
-
-        {/* Main Content: Desktop Sidebar + Content */}
-        <div className="flex gap-6">
+      <div className="min-h-screen bg-background pb-20 pt-4 sm:pt-8" dir={language === "ar" ? "rtl" : "ltr"}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
-          {/* Desktop Sidebar */}
-          <aside className="hidden lg:block w-64 flex-shrink-0">
-            <Card className="sticky top-24 border-border/60">
-              <CardContent className="p-4 space-y-2">
-                {SUB_PAGES.map((item) => {
-                  const isActive = activePage === item.id;
-                  const Icon = item.icon;
-                  const isDisabled = !isFullyUnlocked && item.id !== "overview";
-                  
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => !isDisabled && setSubPage(item.id)}
-                      disabled={isDisabled}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-lg"
-                          : isDisabled
-                          ? "text-muted-foreground/50 cursor-not-allowed"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {t[item.labelKey]}
-                      {isActive && <ChevronRight className="h-4 w-4 ml-auto" />}
-                    </button>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </aside>
-
-          {/* Mobile Sub-Nav */}
-          <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-background/95 backdrop-blur-lg border-t border-border px-4 py-2 safe-area-bottom">
-            <div className="flex items-center justify-around gap-2">
-              {SUB_PAGES.map((item) => {
-                const isActive = activePage === item.id;
-                const Icon = item.icon;
-                const isDisabled = !isFullyUnlocked && item.id !== "overview";
-                
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => !isDisabled && setSubPage(item.id)}
-                    disabled={isDisabled}
-                    className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : isDisabled
-                        ? "text-muted-foreground/40 cursor-not-allowed"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-[10px] font-medium">{t[item.labelKey]}</span>
-                  </button>
-                );
-              })}
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t.title}</h1>
+              <p className="text-sm text-muted-foreground mt-1">Manage your assets and transactions</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowBalances(!showBalances)}
+                className="rounded-lg border-border/40 h-9"
+              >
+                {showBalances ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh} 
+                disabled={refreshing}
+                className="rounded-lg border-border/40 h-9"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                {t.refresh}
+              </Button>
             </div>
           </div>
 
-          {/* Main Content */}
-          <main className="flex-1 min-w-0">
-            {activePage === "overview" && (
-              <WalletOverview
-                language={language}
-                showBalances={showBalances}
-                wallets={wallets}
-                okxBalances={okxBalances}
-                totalBalance={totalBalance}
-                hasOkxAccount={hasOkxAccount}
-                isFullyUnlocked={isFullyUnlocked}
-                stakingOverlay={stakingOverlay}
-                copyTradingWallet={copyTradingWallet}
-                onDeposit={() => setSubPage("deposit")}
-                onTransfer={() => setTransferModalOpen(true)}
-                onCopyTradingDeposit={() => setCopyTradingDepositOpen(true)}
-                onRefresh={handleRefresh}
-                showBackButton={false}
-              />
-            )}
-            {activePage === "deposit" && (
-              <WalletDeposit
-                language={language}
-                hasOkxAccount={hasOkxAccount}
-                onRefresh={handleRefresh}
-                showBackButton={true}
-              />
-            )}
-            {activePage === "history" && (
-              <WalletHistory
-                language={language}
-                onRefresh={handleRefresh}
-                showBackButton={true}
-                refreshKey={refreshKey}
-              />
-            )}
-          </main>
-        </div>
-      </div>
-      
-      {/* Transfer Modal */}
-      <OKXTransferModal
-        open={transferModalOpen}
-        onOpenChange={setTransferModalOpen}
-        language={language}
-        onSuccess={handleRefresh}
-      />
+          {/* Sub-navigation */}
+          <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/40 rounded-xl w-fit">
+            {SUB_PAGES.map((page) => (
+              <Button
+                key={page.id}
+                variant={activePage === page.id ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setSubPage(page.id)}
+                className={`rounded-lg px-4 h-9 text-xs font-bold transition-all ${activePage === page.id ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+              >
+                <page.icon className="h-3.5 w-3.5 mr-2" />
+                {t[page.labelKey]}
+              </Button>
+            ))}
+          </div>
 
-      {/* Copy Trading Deposit Modal */}
-      <AllocationModal
-        open={copyTradingDepositOpen}
-        onOpenChange={setCopyTradingDepositOpen}
-        language={language}
-        onSuccess={handleRefresh}
-      />
+          {/* Content Area */}
+          <div className="space-y-8">
+            {/* Gating Notices */}
+            {!isVerified && (
+              <Card className="bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-xl bg-amber-500/10">
+                        <Shield className="h-6 w-6 text-amber-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-bold">{t.verifyIdentity}</h3>
+                        <p className="text-sm text-muted-foreground">{t.verifyDesc}</p>
+                      </div>
+                    </div>
+                    <Button asChild className="rounded-lg px-6 bg-amber-500 hover:bg-amber-600 text-white border-none">
+                      <Link to={createPageUrl("Profile", { tab: "security", openVerification: "true" })}>
+                        {t.startKyc}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isVerified && !hasOkxAccount && (
+              <Card className="bg-gradient-to-br from-primary/10 to-transparent border-primary/20">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-xl bg-primary/10">
+                        <Rocket className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-bold">{t.activateAccount}</h3>
+                        <p className="text-sm text-muted-foreground">{t.activateDesc}</p>
+                      </div>
+                    </div>
+                    <Button asChild className="rounded-lg px-6">
+                      <Link to={createPageUrl("Profile", { tab: "accounts" })}>
+                        {t.requestAccount}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Page Content */}
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+              {activePage === "overview" && (
+                <WalletOverview
+                  language={language}
+                  showBalances={showBalances}
+                  wallets={wallets}
+                  okxBalances={okxBalances}
+                  totalBalance={totalBalance}
+                  hasOkxAccount={hasOkxAccount}
+                  isFullyUnlocked={isFullyUnlocked}
+                  stakingOverlay={stakingOverlay}
+                  copyTradingWallet={copyTradingWallet}
+                  onDeposit={() => setSubPage("deposit")}
+                  onTransfer={() => setTransferModalOpen(true)}
+                  onCopyTradingDeposit={() => setCopyTradingDepositOpen(true)}
+                  onRefresh={handleRefresh}
+                />
+              )}
+
+              {activePage === "deposit" && (
+                <WalletDeposit
+                  language={language}
+                  isFullyUnlocked={isFullyUnlocked}
+                  onBack={() => setSubPage("overview")}
+                />
+              )}
+
+              {activePage === "history" && (
+                <WalletHistory
+                  key={refreshKey}
+                  language={language}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Modals */}
+        <OKXTransferModal
+          open={transferModalOpen}
+          onOpenChange={setTransferModalOpen}
+          language={language}
+          onSuccess={loadData}
+        />
+        <AllocationModal
+          open={copyTradingDepositOpen}
+          onOpenChange={setCopyTradingDepositOpen}
+          language={language}
+          onSuccess={loadData}
+        />
       </div>
     </PullToRefresh>
   );
 }
 
 WalletPage.propTypes = {
-  language: PropTypes.string
+  language: PropTypes.oneOf(["en", "ar"])
 };
