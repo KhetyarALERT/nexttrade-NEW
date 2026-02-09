@@ -146,7 +146,7 @@ export default function VoucherLedger({
   const depositBonusCount = (vouchersByCategory.depositBonus || vouchers.filter(v => v.type === 'referral_deposit_voucher')).length;
 
   return (
-    <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-sm">
+    <Card className="border border-border/60 bg-card/90 rounded-2xl shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export default function VoucherLedger({
       <CardContent className="pt-0">
         {/* Category Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4 rounded-xl bg-muted/20 border border-border/70">
+          <TabsList className="grid w-full grid-cols-4 mb-4 rounded-xl bg-muted/10 border border-border/60">
             <TabsTrigger value="all" className="text-xs rounded-lg">
               {txt.all}
               {vouchers.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{vouchers.length}</Badge>}

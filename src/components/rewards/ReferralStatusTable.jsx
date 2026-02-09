@@ -114,7 +114,7 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
   }
 
   return (
-    <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-sm">
+    <Card className="border border-border/60 bg-card/90 rounded-2xl shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
             return (
             <div 
               key={ref.id} 
-              className="p-4 rounded-2xl bg-card/90 border border-border/70 shadow-sm"
+              className="p-4 rounded-2xl bg-muted/15 border border-border/60"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-3 gap-3">
@@ -163,26 +163,26 @@ export default function ReferralStatusTable({ referrals = [], language = "en" })
               
               {/* Status Grid - Basic $10 voucher requirements */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                <div className="p-2 rounded-lg bg-muted/15 border border-border/60">
+                <div className="p-2 rounded-lg bg-card/70 border border-border/50">
                   <Shield className={`w-4 h-4 mx-auto mb-1 ${ref.kycVerified ? "text-primary" : "text-muted-foreground/40"}`} />
                   <span className="text-[10px] text-muted-foreground block">{txt.kyc}</span>
                   <span className={`text-xs font-medium ${ref.kycVerified ? "text-primary" : "text-muted-foreground"}`}>
                     {ref.kycVerified ? txt.verified : txt.pending}
                   </span>
                 </div>
-                <div className="p-2 rounded-lg bg-muted/15 border border-border/60">
+                <div className="p-2 rounded-lg bg-card/70 border border-border/50">
                   <DollarSign className={`w-4 h-4 mx-auto mb-1 ${ref.netDeposit >= 100 ? "text-primary" : "text-muted-foreground/40"}`} />
                   <span className="text-[10px] text-muted-foreground block">{txt.deposit}</span>
                   <span className={`text-xs font-bold ${ref.netDeposit >= 100 ? "text-primary" : "text-foreground"}`}>
                     ${ref.netDeposit?.toFixed(0) || 0}
                   </span>
                 </div>
-                <div className="p-2 rounded-lg bg-muted/15 border border-border/60">
+                <div className="p-2 rounded-lg bg-card/70 border border-border/50">
                   <Clock className={`w-4 h-4 mx-auto mb-1 ${ref.holdingDays100 >= 30 ? "text-primary" : "text-muted-foreground/40"}`} />
                   <span className="text-[10px] text-muted-foreground block">{txt.holding}</span>
                   <span className="text-xs font-medium text-foreground">{ref.holdingDays100 || 0}/30</span>
                 </div>
-                <div className="p-2 rounded-lg bg-muted/15 border border-border/60">
+                <div className="p-2 rounded-lg bg-card/70 border border-border/50">
                   <DollarSign className={`w-4 h-4 mx-auto mb-1 ${ref.voucherPaid ? "text-primary" : "text-muted-foreground/40"}`} />
                   <span className="text-[10px] text-muted-foreground block">{txt.reward}</span>
                   <span className={`text-xs font-bold ${ref.voucherPaid ? "text-primary" : "text-muted-foreground"}`}>

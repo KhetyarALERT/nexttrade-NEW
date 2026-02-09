@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Copy, Check, Share2, Gift } from "lucide-react";
+import { Copy, Check, Share2, Gift, Eye, EyeOff, Shield } from "lucide-react";
 
 const t = {
   en: {
@@ -49,6 +49,7 @@ export default function InviteCard({
 }) {
   const txt = t[language] || t.en;
   const [copied, setCopied] = useState(false);
+  const [linkRevealed, setLinkRevealed] = useState(false);
 
   const handleCopy = () => {
     if (!referralLink) return;
@@ -61,8 +62,11 @@ export default function InviteCard({
   const remaining = Math.max(0, nextLevelTarget - eligibleCount);
   const progressPercent = nextLevelTarget > 0 ? Math.min(100, (eligibleCount / nextLevelTarget) * 100) : 0;
 
+  const maskedLink = referralLink ? `${"•".repeat(Math.max(8, Math.min(16, referralLink.length - 8)))}...` : "";
+  const displayLink = linkRevealed ? (referralLink || "Loading...") : (maskedLink || "Loading...");
+
   return (
-    <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-xl shadow-black/10 overflow-hidden">
+    <Card className="border border-border/70 bg-card/95 rounded-3xl shadow-md overflow-hidden">
       <CardContent className="p-0">
         {/* Header */}
         <div className="bg-gradient-to-br from-[#0b1626] via-[#102133] to-[#0e2b2f] px-5 py-6 sm:px-6 sm:py-7 border-b border-white/5">
@@ -76,7 +80,7 @@ export default function InviteCard({
                 <p className="text-white/75 text-sm leading-relaxed max-w-[260px]">{txt.subtitle}</p>
               </div>
             </div>
-            <Badge className="bg-white/15 text-white border-white/20 text-[11px] px-2 py-1 rounded-lg">
+            <Badge className="bg-white/12 text-white border-white/20 text-[11px] px-3 py-1 rounded-xl shadow-sm">
               $10 / friend
             </Badge>
           </div>
@@ -103,32 +107,49 @@ export default function InviteCard({
         {/* Code & actions */}
         <div className="p-5 sm:p-6 space-y-5">
           {/* Referral Code */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {txt.yourCode}
-            </label>
-            <div className="bg-muted/25 border border-border/70 rounded-xl p-4 space-y-3">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+                <Shield className="w-3 h-3" />
+                {txt.yourCode}
+              </div>
+              <Badge variant="secondary" className="text-[11px] px-2 py-1 rounded-lg">
+                Level {currentLevel}
+              </Badge>
+            </div>
+
+            <div className="bg-muted/20 border border-border/60 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <span className="font-mono text-xl sm:text-2xl font-bold text-foreground tracking-wider">
                   {referralCode || "---"}
                 </span>
-                <Badge variant="secondary" className="text-[11px] px-2 py-1 rounded-lg">
-                  Level {currentLevel}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 text-xs rounded-lg"
+                    onClick={() => setLinkRevealed((v) => !v)}
+                  >
+                    {linkRevealed ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                    {linkRevealed ? (language === "ar" ? "إخفاء" : "Hide link") : (language === "ar" ? "إظهار" : "Reveal link")}
+                  </Button>
+                  <Button
+                    onClick={handleCopy}
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-3 text-xs rounded-lg"
+                  >
+                    {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                    {copied ? txt.copied : txt.copyLink}
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 bg-background/70 border border-border/60 rounded-lg px-3 py-2">
+
+              <div className="flex items-center gap-2 bg-background/70 border border-border/60 rounded-xl px-3 py-2">
                 <p className="font-mono text-xs text-muted-foreground flex-1 truncate" dir="ltr">
-                  {referralLink || "Loading..."}
+                  {displayLink}
                 </p>
-                <Button
-                  onClick={handleCopy}
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs rounded-md"
-                >
-                  {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-                  {copied ? txt.copied : txt.copyLink}
-                </Button>
               </div>
             </div>
           </div>
