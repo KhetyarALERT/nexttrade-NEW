@@ -94,12 +94,14 @@ Deno.serve(async (req) => {
 
     if (action === 'getOrCreate') {
       const { accountType = 'demo' } = params;
-      let accounts = await base44.entities.TradingAccount.filter({ user_id: user.id, account_type: accountType });
+      const isDemo = accountType === 'demo';
+
+      // Use service role for reliable reads (avoids eventual-consistency misses)
+      let accounts = await base44.asServiceRole.entities.TradingAccount.filter({ user_id: user.id, account_type: accountType });
 
       // Backward-compat: older rows may not have `account_type` set; fall back to `is_demo`.
       if (!accounts?.length) {
-        const isDemo = accountType === 'demo';
-        accounts = await base44.entities.TradingAccount.filter({ user_id: user.id, is_demo: isDemo });
+        accounts = await base44.asServiceRole.entities.TradingAccount.filter({ user_id: user.id, is_demo: isDemo });
       }
 
       if (accounts?.length > 1) {
@@ -111,12 +113,7 @@ Deno.serve(async (req) => {
       }
       
       if (!accounts?.length) {
-        // For demo accounts, auto-create via service role
-        // For non-demo accounts, user must use requestAccount action
-        const isDemo = accountType === 'demo';
-        
         if (!isDemo) {
-          // Non-demo accounts cannot be auto-created - user must request
           return Response.json({ 
             success: false, 
             error: 'Live trading account not found. Please request one through the Request Trading Account flow.',
@@ -124,7 +121,16 @@ Deno.serve(async (req) => {
           }, { status: 404 });
         }
         
-        const accountId = `TA_${accountType}_${user.id.substring(0, 8)}_${Date.now()}`;
+        // IDEMPOTENCY: Use deterministic account_id based on user_id (not Date.now())
+        // This prevents duplicates when concurrent requests both see 0 accounts
+        const accountId = `TA_demo_${user.id}`;
+        
+        // Double-check with deterministic ID before creating
+        const existingById = await base44.asServiceRole.entities.TradingAccount.filter({ account_id: accountId });
+        if (existingById?.length) {
+          audit('ACCOUNT_DEDUP_HIT', user.id, { account_id: accountId });
+          return Response.json({ success: true, data: existingById[0], wallet: null, isNew: false });
+        }
         
         const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
           account_id: accountId, user_id: user.id, user_email: user.email,
@@ -141,7 +147,7 @@ Deno.serve(async (req) => {
       
       const selected = accounts[0];
       let wallet = null;
-      if (accountType !== 'demo') {
+      if (!isDemo) {
         const wallets = await base44.entities.Wallet.filter({ trading_account_id: selected.id, is_primary: true });
         wallet = wallets?.[0] || null;
       }
