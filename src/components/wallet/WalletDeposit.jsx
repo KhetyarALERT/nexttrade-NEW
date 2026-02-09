@@ -67,18 +67,16 @@ const translations = {
     noDeposits: "No recent deposits",
     pending: "Pending",
     confirmed: "Confirmed",
-    cardDepositTitle: "Card/Crypto Deposit",
-    cardDepositDesc: "Generate a payment link and fund your wallet.",
+    cardDepositTitle: "Crypto Deposit",
+    cardDepositDesc: "Create a payment and fund your wallet.",
     amountLabel: "Deposit Amount (USD)",
-    generateInvoice: "Generate Invoice",
-    openInvoice: "Open Invoice",
+    startDeposit: "Start Deposit",
+    openInvoice: "Open Payment Page",
     payAmount: "Pay Amount",
     networkLabel: "Network",
-    invoiceReady: "Invoice ready — pay to this address or open the invoice.",
+    invoiceReady: "Payment ready — pay to this address or open the page.",
     nowpayUnavailable: "No wallet available for deposits.",
-    createWallet: "Create Wallet",
     creatingWallet: "Creating...",
-    walletCreated: "Wallet ready — generate your invoice.",
     walletCreateError: "Trading account required to create a wallet.",
     okxSectionTitle: "Exchange Deposit (OKX Address)",
     okxUnavailable: "OKX trading account not available. Use the card/crypto deposit above."
@@ -101,18 +99,16 @@ const translations = {
     noDeposits: "لا توجد إيداعات حديثة",
     pending: "قيد الانتظار",
     confirmed: "مؤكد",
-    cardDepositTitle: "إيداع بالبطاقة / العملات المشفرة",
-    cardDepositDesc: "أنشئ رابط دفع وأودع في محفظتك.",
+    cardDepositTitle: "إيداع بالعملات المشفرة",
+    cardDepositDesc: "أنشئ دفعة وأودع في محفظتك.",
     amountLabel: "مبلغ الإيداع (دولار)",
-    generateInvoice: "إنشاء فاتورة",
-    openInvoice: "فتح الفاتورة",
+    startDeposit: "بدء الإيداع",
+    openInvoice: "فتح صفحة الدفع",
     payAmount: "المبلغ المطلوب دفعه",
     networkLabel: "الشبكة",
-    invoiceReady: "الفاتورة جاهزة — ادفع لهذا العنوان أو افتح الفاتورة.",
+    invoiceReady: "الدفع جاهز — ادفع لهذا العنوان أو افتح الصفحة.",
     nowpayUnavailable: "لا توجد محفظة متاحة للإيداع.",
-    createWallet: "إنشاء محفظة",
     creatingWallet: "جاري الإنشاء...",
-    walletCreated: "المحفظة جاهزة — أنشئ فاتورتك الآن.",
     walletCreateError: "يلزم حساب تداول لإنشاء المحفظة.",
     okxSectionTitle: "إيداع عبر OKX",
     okxUnavailable: "حساب OKX غير متاح بعد. استخدم الإيداع بالبطاقة/العملات المشفرة أعلاه."
@@ -148,7 +144,7 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
   const handleCreateWallet = async () => {
     if (!tradingAccountId) {
       setNpError(t.walletCreateError);
-      return;
+      return null;
     }
     setCreatingWallet(true);
     setNpError(null);
@@ -157,28 +153,36 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
       if (!res.data?.success) {
         throw new Error(res.data?.error || "Failed to create wallet");
       }
-      toast.success(t.walletCreated);
-      onRefresh?.();
+      const created = res.data.data || [];
+      const primary = created.find((w) => w.is_primary) || created[0];
+      if (primary?.id) {
+        setDepositWalletId(primary.id);
+        setSelectedCurrency(primary.currency || "USDT");
+        onRefresh?.();
+        return primary.id;
+      }
     } catch (err) {
       setNpError(err.message);
       toast.error(err.message);
     } finally {
       setCreatingWallet(false);
     }
+    return null;
   };
 
   const handleCreateInvoice = async () => {
-    if (!depositWalletId) {
-      setNpError(t.nowpayUnavailable);
-      return;
+    let walletId = depositWalletId;
+    if (!walletId) {
+      walletId = await handleCreateWallet();
     }
+    if (!walletId) return;
     setNpLoading(true);
     setNpError(null);
     try {
       const amountNumber = Number(fiatAmount) || 100;
       const res = await base44.functions.invoke("wallet", {
         action: "getDepositAddress",
-        walletId: depositWalletId,
+        walletId,
         amount: amountNumber
       });
       if (res.data?.success) {
@@ -186,7 +190,7 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
         toast.success(t.invoiceReady);
         onRefresh?.();
       } else {
-        throw new Error(res.data?.error || "Failed to create invoice");
+        throw new Error(res.data?.error || "Failed to create payment");
       }
     } catch (err) {
       setNpError(err.message);
@@ -277,30 +281,19 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
           <p className="text-sm text-muted-foreground mt-1">{t.cardDepositDesc}</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {depositWalletId ? (
-            <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">{t.amountLabel}</label>
-                <Input value={fiatAmount} onChange={(e) => setFiatAmount(e.target.value)} type="number" min="10" step="1" className="w-full" />
-                <p className="text-xs text-muted-foreground">{primaryWallet ? `${primaryWallet.currency} • ${primaryWallet.network}` : ""}</p>
-              </div>
-              <Button onClick={handleCreateInvoice} disabled={npLoading} className="rounded-xl w-full sm:w-auto">
-                {npLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
-                <span className="ml-2">{t.generateInvoice}</span>
-              </Button>
+          <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">{t.amountLabel}</label>
+              <Input value={fiatAmount} onChange={(e) => setFiatAmount(e.target.value)} type="number" min="10" step="1" className="w-full" />
+              <p className="text-xs text-muted-foreground">{primaryWallet ? `${primaryWallet.currency} • ${primaryWallet.network}` : ""}</p>
             </div>
-          ) : (
-            <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-              <span>{t.nowpayUnavailable}</span>
-              <div className="flex items-center gap-2">
-                <Button onClick={handleCreateWallet} disabled={creatingWallet || !tradingAccountId} className="rounded-xl">
-                  {creatingWallet ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
-                  <span className="ml-2">{creatingWallet ? t.creatingWallet : t.createWallet}</span>
-                </Button>
-                {!tradingAccountId && <span className="text-xs text-amber-600">{t.walletCreateError}</span>}
-              </div>
-            </div>
-          )}
+            <Button onClick={handleCreateInvoice} disabled={npLoading || creatingWallet || !tradingAccountId} className="rounded-xl w-full sm:w-auto">
+              {(npLoading || creatingWallet) ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+              <span className="ml-2">{t.startDeposit}</span>
+            </Button>
+          </div>
+          {!tradingAccountId && <div className="text-xs text-amber-600">{t.walletCreateError}</div>}
+          {!primaryWallet && tradingAccountId && !creatingWallet && <div className="text-sm text-muted-foreground">{t.nowpayUnavailable}</div>}
 
           {npError && <div className="text-sm text-rose-500 bg-rose-500/10 border border-rose-500/30 rounded-lg p-3">{npError}</div>}
 
