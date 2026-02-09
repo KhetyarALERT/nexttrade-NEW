@@ -43,12 +43,15 @@ const translations = {
     step3: "Selfie Verification",
     needHelp: "Need Help?",
     askForHelp: "Ask for Help",
+    helpLabel: "Explain the issue",
+    helpHelper: "Tell us what went wrong so support can respond faster. Required if you don't attach an ID.",
     helpPlaceholder: "Describe your issue (e.g., having trouble uploading document, date format confusion, etc.)",
     helpSent: "Help request sent! Our team will contact you soon.",
     helpPending: "Help request pending",
     fullName: "Full Name (as on ID)",
     dob: "Date of Birth",
     country: "Country",
+    countryPlaceholder: "Select your country",
     docType: "Document Type",
     passport: "Passport",
     nationalId: "National ID",
@@ -76,12 +79,15 @@ const translations = {
     step3: "التحقق بالصورة الذاتية",
     needHelp: "تحتاج مساعدة؟",
     askForHelp: "طلب مساعدة",
+    helpLabel: "اشرح المشكلة",
+    helpHelper: "اكتب باختصار المشكلة حتى نساعدك بشكل أسرع. مطلوب إذا لم ترفق الهوية.",
     helpPlaceholder: "صف مشكلتك (مثال: صعوبة في رفع المستند، مشكلة في تنسيق التاريخ، إلخ.)",
     helpSent: "تم إرسال طلب المساعدة! سيتواصل معك فريقنا قريباً.",
     helpPending: "طلب المساعدة قيد الانتظار",
     fullName: "الاسم الكامل (كما في الهوية)",
     dob: "تاريخ الميلاد",
     country: "الدولة",
+    countryPlaceholder: "اختر الدولة",
     docType: "نوع المستند",
     passport: "جواز سفر",
     nationalId: "بطاقة هوية وطنية",
@@ -427,6 +433,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
             <div>
               <Label>{t.docType}</Label>
               <Select
+                modal={false}
                 value={form.documentType}
                 onValueChange={(value) => setForm({ ...form, documentType: value })}
               >
@@ -482,14 +489,18 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
                   <div className="flex items-start gap-2">
                     <MessageSquare className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
                         {language === "ar" ? "صف مشكلتك وارفق الهوية وسنساعدك" : "Describe your issue, attach your ID, and we'll help you"}
                       </p>
+                      <Label className="mt-2 text-sm font-semibold text-amber-800 dark:text-amber-100 flex flex-col gap-1">
+                        {t.helpLabel}
+                        <span className="text-xs font-normal text-muted-foreground">{t.helpHelper}</span>
+                      </Label>
                       <Textarea
                         value={helpMessage}
                         onChange={(e) => setHelpMessage(e.target.value)}
                         placeholder={t.helpPlaceholder}
-                        className="h-20 resize-none text-sm"
+                        className="mt-2 h-24 resize-none text-sm border-amber-200 focus:border-amber-400 focus:ring-amber-400/40 bg-background"
                       />
                     </div>
                   </div>
@@ -605,11 +616,12 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
               <div>
                 <Label>{t.country}</Label>
                 <Select
+                  modal={false}
                   value={form.country}
                   onValueChange={(value) => setForm({ ...form, country: value })}
                 >
                   <SelectTrigger className="h-11 rounded-xl border-2">
-                    <SelectValue placeholder={language === "ar" ? "اختر الدولة" : "Select country"} />
+                    <SelectValue placeholder={t.countryPlaceholder || (language === "ar" ? "اختر الدولة" : "Select country")} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {countries.map((c) => (
