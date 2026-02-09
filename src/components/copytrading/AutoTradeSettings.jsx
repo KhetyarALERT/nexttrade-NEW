@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { Slider } from "@/components/ui/slider";
 import {
   Zap,
   ZapOff,
@@ -19,14 +19,10 @@ import {
   Scale,
   TrendingUp,
   Settings2,
-  Sparkles,
-  Target,
-  Activity,
-  Clock } from "lucide-react";
+  DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import EstimatedOutcome from "./EstimatedOutcome";
-import ParameterSlider from "@/components/ui/parameter-slider";
 
 const t = {
   en: {
@@ -128,35 +124,14 @@ export default function AutoTradeSettings({ language = "en" }) {
     max_entry_deviation_percent: 0.3
   });
 
-  const sliderConfig = useMemo(() => ([
-    {
-      id: "fixed_margin_usdt",
-      label: labels.amountPerTrade,
-      min: 1,
-      max: 200,
-      step: 1,
-      value: Number(settings.fixed_margin_usdt) || 1,
-      unit: "USDT",
-    },
-    {
-      id: "max_leverage",
-      label: labels.maxLeverage,
-      min: 1,
-      max: 20,
-      step: 1,
-      value: Number(settings.max_leverage) || 1,
-      unit: "x",
-    },
-    {
-      id: "max_open_positions_total",
-      label: labels.maxOpenTrades,
-      min: 1,
-      max: 10,
-      step: 1,
-      value: Number(settings.max_open_positions_total) || 1,
-      unit: "",
-    },
-  ]), [labels.amountPerTrade, labels.maxLeverage, labels.maxOpenTrades, settings.fixed_margin_usdt, settings.max_leverage, settings.max_open_positions_total]);
+  const activePreset = useMemo(() => {
+    const match = Object.entries(PRESETS).find(([, preset]) =>
+      preset.fixed_margin_usdt === settings.fixed_margin_usdt &&
+      preset.max_leverage === settings.max_leverage &&
+      preset.max_open_positions_total === settings.max_open_positions_total
+    );
+    return match ? match[0] : null;
+  }, [settings.fixed_margin_usdt, settings.max_leverage, settings.max_open_positions_total]);
 
   useEffect(() => {
     loadSettings();
@@ -214,29 +189,31 @@ export default function AutoTradeSettings({ language = "en" }) {
     <div dir={isRTL ? "rtl" : "ltr"} className="space-y-3">
       <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
         <div className={cn(
-          "rounded-3xl border border-emerald-500/20 bg-[#0c1522] text-foreground shadow-[0_10px_40px_rgba(0,0,0,0.25)]",
-          panelOpen ? "ring-1 ring-emerald-400/20" : ""
+          "rounded-xl border transition-all duration-200",
+          settings.auto_enabled
+            ? "border-primary/30 bg-gradient-to-r from-primary/5 via-primary/[0.03] to-transparent"
+            : "border-border/40 bg-card/50"
         )}>
-          <div className="flex items-center justify-between p-4 gap-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="flex items-center justify-between p-3 gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border",
-                settings.auto_enabled ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : "bg-white/5 text-muted-foreground border-white/10"
+                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
+                settings.auto_enabled
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted/60 text-muted-foreground"
               )}>
                 {settings.auto_enabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold tracking-tight text-white">{labels.autoTrade}</span>
-                  <Badge className="bg-emerald-500/10 text-emerald-200 border border-emerald-400/30 rounded-lg text-[10px]">
-                    {settings.fixed_margin_usdt} USDT · {settings.max_leverage}x · {settings.max_open_positions_total} {labels.trades}
-                  </Badge>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-foreground tracking-tight">{labels.autoTrade}</span>
                   <HelpButton content={labels.autoTradeHelp} />
                 </div>
-                <p className="text-[11px] text-muted-foreground/70 mt-1 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-emerald-300" />
-                  {labels.autoTradeDesc}
-                </p>
+                {settings.auto_enabled && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-mono tracking-wide">
+                    {settings.fixed_margin_usdt} USDT · {settings.max_leverage}x · {settings.max_open_positions_total} {labels.trades}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -246,131 +223,178 @@ export default function AutoTradeSettings({ language = "en" }) {
                 onCheckedChange={handleToggle}
                 disabled={saving}
                 className={cn(
-                  "data-[state=checked]:bg-emerald-500",
-                  "shadow-[0_0_0_6px_rgba(16,185,129,0.15)]",
+                  "data-[state=checked]:bg-primary",
                   saving && "opacity-50"
                 )}
               />
+
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
-                    "text-muted-foreground hover:text-white hover:bg-white/10",
-                    panelOpen && "bg-white/10 text-white"
-                  )}>
-                  <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", panelOpen && "rotate-180")} />
+                    "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                    "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    panelOpen && "bg-muted/50 text-foreground"
+                  )}
+                >
+                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", panelOpen && "rotate-180")} />
                 </button>
               </CollapsibleTrigger>
             </div>
           </div>
 
           <CollapsibleContent>
-            <div className="px-4 pb-5 pt-1 space-y-4 bg-[#0b131f] border-t border-white/5 rounded-b-3xl">
-              <div className="grid grid-cols-3 gap-2 pt-3">
-                {Object.entries(PRESETS).map(([key, preset]) => {
+            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                {["low", "mid", "high"].map((key) => {
                   const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
-                  const isActive = settings.fixed_margin_usdt === preset.fixed_margin_usdt && settings.max_leverage === preset.max_leverage && settings.max_open_positions_total === preset.max_open_positions_total;
-                  const tone = key === "low" ? "emerald" : key === "mid" ? "amber" : "rose";
+                  const colors = {
+                    low: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+                    mid: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+                    high: "text-rose-500 bg-rose-500/10 border-rose-500/20"
+                  };
+                  const isActive = activePreset === key;
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => applyPreset(key)}
                       className={cn(
-                        "relative p-3 rounded-xl text-xs font-semibold border transition-all",
-                        "flex flex-col items-start gap-1",
+                        "relative py-2 px-2 rounded-lg text-xs font-medium transition-all border",
                         isActive
-                          ? "border-emerald-400/50 bg-emerald-400/10 text-white shadow-[0_10px_30px_rgba(16,185,129,0.15)]"
-                          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/20"
+                          ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/20"
+                          : cn("hover:border-primary/20", colors[key])
                       )}
                     >
-                      <div className="flex items-center gap-2 w-full justify-between">
-                        <span className="capitalize">{labels[key]}</span>
-                        <PresetIcon className={cn("w-4 h-4", isActive ? "text-emerald-300" : tone === "amber" ? "text-amber-300" : tone === "rose" ? "text-rose-300" : "text-emerald-300")} />
-                      </div>
-                      <div className="text-[11px] text-muted-foreground/70 font-mono">
-                        {preset.fixed_margin_usdt} USDT · {preset.max_leverage}x · {preset.max_open_positions_total} {labels.trades}
-                      </div>
+                      <PresetIcon className={cn("w-4 h-4 mx-auto mb-1", isActive ? "text-primary" : "")} />
+                      <span className={cn("block text-[11px] font-semibold", isActive ? "text-primary" : "text-foreground")}>{labels[key]}</span>
+                      <span className="block text-[9px] text-muted-foreground font-mono mt-0.5">
+                        {PRESETS[key].fixed_margin_usdt}$ · {PRESETS[key].max_leverage}x
+                      </span>
                     </button>
                   );
                 })}
               </div>
 
-              <ParameterSlider
-                id="auto-trade-sliders"
-                sliders={sliderConfig}
-                onValueChange={(field, val) => update({ [field]: val })}
-              />
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                  {labels.maxPerTrade}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-primary/60" />
+                    <span className="text-xs font-medium text-foreground">{labels.amountPerTrade}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      value={settings.fixed_margin_usdt}
+                      onChange={(e) => update({ fixed_margin_usdt: Math.max(1, Number(e.target.value) || 1) })}
+                      className="bg-background/50 py-2 text-xs font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border/80 w-16 h-7 border-border/50"
+                      min={1}
+                      inputMode="decimal"
+                    />
+                    <span className="text-[10px] text-muted-foreground font-medium">USDT</span>
+                  </div>
                 </div>
+                <Slider
+                  value={[settings.fixed_margin_usdt]}
+                  min={1}
+                  max={200}
+                  step={1}
+                  onValueChange={([v]) => update({ fixed_margin_usdt: v })}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border/40 bg-card/60 p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{labels.maxLeverage}</span>
+                    <HelpButton content={labels.leverageHelp} side="top" />
+                  </div>
+                  <div className="text-center">
+                    <span className="font-mono text-xl font-bold text-foreground tracking-tighter">{settings.max_leverage}<span className="text-xs font-normal text-muted-foreground">x</span></span>
+                  </div>
+                  <Slider
+                    value={[settings.max_leverage]}
+                    min={1}
+                    max={20}
+                    step={1}
+                    onValueChange={([v]) => update({ max_leverage: v })}
+                  />
+                </div>
+                <div className="rounded-lg border border-border/40 bg-card/60 p-2.5 space-y-1.5">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">{labels.maxOpenTrades}</span>
+                  <div className="text-center">
+                    <span className="font-mono text-xl font-bold text-foreground tracking-tighter">{settings.max_open_positions_total}</span>
+                  </div>
+                  <Slider
+                    value={[settings.max_open_positions_total]}
+                    min={1}
+                    max={10}
+                    step={1}
+                    onValueChange={([v]) => update({ max_open_positions_total: v })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
                 <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-xs font-medium text-foreground">{labels.maxPerTrade}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
                     value={settings.max_margin_per_trade_usdt}
                     onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })}
-                    className="h-9 w-24 rounded-xl bg-[#0a101a] border border-white/10 text-right font-mono text-sm text-white"
+                    className="bg-background/50 py-2 text-xs font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border/80 w-16 h-7 border-emerald-500/20"
                     min={1}
+                    inputMode="decimal"
                   />
-                  <span className="text-xs text-muted-foreground">USDT</span>
+                  <span className="text-[10px] text-muted-foreground">USDT</span>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-[#0d1727] p-3 space-y-2">
-                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                  <Target className="w-4 h-4 text-emerald-300" />
-                  {language === "ar" ? "المتوقع" : "What to expect"}
-                </div>
-                <EstimatedOutcome
-                  amount={settings.fixed_margin_usdt}
-                  leverage={settings.max_leverage}
-                  maxPerTrade={settings.max_margin_per_trade_usdt}
-                  language={language}
-                />
-              </div>
+              <EstimatedOutcome
+                amount={settings.fixed_margin_usdt}
+                leverage={settings.max_leverage}
+                maxPerTrade={settings.max_margin_per_trade_usdt}
+                language={language}
+              />
 
               <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white"
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-medium"
                   >
-                    <div className="flex items-center gap-2">
-                      <Settings2 className="w-4 h-4 text-emerald-300" />
-                      {advancedOpen ? labels.hideAdvanced : labels.showAdvanced}
-                    </div>
-                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", advancedOpen && "rotate-180")} />
+                    <Settings2 className="w-3 h-3" />
+                    {advancedOpen ? labels.hideAdvanced : labels.showAdvanced}
+                    <ChevronDown className={cn("w-3 h-3 transition-transform", advancedOpen && "rotate-180")} />
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="grid grid-cols-2 gap-3 pt-3">
+                  <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="space-y-1">
-                      <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
+                      <label className="text-[10px] text-muted-foreground font-medium">
                         {language === "ar" ? "انتهاء الإشارة (ث)" : "Signal Expiry (s)"}
                       </label>
                       <Input
                         type="number"
                         value={settings.signal_expiry_seconds}
                         onChange={(e) => update({ signal_expiry_seconds: Number(e.target.value) || 180 })}
-                        className="h-8 font-mono text-xs bg-[#0a101a] border border-white/10 rounded-lg text-white"
+                        className="h-7 font-mono text-xs"
                         inputMode="numeric"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                        <Activity className="w-3 h-3" />
+                      <label className="text-[10px] text-muted-foreground font-medium">
                         {language === "ar" ? "انحراف السعر %" : "Price Deviation %"}
                       </label>
                       <Input
                         type="number"
                         value={settings.max_entry_deviation_percent}
                         onChange={(e) => update({ max_entry_deviation_percent: Number(e.target.value) || 0.3 })}
-                        className="h-8 font-mono text-xs bg-[#0a101a] border border-white/10 rounded-lg text-white"
+                        className="h-7 font-mono text-xs"
                         step="0.1"
                         inputMode="decimal"
                       />
@@ -383,9 +407,12 @@ export default function AutoTradeSettings({ language = "en" }) {
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full h-12 text-sm font-semibold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white shadow-[0_12px_30px_rgba(16,185,129,0.25)]"
+                  size="sm"
+                  className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 shadow-sm"
                 >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {saving
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
+                    : <Save className="w-3.5 h-3.5 ltr:mr-1.5 rtl:ml-1.5" />}
                   {saving ? labels.saving : labels.save}
                 </Button>
               )}
