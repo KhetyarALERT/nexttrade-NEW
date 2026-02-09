@@ -28,46 +28,75 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import PullToRefresh from "@/components/ui/PullToRefresh";
-        {/* Rewards teaser (referrals/vouchers live in Rewards page) */}
-        <Card variant="solid" className="overflow-hidden">
-          <CardHeader className="border-b border-border/40 py-4 bg-muted/15">
-            <CardTitle className="text-base font-semibold flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/15 to-blue-500/20 flex items-center justify-center">
-                <Gift className="h-4 w-4 text-emerald-500" />
-              </div>
-              <span className="truncate">{language === 'ar' ? 'المكافآت والإحالات' : 'Rewards & Referrals'}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
-            <div className="flex-1 space-y-1">
-              <p className="text-sm font-semibold text-foreground">{language === 'ar' ? 'تتبع الدعوات والقسائم من صفحة المكافآت.' : 'Track invites and vouchers in the Rewards page.'}</p>
-              <p className="text-xs text-muted-foreground">{language === 'ar' ? 'انتقل لعرض الإحالات والقسائم والمكافآت في مكان واحد.' : 'Go to Rewards to see referrals, vouchers, and earning history in one place.'}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild variant="gradient-primary" className="rounded-xl">
-                <Link to={createPageUrl("Rewards")}>{language === 'ar' ? 'افتح المكافآت' : 'Open Rewards'}</Link>
-              </Button>
-              <Button asChild variant="outline" className="rounded-xl">
-                <Link to={`${createPageUrl("Rewards")}?tab=referrals`}>{language === 'ar' ? 'دعوة الأصدقاء' : 'Invite friends'}</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
+const translations = {
+  en: {
+    title: "Portfolio dashboard",
+    subtitle: "Track balances, P&L, positions, and orders in one view.",
+    totalBalance: "Total Balance",
+    available: "Available",
+    inPositions: "In Positions",
+    dailyPnl: "24h P&L",
+    weeklyPnl: "7d P&L",
+    monthlyPnl: "30d P&L",
+    totalPnl: "All-time P&L",
+    quickActions: "Quick Actions",
+    portfolio: "Portfolio",
+    performance: "Performance",
+    viewReport: "View Wallet",
+    today: "today",
+    pnl: "P&L",
+    positions: "Open Positions",
+    noPositions: "No open positions",
+    positionsHint: "Place your first trade to see open positions.",
+    orders: "Pending Orders",
+    noOrders: "No pending orders",
+    ordersHint: "Place a limit or trigger order to track it here.",
+    trade: "Trade",
+    deposit: "Deposit",
+    transfer: "Transfer",
+    rewards: "Rewards",
+    size: "Size",
+    pnlLabel: "PnL",
+    price: "Price",
+    qty: "Qty",
+    entry: "Entry",
+  },
+  ar: {
+    title: "لوحة المحفظة",
+    subtitle: "تتبع الرصيد والأرباح والمراكز والأوامر في مكان واحد.",
+    totalBalance: "إجمالي الرصيد",
+    available: "المتاح",
+    inPositions: "في المراكز",
+    dailyPnl: "أرباح 24 ساعة",
+    weeklyPnl: "أرباح 7 أيام",
+    monthlyPnl: "أرباح 30 يوم",
+    totalPnl: "الأرباح الكلية",
+    quickActions: "إجراءات سريعة",
+    portfolio: "المحفظة",
+    performance: "الأداء",
+    viewReport: "عرض المحفظة",
+    today: "اليوم",
+    pnl: "الأرباح والخسائر",
+    positions: "المراكز المفتوحة",
+    noPositions: "لا توجد مراكز مفتوحة",
+    positionsHint: "نفّذ أول صفقة لرؤية المراكز المفتوحة.",
+    orders: "الأوامر المعلقة",
     noOrders: "لا توجد أوامر معلقة",
-    refresh: "تحديث",
+    ordersHint: "ضع أمرًا محددًا أو تفعيلًا لمتابعته هنا.",
     trade: "تداول",
-    viewAll: "عرض الكل",
+    deposit: "إيداع",
+    transfer: "تحويل",
+    rewards: "المكافآت",
     size: "الحجم",
-    entry: "الدخول",
     pnlLabel: "الربح",
     price: "السعر",
     qty: "الكمية",
-    positionsHint: "نفّذ أول صفقة لرؤية المراكز المفتوحة.",
-    ordersHint: "ضع أمرًا محددًا أو تفعيلًا لمتابعته هنا.",
-    referralHint: "شارك رابطك لتكسب مكافآت عندما يتداول الأصدقاء.",
-    voucherHint: "أكمل المهام لفتح قسائم تعزز التداول."
+    entry: "الدخول",
   }
 };
+
+const DASHBOARD_VOUCHERS = [];
 
 const logActivity = (action, details) => {
   const timestamp = new Date().toISOString();
