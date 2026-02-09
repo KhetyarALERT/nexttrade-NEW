@@ -218,18 +218,18 @@ export default function AutoTradeSettings({ language = "en" }) {
       <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
         {/* Compact Header - Always Visible */}
         <div className={cn(
-          "rounded-2xl border border-border/60 bg-card/90 transition-all duration-200 shadow-lg shadow-black/10 backdrop-blur-sm",
+          "rounded-2xl border border-border/60 bg-card/90 transition-all duration-200 shadow-sm backdrop-blur-sm",
           settings.auto_enabled ?
-          "border-primary/35 ring-1 ring-primary/15" :
+          "border-primary/35 ring-1 ring-primary/12" :
           "border-border/60"
         )}>
           <div className="flex items-center justify-between p-3 gap-3">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors shadow-sm",
+                "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
                 settings.auto_enabled ?
-                "bg-primary/15 text-primary" :
-                "bg-muted/70 text-muted-foreground"
+                "bg-primary/12 text-primary border border-primary/25" :
+                "bg-muted/70 text-muted-foreground border border-border/60"
               )}>
                 {settings.auto_enabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
               </div>
@@ -292,7 +292,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                       className={cn(
                         "relative py-2.5 px-2 rounded-xl text-xs font-medium transition-all border",
                         isActive ?
-                        "border-primary/45 bg-primary/10 text-primary ring-1 ring-primary/20 shadow-sm shadow-black/10" :
+                        "border-primary/45 bg-primary/10 text-primary" :
                         cn("hover:border-border/80", colors[key])
                       )}>
                       <PresetIcon className={cn("w-4 h-4 mx-auto mb-1.5", isActive ? "text-primary" : "")} />
@@ -316,7 +316,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                       type="number"
                       value={settings.fixed_margin_usdt}
                       onChange={(e) => update({ fixed_margin_usdt: Math.max(1, Number(e.target.value) || 1) })}
-                      className="bg-background/70 py-2 text-xs font-mono text-center rounded-xl flex border border-border/70 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border w-20 h-8"
+                      className="bg-background/80 py-2 text-xs font-mono text-center rounded-xl flex border border-border/60 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border w-20 h-8"
                       min={1}
                       inputMode="decimal" />
 
@@ -335,7 +335,7 @@ export default function AutoTradeSettings({ language = "en" }) {
 
               {/* Leverage & Trades - Premium Mini Cards */}
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-xl border border-border/60 bg-card/85 backdrop-blur-sm p-3 space-y-2 shadow-sm">
+                <div className="rounded-xl border border-border/60 bg-card/85 backdrop-blur-sm p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-widest">{labels.maxLeverage}</span>
                     <HelpButton content={labels.leverageHelp} side="top" />
@@ -351,7 +351,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                     step={1}
                     onValueChange={([v]) => update({ max_leverage: v })} />
                 </div>
-                <div className="rounded-xl border border-border/60 bg-card/85 backdrop-blur-sm p-3 space-y-2 shadow-sm">
+                <div className="rounded-xl border border-border/60 bg-card/85 backdrop-blur-sm p-3 space-y-2">
                   <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-widest block">{labels.maxOpenTrades}</span>
                   <div className="text-center py-0.5">
                     <span className="font-mono text-2xl font-bold text-foreground tabular-nums leading-none">{settings.max_open_positions_total}</span>
@@ -366,7 +366,7 @@ export default function AutoTradeSettings({ language = "en" }) {
               </div>
 
               {/* Safety Limit - Inline */}
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/80 p-3 shadow-sm">
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/80 p-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-3.5 h-3.5 text-primary/70" />
                   <span className="text-[11px] font-semibold text-foreground tracking-tight">{labels.maxPerTrade}</span>
@@ -376,7 +376,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                     type="number"
                     value={settings.max_margin_per_trade_usdt}
                     onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })}
-                    className="bg-background/70 py-2 text-xs font-mono text-center rounded-xl flex border border-border/70 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border w-20 h-8"
+                    className="bg-background/80 py-2 text-xs font-mono text-center rounded-xl flex border border-border/60 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border w-20 h-8"
                     min={1}
                     inputMode="decimal" />
 
@@ -397,7 +397,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-medium bg-muted/40 rounded-lg">
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-medium bg-muted/30 rounded-lg border border-border/60">
 
                     <Settings2 className="w-3 h-3" />
                     {advancedOpen ? labels.hideAdvanced : labels.showAdvanced}
@@ -441,7 +441,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                 onClick={handleSave}
                 disabled={saving}
                 size="sm"
-                className="w-full h-10 text-sm font-semibold rounded-xl bg-primary hover:bg-primary/90 shadow-md shadow-black/10">
+                className="w-full h-10 text-sm font-semibold rounded-xl bg-primary hover:bg-primary/90">
 
                   {saving ?
                 <Loader2 className="w-4 h-4 animate-spin ltr:mr-2 rtl:ml-2" /> :
