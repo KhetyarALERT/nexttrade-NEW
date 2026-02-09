@@ -20,7 +20,7 @@ import {
   TrendingUp,
   Settings2,
   Sparkles,
-  Aim,
+  Target,
   Activity,
   Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -322,7 +322,7 @@ export default function AutoTradeSettings({ language = "en" }) {
 
               <div className="rounded-2xl border border-white/10 bg-[#0d1727] p-3 space-y-2">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-                  <Aim className="w-4 h-4 text-emerald-300" />
+                  <Target className="w-4 h-4 text-emerald-300" />
                   {language === "ar" ? "المتوقع" : "What to expect"}
                 </div>
                 <EstimatedOutcome
