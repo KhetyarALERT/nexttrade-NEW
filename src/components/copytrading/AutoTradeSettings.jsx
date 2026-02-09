@@ -21,7 +21,8 @@ import {
   Settings2,
   DollarSign,
   Gauge,
-  SlidersHorizontal } from "lucide-react";
+  SlidersHorizontal,
+  Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import EstimatedOutcome from "./EstimatedOutcome";
@@ -228,15 +229,16 @@ export default function AutoTradeSettings({ language = "en" }) {
     <div dir={isRTL ? "rtl" : "ltr"} className="space-y-3">
       <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
         <div className={cn(
-          "rounded-2xl border transition-all duration-200 shadow-[0_18px_60px_rgba(0,0,0,0.35)] bg-[#0b1120]",
+          "rounded-3xl border transition-all duration-300 shadow-[0_18px_60px_rgba(0,0,0,0.45)]",
+          "bg-gradient-to-b from-[#0b1220] via-[#0c1424] to-[#0a101b]",
           settings.auto_enabled
-            ? "border-primary/40 ring-1 ring-primary/30"
+            ? "border-primary/50 ring-1 ring-primary/35"
             : "border-border/50"
         )}>
-          <div className="flex items-center justify-between p-3 gap-3">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex items-center justify-between p-4 gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border border-border/40",
+                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors border border-border/40",
                 settings.auto_enabled
                   ? "bg-primary/15 text-primary border-primary/40"
                   : "bg-muted/60 text-muted-foreground"
@@ -277,20 +279,24 @@ export default function AutoTradeSettings({ language = "en" }) {
                 <button
                   type="button"
                   className={cn(
-                    "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                    "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                    panelOpen && "bg-muted/50 text-foreground"
+                    "w-9 h-9 rounded-lg flex items-center justify-center transition-all border border-border/50",
+                    "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                    panelOpen && "bg-white/5 text-foreground"
                   )}
                 >
-                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", panelOpen && "rotate-180")} />
+                  <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", panelOpen && "rotate-180")} />
                 </button>
               </CollapsibleTrigger>
             </div>
           </div>
 
           <CollapsibleContent>
-            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30 bg-[#0d162a] rounded-b-2xl">
-              <div className="grid grid-cols-3 gap-2 pt-2">
+            <div className="px-4 pb-4 pt-2 space-y-4 border-t border-border/30 bg-[#0d162a]/80 rounded-b-3xl">
+              <div className="flex items-center justify-between text-xs text-muted-foreground uppercase tracking-[0.08em]">
+                <span>{language === "ar" ? "الوضعيات" : "Presets"}</span>
+                <span className="text-[11px] text-primary/80 font-semibold">{labels.autoTradeDesc}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
                 {["low", "mid", "high"].map((key) => {
                   const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
                   const colors = {
@@ -305,16 +311,19 @@ export default function AutoTradeSettings({ language = "en" }) {
                       type="button"
                       onClick={() => applyPreset(key)}
                       className={cn(
-                        "relative py-2 px-2 rounded-lg text-xs font-medium transition-all border shadow-sm",
+                        "relative py-3 px-2.5 rounded-xl text-xs font-semibold transition-all border shadow-[0_10px_25px_rgba(0,0,0,0.25)]",
                         isActive
                           ? "border-primary bg-primary/15 text-primary ring-1 ring-primary/30"
                           : cn("hover:border-primary/25", colors[key])
                       )}
                     >
-                      <PresetIcon className={cn("w-4 h-4 mx-auto mb-1", isActive ? "text-primary" : "")} />
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <PresetIcon className={cn("w-4 h-4", isActive ? "text-primary" : "")} />
+                        <span className="text-[10px] font-mono text-muted-foreground">{PRESETS[key].max_leverage}x</span>
+                      </div>
                       <span className={cn("block text-[11px] font-semibold", isActive ? "text-primary" : "text-foreground")}>{labels[key]}</span>
                       <span className="block text-[9px] text-muted-foreground font-mono mt-0.5">
-                        {PRESETS[key].fixed_margin_usdt}$ · {PRESETS[key].max_leverage}x
+                        {PRESETS[key].fixed_margin_usdt} USDT · {PRESETS[key].max_open_positions_total} {labels.trades}
                       </span>
                     </button>
                   );
@@ -358,36 +367,48 @@ export default function AutoTradeSettings({ language = "en" }) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center justify-between rounded-2xl border border-primary/40 bg-primary/5 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.14)]">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span className="text-xs font-medium text-foreground">{labels.maxPerTrade}</span>
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground block">{labels.maxPerTrade}</span>
+                    <span className="text-[11px] text-muted-foreground">{language === "ar" ? "حماية الحد لكل صفقة" : "Guardrail per trade"}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     value={settings.max_margin_per_trade_usdt}
                     onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })}
-                    className="bg-[#0b1220] py-2 text-xs font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border/80 w-20 h-8 border-primary/30"
+                    className="bg-[#0b1220] py-2 text-sm font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 hover:border-border/80 w-24 h-10 border-primary/40"
                     min={1}
                     inputMode="decimal"
                   />
-                  <span className="text-[10px] text-muted-foreground">USDT</span>
+                  <span className="text-[11px] text-muted-foreground">USDT</span>
                 </div>
               </div>
 
-              <EstimatedOutcome
-                amount={settings.fixed_margin_usdt}
-                leverage={settings.max_leverage}
-                maxPerTrade={settings.max_margin_per_trade_usdt}
-                language={language}
-              />
+              <div className="rounded-2xl border border-border/50 bg-[#0c1424] p-3 shadow-[0_12px_30px_rgba(0,0,0,0.2)] space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Activity className="w-4 h-4 text-primary" />
+                    {language === "ar" ? "المتوقع" : "What to expect"}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">{labels.maxPerTrade}</span>
+                </div>
+                <EstimatedOutcome
+                  amount={settings.fixed_margin_usdt}
+                  leverage={settings.max_leverage}
+                  maxPerTrade={settings.max_margin_per_trade_usdt}
+                  language={language}
+                />
+              </div>
 
               <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-medium"
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-semibold rounded-xl border border-border/50 bg-[#0b1220]"
                   >
                     <Settings2 className="w-3 h-3" />
                     {advancedOpen ? labels.hideAdvanced : labels.showAdvanced}
@@ -430,7 +451,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                   onClick={handleSave}
                   disabled={saving}
                   size="sm"
-                  className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 shadow-sm"
+                  className="w-full h-10 text-sm font-semibold bg-primary hover:bg-primary/90 shadow-md rounded-xl"
                 >
                   {saving
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin ltr:mr-1.5 rtl:ml-1.5" />
