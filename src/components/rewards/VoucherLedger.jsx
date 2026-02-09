@@ -44,17 +44,17 @@ const voucherTypeConfig = {
   referral_voucher: {
     icon: Ticket,
     labelKey: "referral",
-    color: "text-blue-600 bg-blue-500/10"
+    color: "text-blue-500 bg-blue-500/12"
   },
   level_up_voucher: {
     icon: Crown,
     labelKey: "levelUp",
-    color: "text-amber-600 bg-amber-500/10"
+    color: "text-amber-600 bg-amber-500/12"
   },
   referral_deposit_voucher: {
     icon: TrendingUp,
     labelKey: "depositBonus",
-    color: "text-emerald-600 bg-emerald-500/10"
+    color: "text-emerald-600 bg-emerald-500/12"
   }
 };
 
@@ -83,7 +83,7 @@ function VoucherItem({ voucher, language }) {
   }
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+    <div className="flex items-center justify-between p-3 rounded-xl bg-card/90 border border-border/70 shadow-sm">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${typeConfig.color}`}>
           <Icon className="w-5 h-5" />
@@ -100,7 +100,7 @@ function VoucherItem({ voucher, language }) {
       </div>
       <div className="text-right">
         <p className="text-lg font-bold text-foreground">${voucher.amount}</p>
-        <Badge variant="outline" className={`text-[10px] ${status.className}`}>
+        <Badge variant="outline" className={`text-[10px] rounded-md ${status.className}`}>
           {txt[status.labelKey]}
         </Badge>
       </div>
@@ -146,7 +146,7 @@ export default function VoucherLedger({
   const depositBonusCount = (vouchersByCategory.depositBonus || vouchers.filter(v => v.type === 'referral_deposit_voucher')).length;
 
   return (
-    <Card className="border border-border bg-card">
+    <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -171,20 +171,20 @@ export default function VoucherLedger({
       <CardContent className="pt-0">
         {/* Category Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
-            <TabsTrigger value="all" className="text-xs">
+          <TabsList className="grid w-full grid-cols-4 mb-4 rounded-xl bg-muted/20 border border-border/70">
+            <TabsTrigger value="all" className="text-xs rounded-lg">
               {txt.all}
               {vouchers.length > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{vouchers.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="referral" className="text-xs">
+            <TabsTrigger value="referral" className="text-xs rounded-lg">
               {txt.referral}
               {referralCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{referralCount}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="levelUp" className="text-xs">
+            <TabsTrigger value="levelUp" className="text-xs rounded-lg">
               {txt.levelUp}
               {levelUpCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{levelUpCount}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="depositBonus" className="text-xs">
+            <TabsTrigger value="depositBonus" className="text-xs rounded-lg">
               {txt.depositBonus}
               {depositBonusCount > 0 && <Badge variant="secondary" className="ml-1 text-[10px] px-1">{depositBonusCount}</Badge>}
             </TabsTrigger>
@@ -192,7 +192,7 @@ export default function VoucherLedger({
 
           {/* Deposit Bonus Summary (only on deposit bonus tab) */}
           {activeTab === 'depositBonus' && totalDepositBonusValue > 0 && (
-            <div className="mb-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+            <div className="mb-4 p-3 rounded-xl bg-emerald-500/6 border border-emerald-500/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-emerald-600" />

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Copy, Check, Share2, Gift, Users, ArrowRight } from "lucide-react";
+import { Copy, Check, Share2, Gift } from "lucide-react";
 
 const t = {
   en: {
@@ -62,56 +62,84 @@ export default function InviteCard({
   const progressPercent = nextLevelTarget > 0 ? Math.min(100, (eligibleCount / nextLevelTarget) * 100) : 0;
 
   return (
-    <Card className="border border-border bg-card overflow-hidden">
+    <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-xl shadow-black/10 overflow-hidden">
       <CardContent className="p-0">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-700/95 via-emerald-600/90 to-teal-600/85 p-5 sm:p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
-              <Gift className="w-6 h-6 text-white" />
+        <div className="bg-gradient-to-br from-[#0b1626] via-[#102133] to-[#0e2b2f] px-5 py-6 sm:px-6 sm:py-7 border-b border-white/5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shadow-inner shadow-black/20">
+                <Gift className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white">{txt.title}</h2>
+                <p className="text-white/75 text-sm leading-relaxed max-w-[260px]">{txt.subtitle}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-white">{txt.title}</h2>
-              <p className="text-white/80 text-sm">{txt.subtitle}</p>
-            </div>
+            <Badge className="bg-white/15 text-white border-white/20 text-[11px] px-2 py-1 rounded-lg">
+              $10 / friend
+            </Badge>
           </div>
           
           {/* Reward highlight */}
-          <div className="flex items-center justify-center py-3">
-            <span className="text-4xl sm:text-5xl font-bold text-white">$10</span>
-            <span className="text-white/80 text-lg ml-2">/ friend</span>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3">
+              <p className="text-white/70 text-[11px] tracking-wide uppercase">{txt.progress}</p>
+              <p className="text-white font-semibold text-lg mt-1">{eligibleCount}/{nextLevelTarget} {txt.friends}</p>
+              {remaining > 0 && (
+                <p className="text-white/60 text-xs">{remaining} {txt.toLevel} {currentLevel + 1}</p>
+              )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 sm:col-span-2">
+              <p className="text-white/70 text-[11px] tracking-wide uppercase">Your reward</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl sm:text-4xl font-bold text-white">$10</span>
+                <span className="text-white/60 text-sm">per friend</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Code Section */}
-        <div className="p-5 sm:p-6 space-y-4">
+        {/* Code & actions */}
+        <div className="p-5 sm:p-6 space-y-5">
           {/* Referral Code */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {txt.yourCode}
             </label>
-            <div className="bg-muted/50 border border-border rounded-xl p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-xl sm:text-2xl font-bold text-primary tracking-wider">
+            <div className="bg-muted/25 border border-border/70 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span className="font-mono text-xl sm:text-2xl font-bold text-foreground tracking-wider">
                   {referralCode || "---"}
                 </span>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[11px] px-2 py-1 rounded-lg">
                   Level {currentLevel}
                 </Badge>
               </div>
-              <p className="font-mono text-xs text-muted-foreground mt-2 truncate" dir="ltr">
-                {referralLink || "Loading..."}
-              </p>
+              <div className="flex items-center gap-2 bg-background/70 border border-border/60 rounded-lg px-3 py-2">
+                <p className="font-mono text-xs text-muted-foreground flex-1 truncate" dir="ltr">
+                  {referralLink || "Loading..."}
+                </p>
+                <Button
+                  onClick={handleCopy}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs rounded-md"
+                >
+                  {copied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                  {copied ? txt.copied : txt.copyLink}
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button 
               onClick={handleCopy}
               variant={copied ? "default" : "outline"}
               size="lg"
-              className="h-12 rounded-xl font-semibold"
+              className="h-11 rounded-xl font-semibold"
             >
               {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
               {copied ? txt.copied : txt.copyLink}
@@ -119,21 +147,21 @@ export default function InviteCard({
             <Button 
               onClick={onShare}
               size="lg"
-              className="h-12 rounded-xl font-semibold"
+              className="h-11 rounded-xl font-semibold"
             >
               <Share2 className="w-4 h-4 mr-2" /> {txt.share}
             </Button>
           </div>
 
           {/* Progress */}
-          <div className="bg-muted/30 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-card/90 border border-border/70 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2 gap-2">
               <span className="text-sm font-medium text-foreground">{txt.progress}</span>
               <span className="text-sm text-muted-foreground">
                 {eligibleCount}/{nextLevelTarget} {txt.friends}
               </span>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-2.5 bg-muted rounded-full overflow-hidden border border-border/60">
               <div 
                 className="h-full bg-primary rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
@@ -147,23 +175,15 @@ export default function InviteCard({
           </div>
 
           {/* How it works */}
-          <div className="pt-2">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1 flex-1">
-                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</div>
-                <span className="text-muted-foreground text-xs">{txt.step1}</span>
+          <div className="pt-1 space-y-3">
+            {[txt.step1, txt.step2, txt.step3].map((step, idx) => (
+              <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/20">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                  {idx + 1}
+                </div>
+                <span className="text-sm text-foreground flex-1 leading-snug">{step}</span>
               </div>
-              <ArrowRight className="w-3 h-3 text-muted-foreground/50" />
-              <div className="flex items-center gap-1 flex-1">
-                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">2</div>
-                <span className="text-muted-foreground text-xs">{txt.step2}</span>
-              </div>
-              <ArrowRight className="w-3 h-3 text-muted-foreground/50" />
-              <div className="flex items-center gap-1 flex-1">
-                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">3</div>
-                <span className="text-muted-foreground text-xs">{txt.step3}</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </CardContent>

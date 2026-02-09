@@ -56,64 +56,59 @@ export default function LevelProgress({
   return (
     <div className="space-y-4">
       {/* How It Works - Simple 3 Steps */}
-      <Card className="border border-border bg-card">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{txt.howItWorks}</h3>
-          
-          <div className="space-y-3">
-            {[
-              { num: 1, text: txt.step1 },
-              { num: 2, text: txt.step2 },
-              { num: 3, text: txt.step3, highlight: true }
-            ].map((step, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  step.highlight ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  {step.num}
-                </div>
-                <span className={`text-sm ${step.highlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                  {step.text}
-                </span>
-                {step.highlight && (
-                  <Badge className="ml-auto bg-primary/10 text-primary border-0">$10</Badge>
-                )}
+      <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-sm">
+        <CardContent className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">{txt.howItWorks}</h3>
+          {[
+            { num: 1, text: txt.step1 },
+            { num: 2, text: txt.step2 },
+            { num: 3, text: txt.step3, highlight: true }
+          ].map((step, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shadow-sm ${
+                step.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+              }`}>
+                {step.num}
               </div>
-            ))}
-          </div>
+              <span className={`text-sm ${step.highlight ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                {step.text}
+              </span>
+              {step.highlight && (
+                <Badge className="ml-auto bg-primary/12 text-primary border-primary/20 rounded-md">$10</Badge>
+              )}
+            </div>
+          ))}
         </CardContent>
       </Card>
 
       {/* Bonus Levels */}
-      <Card className="border border-border bg-card">
-        <CardContent className="p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">{txt.levels}</h3>
-          
-          <div className="space-y-3">
-            {LEVELS.map((lvl) => {
-              const relevantCount = lvl.level === 1 ? activeEligible100 : activeEligible200;
-              const isCompleted = currentLevel >= lvl.level;
-              const isCurrent = currentLevel === lvl.level - 1;
-              const isLocked = currentLevel < lvl.level - 1;
-              const progress = Math.min(100, (relevantCount / lvl.friends) * 100);
+      <Card className="border border-border/70 bg-card/95 rounded-2xl shadow-sm">
+        <CardContent className="p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">{txt.levels}</h3>
+          {LEVELS.map((lvl) => {
+            const relevantCount = lvl.level === 1 ? activeEligible100 : activeEligible200;
+            const isCompleted = currentLevel >= lvl.level;
+            const isCurrent = currentLevel === lvl.level - 1;
+            const isLocked = currentLevel < lvl.level - 1;
+            const progress = Math.min(100, (relevantCount / lvl.friends) * 100);
 
-              return (
-                <div 
-                  key={lvl.level}
-                  className={`p-4 rounded-xl border ${
-                    isCompleted 
-                      ? "bg-primary/5 border-primary/30" 
-                      : isCurrent
-                        ? "bg-card border-border ring-1 ring-primary/30"
-                        : "bg-muted/20 border-border/50 opacity-50"
-                  }`}
-                >
+            return (
+              <div 
+                key={lvl.level}
+                className={`p-4 rounded-xl border transition-colors ${
+                  isCompleted 
+                    ? "bg-primary/6 border-primary/25" 
+                    : isCurrent
+                      ? "bg-muted/20 border-primary/25 ring-1 ring-primary/15"
+                      : "bg-muted/10 border-border/60"
+                }`}
+              >
                   {/* Level Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        isCompleted ? "bg-primary text-white" : 
-                        isCurrent ? "bg-primary/20 text-primary" : 
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shadow-sm ${
+                        isCompleted ? "bg-primary text-primary-foreground" : 
+                        isCurrent ? "bg-primary/15 text-primary" : 
                         "bg-muted text-muted-foreground"
                       }`}>
                         {isCompleted ? <Check className="w-4 h-4" /> : 
@@ -137,7 +132,7 @@ export default function LevelProgress({
                         </span>
                       )}
                       {lvl.vip && (
-                        <Badge className="ml-2 bg-amber-500/20 text-amber-600 border-0 text-[10px]">
+                        <Badge className="ml-2 bg-amber-500/16 text-amber-600 border-0 text-[10px] rounded-md">
                           <Crown className="w-3 h-3 mr-0.5" /> {txt.vipAccess}
                         </Badge>
                       )}
@@ -163,7 +158,7 @@ export default function LevelProgress({
                         <span>{txt.yourProgress}</span>
                         <span className="font-medium">{relevantCount}/{lvl.friends}</span>
                       </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="h-2 bg-muted rounded-full overflow-hidden border border-border/50">
                         <div 
                           className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${progress}%` }}
@@ -172,9 +167,8 @@ export default function LevelProgress({
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+            );
+          })}
         </CardContent>
       </Card>
     </div>

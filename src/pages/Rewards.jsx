@@ -359,16 +359,16 @@ export default function Rewards({ language = "en" }) {
   return (
     <div className="min-h-screen bg-background text-foreground pb-24" dir={isAr ? "rtl" : "ltr"}>
       {/* Compact Header */}
-      <section className="bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950/70 pt-6 pb-10 shadow-inner">
+      <section className="bg-gradient-to-br from-[#060b17] via-[#0c1726] to-[#0a2228] pt-7 pb-11 shadow-inner border-b border-white/5">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/10">
-                <Gift className="w-5 h-5 text-teal-100" />
+              <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-black/20">
+                <Gift className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">{txt.title}</h1>
-                <p className="text-white/70 text-xs sm:text-sm">{txt.subtitle}</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{txt.title}</h1>
+                <p className="text-white/70 text-xs sm:text-sm leading-relaxed">{txt.subtitle}</p>
               </div>
             </div>
             <Button
@@ -384,17 +384,17 @@ export default function Rewards({ language = "en" }) {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: txt.totalEarnings, value: `$${ieData.totalVoucherValue || 0}`, icon: DollarSign, color: "text-teal-100" },
-              { label: txt.totalPoints, value: balances.points.toLocaleString(), icon: Star, color: "text-amber-100" },
-              { label: txt.level, value: tierStatus.currentLevel || 0, icon: Trophy, color: "text-sky-100" },
-              { label: txt.streak, value: `${checkin.streak}d`, icon: Flame, color: "text-orange-100" }
+              { label: txt.totalEarnings, value: `$${ieData.totalVoucherValue || 0}`, icon: DollarSign, tone: "text-emerald-200" },
+              { label: txt.totalPoints, value: balances.points.toLocaleString(), icon: Star, tone: "text-amber-200" },
+              { label: txt.level, value: tierStatus.currentLevel || 0, icon: Trophy, tone: "text-sky-200" },
+              { label: txt.streak, value: `${checkin.streak}d`, icon: Flame, tone: "text-orange-200" }
             ].map((stat, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-2 sm:p-3 text-center shadow-sm shadow-black/10">
-                <stat.icon className={`${stat.color} w-4 h-4 mx-auto mb-1`} />
-                <p className="text-white font-semibold text-sm sm:text-lg">{stat.value}</p>
-                <p className="text-white/65 text-[10px] sm:text-xs truncate">{stat.label}</p>
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 sm:p-4 shadow-md shadow-black/10 text-center">
+                <stat.icon className={`${stat.tone} w-4 h-4 mx-auto mb-2`} />
+                <p className="text-white font-semibold text-base sm:text-xl leading-none">{stat.value}</p>
+                <p className="text-white/65 text-[11px] sm:text-xs mt-1 truncate">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -428,23 +428,23 @@ export default function Rewards({ language = "en" }) {
       {/* Tabs */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-4 bg-card/90 backdrop-blur-sm rounded-xl p-1 mb-6 shadow-lg border border-border/60">
-            <TabsTrigger value="referrals" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+          <TabsList className="w-full grid grid-cols-4 bg-card/90 backdrop-blur-sm rounded-xl p-1 mb-6 shadow-lg border border-border/70">
+            <TabsTrigger value="referrals" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/40">
               <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               <span className="hidden sm:inline">{txt.referrals}</span>
               <span className="sm:hidden">Invite</span>
             </TabsTrigger>
-            <TabsTrigger value="checkin" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted data-[state=active]:text-foreground">
+            <TabsTrigger value="checkin" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted/60 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border">
               <CalendarCheck2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               <span className="hidden sm:inline">{txt.checkin}</span>
               <span className="sm:hidden">Check</span>
             </TabsTrigger>
-            <TabsTrigger value="milestones" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted data-[state=active]:text-foreground">
+            <TabsTrigger value="milestones" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted/60 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border">
               <Trophy className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               <span className="hidden sm:inline">{txt.milestones}</span>
               <span className="sm:hidden">Tasks</span>
             </TabsTrigger>
-            <TabsTrigger value="history" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted data-[state=active]:text-foreground">
+            <TabsTrigger value="history" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-muted/60 data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border">
               <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               <span className="hidden sm:inline">{txt.history}</span>
               <span className="sm:hidden">Log</span>
@@ -473,7 +473,7 @@ export default function Rewards({ language = "en" }) {
 
             {/* Snapshot strip for clarity */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <Card className="border border-border/60 bg-card/80 shadow-sm">
+              <Card className="border border-border/70 bg-card/95 shadow-md shadow-black/5 rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>{txt.eligibleInvites}</span>
@@ -485,11 +485,11 @@ export default function Rewards({ language = "en" }) {
                     <span className="text-2xl font-bold text-foreground">{tierStatus.activeEligible100Count || 0}</span>
                     <span className="text-[11px] text-muted-foreground">{nextLevelRemaining} {txt.nextLevelHint}</span>
                   </div>
-                  <Progress value={progress.progressPercent || 0} className="mt-3 h-2" />
+                  <Progress value={progress.progressPercent || 0} className="mt-3 h-2 rounded-full" />
                 </CardContent>
               </Card>
 
-              <Card className="border border-border/60 bg-card/80 shadow-sm">
+              <Card className="border border-border/70 bg-card/95 shadow-md shadow-black/5 rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>{txt.redeemableValue}</span>
@@ -509,7 +509,7 @@ export default function Rewards({ language = "en" }) {
                 </CardContent>
               </Card>
 
-              <Card className="border border-border/60 bg-card/80 shadow-sm">
+              <Card className="border border-border/70 bg-card/95 shadow-md shadow-black/5 rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>{txt.totalPoints}</span>
@@ -528,6 +528,10 @@ export default function Rewards({ language = "en" }) {
             </div>
 
             {/* Invite Card */}
+            <div className="rounded-2xl border border-border/70 bg-card/80 p-3 sm:p-4 shadow-sm text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground mr-2">{txt.yourLink}</span>
+              {language === "ar" ? "انسخ الرابط وشاركه مع أصدقائك. المكافآت تعتمد على الودائع المكتملة." : "Copy your unique link and share it anywhere. Rewards unlock after eligible deposits."}
+            </div>
             <InviteCard
               referralLink={ieData.referralLink || referral.link}
               referralCode={ieData.referralCode || referral.code}

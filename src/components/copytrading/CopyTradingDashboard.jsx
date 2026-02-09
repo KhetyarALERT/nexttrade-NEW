@@ -83,113 +83,128 @@ export default function CopyTradingDashboard({ language = "en", liveAccount }) {
     return res;
   }, []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Stagger to avoid 429: config+wallet first, then ledger
-      const [configRes, walletRes] = await Promise.all([
-        invokeWithRetry("getConfig"),
-        invokeWithRetry("getWallet"),
-      ]);
-
-      if (configRes?.data?.ok) setConfig(configRes.data.data);
-      if (walletRes?.data?.ok) setWallet(walletRes.data.data);
-
-      const ledgerRes = await invokeWithRetry("getLedger", { limit: 10 });
-      if (ledgerRes?.data?.ok) setLedgerEntries(ledgerRes.data.data || []);
-    } catch (err) {
-      console.error("Failed to load copy trading data:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [invokeWithRetry]);
-
-  // Load data once on mount - no interval to prevent spam
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleAllocationSuccess = (data) => {
-    // Modal already closed by AllocationModal, just refresh data
-    loadData();
-  };
-
-
-
-  const availableBalance = wallet?.available_balance || 0;
-  const lockedBalance = wallet?.locked_balance || 0;
-  const totalEquity = availableBalance + lockedBalance;
-  const lifetimePnl = wallet?.lifetime_pnl || 0;
-
-  const ledgerKindColors = {
-    CREDIT: "bg-green-500/10 text-green-500 border-green-500/20",
-    DEBIT: "bg-red-500/10 text-red-500 border-red-500/20",
-    ALLOCATION_LOCK: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    ALLOCATION_UNLOCK: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    PNL: "bg-amber-500/10 text-amber-500 border-amber-500/20"
-  };
-
-  const ledgerKindLabels = {
-    en: { CREDIT: "Deposit", DEBIT: "Withdraw", ALLOCATION_LOCK: "Locked", ALLOCATION_UNLOCK: "Unlocked", PNL: "P&L" },
-    ar: { CREDIT: "إيداع", DEBIT: "سحب", ALLOCATION_LOCK: "مقفل", ALLOCATION_UNLOCK: "مفتوح", PNL: "ربح/خسارة" }
-  };
-
-  // Always show Copy Trading - even if config not loaded yet or disabled
-  // Users can see their wallet but features may be limited
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full p-6">
-        <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
-    <div className="h-full overflow-auto p-5 space-y-5" dir={isRTL ? "rtl" : "ltr"}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-foreground tracking-tight">{labels.title}</h2>
-          <p className="text-[11px] text-muted-foreground/60 mt-0.5">{labels.subtitle}</p>
+    <div className="h-full overflow-auto bg-background">
+      <div className="max-w-4xl mx-auto p-5 space-y-5" dir={isRTL ? "rtl" : "ltr"}>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-foreground tracking-tight">{labels.title}</h2>
+            <p className="text-[11px] text-muted-foreground/60 mt-0.5">{labels.subtitle}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={loadData} disabled={loading}>
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
 
-      {/* Total Equity - Hero Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/[0.08] via-primary/[0.04] to-transparent border border-primary/10 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Wallet className="w-4 h-4 text-primary" />
+        {/* Total Equity - Hero Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0c1520] via-[#0f1d2a] to-[#0d262d] border border-white/5 p-5 shadow-lg shadow-black/10">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[11px] font-semibold text-white/70 uppercase tracking-wider">{language === "ar" ? "إجمالي الحقوق" : "Total Equity"}</span>
           </div>
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">{language === "ar" ? "إجمالي الحقوق" : "Total Equity"}</span>
+          <p className="text-[32px] font-bold text-white font-mono tracking-tighter leading-none">
+            {formatUsdt(totalEquity)}
+            <span className="text-[11px] font-normal text-white/60 ml-1.5">USDT</span>
+          </p>
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
+            <div className="bg-white/5 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px] border border-white/10">
+              <span className="text-white/60">{labels.available}: </span>
+              <span className="font-mono font-semibold text-white">{formatUsdt(availableBalance)}</span>
+            </div>
+            <div className="bg-white/5 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px] border border-white/10">
+              <span className="text-white/60">{language === "ar" ? "إيداع" : "Deposited"}: </span>
+              <span className="font-mono font-semibold text-white">{formatUsdt(wallet?.lifetime_deposited || 0)}</span>
+            </div>
+          </div>
         </div>
-        <p className="text-[32px] font-bold text-foreground font-mono tracking-tighter leading-none">
-          {formatUsdt(totalEquity)}
-          <span className="text-[11px] font-normal text-muted-foreground/40 ml-1.5">USDT</span>
-        </p>
-        <div className="flex items-center gap-3 mt-3">
-          <div className="bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px]">
-            <span className="text-muted-foreground/60">{labels.available}: </span>
-            <span className="font-mono font-semibold text-foreground">{formatUsdt(availableBalance)}</span>
-          </div>
-          <div className="bg-background/60 backdrop-blur-sm px-2.5 py-1.5 rounded-lg text-[10px]">
-            <span className="text-muted-foreground/60">{language === "ar" ? "إيداع" : "Deposited"}: </span>
-            <span className="font-mono font-semibold text-foreground">{formatUsdt(wallet?.lifetime_deposited || 0)}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-card/80 backdrop-blur-sm border border-border/40 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Lock className="w-3.5 h-3.5 text-muted-foreground/40" />
-            <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">{labels.allocated}</span>
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-card/95 backdrop-blur-sm border border-border/70 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
+              <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider font-semibold">{labels.allocated}</span>
+            </div>
+            <p className="text-xl font-bold text-foreground font-mono tracking-tight">
+              {formatUsdt(lockedBalance)}
+            </p>
           </div>
-          <p className="text-xl font-bold text-foreground font-mono tracking-tight">
+
+          <div className={`rounded-2xl p-4 border shadow-sm ${lifetimePnl >= 0 ? "bg-emerald-500/[0.05] border-emerald-500/15" : "bg-rose-500/[0.05] border-rose-500/15"}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className={`w-3.5 h-3.5 ${lifetimePnl >= 0 ? "text-emerald-500/70" : "text-rose-500/70"}`} />
+              <span className="text-[10px] text-muted-foreground/70 uppercase tracking-wider font-semibold">{labels.totalPnl}</span>
+            </div>
+            <p className={`text-xl font-bold font-mono tracking-tight ${lifetimePnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+              {lifetimePnl >= 0 ? "+" : ""}{formatUsdt(lifetimePnl)}
+            </p>
+          </div>
+        </div>
+
+        {/* Add Funds + Deposit Buttons */}
+        <div className="flex gap-2.5 flex-col sm:flex-row">
+          <Button 
+            onClick={() => setAllocationModalOpen(true)} 
+            className="flex-1 h-11 rounded-2xl text-[13px] font-semibold shadow-md shadow-black/10"
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            {labels.addFunds}
+          </Button>
+          <Button 
+            asChild
+            variant="outline"
+            className="h-11 rounded-2xl text-[13px] font-semibold px-4"
+          >
+            <Link to={`${createPageUrl("Wallet")}?page=deposit`}>
+              <ArrowDownToLine className="w-4 h-4 mr-1.5" />
+              {isRTL ? "إيداع" : "Deposit"}
+            </Link>
+          </Button>
+        </div>
+
+        {/* Auto-Trade Settings - Inline */}
+        <div className="rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm">
+          <AutoTradeSettings language={language} />
+        </div>
+
+        {/* Recent Activity */}
+        {ledgerEntries.length > 0 && (
+          <div>
+            <h3 className="text-[12px] font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">{labels.recentAllocations}</h3>
+            <div className="space-y-1.5">
+              {ledgerEntries.slice(0, 5).map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between bg-card/90 rounded-xl px-3.5 py-2.5 border border-border/70 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <Badge className={`${ledgerKindColors[entry.kind] || "bg-gray-500/10 text-gray-500"} rounded-md text-[9px] font-bold`} variant="outline">
+                      {ledgerKindLabels[language]?.[entry.kind] || entry.kind}
+                    </Badge>
+                    <span className="text-muted-foreground/50 text-[10px] font-medium">
+                      {formatDate(entry.created_at || entry.created_date)}
+                    </span>
+                  </div>
+                  <span className={`font-mono font-semibold text-[13px] tabular-nums ${entry.kind === 'CREDIT' ? 'text-emerald-500' : entry.kind === 'DEBIT' ? 'text-rose-500' : 'text-foreground'}`}>
+                    {entry.kind === 'CREDIT' ? '+' : entry.kind === 'DEBIT' ? '-' : ''}{formatUsdt(Math.abs(entry.amount))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Allocation Modal */}
+        <AllocationModal
+          open={allocationModalOpen}
+          onOpenChange={setAllocationModalOpen}
+          onSuccess={handleAllocationSuccess}
+          liveAccount={liveAccount}
+          config={config}
+          language={language}
+        />
+      </div>
+    </div>
             {formatUsdt(lockedBalance)}
           </p>
         </div>

@@ -384,7 +384,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   return (
     <div className="h-full flex flex-col bg-background" dir={isRTL ? "rtl" : "ltr"}>
-      <div className="px-4 py-3.5 border-b border-border/20 shrink-0 bg-background/95 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
+      <div className="px-4 py-3.5 border-b border-border/70 shrink-0 bg-card/95 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2.5">
           <div>
             <h3 className="text-[13px] font-semibold tracking-tight">{labels.autoTitle}</h3>
@@ -413,7 +413,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
         </div>
 
         <div className="px-4 pt-4 space-y-3">
-          <div className="flex items-center gap-2 rounded-lg bg-muted/20 border border-border/30 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-xl bg-card/90 border border-border/70 px-3 py-2 shadow-sm">
             <Search className="h-4 w-4 text-muted-foreground/60" />
             <Input
               value={symbolFilter}
@@ -428,10 +428,10 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 key={filter.key}
                 type="button"
                 onClick={() => setStatusFilter(filter.key)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors border ${
                   statusFilter === filter.key
-                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-                    : "bg-muted/40 text-muted-foreground hover:text-foreground"
+                    ? "bg-primary/15 text-primary border-primary/30 shadow-sm"
+                    : "bg-muted/30 text-muted-foreground border-border/60 hover:text-foreground"
                 }`}
               >
                 {filter.label}

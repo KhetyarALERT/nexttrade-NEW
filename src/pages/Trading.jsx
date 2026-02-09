@@ -514,17 +514,17 @@ export default function Trading({ language = "en" }) {
              </Link>
 
              {/* Mode Toggle */}
-             <div className="flex bg-muted/30 p-[3px] rounded-xl shadow-card">
+             <div className="flex bg-card/90 border border-border/60 p-[3px] rounded-xl">
                <button
                  onClick={() => toggleMode('trade')}
-                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${!isCopyMode ? 'bg-background text-foreground shadow-card' : 'text-muted-foreground/60'}`}
+                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center border ${!isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent'}`}
                  style={{ touchAction: 'manipulation' }}
                >
                  {isAr ? "تداول" : "Trade"}
                </button>
                <button
                  onClick={() => toggleMode('bots')}
-                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center ${isCopyMode ? 'bg-primary text-primary-foreground shadow-glow' : 'text-muted-foreground/60'}`}
+                 className={`h-9 min-w-[72px] px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation flex items-center justify-center border ${isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent'}`}
                  style={{ touchAction: 'manipulation' }}
                >
                  {isAr ? "نسخ" : "Copy"}
@@ -537,7 +537,7 @@ export default function Trading({ language = "en" }) {
            </div>
 
            {/* Segmented Control */}
-           <div className="grid grid-cols-3 gap-1 bg-muted/25 p-[3px] rounded-xl shadow-inner">
+           <div className="grid grid-cols-3 gap-1 bg-card/90 border border-border/60 p-[3px] rounded-xl">
              {[
                { id: 'signals', label: isAr ? 'الإشارات' : 'Signals' },
                { id: 'chart', label: isAr ? 'الرسم البياني' : 'Chart' },
@@ -546,11 +546,11 @@ export default function Trading({ language = "en" }) {
                <button
                  key={tab.id}
                  onClick={() => setCopyMobileTab(tab.id)}
-                 className={`py-1.5 text-[11px] font-semibold rounded-[10px] transition-all ${
-                   copyMobileTab === tab.id 
-                     ? 'bg-background text-foreground shadow-card' 
-                     : 'text-muted-foreground/60'
-                 }`}
+                 className={`py-1.5 text-[11px] font-semibold rounded-[10px] transition-all border ${
+                    copyMobileTab === tab.id 
+                      ? 'bg-primary/10 text-primary border-primary/25' 
+                      : 'text-muted-foreground/60 border-transparent'
+                  }`}
                >
                  {tab.label}
                </button>
@@ -651,16 +651,16 @@ export default function Trading({ language = "en" }) {
 
             {/* Mode Switcher - Centered */}
             <div className="flex items-center gap-3 flex-1 justify-center">
-              <div className="flex bg-muted/20 p-[2px] rounded-xl shadow-card">
+              <div className="flex bg-card/90 border border-border/60 p-[2px] rounded-xl">
                 <button
                   onClick={() => toggleMode('trade')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-card' : 'text-muted-foreground/50 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all border ${!isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/50 border-transparent hover:text-foreground'}`}
                 >
                   {isAr ? "تداول" : "Trade"}
                 </button>
                 <button
                   onClick={() => toggleMode('bots')}
-                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-glow' : 'text-muted-foreground/50 hover:text-foreground'}`}
+                  className={`px-5 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all border ${isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/50 border-transparent hover:text-foreground'}`}
                 >
                   {isAr ? "نسخ التداول" : "Copy Trading"}
                 </button>
@@ -749,17 +749,17 @@ export default function Trading({ language = "en" }) {
             </Link>
             
             {/* Mode Toggle - Mobile */}
-            <div className="flex bg-muted/25 p-[3px] rounded-xl">
+            <div className="flex bg-card/90 border border-border/60 p-[3px] rounded-xl">
               <button
                 onClick={() => toggleMode('trade')}
-                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50'}`}
+                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation border ${!isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 {isAr ? "تداول" : "Trade"}
               </button>
               <button
                 onClick={() => toggleMode('bots')}
-                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50'}`}
+                className={`h-8 px-4 rounded-[10px] text-[11px] font-semibold transition-all touch-manipulation border ${isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent'}`}
                 style={{ touchAction: 'manipulation' }}
               >
                 {isAr ? "نسخ" : "Copy"}
@@ -775,13 +775,14 @@ export default function Trading({ language = "en" }) {
               </div>
               
               {!isAuthenticated && !isLoadingAuth && (
-                <button
+                <Button
                   onClick={navigateToLogin}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground"
+                  size="sm"
+                  className="h-8 rounded-lg px-3 text-xs font-semibold"
                 >
                   <Lock className="h-3 w-3" />
                   {isAr ? "دخول" : "Login"}
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -819,12 +820,12 @@ export default function Trading({ language = "en" }) {
               <p className="text-sm text-foreground/60 mb-4">
                 {isAr ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
               </p>
-              <button
+              <Button
                 onClick={navigateToLogin}
-                className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+                className="h-11 rounded-xl px-5 text-sm font-semibold"
               >
                 {isAr ? "تسجيل الدخول" : "Login"}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -872,16 +873,16 @@ export default function Trading({ language = "en" }) {
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex bg-muted/25 p-[3px] rounded-xl mx-4">
+          <div className="flex bg-card/90 border border-border/60 p-[3px] rounded-xl mx-4">
             <button
               onClick={() => toggleMode('trade')}
-              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${!isCopyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-foreground'}`}
+              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all border ${!isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent hover:text-foreground'}`}
             >
               {isAr ? "تداول" : "Trade"}
             </button>
             <button
               onClick={() => toggleMode('bots')}
-              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all ${isCopyMode ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20' : 'text-muted-foreground/50 hover:text-foreground'}`}
+              className={`px-4 py-1.5 rounded-[10px] text-[11px] font-semibold transition-all border ${isCopyMode ? 'bg-primary/12 text-primary border-primary/30' : 'text-muted-foreground/60 border-transparent hover:text-foreground'}`}
             >
               {isAr ? "نسخ التداول" : "Copy Trading"}
             </button>
@@ -889,24 +890,27 @@ export default function Trading({ language = "en" }) {
           
           <div className="flex items-center gap-2">
             {isAuthenticated && (
-              <button
+              <Button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-xl px-3 text-xs gap-1.5"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">{isAr ? "تحديث" : "Refresh"}</span>
-              </button>
+              </Button>
             )}
             
             {!isAuthenticated && !isLoadingAuth && (
-              <button
+              <Button
                 onClick={navigateToLogin}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                size="sm"
+                className="h-9 rounded-xl px-3 text-xs font-semibold"
               >
                 <Lock className="h-3.5 w-3.5" />
                 {isAr ? "دخول" : "Login"}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -988,12 +992,12 @@ export default function Trading({ language = "en" }) {
                 <p className="text-sm text-foreground/60">
                   {isAr ? "يجب تسجيل الدخول للتداول" : "Login required to trade"}
                 </p>
-                <button
+                <Button
                   onClick={navigateToLogin}
-                  className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="mt-4 h-11 rounded-xl px-4 text-sm font-semibold"
                 >
                   {isAr ? "تسجيل الدخول" : "Login"}
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
