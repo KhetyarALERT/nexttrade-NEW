@@ -349,67 +349,80 @@ Deno.serve(async (req) => {
 
       // === AUTO-PROVISION: Create TradingAccount + Wallets for verified user ===
       try {
-        // Check ALL existing TradingAccounts for this user (any type, non-demo)
-        const allUserAccounts = await base44.asServiceRole.entities.TradingAccount.filter({
-          user_id: vr.user_id
+        // IDEMPOTENCY: Use deterministic account_id to prevent duplicates
+        const liveAccountId = `TA_live_${vr.user_id}`;
+        
+        // Check by deterministic ID first (most reliable dedup check)
+        const existingByAccountId = await base44.asServiceRole.entities.TradingAccount.filter({
+          account_id: liveAccountId
         });
         
-        const existingLiveAccounts = (allUserAccounts || []).filter(a => !a.is_demo);
-        
-        if (existingLiveAccounts.length === 0) {
-          // Use a deterministic account_id based on user_id to prevent duplicates on retry
-          const accountId = `TA_live_${vr.user_id}`;
-          
-          const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
-            account_id: accountId,
-            user_id: vr.user_id,
-            user_email: vr.user_email,
-            nickname: 'Trading Account',
-            account_type: 'mentor',
-            balance: 0,
-            equity: 0,
-            margin_used: 0,
-            unrealized_pnl: 0,
-            realized_pnl: 0,
-            total_trades: 0,
-            winning_trades: 0,
-            status: 'active',
-            default_leverage: 5,
-            is_demo: false,
-            demo_balance: 0
-          });
-          
-          console.log('[verificationService] Auto-provisioned TradingAccount:', newAccount.id, 'for user:', vr.user_id);
-          
-          // Create USDT wallet for NOWPayments deposits (only primary needed)
-          await base44.asServiceRole.entities.Wallet.create({
-            trading_account_id: newAccount.id,
-            user_id: vr.user_id,
-            currency: 'USDT',
-            network: 'TRC20',
-            balance: 0,
-            locked_balance: 0,
-            staked_balance: 0,
-            status: 'active',
-            total_deposited: 0,
-            total_withdrawn: 0,
-            is_primary: true
-          });
-          
-          console.log('[verificationService] Auto-provisioned USDT wallet for user:', vr.user_id);
-          
-          // Notify user: Trading Account approved
-          await base44.asServiceRole.entities.Notification.create({
-            user_id: vr.user_id,
-            type: 'system',
-            title: 'Trading Account Approved! 🚀',
-            message: 'Your live trading account has been approved and is ready to use. Deposit funds to start trading.',
-            priority: 'high',
-            read: false,
-            data: { link: '/Wallet?page=deposit' }
-          });
+        if (existingByAccountId?.length > 0) {
+          console.log('[verificationService] Live account already exists (by account_id):', liveAccountId, '- skipping provisioning');
         } else {
-          console.log('[verificationService] User already has', existingLiveAccounts.length, 'live account(s), skipping provisioning');
+          // Also check by user_id + is_demo=false as fallback (catches old-format IDs)
+          const allUserAccounts = await base44.asServiceRole.entities.TradingAccount.filter({
+            user_id: vr.user_id
+          });
+          const existingLiveAccounts = (allUserAccounts || []).filter(a => !a.is_demo);
+          
+          if (existingLiveAccounts.length > 0) {
+            console.log('[verificationService] User already has', existingLiveAccounts.length, 'live account(s) (old format), skipping provisioning');
+          } else {
+            const newAccount = await base44.asServiceRole.entities.TradingAccount.create({
+              account_id: liveAccountId,
+              user_id: vr.user_id,
+              user_email: vr.user_email,
+              nickname: 'Trading Account',
+              account_type: 'mentor',
+              balance: 0,
+              equity: 0,
+              margin_used: 0,
+              unrealized_pnl: 0,
+              realized_pnl: 0,
+              total_trades: 0,
+              winning_trades: 0,
+              status: 'active',
+              default_leverage: 5,
+              is_demo: false,
+              demo_balance: 0
+            });
+            
+            console.log('[verificationService] Auto-provisioned TradingAccount:', newAccount.id, 'for user:', vr.user_id);
+            
+            // Create USDT wallet only if none exists for this user
+            const existingWallets = await base44.asServiceRole.entities.Wallet.filter({
+              user_id: vr.user_id, currency: 'USDT', is_primary: true
+            });
+            
+            if (!existingWallets?.length) {
+              await base44.asServiceRole.entities.Wallet.create({
+                trading_account_id: newAccount.id,
+                user_id: vr.user_id,
+                currency: 'USDT',
+                network: 'TRC20',
+                balance: 0,
+                locked_balance: 0,
+                staked_balance: 0,
+                status: 'active',
+                total_deposited: 0,
+                total_withdrawn: 0,
+                is_primary: true
+              });
+              console.log('[verificationService] Auto-provisioned USDT wallet for user:', vr.user_id);
+            }
+            
+            // Notify user: Trading Account approved
+            await base44.asServiceRole.entities.Notification.create({
+              user_id: vr.user_id,
+              type: 'system',
+              title: 'Trading Account Approved! 🚀',
+              message: 'Your live trading account has been approved and is ready to use. Deposit funds to start trading.',
+              priority: 'high',
+              read: false,
+              data: { link: '/Wallet?page=deposit' }
+            });
+          }
         }
       } catch (provErr) {
         console.error('[verificationService] Auto-provision failed:', provErr.message);
