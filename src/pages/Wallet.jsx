@@ -136,6 +136,7 @@ export default function WalletPage({ language = "en" }) {
   // Account status
   const [hasOkxAccount, setHasOkxAccount] = useState(false);
   const [accountRequestStatus, setAccountRequestStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
+  const [tradingAccountId, setTradingAccountId] = useState(null);
 
   // Wallet Data
   const [wallets, setWallets] = useState([]);
@@ -188,9 +189,11 @@ export default function WalletPage({ language = "en" }) {
       if (hasOkx || hasLiveAccount) {
         setHasOkxAccount(true);
         setOkxBalances(hasOkx ? okxResult.data.data.balances : null);
+        setTradingAccountId(liveTradingAccounts?.[0]?.id || okxResult.data?.data?.tradingAccountId || null);
         setAccountRequestStatus(null);
       } else {
         setHasOkxAccount(false);
+        setTradingAccountId(null);
         // Check for pending account request
         const requests = await base44.entities.LiveAccountRequest.filter(
           { user_id: user.id },
@@ -572,6 +575,7 @@ export default function WalletPage({ language = "en" }) {
                 language={language}
                 hasOkxAccount={hasOkxAccount}
                 wallets={wallets}
+                tradingAccountId={tradingAccountId}
                 onRefresh={handleRefresh}
                 showBackButton={true}
               />

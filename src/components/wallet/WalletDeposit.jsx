@@ -67,15 +67,19 @@ const translations = {
     noDeposits: "No recent deposits",
     pending: "Pending",
     confirmed: "Confirmed",
-    cardDepositTitle: "Card/Crypto Deposit (NOWPayments)",
-    cardDepositDesc: "Generate a payment link and fund your wallet via NOWPayments.",
+    cardDepositTitle: "Card/Crypto Deposit",
+    cardDepositDesc: "Generate a payment link and fund your wallet.",
     amountLabel: "Deposit Amount (USD)",
     generateInvoice: "Generate Invoice",
     openInvoice: "Open Invoice",
     payAmount: "Pay Amount",
     networkLabel: "Network",
     invoiceReady: "Invoice ready — pay to this address or open the invoice.",
-    nowpayUnavailable: "No wallet available for deposits. Please contact support.",
+    nowpayUnavailable: "No wallet available for deposits.",
+    createWallet: "Create Wallet",
+    creatingWallet: "Creating...",
+    walletCreated: "Wallet ready — generate your invoice.",
+    walletCreateError: "Trading account required to create a wallet.",
     okxSectionTitle: "Exchange Deposit (OKX Address)",
     okxUnavailable: "OKX trading account not available. Use the card/crypto deposit above."
   },
@@ -97,21 +101,25 @@ const translations = {
     noDeposits: "لا توجد إيداعات حديثة",
     pending: "قيد الانتظار",
     confirmed: "مؤكد",
-    cardDepositTitle: "إيداع بالبطاقة / العملات المشفرة (NOWPayments)",
-    cardDepositDesc: "أنشئ رابط دفع وأودع في محفظتك عبر NOWPayments.",
+    cardDepositTitle: "إيداع بالبطاقة / العملات المشفرة",
+    cardDepositDesc: "أنشئ رابط دفع وأودع في محفظتك.",
     amountLabel: "مبلغ الإيداع (دولار)",
     generateInvoice: "إنشاء فاتورة",
     openInvoice: "فتح الفاتورة",
     payAmount: "المبلغ المطلوب دفعه",
     networkLabel: "الشبكة",
     invoiceReady: "الفاتورة جاهزة — ادفع لهذا العنوان أو افتح الفاتورة.",
-    nowpayUnavailable: "لا توجد محفظة متاحة للإيداع. يرجى التواصل مع الدعم.",
+    nowpayUnavailable: "لا توجد محفظة متاحة للإيداع.",
+    createWallet: "إنشاء محفظة",
+    creatingWallet: "جاري الإنشاء...",
+    walletCreated: "المحفظة جاهزة — أنشئ فاتورتك الآن.",
+    walletCreateError: "يلزم حساب تداول لإنشاء المحفظة.",
     okxSectionTitle: "إيداع عبر OKX",
     okxUnavailable: "حساب OKX غير متاح بعد. استخدم الإيداع بالبطاقة/العملات المشفرة أعلاه."
   }
 };
 
-export default function WalletDeposit({ language = "en", hasOkxAccount = false, wallets = [], onRefresh, showBackButton = false }) {
+export default function WalletDeposit({ language = "en", hasOkxAccount = false, wallets = [], tradingAccountId, onRefresh, showBackButton = false }) {
   const t = translations[language] || translations.en;
   const navigate = useNavigate();
 
@@ -125,6 +133,7 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
   const [invoice, setInvoice] = useState(null);
   const [npLoading, setNpLoading] = useState(false);
   const [npError, setNpError] = useState(null);
+  const [creatingWallet, setCreatingWallet] = useState(false);
   const [depositWalletId, setDepositWalletId] = useState(null);
 
   const primaryWallet = (wallets || []).find((w) => w.is_primary) || (wallets || [])[0] || null;
@@ -135,6 +144,28 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
       setSelectedCurrency(primaryWallet.currency || "USDT");
     }
   }, [primaryWallet?.id]);
+
+  const handleCreateWallet = async () => {
+    if (!tradingAccountId) {
+      setNpError(t.walletCreateError);
+      return;
+    }
+    setCreatingWallet(true);
+    setNpError(null);
+    try {
+      const res = await base44.functions.invoke("wallet", { action: "createAll", tradingAccountId });
+      if (!res.data?.success) {
+        throw new Error(res.data?.error || "Failed to create wallet");
+      }
+      toast.success(t.walletCreated);
+      onRefresh?.();
+    } catch (err) {
+      setNpError(err.message);
+      toast.error(err.message);
+    } finally {
+      setCreatingWallet(false);
+    }
+  };
 
   const handleCreateInvoice = async () => {
     if (!depositWalletId) {
@@ -259,7 +290,16 @@ export default function WalletDeposit({ language = "en", hasOkxAccount = false, 
               </Button>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">{t.nowpayUnavailable}</div>
+            <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+              <span>{t.nowpayUnavailable}</span>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleCreateWallet} disabled={creatingWallet || !tradingAccountId} className="rounded-xl">
+                  {creatingWallet ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
+                  <span className="ml-2">{creatingWallet ? t.creatingWallet : t.createWallet}</span>
+                </Button>
+                {!tradingAccountId && <span className="text-xs text-amber-600">{t.walletCreateError}</span>}
+              </div>
+            </div>
           )}
 
           {npError && <div className="text-sm text-rose-500 bg-rose-500/10 border border-rose-500/30 rounded-lg p-3">{npError}</div>}
@@ -442,6 +482,7 @@ WalletDeposit.propTypes = {
   language: PropTypes.oneOf(["en", "ar"]),
   hasOkxAccount: PropTypes.bool,
   wallets: PropTypes.array,
+  tradingAccountId: PropTypes.string,
   onRefresh: PropTypes.func,
   showBackButton: PropTypes.bool
 };
