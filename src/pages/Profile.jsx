@@ -778,8 +778,11 @@ export default function Profile({ language = "en" }) {
           onValueChange={(tab) => setSearchParams({ tab })}
           className="space-y-6"
         >
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-lg rounded-2xl border-2 border-border shadow-xl p-3">
-            <TabsList className="w-full justify-start gap-1.5 sm:gap-2 bg-transparent p-0 flex overflow-x-auto scrollbar-hide pb-1">
+          <div className="bg-card/80 border border-border rounded-xl p-2 shadow-lg">
+            <TabsList
+              className="w-full justify-start gap-2 bg-transparent px-1 py-1 flex overflow-x-auto scrollbar-hide pb-0 rounded-lg border border-border/60"
+              style={{ scrollbarWidth: "none" }}
+            >
               {[
                 { value: "personal", label: t.personalInfo, icon: User },
                 { value: "accounts", label: language === "en" ? "Accounts" : "الحسابات", icon: Activity },
@@ -792,9 +795,9 @@ export default function Profile({ language = "en" }) {
                 <TabsTrigger 
                   key={tab.value}
                   value={tab.value} 
-                  className="group relative rounded-xl px-2 py-2 sm:px-4 sm:py-3 font-medium text-[10px] sm:text-sm whitespace-nowrap transition-all duration-300 border-2 border-transparent flex-shrink-0 data-[state=active]:border-blue-500 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/40 data-[state=inactive]:bg-muted/50 hover:bg-muted hover:border-muted-foreground/20"
+                  className="group relative rounded-md px-3 py-2 font-medium text-[11px] sm:text-xs whitespace-nowrap transition-all duration-150 border border-border/60 flex-shrink-0 min-w-[78px] data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-muted/60 hover:bg-muted"
                 >
-                  <tab.icon className="mr-1 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 inline-block" />
+                  <tab.icon className="mr-1 h-3.5 w-3.5 inline-block" />
                   <span className="hidden xs:inline sm:inline">{tab.label}</span>
                   <span className="xs:hidden sm:hidden">
                     {tab.value === "personal" ? (language === "en" ? "Info" : "معلومات") :
@@ -967,58 +970,56 @@ export default function Profile({ language = "en" }) {
                 <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
                   {/* Copy Trading Wallet Card */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 animate-pulse" />
+                    <div className="flex items-center justify-between px-1">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                         {language === "en" ? "Copy Trading Account" : "حساب نسخ التداول"}
                       </h3>
-                      <Badge className="bg-blue-100 text-blue-700 border-0">
+                      <Badge className="bg-primary/15 text-primary border border-primary/30 px-2 py-1 text-[11px] rounded-md">
                         {language === "en" ? "Managed" : "مُدار"}
                       </Badge>
                     </div>
-                    <Card className="border-slate-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+                    <Card className="border border-border/70 bg-[#0f1724] shadow-lg rounded-2xl overflow-hidden">
                       <CardContent className="p-0">
-                        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                        <div className="p-4 border-b border-border/60 flex items-center justify-between bg-[#0d1622] text-foreground">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                              <Wallet className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+                              <Wallet className="w-5 h-5 text-primary" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-slate-900">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
-                              <Badge className={`text-[10px] ${copyTradingWallet?.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                            <div className="space-y-1">
+                              <h3 className="font-semibold text-foreground text-sm leading-tight">{language === "en" ? "Copy Trading" : "نسخ التداول"}</h3>
+                              <Badge className={`text-[10px] px-2 py-0.5 rounded-md border ${copyTradingWallet?.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40' : 'bg-muted text-muted-foreground border-border'}`}>
                                 {copyTradingWallet?.status === 'ACTIVE' ? (language === "en" ? "Active" : "نشط") : (language === "en" ? "Inactive" : "غير نشط")}
                               </Badge>
                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={loadTradingAccounts} className="h-8 w-8">
+                          <Button variant="ghost" size="icon" onClick={loadTradingAccounts} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                             <RefreshCw className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50">
-                          <p className="text-xs text-slate-500 mb-1">{language === "en" ? "Available Balance" : "الرصيد المتاح"}</p>
-                          <p className="text-2xl sm:text-3xl font-bold text-slate-900">
-                            ${(copyTradingWallet?.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
+                        <div className="p-4 bg-[#0b1220] text-foreground">
+                          <p className="text-xs text-muted-foreground mb-1">{language === "en" ? "Available Balance" : "الرصيد المتاح"}</p>
+                          <p className="text-2xl sm:text-3xl font-bold">${(copyTradingWallet?.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-px bg-slate-100">
-                          <div className="p-3 bg-white">
-                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Locked" : "مقفل"}</p>
-                            <p className="text-sm font-bold text-slate-900">
+                        <div className="grid grid-cols-2 gap-px bg-border/40">
+                          <div className="p-3 bg-[#0f1724]">
+                            <p className="text-[10px] text-muted-foreground uppercase">{language === "en" ? "Locked" : "مقفل"}</p>
+                            <p className="text-sm font-bold text-foreground">
                               ${(copyTradingWallet?.locked_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
-                          <div className="p-3 bg-white">
-                            <p className="text-[10px] text-slate-500 uppercase">{language === "en" ? "Total Deposited" : "إجمالي الإيداع"}</p>
-                            <p className="text-sm font-bold text-slate-900">
+                          <div className="p-3 bg-[#0f1724]">
+                            <p className="text-[10px] text-muted-foreground uppercase">{language === "en" ? "Total Deposited" : "إجمالي الإيداع"}</p>
+                            <p className="text-sm font-bold text-foreground">
                               ${(copyTradingWallet?.lifetime_deposited || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                         </div>
-                        <div className="p-3 border-t border-slate-100">
+                        <div className="p-3 border-t border-border/60 bg-[#0d1622]">
                           <Button
                             size="sm"
                             onClick={() => setCopyTradingDepositOpen(true)}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs"
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-xs h-9"
                           >
                             <ArrowDownToLine className="h-3 w-3 mr-1" />
                             {language === "en" ? "Transfer to Copy Trading" : "تحويل إلى نسخ التداول"}
