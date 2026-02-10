@@ -11,6 +11,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    // Fix for Rollup "Cannot release a lock that's no longer owned" error
+    rollupOptions: {
+      maxParallelFileOps: 1,
+    },
+  },
   plugins: [
     base44({
       // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.

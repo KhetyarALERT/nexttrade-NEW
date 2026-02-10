@@ -59,7 +59,6 @@
     "cmdk": "^1.0.0",
     "cryptocurrency-icons": "^0.18.1",
     "date-fns": "^3.6.0",
-    "dependencies": "^0.0.1",
     "embla-carousel-react": "^8.5.2",
     "framer-motion": "^11.16.4",
     "html2canvas": "^1.4.1",
@@ -92,6 +91,9 @@
     "@jup-ag/wallet-adapter": "^0.1.0",
     "@jup-ag/terminal": "^3.0.0",
     "@jup-ag/plugin": "latest"
+  },
+  "overrides": {
+    "rollup": "^4.40.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
