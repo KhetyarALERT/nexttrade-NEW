@@ -29,7 +29,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const signalsRef = useRef(signals);
   const actionStateRef = useRef(new Map());
   const [actionState, setActionState] = useState({});
-  
+
   // Accept Form
   const [amount, setAmount] = useState('');
   const [leverage, setLeverage] = useState('5');
@@ -168,9 +168,9 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       }
 
       const [walletRes, configRes] = await Promise.all([
-        invokeWithRetry('getWallet'),
-        invokeWithRetry('getConfig')
-      ]);
+      invokeWithRetry('getWallet'),
+      invokeWithRetry('getConfig')]
+      );
       if (walletRes?.data?.ok) setWallet(walletRes.data.data || null);
       if (configRes?.data?.ok) setConfig(configRes.data.data || null);
     } catch (e) {
@@ -229,7 +229,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     setSelectedSignal(signal);
     setAmount(''); // Reset amount
     setAcceptDialogOpen(true);
-    
+
     // Focus chart on signal symbol
     if (onSymbolFocus && signal?.symbol) {
       onSymbolFocus(signal.symbol);
@@ -241,7 +241,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
     if (preSelectedSignalId) {
       // If signals loaded but target not found, maybe we need to refresh (rare race condition)
       if (signals.length > 0) {
-        const target = signals.find(s => s.id === preSelectedSignalId);
+        const target = signals.find((s) => s.id === preSelectedSignalId);
         if (target) {
           if (!autoOpenedRef.current.has(preSelectedSignalId)) {
             handleAcceptClick(target);
@@ -268,20 +268,20 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   const handleRejectClick = async (signal) => {
     // Optimistic UI
     const originalSignals = [...signals];
-    setSignals(prev => prev.filter(s => s.id !== signal.id));
+    setSignals((prev) => prev.filter((s) => s.id !== signal.id));
     updateActionState(signal.id, { rejecting: true });
-    
+
     try {
-      const res = await base44.functions.invoke('copyTradingUser', { 
-        action: 'rejectSignal', 
-        signalId: signal.id 
+      const res = await base44.functions.invoke('copyTradingUser', {
+        action: 'rejectSignal',
+        signalId: signal.id
       });
-      if(res.data?.ok) {
+      if (res.data?.ok) {
         toast.success('Signal ignored');
       } else {
         throw new Error(res.data?.error?.message);
       }
-    } catch(e) {
+    } catch (e) {
       setSignals(originalSignals); // Revert
       toast.error('Failed to reject');
     } finally {
@@ -291,13 +291,13 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
   const handleConfirmAccept = async () => {
     if (!selectedSignal || !amount) return;
-    
+
     const amtNum = Number(amount);
     if (!amtNum || amtNum <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
-    
+
     setProcessing(true);
     updateActionState(selectedSignal.id, { accepting: true });
     try {
@@ -311,29 +311,29 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
       if (res.data?.ok) {
         // Show balance summary in toast
         const trade = res.data.trade;
-        const summaryMsg = trade 
-          ? (language === 'ar' 
-            ? `استخدام: ${trade.margin} USDT · المتبقي: ${trade.balanceAfter?.toFixed(2)} USDT`
-            : `Used: ${trade.margin} USDT · Remaining: ${trade.balanceAfter?.toFixed(2)} USDT`)
-          : (language === 'ar' ? 'تم فتح الصفقة!' : 'Position opened!');
+        const summaryMsg = trade ?
+        language === 'ar' ?
+        `استخدام: ${trade.margin} USDT · المتبقي: ${trade.balanceAfter?.toFixed(2)} USDT` :
+        `Used: ${trade.margin} USDT · Remaining: ${trade.balanceAfter?.toFixed(2)} USDT` :
+        language === 'ar' ? 'تم فتح الصفقة!' : 'Position opened!';
         toast.success(summaryMsg);
         setAcceptDialogOpen(false);
-        setSignals(prev => prev.filter(s => s.id !== selectedSignal.id));
-        
+        setSignals((prev) => prev.filter((s) => s.id !== selectedSignal.id));
+
         // Update wallet from response
         if (res.data.wallet) {
-          setWallet(prev => ({
+          setWallet((prev) => ({
             ...prev,
             available_balance: res.data.wallet.available,
             locked_balance: res.data.wallet.locked
           }));
         }
-        
-        if(onSignalAccepted) onSignalAccepted();
+
+        if (onSignalAccepted) onSignalAccepted();
       } else {
         const errCode = res.data?.error?.code;
         const errMsg = res.data?.error?.message || 'Failed to accept signal';
-        
+
         if (errCode === 'INSUFFICIENT_BALANCE') {
           toast.error(errMsg, {
             action: {
@@ -362,11 +362,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
   };
 
   const filters = [
-    { key: "all", label: labels.all },
-    { key: "new", label: labels.newSignals },
-    { key: "active", label: labels.active },
-    { key: "history", label: labels.history },
-  ];
+  { key: "all", label: labels.all },
+  { key: "new", label: labels.newSignals },
+  { key: "active", label: labels.active },
+  { key: "history", label: labels.history }];
+
 
   const filteredSignals = useMemo(() => {
     const query = symbolFilter.trim().toUpperCase();
@@ -390,25 +390,25 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             <h3 className="text-[13px] font-semibold tracking-tight">{labels.autoTitle}</h3>
             <p className="text-[10px] text-muted-foreground/70">{labels.autoDesc}</p>
           </div>
-          {filteredSignals.length > 0 && (
-            <span className="bg-primary/90 text-primary-foreground text-[10px] px-2 py-0.5 rounded-lg min-w-[1.25rem] text-center font-bold shadow-sm shadow-primary/20">
+          {filteredSignals.length > 0 &&
+          <span className="bg-primary/90 text-primary-foreground text-[10px] px-2 py-0.5 rounded-lg min-w-[1.25rem] text-center font-bold shadow-sm shadow-primary/20">
               {filteredSignals.length}
             </span>
-          )}
+          }
         </div>
-        <button 
-          onClick={manualRefresh} 
+        <button
+          onClick={manualRefresh}
           disabled={loading}
           type="button"
-          className="text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-50 p-1.5 rounded-lg hover:bg-muted/30"
-        >
+          className="text-muted-foreground/50 hover:text-foreground transition-colors disabled:opacity-50 p-1.5 rounded-lg hover:bg-muted/30">
+
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
       
       <ScrollArea className="flex-1 h-full">
         {/* Auto-Trade Settings - always visible at top */}
-        <div className="p-4 pb-0">
+        <div className="py-4">
           <AutoTradeSettings language={language} />
         </div>
 
@@ -419,34 +419,34 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               value={symbolFilter}
               onChange={(e) => setSymbolFilter(e.target.value)}
               placeholder={labels.search}
-              className="h-7 border-0 bg-transparent p-0 text-xs focus-visible:ring-0"
-            />
+              className="h-7 border-0 bg-transparent p-0 text-xs focus-visible:ring-0" />
+
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {filters.map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                onClick={() => setStatusFilter(filter.key)}
-                className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors border ${
-                  statusFilter === filter.key
-                    ? "bg-primary/15 text-primary border-primary/30 shadow-sm"
-                    : "bg-muted/30 text-muted-foreground border-border/60 hover:text-foreground"
-                }`}
-              >
+            {filters.map((filter) =>
+            <button
+              key={filter.key}
+              type="button"
+              onClick={() => setStatusFilter(filter.key)}
+              className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors border ${
+              statusFilter === filter.key ?
+              "bg-primary/15 text-primary border-primary/30 shadow-sm" :
+              "bg-muted/30 text-muted-foreground border-border/60 hover:text-foreground"}`
+              }>
+
                 {filter.label}
               </button>
-            ))}
+            )}
           </div>
         </div>
 
-        {loading && signals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50">
+        {loading && signals.length === 0 ?
+        <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-muted-foreground/50">
             <Loader2 className="w-7 h-7 animate-spin mb-3 text-primary/60" />
             <span className="text-[12px] font-medium">{labels.checking}</span>
-          </div>
-        ) : filteredSignals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
+          </div> :
+        filteredSignals.length === 0 ?
+        <div className="flex flex-col items-center justify-center h-full min-h-[200px] m-4">
             <div className="flex flex-col items-center justify-center py-10 w-full max-w-xs">
               <div className="w-14 h-14 rounded-2xl bg-muted/20 flex items-center justify-center mb-4">
                 <Inbox className="w-6 h-6 text-muted-foreground/30" />
@@ -457,26 +457,26 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 {labels.refresh}
               </Button>
             </div>
+          </div> :
+
+        <div className="p-4 space-y-3 pb-20">
+            {filteredSignals.map((signal) =>
+          <SignalCard
+            key={signal.id}
+            signal={signal}
+            onAccept={handleAcceptClick}
+            onReject={handleRejectClick}
+            onView={(s) => {
+              setDetailSignal(s);
+              setDetailsOpen(true);
+            }}
+            isAccepting={Boolean(actionState[signal.id]?.accepting)}
+            isRejecting={Boolean(actionState[signal.id]?.rejecting)}
+            language={language} />
+
+          )}
           </div>
-        ) : (
-          <div className="p-4 space-y-3 pb-20">
-            {filteredSignals.map(signal => (
-              <SignalCard 
-                key={signal.id} 
-                signal={signal} 
-                onAccept={handleAcceptClick}
-                onReject={handleRejectClick}
-                onView={(s) => {
-                  setDetailSignal(s);
-                  setDetailsOpen(true);
-                }}
-                isAccepting={Boolean(actionState[signal.id]?.accepting)}
-                isRejecting={Boolean(actionState[signal.id]?.rejecting)}
-                language={language}
-              />
-            ))}
-          </div>
-        )}
+        }
       </ScrollArea>
 
       <Dialog open={acceptDialogOpen} onOpenChange={setAcceptDialogOpen}>
@@ -505,32 +505,32 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">{labels.margin}</Label>
               <div className="relative">
-                <Input 
-                  type="number" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)}
+                <Input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
                   placeholder={labels.enterAmt}
                   className="font-mono text-lg h-11 pr-12 rtl:pr-3 rtl:pl-12"
                   step="0.01"
                   min="0"
-                  inputMode="decimal"
-                />
+                  inputMode="decimal" />
+
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none rtl:right-auto rtl:left-3">USDT</div>
               </div>
               
               {/* Presets - Tappable and nice */}
               <div className="grid grid-cols-5 gap-2 mt-2">
-                {[25, 50, 75].map(pct => {
+                {[25, 50, 75].map((pct) => {
                   const val = ((wallet?.available_balance || 0) * pct / 100).toFixed(2);
                   return (
                     <button
                       key={pct}
                       onClick={() => setAmount(val)}
-                      className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border"
-                    >
+                      className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border">
+
                       {pct}%
-                    </button>
-                  );
+                    </button>);
+
                 })}
                 <button
                   onClick={() => {
@@ -539,22 +539,22 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                     const commRate = config?.commission_open_rate || 0.0005;
                     const minComm = config?.min_commission_open || 0.05;
                     let maxMargin = available;
-                    for(let i = 0; i < 10; i++) {
+                    for (let i = 0; i < 10; i++) {
                       const comm = Math.max(minComm, maxMargin * levNum * commRate);
                       const required = maxMargin + comm;
                       if (required <= available) break;
-                      maxMargin = maxMargin * 0.95; 
+                      maxMargin = maxMargin * 0.95;
                     }
                     setAmount(Math.max(0, maxMargin).toFixed(2));
                   }}
-                  className="py-1.5 text-[10px] rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-bold transition-colors"
-                >
+                  className="py-1.5 text-[10px] rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-bold transition-colors">
+
                   MAX
                 </button>
                 <button
                   onClick={() => setAmount('10')}
-                  className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border"
-                >
+                  className="py-1.5 text-[10px] rounded-md bg-muted/50 hover:bg-muted text-foreground font-medium transition-colors border border-transparent hover:border-border">
+
                   10
                 </button>
               </div>
@@ -572,18 +572,18 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                 })()}
               </div>
               <div className="relative">
-                <Input 
-                  type="number" 
-                  value={leverage} 
-                  onChange={e => {
+                <Input
+                  type="number"
+                  value={leverage}
+                  onChange={(e) => {
                     const val = e.target.value;
                     setLeverage(val);
                     const numVal = Number(val);
                     const userMax = config?.user_max_leverage || 50;
                     const signalMax = selectedSignal?.max_leverage || 20;
                     const allowedMax = Math.min(userMax, signalMax, 100);
-                    if (numVal > allowedMax) setMaxLevError(`Max ${allowedMax}x`);
-                    else setMaxLevError('');
+                    if (numVal > allowedMax) setMaxLevError(`Max ${allowedMax}x`);else
+                    setMaxLevError('');
                   }}
                   min="1"
                   max={(() => {
@@ -592,8 +592,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                     return Math.min(userMax, signalMax, 100);
                   })()}
                   inputMode="decimal"
-                  className={`font-mono h-9 ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                />
+                  className={`font-mono h-9 ${maxLevError ? 'border-red-500 focus-visible:ring-red-500' : ''}`} />
+
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">x</div>
               </div>
               {maxLevError && <p className="text-[10px] text-red-500 font-medium animate-pulse">{maxLevError}</p>}
@@ -611,7 +611,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               const calcPnL = (targetPrice) => {
                 if (!targetPrice || !qty) return null;
                 const pnl = side === 'LONG' ? (targetPrice - entry) * qty : (entry - targetPrice) * qty;
-                const roi = m > 0 ? (pnl / m) * 100 : 0;
+                const roi = m > 0 ? pnl / m * 100 : 0;
                 return { pnl, roi };
               };
 
@@ -623,29 +623,29 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
 
               return (
                 <div className="grid grid-cols-3 gap-2 py-1">
-                  {tp1Est && (
-                    <div className="bg-green-500/10 border border-green-500/20 rounded p-1.5 text-center">
+                  {tp1Est &&
+                  <div className="bg-green-500/10 border border-green-500/20 rounded p-1.5 text-center">
                       <div className="text-[10px] text-green-600/70 mb-0.5">TP1</div>
                       <div className="text-xs font-mono font-medium text-green-600">+{tp1Est.pnl.toFixed(1)}</div>
                       <div className="text-[10px] text-green-600/80">+{tp1Est.roi.toFixed(0)}%</div>
                     </div>
-                  )}
-                  {tp2Est && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-1.5 text-center">
+                  }
+                  {tp2Est &&
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-1.5 text-center">
                       <div className="text-[10px] text-emerald-600/70 mb-0.5">TP2</div>
                       <div className="text-xs font-mono font-medium text-emerald-600">+{tp2Est.pnl.toFixed(1)}</div>
                       <div className="text-[10px] text-emerald-600/80">+{tp2Est.roi.toFixed(0)}%</div>
                     </div>
-                  )}
-                  {slEst && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded p-1.5 text-center">
+                  }
+                  {slEst &&
+                  <div className="bg-red-500/10 border border-red-500/20 rounded p-1.5 text-center">
                       <div className="text-[10px] text-red-600/70 mb-0.5">SL</div>
                       <div className="text-xs font-mono font-medium text-red-600">{slEst.pnl.toFixed(1)}</div>
                       <div className="text-[10px] text-red-600/80">{slEst.roi.toFixed(0)}%</div>
                     </div>
-                  )}
-                </div>
-              );
+                  }
+                </div>);
+
             })()}
             
             {/* Info Row (Entry, Size, Fee) */}
@@ -676,7 +676,7 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               const comm = Math.max(minComm, amtNum * levNum * commRate);
               const required = amtNum + comm;
               const missing = required - available;
-              
+
               if (amtNum > 0 && required > available) {
                 return (
                   <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 space-y-2">
@@ -695,13 +695,13 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                       onClick={() => {
                         setAcceptDialogOpen(false);
                         setTransferModalOpen(true);
-                      }}
-                    >
+                      }}>
+
                       <WalletIcon className="w-3.5 h-3.5 mr-2" />
                       {labels.transfer}
                     </Button>
-                  </div>
-                );
+                  </div>);
+
               }
               return null;
             })()}
@@ -710,9 +710,9 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
           <div className="p-5 border-t border-border/50 mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className={`flex gap-3 ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
               <Button variant="outline" className="flex-1" onClick={() => setAcceptDialogOpen(false)}>{labels.cancel}</Button>
-              <Button 
-                className="flex-[2] bg-primary" 
-                onClick={handleConfirmAccept} 
+              <Button
+                className="flex-[2] bg-primary"
+                onClick={handleConfirmAccept}
                 disabled={(() => {
                   const amtNum = Number(amount || 0);
                   const available = wallet?.available_balance || 0;
@@ -722,8 +722,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                   const comm = Math.max(minComm, amtNum * levNum * commRate);
                   const required = amtNum + comm;
                   return processing || amtNum <= 0 || required > available || !!maxLevError;
-                })()}
-              >
+                })()}>
+
                 {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {labels.confirm}
               </Button>
@@ -749,21 +749,21 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
               <span>TP1</span>
               <span className="font-mono text-emerald-500">{detailSignal?.tp1 || "--"}</span>
             </div>
-            {!!Number(detailSignal?.tp2) && (
-              <div className="flex justify-between">
+            {!!Number(detailSignal?.tp2) &&
+            <div className="flex justify-between">
                 <span>TP2</span>
                 <span className="font-mono text-emerald-500/70">{detailSignal?.tp2}</span>
               </div>
-            )}
+            }
             <div className="flex justify-between">
               <span>SL</span>
               <span className="font-mono text-rose-500">{detailSignal?.stop_loss || "--"}</span>
             </div>
-            {detailSignal?.notes && (
-              <div className="rounded-lg bg-muted/30 border border-border/30 p-3 text-[11px] text-foreground/80">
+            {detailSignal?.notes &&
+            <div className="rounded-lg bg-muted/30 border border-border/30 p-3 text-[11px] text-foreground/80">
                 {detailSignal.notes}
               </div>
-            )}
+            }
           </div>
           <DialogFooter className="p-5 border-t border-border/50 mt-auto bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className={`flex gap-3 w-full ${isRTL ? "flex-row-reverse" : "flex-row"}`}>
@@ -775,11 +775,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                   setDetailsOpen(false);
                   handleRejectClick(detailSignal);
                 }}
-                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.rejecting) : false}
-              >
-                {detailSignal && actionState[detailSignal.id]?.rejecting && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
+                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.rejecting) : false}>
+
+                {detailSignal && actionState[detailSignal.id]?.rejecting &&
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                }
                 {labels.ignored}
               </Button>
               <Button
@@ -789,11 +789,11 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
                   setDetailsOpen(false);
                   handleAcceptClick(detailSignal);
                 }}
-                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.accepting) : false}
-              >
-                {detailSignal && actionState[detailSignal.id]?.accepting && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
+                disabled={detailSignal ? Boolean(actionState[detailSignal.id]?.accepting) : false}>
+
+                {detailSignal && actionState[detailSignal.id]?.accepting &&
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                }
                 {labels.accept}
               </Button>
             </div>
@@ -811,8 +811,8 @@ export default function SignalsInbox({ onSignalAccepted, liveAccount, onSymbolFo
           toast.success('Funds transferred successfully');
         }}
         liveAccount={liveAccount}
-        config={config}
-      />
-    </div>
-  );
+        config={config} />
+
+    </div>);
+
 }
