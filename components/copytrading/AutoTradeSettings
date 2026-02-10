@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { base44 } from "@/api/base44Client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import {
@@ -17,13 +14,14 @@ import {
   ShieldCheck,
   ChevronDown,
   Info,
-  DollarSign,
-  HelpCircle,
+  Settings2,
   Shield,
   Scale,
   TrendingUp,
-  Settings2 } from
-"lucide-react";
+  Target,
+  Activity,
+  Wallet
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import EstimatedOutcome from "./EstimatedOutcome";
@@ -31,78 +29,64 @@ import EstimatedOutcome from "./EstimatedOutcome";
 const t = {
   en: {
     autoTrade: "Auto-Trade",
-    autoTradeDesc: "Automatically accept signals from experts",
-    on: "ON",
-    off: "OFF",
-    amountPerTrade: "Amount per Trade",
-    amountPerTradeDesc: "USDT allocated per signal",
-    amountPlaceholder: "e.g. 10",
-    maxLeverage: "Max Leverage",
-    maxOpenTrades: "Max Open Trades",
-    safetySettings: "Safety Limit",
-    maxPerTrade: "Max per trade",
-    save: "Save Settings",
+    configBot: "Configure your trading bot",
+    riskPresets: "Risk Presets",
+    safe: "Safe",
+    balanced: "Balanced",
+    pro: "Pro",
+    tradeAmount: "Trade Amount",
+    leverage: "Leverage (Risk)",
+    maxTrades: "Max Open Trades",
+    safetyLimit: "Safety Limit",
+    save: "Save",
     saving: "Saving...",
-    saved: "Settings saved!",
-    low: "Conservative",
-    mid: "Moderate",
-    high: "Aggressive",
-    showAdvanced: "Advanced",
-    hideAdvanced: "Hide Advanced",
-    leverageFollows: "Follows signal cap",
-    trades: "trades",
-    leverageHelp: "Leverage multiplies your trade size. 10x means $10 controls $100. Higher leverage = higher profit potential AND higher risk.",
-    autoTradeHelp: "When on, new expert signals are executed automatically using your settings. No manual accept needed.",
-    settings: "Settings"
+    saved: "Settings updated",
+    advanced: "Advanced",
+    expiry: "Expiry (s)",
+    deviation: "Dev %",
+    leverageHelp: "Leverage multiplies your trade size. Higher leverage = higher profit potential but higher risk.",
+    autoTradeHelp: "When enabled, expert signals are executed automatically using these settings."
   },
   ar: {
-    autoTrade: "التداول التلقائي",
-    autoTradeDesc: "قبول الإشارات تلقائياً من الخبراء",
-    on: "مفعّل",
-    off: "متوقف",
-    amountPerTrade: "المبلغ لكل صفقة",
-    amountPerTradeDesc: "USDT مخصص لكل إشارة",
-    amountPlaceholder: "مثال: 10",
-    maxLeverage: "أقصى رافعة",
-    maxOpenTrades: "أقصى صفقات مفتوحة",
-    safetySettings: "حد الأمان",
-    maxPerTrade: "أقصى لكل صفقة",
-    save: "حفظ الإعدادات",
+    autoTrade: "تداول تلقائي",
+    configBot: "قم بضبط بوت التداول الخاص بك",
+    riskPresets: "إعدادات المخاطرة",
+    safe: "آمن",
+    balanced: "متوازن",
+    pro: "متقدم",
+    tradeAmount: "مبلغ الصفقة",
+    leverage: "الرافعة (المخاطرة)",
+    maxTrades: "أقصى صفقات",
+    safetyLimit: "حد الأمان",
+    save: "حفظ",
     saving: "جارٍ الحفظ...",
-    saved: "تم حفظ الإعدادات!",
-    low: "محافظ",
-    mid: "متوسط",
-    high: "مخاطر",
-    showAdvanced: "متقدم",
-    hideAdvanced: "إخفاء المتقدمة",
-    leverageFollows: "تتبع رافعة الإشارة",
-    trades: "صفقات",
-    leverageHelp: "الرافعة تضاعف حجم صفقتك. رافعة 10x تعني أن $10 تتحكم بـ $100. رافعة أعلى = ربح محتمل أعلى وخسارة محتملة أعلى.",
-    autoTradeHelp: "عند التفعيل، يتم تنفيذ إشارات الخبراء تلقائياً حسب إعداداتك. لا حاجة لقبول كل إشارة يدوياً.",
-    settings: "الإعدادات"
+    saved: "تم التحديث",
+    advanced: "متقدم",
+    expiry: "الانتهاء (ث)",
+    deviation: "الانحراف %",
+    leverageHelp: "الرافعة تضاعف حجم صفقتك. رافعة أعلى تعني ربحاً محتملاً أكبر ولكن مخاطرة أعلى.",
+    autoTradeHelp: "عند التفعيل، يتم تنفيذ إشارات الخبراء تلقائياً حسب هذه الإعدادات."
   }
 };
 
 const PRESETS = {
-  low: { fixed_margin_usdt: 5, max_leverage: 5, max_open_positions_total: 3, max_margin_per_trade_usdt: 10 },
+  low: { fixed_margin_usdt: 5, max_leverage: 3, max_open_positions_total: 2, max_margin_per_trade_usdt: 10 },
   mid: { fixed_margin_usdt: 10, max_leverage: 10, max_open_positions_total: 5, max_margin_per_trade_usdt: 25 },
   high: { fixed_margin_usdt: 25, max_leverage: 20, max_open_positions_total: 8, max_margin_per_trade_usdt: 50 }
 };
 
-function HelpButton({ content, side = "bottom" }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className="text-muted-foreground/60 hover:text-foreground transition-colors ml-1">
-          <HelpCircle className="w-3.5 h-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side={side} className="max-w-[240px] text-xs leading-relaxed p-3 text-foreground/80">
-        {content}
-      </PopoverContent>
-    </Popover>);
-
-}
+const Help = ({ content }) => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <button type="button" className="opacity-30 hover:opacity-100 transition-opacity ml-1.5 outline-none">
+        <Info className="w-3.5 h-3.5" />
+      </button>
+    </PopoverTrigger>
+    <PopoverContent side="top" className="w-64 p-3 text-[12px] leading-relaxed bg-popover/95 backdrop-blur-md shadow-2xl border-primary/10 rounded-xl">
+      {content}
+    </PopoverContent>
+  </Popover>
+);
 
 export default function AutoTradeSettings({ language = "en" }) {
   const labels = t[language] || t.en;
@@ -118,9 +102,6 @@ export default function AutoTradeSettings({ language = "en" }) {
     auto_enabled: false,
     mode: "FIXED_MARGIN",
     fixed_margin_usdt: 10,
-    risk_percent_equity: 1,
-    leverage_mode: "FOLLOW_SIGNAL_CAP",
-    fixed_leverage: 5,
     max_leverage: 10,
     max_margin_per_trade_usdt: 25,
     max_open_positions_total: 5,
@@ -135,45 +116,31 @@ export default function AutoTradeSettings({ language = "en" }) {
   const loadSettings = async () => {
     try {
       const res = await base44.functions.invoke("copyTradingUser", { action: "getSettings" });
-      if (res.data?.ok && res.data.data) {
-        setSettings((prev) => ({ ...prev, ...res.data.data }));
-      }
+      if (res.data?.ok && res.data.data) setSettings(prev => ({ ...prev, ...res.data.data }));
     } catch (e) {
-      console.error("Failed to load settings:", e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
   const update = (changes) => {
-    setSettings((prev) => ({ ...prev, ...changes }));
+    setSettings(prev => ({ ...prev, ...changes }));
     setDirty(true);
-  };
-
-  const applyPreset = (key) => {
-    update(PRESETS[key]);
   };
 
   const handleToggle = async (enabled) => {
     update({ auto_enabled: enabled });
-    // Auto-save toggle immediately for instant feedback
     setSaving(true);
     try {
-      const updatedSettings = { ...settings, auto_enabled: enabled };
-      const res = await base44.functions.invoke("copyTradingUser", { action: "saveSettings", settings: updatedSettings });
+      const res = await base44.functions.invoke("copyTradingUser", { action: "saveSettings", settings: { ...settings, auto_enabled: enabled } });
       if (res.data?.ok) {
-        toast.success(enabled ?
-        language === "ar" ? "التداول التلقائي مفعّل" : "Auto-Trade enabled" :
-        language === "ar" ? "التداول التلقائي متوقف" : "Auto-Trade disabled"
-        );
+        toast.success(enabled ? (language === "ar" ? "مفعّل" : "Auto-Trade Active") : (language === "ar" ? "متوقف" : "Auto-Trade Paused"));
         setDirty(false);
-        setSettings(updatedSettings);
-      } else {
-        throw new Error(res.data?.error?.message || "Save failed");
       }
     } catch (e) {
       toast.error(e.message);
-      update({ auto_enabled: !enabled }); // revert
+      update({ auto_enabled: !enabled });
     } finally {
       setSaving(false);
     }
@@ -182,15 +149,10 @@ export default function AutoTradeSettings({ language = "en" }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (settings.mode === "FIXED_MARGIN" && settings.fixed_margin_usdt < 1) {
-        throw new Error(language === "ar" ? "الحد الأدنى 1 USDT" : "Minimum is 1 USDT");
-      }
       const res = await base44.functions.invoke("copyTradingUser", { action: "saveSettings", settings });
       if (res.data?.ok) {
         toast.success(labels.saved);
         setDirty(false);
-      } else {
-        throw new Error(res.data?.error?.message || "Save failed");
       }
     } catch (e) {
       toast.error(e.message);
@@ -199,269 +161,188 @@ export default function AutoTradeSettings({ language = "en" }) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-4">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-      </div>);
+  if (loading) return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary/30" /></div>;
 
-  }
-
-  const activePreset = Object.entries(PRESETS).find(([, v]) =>
-  v.fixed_margin_usdt === settings.fixed_margin_usdt &&
-  v.max_leverage === settings.max_leverage &&
-  v.max_open_positions_total === settings.max_open_positions_total
-  )?.[0] || null;
+  const activePreset = Object.entries(PRESETS).find(([, v]) => 
+    v.fixed_margin_usdt === settings.fixed_margin_usdt && 
+    v.max_leverage === settings.max_leverage
+  )?.[0];
 
   return (
-    <div dir={isRTL ? "rtl" : "ltr"}>
-      <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
-        {/* Compact Header - Always Visible */}
-        <div className={cn(
-          "rounded-xl border transition-all duration-200",
-          settings.auto_enabled ?
-          "border-primary/30 bg-gradient-to-r from-primary/5 via-primary/[0.03] to-transparent" :
-          "border-border/40 bg-card/50"
-        )}>
-          <div className="flex items-center justify-between p-3 gap-3">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                settings.auto_enabled ?
-                "bg-primary/15 text-primary" :
-                "bg-muted/60 text-muted-foreground"
-              )}>
-                {settings.auto_enabled ? <Zap className="w-4 h-4" /> : <ZapOff className="w-4 h-4" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-semibold text-foreground tracking-tight">{labels.autoTrade}</span>
-                  <HelpButton content={labels.autoTradeHelp} />
-                </div>
-                {settings.auto_enabled &&
-                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono tracking-wide">
-                    {settings.fixed_margin_usdt} USDT · {settings.max_leverage}x · {settings.max_open_positions_total} {labels.trades}
-                  </p>
-                }
-              </div>
+    <div dir={isRTL ? "rtl" : "ltr"} className="w-full max-w-[440px] mx-auto font-sans px-2 sm:px-0">
+      <div className={cn(
+        "rounded-[24px] border transition-all duration-500 overflow-hidden",
+        settings.auto_enabled ? "border-primary/40 bg-primary/[0.03] shadow-xl shadow-primary/5" : "border-border/60 bg-card/40 backdrop-blur-sm"
+      )}>
+        {/* Header: Soft-Pro Style */}
+        <div className="flex items-center justify-between p-4 sm:p-5 gap-3">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className={cn(
+              "w-12 h-12 rounded-[18px] flex items-center justify-center shrink-0 transition-all duration-500 shadow-sm",
+              settings.auto_enabled ? "bg-primary text-primary-foreground shadow-primary/20 scale-105" : "bg-muted/80 text-muted-foreground"
+            )}>
+              {settings.auto_enabled ? <Zap className="w-6 h-6 fill-current" /> : <ZapOff className="w-6 h-6" />}
             </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Switch
-                checked={settings.auto_enabled}
-                onCheckedChange={handleToggle}
-                disabled={saving}
-                className={cn(
-                  "data-[state=checked]:bg-primary",
-                  saving && "opacity-50"
-                )} />
-
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                    "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                    panelOpen && "bg-muted/50 text-foreground"
-                  )}>
-
-                  <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", panelOpen && "rotate-180")} />
-                </button>
-              </CollapsibleTrigger>
+            <div className="truncate">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[16px] font-bold tracking-tight text-foreground">{labels.autoTrade}</span>
+                <Help content={labels.autoTradeHelp} />
+              </div>
+              <p className="text-[12px] text-muted-foreground font-medium opacity-70 truncate mt-0.5">
+                {labels.configBot}
+              </p>
             </div>
           </div>
 
-          {/* Expandable Settings Body */}
-          <CollapsibleContent>
-            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-border/30">
-              {/* Presets Row */}
-              <div className="grid grid-cols-3 gap-2 pt-2">
-                {["low", "mid", "high"].map((key) => {
-                  const PresetIcon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
-                  const colors = {
-                    low: "text-blue-500 bg-blue-500/10 border-blue-500/20",
-                    mid: "text-amber-500 bg-amber-500/10 border-amber-500/20",
-                    high: "text-rose-500 bg-rose-500/10 border-rose-500/20"
-                  };
-                  const isActive = activePreset === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => applyPreset(key)}
-                      className={cn(
-                        "relative py-2 px-2 rounded-lg text-xs font-medium transition-all border",
-                        isActive ?
-                        "border-primary bg-primary/10 text-primary ring-1 ring-primary/20" :
-                        cn("hover:border-primary/20", colors[key])
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="h-8 w-[1px] bg-border/40 mx-1 hidden sm:block" />
+            <Switch checked={settings.auto_enabled} onCheckedChange={handleToggle} disabled={saving} className="data-[state=checked]:bg-emerald-500 scale-110" />
+            <CollapsibleTrigger onClick={() => setPanelOpen(!panelOpen)} className="w-9 h-9 rounded-full hover:bg-muted/80 flex items-center justify-center transition-all">
+              <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-500", panelOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+          </div>
+        </div>
+
+        <Collapsible open={panelOpen}>
+          <CollapsibleContent className="border-t border-border/20">
+            <div className="p-4 sm:p-6 space-y-8">
+              
+              {/* Risk Presets: Visual & Modern */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="h-1 w-4 bg-primary/30 rounded-full" />
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.15em]">{labels.riskPresets}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {["low", "mid", "high"].map(key => {
+                    const Icon = key === "low" ? Shield : key === "mid" ? Scale : TrendingUp;
+                    const active = activePreset === key;
+                    const config = {
+                      low: { color: "text-emerald-500", bg: "bg-emerald-500/10", label: labels.safe },
+                      mid: { color: "text-amber-500", bg: "bg-amber-500/10", label: labels.balanced },
+                      high: { color: "text-rose-500", bg: "bg-rose-500/10", label: labels.pro }
+                    };
+                    return (
+                      <button key={key} onClick={() => update(PRESETS[key])} className={cn(
+                        "flex flex-col items-center py-4 px-2 rounded-[20px] border-2 transition-all duration-300 group",
+                        active ? "border-primary bg-primary/[0.04] shadow-md" : "border-transparent bg-muted/30 hover:bg-muted/50"
                       )}>
-
-                      <PresetIcon className={cn("w-4 h-4 mx-auto mb-1", isActive ? "text-primary" : "")} />
-                      <span className={cn("block text-[11px] font-semibold", isActive ? "text-primary" : "text-foreground")}>{labels[key]}</span>
-                      <span className="block text-[9px] text-muted-foreground font-mono mt-0.5">
-                        {PRESETS[key].fixed_margin_usdt}$ · {PRESETS[key].max_leverage}x
-                      </span>
-                    </button>);
-
-                })}
-              </div>
-
-              {/* Amount Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <DollarSign className="w-3.5 h-3.5 text-primary/60" />
-                    <span className="text-xs font-medium text-foreground">{labels.amountPerTrade}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      value={settings.fixed_margin_usdt}
-                      onChange={(e) => update({ fixed_margin_usdt: Math.max(1, Number(e.target.value) || 1) })} className="bg-background/50 py-2 text-xs font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border/80 w-16 h-7 border-border/50"
-
-                      min={1}
-                      inputMode="decimal" />
-
-                    <span className="text-[10px] text-muted-foreground font-medium">USDT</span>
-                  </div>
-                </div>
-                <Slider
-                  value={[settings.fixed_margin_usdt]}
-                  min={1}
-                  max={100}
-                  step={1}
-                  onValueChange={([v]) => update({ fixed_margin_usdt: v })}
-                  className="w-full" />
-
-              </div>
-
-              {/* Leverage & Trades - Compact Row */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-border/40 bg-card/60 p-2.5 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{labels.maxLeverage}</span>
-                    <HelpButton content={labels.leverageHelp} side="top" />
-                  </div>
-                  <div className="text-center">
-                    <span className="font-mono text-xl font-bold text-foreground tracking-tighter">{settings.max_leverage}<span className="text-xs font-normal text-muted-foreground">x</span></span>
-                  </div>
-                  <Slider
-                    value={[settings.max_leverage]}
-                    min={1}
-                    max={20}
-                    step={1}
-                    onValueChange={([v]) => update({ max_leverage: v })} />
-
-                </div>
-                <div className="rounded-lg border border-border/40 bg-card/60 p-2.5 space-y-1.5">
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">{labels.maxOpenTrades}</span>
-                  <div className="text-center">
-                    <span className="font-mono text-xl font-bold text-foreground tracking-tighter">{settings.max_open_positions_total}</span>
-                  </div>
-                  <Slider
-                    value={[settings.max_open_positions_total]}
-                    min={1}
-                    max={10}
-                    step={1}
-                    onValueChange={([v]) => update({ max_open_positions_total: v })} />
-
+                        <div className={cn("w-10 h-10 rounded-[14px] flex items-center justify-center mb-2.5 shadow-sm transition-transform group-hover:scale-110", active ? config[key].bg + " " + config[key].color : "bg-background/80 text-muted-foreground")}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className={cn("text-[12px] font-bold tracking-tight", active ? "text-primary" : "text-muted-foreground")}>{config[key].label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Safety Limit - Inline */}
-              <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-xs font-medium text-foreground">{labels.maxPerTrade}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    value={settings.max_margin_per_trade_usdt}
-                    onChange={(e) => update({ max_margin_per_trade_usdt: Math.max(1, Number(e.target.value) || 1) })} className="bg-background/50 py-2 text-xs font-mono text-center rounded-xl flex border-2 shadow-sm transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm hover:border-border/80 w-16 h-7 border-emerald-500/20"
-
-                    min={1}
-                    inputMode="decimal" />
-
-                  <span className="text-[10px] text-muted-foreground">USDT</span>
-                </div>
-              </div>
-
-              {/* Estimated Outcome Preview */}
-              <EstimatedOutcome
-                amount={settings.fixed_margin_usdt}
-                leverage={settings.max_leverage}
-                maxPerTrade={settings.max_margin_per_trade_usdt}
-                language={language} />
-
-
-              {/* Advanced Collapsible */}
-              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider font-medium">
-
-                    <Settings2 className="w-3 h-3" />
-                    {advancedOpen ? labels.hideAdvanced : labels.showAdvanced}
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", advancedOpen && "rotate-180")} />
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground font-medium">
-                        {language === "ar" ? "انتهاء الإشارة (ث)" : "Signal Expiry (s)"}
-                      </label>
-                      <Input
-                        type="number"
-                        value={settings.signal_expiry_seconds}
-                        onChange={(e) => update({ signal_expiry_seconds: Number(e.target.value) || 180 })}
-                        className="h-7 font-mono text-xs"
-                        inputMode="numeric" />
-
+              {/* Main Controls: Pixel-Perfect Sliders */}
+              <div className="space-y-7">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-muted/50 flex items-center justify-center">
+                        <Wallet className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span className="text-[13px] font-bold text-foreground/90">{labels.tradeAmount}</span>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground font-medium">
-                        {language === "ar" ? "انحراف السعر %" : "Price Deviation %"}
-                      </label>
-                      <Input
-                        type="number"
-                        value={settings.max_entry_deviation_percent}
-                        onChange={(e) => update({ max_entry_deviation_percent: Number(e.target.value) || 0.3 })}
-                        className="h-7 font-mono text-xs"
-                        step="0.1"
-                        inputMode="decimal" />
-
-                    </div>
+                    <span className="text-[15px] font-mono font-black text-primary tracking-tight">${settings.fixed_margin_usdt}</span>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                  <Slider value={[settings.fixed_margin_usdt]} min={1} max={100} step={1} onValueChange={([v]) => update({ fixed_margin_usdt: v })} className="py-2" />
+                </div>
 
-              {/* Save Button */}
-              {dirty &&
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                size="sm"
-                className="w-full h-8 text-xs font-semibold bg-primary hover:bg-primary/90 shadow-sm">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-muted/50 flex items-center justify-center">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span className="text-[13px] font-bold text-foreground/90">{labels.leverage}</span>
+                    </div>
+                    <span className="text-[15px] font-mono font-black text-primary tracking-tight">x{settings.max_leverage}</span>
+                  </div>
+                  <Slider value={[settings.max_leverage]} min={1} max={20} step={1} onValueChange={([v]) => update({ max_leverage: v })} className="py-2" />
+                </div>
 
-                  {saving ?
-                <Loader2 className="w-3.5 h-3.5 animate-spin ltr:mr-1.5 rtl:ml-1.5" /> :
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-muted/50 flex items-center justify-center">
+                        <Target className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span className="text-[13px] font-bold text-foreground/90">{labels.maxTrades}</span>
+                    </div>
+                    <span className="text-[15px] font-mono font-black text-primary tracking-tight">{settings.max_open_positions_total}</span>
+                  </div>
+                  <Slider value={[settings.max_open_positions_total]} min={1} max={10} step={1} onValueChange={([v]) => update({ max_open_positions_total: v })} className="py-2" />
+                </div>
+              </div>
 
-                <Save className="w-3.5 h-3.5 ltr:mr-1.5 rtl:ml-1.5" />
-                }
+              {/* Safety Limit: Modern Integrated Box */}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-primary/20 rounded-[22px] blur opacity-20 group-hover:opacity-40 transition duration-500" />
+                <div className="relative flex items-center justify-between p-4 sm:p-5 rounded-[20px] bg-emerald-500/[0.04] border border-emerald-500/10 shadow-inner">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shadow-sm">
+                      <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <span className="text-[14px] font-bold text-foreground/90">{labels.safetyLimit}</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-background/60 px-4 py-2 rounded-[14px] border border-emerald-500/10 shadow-sm">
+                    <span className="text-[12px] font-bold text-emerald-500/60">$</span>
+                    <input type="number" value={settings.max_margin_per_trade_usdt} onChange={e => update({ max_margin_per_trade_usdt: Number(e.target.value) })} className="w-12 bg-transparent text-right text-[14px] font-mono font-black focus:outline-none text-foreground" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Advanced & Outcome */}
+              <div className="space-y-4">
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger className="w-full flex items-center justify-between px-5 py-3 rounded-[16px] bg-muted/20 hover:bg-muted/40 transition-all group">
+                    <div className="flex items-center gap-2.5">
+                      <Settings2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest">{labels.advanced}</span>
+                    </div>
+                    <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-500", advancedOpen && "rotate-180")} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-4 grid grid-cols-2 gap-4 px-1">
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase px-1">{labels.expiry} (s)</span>
+                      <div className="p-3 rounded-[14px] border border-border/40 bg-muted/10">
+                        <input type="number" value={settings.signal_expiry_seconds} onChange={e => update({ signal_expiry_seconds: Number(e.target.value) })} className="w-full bg-transparent text-center text-[13px] font-mono font-bold focus:outline-none" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase px-1">{labels.deviation} %</span>
+                      <div className="p-3 rounded-[14px] border border-border/40 bg-muted/10">
+                        <input type="number" step="0.1" value={settings.max_entry_deviation_percent} onChange={e => update({ max_entry_deviation_percent: Number(e.target.value) })} className="w-full bg-transparent text-center text-[13px] font-mono font-bold focus:outline-none" />
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <div className="pt-2">
+                  <EstimatedOutcome amount={settings.fixed_margin_usdt} leverage={settings.max_leverage} maxPerTrade={settings.max_margin_per_trade_usdt} language={language} />
+                </div>
+              </div>
+
+              {/* Save Button: Soft-Pro Primary */}
+              <div className={cn(
+                "transition-all duration-500 overflow-hidden",
+                dirty ? "max-h-24 opacity-100 mt-2" : "max-h-0 opacity-0"
+              )}>
+                <Button onClick={handleSave} disabled={saving} className="w-full h-14 rounded-[20px] bg-primary hover:bg-primary/90 text-primary-foreground text-[15px] font-bold shadow-2xl shadow-primary/30 transition-all active:scale-[0.96] flex items-center justify-center gap-2">
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                   {saving ? labels.saving : labels.save}
                 </Button>
-              }
+              </div>
             </div>
           </CollapsibleContent>
-        </div>
-      </Collapsible>
-    </div>);
-
+        </Collapsible>
+      </div>
+    </div>
+  );
 }
 
-AutoTradeSettings.propTypes = {
-  language: PropTypes.string
-};
+AutoTradeSettings.propTypes = { language: PropTypes.string };
