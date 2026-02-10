@@ -170,40 +170,42 @@ export default function AutoTradeSettings({ language = "en" }) {
 
   return (
     <div dir={isRTL ? "rtl" : "ltr"} className="w-full max-w-[440px] mx-auto font-sans px-2 sm:px-0">
-      <div className={cn(
-        "rounded-[24px] border transition-all duration-500 overflow-hidden",
-        settings.auto_enabled ? "border-primary/40 bg-primary/[0.03] shadow-xl shadow-primary/5" : "border-border/60 bg-card/40 backdrop-blur-sm"
-      )}>
-        {/* Header: Soft-Pro Style */}
-        <div className="flex items-center justify-between p-4 sm:p-5 gap-3">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className={cn(
-              "w-12 h-12 rounded-[18px] flex items-center justify-center shrink-0 transition-all duration-500 shadow-sm",
-              settings.auto_enabled ? "bg-primary text-primary-foreground shadow-primary/20 scale-105" : "bg-muted/80 text-muted-foreground"
-            )}>
-              {settings.auto_enabled ? <Zap className="w-6 h-6 fill-current" /> : <ZapOff className="w-6 h-6" />}
-            </div>
-            <div className="truncate">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[16px] font-bold tracking-tight text-foreground">{labels.autoTrade}</span>
-                <Help content={labels.autoTradeHelp} />
+      <Collapsible open={panelOpen} onOpenChange={setPanelOpen}>
+        <div className={cn(
+          "rounded-[24px] border transition-all duration-500 overflow-hidden",
+          settings.auto_enabled ? "border-primary/40 bg-primary/[0.03] shadow-xl shadow-primary/5" : "border-border/60 bg-card/40 backdrop-blur-sm"
+        )}>
+          {/* Header: Soft-Pro Style */}
+          <div className="flex items-center justify-between p-4 sm:p-5 gap-3">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className={cn(
+                "w-12 h-12 rounded-[18px] flex items-center justify-center shrink-0 transition-all duration-500 shadow-sm",
+                settings.auto_enabled ? "bg-primary text-primary-foreground shadow-primary/20 scale-105" : "bg-muted/80 text-muted-foreground"
+              )}>
+                {settings.auto_enabled ? <Zap className="w-6 h-6 fill-current" /> : <ZapOff className="w-6 h-6" />}
               </div>
-              <p className="text-[12px] text-muted-foreground font-medium opacity-70 truncate mt-0.5">
-                {labels.configBot}
-              </p>
+              <div className="truncate">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[16px] font-bold tracking-tight text-foreground">{labels.autoTrade}</span>
+                  <Help content={labels.autoTradeHelp} />
+                </div>
+                <p className="text-[12px] text-muted-foreground font-medium opacity-70 truncate mt-0.5">
+                  {labels.configBot}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="h-8 w-[1px] bg-border/40 mx-1 hidden sm:block" />
+              <Switch checked={settings.auto_enabled} onCheckedChange={handleToggle} disabled={saving} className="data-[state=checked]:bg-emerald-500 scale-110" />
+              <CollapsibleTrigger asChild>
+                <button type="button" className="w-9 h-9 rounded-full hover:bg-muted/80 flex items-center justify-center transition-all">
+                  <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-500", panelOpen && "rotate-180")} />
+                </button>
+              </CollapsibleTrigger>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="h-8 w-[1px] bg-border/40 mx-1 hidden sm:block" />
-            <Switch checked={settings.auto_enabled} onCheckedChange={handleToggle} disabled={saving} className="data-[state=checked]:bg-emerald-500 scale-110" />
-            <CollapsibleTrigger onClick={() => setPanelOpen(!panelOpen)} className="w-9 h-9 rounded-full hover:bg-muted/80 flex items-center justify-center transition-all">
-              <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-500", panelOpen && "rotate-180")} />
-            </CollapsibleTrigger>
-          </div>
-        </div>
-
-        <Collapsible open={panelOpen}>
           <CollapsibleContent className="border-t border-border/20">
             <div className="p-4 sm:p-6 space-y-8">
               
@@ -299,12 +301,14 @@ export default function AutoTradeSettings({ language = "en" }) {
               {/* Advanced & Outcome */}
               <div className="space-y-4">
                 <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                  <CollapsibleTrigger className="w-full flex items-center justify-between px-5 py-3 rounded-[16px] bg-muted/20 hover:bg-muted/40 transition-all group">
-                    <div className="flex items-center gap-2.5">
-                      <Settings2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest">{labels.advanced}</span>
-                    </div>
-                    <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-500", advancedOpen && "rotate-180")} />
+                  <CollapsibleTrigger asChild>
+                    <button type="button" className="w-full flex items-center justify-between px-5 py-3 rounded-[16px] bg-muted/20 hover:bg-muted/40 transition-all group">
+                      <div className="flex items-center gap-2.5">
+                        <Settings2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest">{labels.advanced}</span>
+                      </div>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-500", advancedOpen && "rotate-180")} />
+                    </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-4 grid grid-cols-2 gap-4 px-1">
                     <div className="space-y-2">
@@ -339,8 +343,8 @@ export default function AutoTradeSettings({ language = "en" }) {
               </div>
             </div>
           </CollapsibleContent>
-        </Collapsible>
-      </div>
+        </div>
+      </Collapsible>
     </div>
   );
 }
