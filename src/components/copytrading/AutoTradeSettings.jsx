@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import {
-  Bot,
+  Radar,
   Loader2,
   Save,
   ShieldCheck,
@@ -191,7 +191,7 @@ export default function AutoTradeSettings({ language = "en" }) {
                 "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500",
                 settings.auto_enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-muted/60 text-muted-foreground/60"
               )}>
-                <Bot className="w-[18px] h-[18px]" />
+                <Radar className="w-[18px] h-[18px]" />
               </div>
               <div className="truncate">
                 <div className="flex items-center gap-1">
