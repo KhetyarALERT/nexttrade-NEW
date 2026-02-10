@@ -34,9 +34,7 @@ import {
   Copy,
   Clock,
   Wallet,
-  TrendingUp,
-  ArrowLeft,
-  Info
+  TrendingUp
 } from "lucide-react";
 import { useMediaQuery } from "@/components/hooks/useMediaQuery";
 import CryptoIcon from "@/components/ui/CryptoIcon";

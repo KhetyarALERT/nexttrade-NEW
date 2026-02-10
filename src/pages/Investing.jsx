@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  Lock, Clock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet, ArrowRight
+  Lock, Info, CheckCircle2, RefreshCw, Gift, TrendingUp, Wallet, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";

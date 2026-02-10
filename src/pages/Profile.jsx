@@ -34,7 +34,6 @@ import {
 } from "lucide-react";
 import VideoModal from "@/components/help/VideoModal";
 import { getHelpVideo } from "@/components/help/helpVideos";
-import TradingAccountCard from "@/components/profile/TradingAccountCard";
 import OKXLiveAccountCard from "@/components/profile/OKXLiveAccountCard";
 import TradesTable from "@/components/profile/TradesTable";
 import { Button } from "@/components/ui/button";

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 
 // Context for mobile navigation state management

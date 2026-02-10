@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Gift, Clock, Loader2, ArrowRight, DollarSign } from "lucide-react";
+import { Gift, Clock, Loader2, ArrowRight } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 
 function getLocale(lang) {

@@ -3,8 +3,8 @@ import { useMemeData, MemeDataProvider } from '@/components/meme/MemeDataContext
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Search, Loader2, Wifi, WifiOff, Filter, X, ChevronDown, TrendingUp, TrendingDown, 
-  Zap, Star, BarChart3, Flame, DollarSign, Clock, Activity, ArrowUpDown, ArrowUp, ArrowDown,
+  Search, Loader2, WifiOff, Filter, X, TrendingUp, TrendingDown, 
+  Zap, Star, BarChart3, Flame, DollarSign, Activity, ArrowUpDown, ArrowUp, ArrowDown,
   Sparkles, Info, RefreshCw
 } from 'lucide-react';
 import {
@@ -25,7 +25,7 @@ import PullToRefresh from '@/components/ui/PullToRefresh';
 // UTILITY FUNCTIONS
 // ============================================================================
 
-const formatPrice = (num) => {
+const _formatPrice = (num) => {
   if (!num || num === 0) return '$0.00';
   if (num < 0.000001) return `$${num.toExponential(2)}`;
   if (num < 0.00001) return `$${num.toFixed(10)}`;
@@ -65,8 +65,7 @@ const formatTimeAgo = (timestamp) => {
 // MOBILE TOKEN CARD
 // ============================================================================
 
-/** @param {{ token: any, onTrade: Function, onDetail: Function, isFavorite: boolean, onToggleFavorite: Function, isPumpfun: boolean }} props */
-const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
+const MobileTokenCard = React.memo((/** @type {any} */ { token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;
@@ -186,8 +185,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // DESKTOP TOKEN ROW
 // ============================================================================
 
-/** @param {{ token: any, onTrade: Function, onDetail: Function, isFavorite: boolean, onToggleFavorite: Function, isPumpfun: boolean }} props */
-const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
+const DesktopTokenRow = React.memo((/** @type {any} */ { token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
   const isPositive = priceChange >= 0;

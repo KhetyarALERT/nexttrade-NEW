@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
 import { getOkxBaseAsset } from "@/lib/market/okxSymbols";
 import { Loader2, AlertTriangle, Clock } from "lucide-react";
-import CopyTradingDashboard from "@/components/copytrading/CopyTradingDashboard";
 
 function formatNumber(v, digits = 2) {
   const n = Number(v);

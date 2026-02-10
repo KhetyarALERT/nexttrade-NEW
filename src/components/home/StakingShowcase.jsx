@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   Gift, 
   Sparkles, 
   CheckCircle2, 
-  Lock,
-  ArrowRight,
-  Info
+  Lock
 } from "lucide-react";
 import UsdtIcon from "@/components/ui/UsdtIcon";
 import { cn } from "@/lib/utils";

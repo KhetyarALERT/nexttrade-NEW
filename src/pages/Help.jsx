@@ -15,7 +15,6 @@ import {
   HelpCircle,
   Play,
   ChevronRight,
-  ExternalLink,
   Headphones,
   MessageCircle,
 } from "lucide-react";

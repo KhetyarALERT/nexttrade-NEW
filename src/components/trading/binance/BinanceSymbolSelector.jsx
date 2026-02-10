@@ -20,8 +20,7 @@ function formatCompactPrice(p) {
   return `$${p.toFixed(2)}`;
 }
 
-/** @param {{ selectedSymbol: string, onSelectSymbol: Function, height?: any, language?: string }} props */
-const BinanceSymbolSelector = React.memo(function BinanceSymbolSelector({ selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
+const BinanceSymbolSelector = React.memo(function BinanceSymbolSelector(/** @type {any} */ { selectedSymbol, onSelectSymbol, height: _height, language = "en" }) {
   const [open, setOpen] = useState(false);
   const [lastPrice, setLastPrice] = useState(0);
   const [changePct, setChangePct] = useState(0);

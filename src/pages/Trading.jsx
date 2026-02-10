@@ -17,9 +17,8 @@ import { normalizeOkxSymbol } from "@/lib/market/okxSymbols";
 import { useUserReadiness } from "@/components/hooks/useUserReadiness";
 import { Link, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Shield as ShieldIcon, XCircle, Clock as ClockIcon, ArrowRight } from "lucide-react";
+import { XCircle } from "lucide-react";
 
 function formatPrice(p) {
   if (!p || !Number.isFinite(p)) return "--";
@@ -90,7 +89,7 @@ export default function Trading({ language = "en" }) {
         setSelectedSymbol(normalized);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [urlInstId]); // Only run when urlInstId changes, not selectedSymbol
 
   // Market data state

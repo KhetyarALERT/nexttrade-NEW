@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Radio, ArrowUpRight, ArrowDownRight, Clock, Ban, CheckCircle2, Loader2, RefreshCw, Zap } from 'lucide-react';
+import { Plus, Radio, ArrowUpRight, ArrowDownRight, Clock, Ban, Loader2, RefreshCw, Zap } from 'lucide-react';
 import SignalDetailsModal from '@/components/admin/SignalDetailsModal';
 import AutoAcceptAdminTab from '@/components/admin/AutoAcceptAdminTab';
 

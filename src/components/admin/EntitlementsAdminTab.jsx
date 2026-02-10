@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { 
-  Settings, Users, Shield, RefreshCw, Loader2, Search, Edit2, Trash2, 
-  CheckCircle2, Zap, Play, History, AlertTriangle
+  Settings, Users, RefreshCw, Loader2, Search, Edit2, Zap, Play
 } from 'lucide-react';
 
 const COPY_LEVELS = ['NONE', 'ACCESS', 'PRIORITY', 'FULL'];
@@ -37,14 +36,14 @@ export default function EntitlementsAdminTab({ onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [config, setConfig] = useState(null);
-  const [configForm, setConfigForm] = useState({});
+  const [configForm, setConfigForm] = useState(/** @type {any} */ ({}));
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [overrideForm, setOverrideForm] = useState({});
+  const [overrideForm, setOverrideForm] = useState(/** @type {any} */ ({}));
   const [auditLog, setAuditLog] = useState([]);
 
   const loadData = useCallback(async () => {

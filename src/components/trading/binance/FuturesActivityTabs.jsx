@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { binanceFuturesStore } from "@/components/trading/binance/binanceFuturesStore";
 import { base44 } from "@/api/base44Client";
-import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert, Loader2 } from "lucide-react";
+import { Pencil, Plus, X, TrendingUp, TrendingDown, ChevronRight, RefreshCw, Target, ShieldAlert } from "lucide-react";
 
 function formatNum(v, digits = 2) {
   const n = Number(v);

@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Wallet, Copy, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
+import { RefreshCw, Wallet, Copy, CheckCircle, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import OKXLiveAccountCard from "./OKXLiveAccountCard";

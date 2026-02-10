@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   CheckCircle2, XCircle, Clock, Loader2, Lock, TrendingUp, 
-  DollarSign, Settings, Gift, RotateCcw, Zap, Play
+  DollarSign, Settings, Gift, RotateCcw, Zap
 } from 'lucide-react';
 import StakingPlansAdmin from './StakingPlansAdmin';
 
@@ -55,7 +55,7 @@ function StakingStatCard({ title, value, icon: Icon, colorClass }) {
   );
 }
 
-export default function StakingAdminTab({ stakingRequests = [], stakingStats = {}, onRefresh }) {
+export default function StakingAdminTab({ stakingRequests = [], stakingStats = /** @type {any} */ ({}), onRefresh }) {
   const [adminTab, setAdminTab] = useState('requests');
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);

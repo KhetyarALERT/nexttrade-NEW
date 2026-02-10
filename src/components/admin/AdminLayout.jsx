@@ -1,6 +1,4 @@
-import React from "react";
 import AdminAssistant from "@/components/admin/AdminAssistant";
-import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }) {
   return (

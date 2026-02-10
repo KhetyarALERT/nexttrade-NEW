@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,8 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { 
-  Plus, RefreshCw, Users, Wallet, ArrowUpDown, Shield, Loader2, ChevronDown, ChevronUp,
-  History, Eye, UserPlus, Unlink, DollarSign, ArrowDownToLine, ArrowUpFromLine, Radio, Zap, Clock
+  Plus, RefreshCw, Users, Wallet, Shield, Loader2, Eye, UserPlus, DollarSign, ArrowUpFromLine
 } from 'lucide-react';
 
 import AdminLayout from '@/components/admin/AdminLayout';

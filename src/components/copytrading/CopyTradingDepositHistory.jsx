@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,7 +65,7 @@ export default function CopyTradingDepositHistory({ language = "en", limit = 5 }
       const res = await base44.functions.invoke("copyTradingUser", { action: "getAllocations" });
       const allocations = res.data?.ok ? (res.data.data || []) : [];
       // Sort by date descending
-      allocations.sort((a, b) => new Date(b.created_at || b.created_date) - new Date(a.created_at || a.created_date));
+      allocations.sort((a, b) => new Date(b.created_at || b.created_date).getTime() - new Date(a.created_at || a.created_date).getTime());
       setDeposits(allocations.slice(0, limit));
     } catch (err) {
       console.error("Failed to load deposits:", err);

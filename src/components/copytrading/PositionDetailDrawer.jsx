@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import PropTypes from "prop-types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -204,7 +204,7 @@ export default function PositionDetailDrawer({ open, onOpenChange, position, cur
   );
 }
 
-function DetailRow({ icon, label, value, sub, subColor, highlight }) {
+function DetailRow({ icon, label, value, sub = null, subColor = null, highlight = false }) {
   return (
     <div className={`flex items-center justify-between py-2.5 px-3 rounded-xl ${highlight ? "bg-muted/30" : "hover:bg-muted/20"} transition-colors`}>
       <div className="flex items-center gap-2 text-muted-foreground/60">

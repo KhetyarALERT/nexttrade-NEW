@@ -8,23 +8,19 @@ import { createPageUrl } from "@/utils";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Wallet,
   ArrowDownToLine,
-  ArrowUpFromLine,
-  ArrowLeftRight,
   History,
-  CreditCard,
   Eye,
   EyeOff,
   RefreshCw,
   ChevronRight,
   Shield,
   AlertCircle,
-  CheckCircle2,
   Clock,
   Rocket
 } from "lucide-react";

@@ -1,4 +1,3 @@
-import React from "react";
 import PropTypes from "prop-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

@@ -18,8 +18,7 @@ export const formatPrice = (price) => {
 };
 
 // Enhanced Row Component for Photon-like density
-/** @param {{ data: any, index: number, style: any }} props */
-const Row = memo(({ data, index, style }) => {
+const Row = memo((/** @type {any} */ { data, index, style }) => {
   const token = data[index];
   const isPositive = token.priceChange24h >= 0;
 
@@ -32,7 +31,7 @@ const Row = memo(({ data, index, style }) => {
           alt={token.symbol} 
           className="w-8 h-8 rounded-md bg-gray-800 object-cover"
           loading="lazy"
-          onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=" + token.symbol}
+          onError={(e) => { /** @type {HTMLImageElement} */ (e.target).src = "https://ui-avatars.com/api/?name=" + token.symbol; }}
         />
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
@@ -86,7 +85,7 @@ const Row = memo(({ data, index, style }) => {
 
 export default function MemeList({ tokens, height = 600, onTrade }) {
   const itemData = React.useMemo(() => {
-    const data = [...tokens];
+    const data = /** @type {any} */ ([...tokens]);
     data.onTrade = onTrade;
     return data;
   }, [tokens, onTrade]);

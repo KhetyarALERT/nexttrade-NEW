@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Loader2, ChevronRight, ChevronDown, X, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
+import { Loader2, ChevronRight, ChevronDown, X, Info } from "lucide-react";
 import { toast } from "sonner";
 
 /**

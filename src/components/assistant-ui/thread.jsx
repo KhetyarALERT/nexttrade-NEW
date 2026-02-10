@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Clock, Paperclip, SendHorizontal, Loader2, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -188,7 +187,7 @@ function AssistantMarkdown({ content, navigate, language }) {
           return <p className="my-1.5 leading-relaxed text-[13px]">{enhanced}</p>;
         },
         // List items → format financial text inline
-        li: ({ children, ordered, ...props }) => {
+        li: (/** @type {any} */ { children, ordered: _ordered, ...props }) => {
           const enhanced = React.Children.map(children, (child) => {
             if (typeof child === "string") return formatFinancialText(child);
             return child;

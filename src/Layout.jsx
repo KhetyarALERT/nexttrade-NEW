@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Link, useLocation } from "react-router-dom";
-import { MobileNavigationProvider, useMobileNavigation, isRootPath as checkIsRootPath } from "@/components/mobile/MobileNavigationContext";
+import { MobileNavigationProvider, useMobileNavigation } from "@/components/mobile/MobileNavigationContext";
 import PageTransition from "@/components/mobile/PageTransition";
 import { createPageUrl } from "@/utils";
 import { Globe, Mail, Moon, Sun, Home, TrendingUp, Wallet as WalletIcon, User, Menu, MessageCircle, HelpCircle, Headphones } from "lucide-react";
@@ -23,7 +23,6 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, CreditCard, Gift, LogOut, Settings, Shield, Users, Wallet } from "lucide-react";
 import { WalletProvider } from "@/components/wallet/UnifiedWalletProvider";
-import { Web3ModalButton } from "@/components/wallet/Web3ModalButton";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { UnifiedWalletButton } from '@jup-ag/wallet-adapter';

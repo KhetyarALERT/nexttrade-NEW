@@ -15,7 +15,7 @@ export declare const base44: {
     listConversations(opts: any): Promise<any>;
     createConversation(opts: any): Promise<any>;
     subscribeToConversation(id: string, cb: (msg: any) => void): any;
-    addMessage(opts: any): Promise<any>;
+    addMessage(...args: any[]): Promise<any>;
     getConversation(opts: any): Promise<any>;
     [key: string]: any;
   };

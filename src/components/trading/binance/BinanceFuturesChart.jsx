@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import PropTypes from "prop-types";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import { binanceFuturesStore, INTERVALS } from "@/components/trading/binance/binanceFuturesStore";
-import { Settings, TrendingUp, BarChart3, Grid3X3, Volume2, Maximize2, Crosshair, RotateCcw } from "lucide-react";
+import { Settings, TrendingUp, BarChart3, Volume2, Maximize2, Crosshair, RotateCcw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -63,8 +63,7 @@ function getChartColors(isDark) {
   };
 }
 
-/** @param {{ symbol: string, language?: string, onPriceUpdate?: Function, positionTrade?: any, pendingOrders?: any[] }} props */
-const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
+const BinanceFuturesChart = React.memo(function BinanceFuturesChart(/** @type {any} */ { symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
   const [lastPrice, setLastPrice] = useState(0);
@@ -997,7 +996,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
       </div>
     </div>
   );
-}, (prev, next) => {
+}, (/** @type {any} */ prev, /** @type {any} */ next) => {
   // Custom comparison to prevent chart rerenders on PnL/MarkPrice updates
   const posEqual = 
     prev.positionTrade?.id === next.positionTrade?.id &&

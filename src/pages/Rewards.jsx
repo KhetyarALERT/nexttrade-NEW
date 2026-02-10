@@ -14,9 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import {
-  Gift, Star, Trophy, Flame, Zap, Users, Copy, Check, Share2,
-  CalendarCheck2, CheckCircle2, DollarSign, TrendingUp, Clock,
-  ArrowRight, Wallet, History, Target, ExternalLink, RefreshCw, 
+  Gift, Star, Trophy, Flame, Users,
+  CalendarCheck2, CheckCircle2, DollarSign, History, Target, ExternalLink, RefreshCw, 
   Lock, Crown, AlertCircle, Sparkles, Info
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

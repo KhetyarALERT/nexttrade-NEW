@@ -22,7 +22,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { motion, useReducedMotion, MotionConfig } from "framer-motion";
-import PhoneMockup from "../components/home/PhoneMockup";
 import CryptoPriceTable from "../components/trading/CryptoPriceTable";
 import SignalShowcase from "../components/home/SignalShowcase";
 import StakingShowcase from "../components/home/StakingShowcase";

@@ -12,7 +12,6 @@ import {
   Play,
   ExternalLink,
   Compass,
-  CheckCircle,
 } from "lucide-react";
 
 export default function HelpArticle({ language = "en" }) {

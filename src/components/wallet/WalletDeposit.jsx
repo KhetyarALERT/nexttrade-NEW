@@ -19,8 +19,6 @@ import {
   AlertTriangle,
   RefreshCw,
   QrCode,
-  Info,
-  ExternalLink,
   ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";

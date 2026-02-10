@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from '@/components/ui/drawer';
+import { useState } from 'react';
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ExternalLink, Copy, AlertTriangle } from 'lucide-react';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import JupiterSwapEmbed from './JupiterSwapEmbed';
-import { Badge } from '@/components/ui/badge';
 import { useMediaQuery } from '@/components/hooks/useMediaQuery';
 
 // Local format functions
@@ -45,7 +43,7 @@ export default function TradeDrawer({ open, onOpenChange, token }) {
                     src={resolveIpfsUrl(token.image_url)} 
                     alt={token.symbol}
                     className="w-full h-full object-cover"
-                    onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-lg font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
+                    onError={(e) => { const t = /** @type {HTMLImageElement} */ (e.target); t.onerror = null; t.style.display = 'none'; t.parentElement.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-lg font-bold text-white">${token.symbol?.charAt(0)?.toUpperCase() || '?'}</div>`; }}
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-lg font-bold text-white">

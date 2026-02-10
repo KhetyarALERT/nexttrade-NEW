@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
@@ -7,7 +7,7 @@ import '@jup-ag/plugin/css';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 
-export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount, initialAmount, onSwapSuccess, onSwapError }) {
+export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So11111111111111111111111111111111111111112", referralAccount = null, initialAmount, onSwapSuccess = null, onSwapError = null }) {
   const wallet = useWallet();
   const { setVisible } = useWalletModal();
   
@@ -108,7 +108,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
         }
 
         // Initialize Jupiter Plugin (Ultra) - RPC-less
-        await init({
+        await init(/** @type {any} */ ({
           displayMode: "integrated",
           integratedTargetId: "jupiter-swap-container",
           // RPC-less: No endpoint property here
@@ -117,7 +117,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
             initialInputMint: inputMint,
             initialOutputMint: outputMint,
             initialAmount: initialAmount ? (initialAmount * 1000000000).toString() : undefined,
-            fixedMint: true, // As per Plugin docs for locking output
+            fixedMint: /** @type {any} */ (true), // As per Plugin docs for locking output
             swapMode: "ExactIn",
             ...(activeReferralAccount ? {
               referralAccount: activeReferralAccount,
@@ -150,7 +150,7 @@ export default function JupiterSwapEmbed({ open, outputMint, inputMint = "So1111
             overflow: "hidden",
             background: "#0f172a" 
           }
-        });
+        }));
 
         instanceRef.current = true;
         lastMintRef.current = outputMint;

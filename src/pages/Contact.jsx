@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -21,7 +21,6 @@ import {
   CheckCircle,
   MessageCircle,
   Users,
-  Mail,
   Briefcase,
   HelpCircle,
   Loader2,

@@ -14,7 +14,6 @@ import {
   ArrowLeftRight,
   RefreshCw,
   ExternalLink,
-  Clock,
   ArrowLeft
 } from "lucide-react";
 import CryptoIcon from "@/components/ui/CryptoIcon";

@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { CheckCircle2, Clock, XCircle, AlertCircle, Rocket } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
 /**
  * TradingAccountStepper - DB-driven stepper for Trading Account Request flow

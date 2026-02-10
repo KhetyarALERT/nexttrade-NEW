@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { 
   Select,
   SelectContent,
@@ -21,15 +19,12 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import {
-  AlertCircle,
   CheckCircle2,
   Clock,
   FileText,
   Shield,
   TrendingUp,
   DollarSign,
-  User,
-  Info,
   ExternalLink,
   Loader2,
   XCircle

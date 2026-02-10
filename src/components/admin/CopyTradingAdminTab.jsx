@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { RefreshCw, Save, Wallet, Users, Play, Settings, TrendingUp, FileText, Plus, Loader2, Search } from "lucide-react";
+import { RefreshCw, Wallet, Users, Play, TrendingUp, FileText, Plus, Loader2 } from "lucide-react";
 
 function formatUsdt(val) {
   if (val === null || val === undefined) return "-";
@@ -62,11 +61,11 @@ function StatCard({ title, value, icon: Icon, color }) {
 export default function CopyTradingAdminTab({ onRefresh }) {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState(null);
-  const [configForm, setConfigForm] = useState({});
+  const [configForm, setConfigForm] = useState(/** @type {any} */ ({}));
   const [wallets, setWallets] = useState([]);
   const [allocations, setAllocations] = useState([]);
   const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [stats, setStats] = useState({});
+  const [stats, setStats] = useState(/** @type {any} */ ({}));
   const [savingConfig, setSavingConfig] = useState(false);
   const [runningProcessor, setRunningProcessor] = useState(false);
   

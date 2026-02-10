@@ -14,8 +14,7 @@ import {
 import { 
   RefreshCw, Wallet, TrendingUp, TrendingDown, 
   AlertCircle, CheckCircle2, Activity, Copy,
-  ArrowDownToLine, QrCode, ChevronDown, ChevronUp,
-  Info, ExternalLink, ArrowRightLeft, Shield, Clock, Rocket
+  ArrowDownToLine, QrCode, ChevronUp, ArrowRightLeft, Shield, Clock, Rocket
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";

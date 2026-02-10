@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, Loader2, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch, DollarSign, Info, Activity } from 'lucide-react';
+import { Copy, ExternalLink, ShieldCheck, AlertTriangle, Zap, TrendingUp, TrendingDown, X, Globe, MessageCircle, Users, Clock, Droplet, BarChart3, Lock, FileSearch, DollarSign } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import JupiterSwapEmbed from './JupiterSwapEmbed';
 import { requestQueue } from '@/components/utils/requestQueue';

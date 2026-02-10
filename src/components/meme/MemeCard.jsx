@@ -1,12 +1,10 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { resolveIpfsUrl } from '@/components/utils/ipfs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Users, AlertTriangle } from 'lucide-react';
 import { formatNumber, formatPrice } from '@/components/meme/MemeList';
 
-/** @param {{ token: any, onTrade: Function }} props */
-const MemeCard = memo(({ token, onTrade }) => {
+const MemeCard = memo((/** @type {any} */ { token, onTrade }) => {
   const isBondingCurve = token.bonding_curve_status === 'bonding_curve';
   const riskLevel = token.safety?.riskLevel || 'unknown';
   
@@ -32,7 +30,7 @@ const MemeCard = memo(({ token, onTrade }) => {
               alt={token.symbol}
               className="w-12 h-12 rounded-lg object-cover bg-gray-800"
               loading="lazy"
-              onError={(e) => e.target.src = "https://ui-avatars.com/api/?name=" + token.symbol}
+              onError={(e) => { /** @type {HTMLImageElement} */ (e.target).src = "https://ui-avatars.com/api/?name=" + token.symbol; }}
             />
             {token.isNew && (
               <span className="absolute -top-1 -right-1 flex h-3 w-3">
