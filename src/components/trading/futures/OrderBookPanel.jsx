@@ -63,7 +63,7 @@ export default function OrderBookPanel({ symbol, language = "en", onPriceClick }
       
       setOrderBook({ bids, asks: asks.reverse() });
       setLastPrice(price);
-      setSpread(((ask - bid) / price * 100).toFixed(4));
+      setSpread(Number(((ask - bid) / price * 100).toFixed(4)));
       setIsLoading(false);
     };
 

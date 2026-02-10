@@ -46,7 +46,8 @@ export default function StakingPlanCard({
   isSelected, 
   onSelect, 
   isEligibleFirstStake,
-  language = "en"
+  language = "en",
+  labels: _labels
 }) {
   const labels = t[language] || t.en;
   const perksToShow = (plan.perks || []).slice(0, 2);
@@ -201,5 +202,6 @@ StakingPlanCard.propTypes = {
   isSelected: PropTypes.bool,
   onSelect: PropTypes.func.isRequired,
   isEligibleFirstStake: PropTypes.bool,
-  language: PropTypes.oneOf(["en", "ar"])
+  language: PropTypes.oneOf(["en", "ar"]),
+  labels: PropTypes.object
 };

@@ -680,7 +680,7 @@ export default function VerificationModal({ open, onOpenChange, language = "en",
   );
 }
 
-function FileUploadBox({ label, hint, preview, onFileChange, t }) {
+function FileUploadBox({ label, hint, preview, onFileChange, t, language }) {
   return (
     <div>
       <Label className="mb-2 block">{label}</Label>
@@ -720,4 +720,5 @@ FileUploadBox.propTypes = {
   preview: PropTypes.string,
   onFileChange: PropTypes.func,
   t: PropTypes.object,
+  language: PropTypes.string,
 };

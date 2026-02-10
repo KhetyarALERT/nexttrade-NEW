@@ -122,7 +122,7 @@ export default function WalletHistory({ language = "en", onRefresh, showBackButt
       
       // Combine and sort by date
       const combined = [...uniqueWalletTxs, ...withdrawalTxs];
-      combined.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      combined.sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
       
       setTransactions(combined.slice(0, 50));
     } catch (err) {

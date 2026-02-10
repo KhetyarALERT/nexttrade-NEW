@@ -6,7 +6,7 @@ import { RefreshCw } from 'lucide-react';
  * @param {Object} props
  * @param {React.ReactNode} props.children - Child content
  * @param {Function} props.onRefresh - Async function to call on refresh
- * @param {boolean} props.disabled - Disable pull to refresh
+ * @param {boolean} [props.disabled] - Disable pull to refresh
  */
 export default function PullToRefresh({ children, onRefresh, disabled = false }) {
   const [pulling, setPulling] = useState(false);

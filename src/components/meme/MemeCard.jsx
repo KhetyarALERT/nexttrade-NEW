@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { TrendingUp, Users, AlertTriangle } from 'lucide-react';
 import { formatNumber, formatPrice } from '@/components/meme/MemeList';
 
+/** @param {{ token: any, onTrade: Function }} props */
 const MemeCard = memo(({ token, onTrade }) => {
   const isBondingCurve = token.bonding_curve_status === 'bonding_curve';
   const riskLevel = token.safety?.riskLevel || 'unknown';

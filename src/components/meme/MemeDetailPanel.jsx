@@ -114,7 +114,7 @@ export default function MemeDetailPanel({ token, onClose, onTrade }) {
                 src={token.image_url || `https://ui-avatars.com/api/?name=${token.symbol}&background=10b981&color=fff`} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=10b981&color=fff`; }}
+                onError={(e) => { const t = /** @type {HTMLImageElement} */ (e.target); t.onerror = null; t.src = `https://ui-avatars.com/api/?name=${token.symbol}&background=10b981&color=fff`; }}
               />
             </div>
             <div className="flex-1 min-w-0">

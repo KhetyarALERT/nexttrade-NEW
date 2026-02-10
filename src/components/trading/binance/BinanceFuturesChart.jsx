@@ -63,6 +63,7 @@ function getChartColors(isDark) {
   };
 }
 
+/** @param {{ symbol: string, language?: string, onPriceUpdate?: Function, positionTrade?: any, pendingOrders?: any[] }} props */
 const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, language = "en", onPriceUpdate, positionTrade = null, pendingOrders = [] }) {
   const [timeframe, setTimeframe] = useState("15m");
   const [loading, setLoading] = useState(true);
@@ -1016,7 +1017,7 @@ const BinanceFuturesChart = React.memo(function BinanceFuturesChart({ symbol, la
   );
 });
 
-BinanceFuturesChart.propTypes = {
+/** @type {any} */ (BinanceFuturesChart).propTypes = {
   symbol: PropTypes.string.isRequired,
   language: PropTypes.string,
   onPriceUpdate: PropTypes.func,

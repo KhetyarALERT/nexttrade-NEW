@@ -3,27 +3,23 @@ import { UnifiedWalletProvider } from '@jup-ag/wallet-adapter';
 // import '@jup-ag/wallet-adapter/dist/index.css';
 
 export const WalletProvider = ({ children }) => {
-  return (
-    <UnifiedWalletProvider
-      wallets={[]}
-      // Using a fallback RPC that supports CORS better than the default
-      endpoint="https://solana-mainnet.rpc.extrnode.com"
-      config={{
-        autoConnect: false,
-        env: "mainnet-beta",
-        metadata: {
-          name: "UnifiedWallet",
-          description: "UnifiedWallet",
-          url: "https://jup.ag",
-          iconUrls: ["https://jup.ag/favicon.ico"],
-        },
-        notificationCallback: {
-          onConnect: () => console.log("Wallet connected"),
-          onDisconnect: () => console.log("Wallet disconnected"),
-          onNotInstalled: (wallet) => console.log("Wallet not installed", wallet),
-        },
-        walletPrecedence: ["OKX Wallet", "WalletConnect"],
-        hardcodedWallets: [
+  /** @type {any} */
+  const walletConfig = {
+    autoConnect: false,
+    env: "mainnet-beta",
+    metadata: {
+      name: "UnifiedWallet",
+      description: "UnifiedWallet",
+      url: "https://jup.ag",
+      iconUrls: ["https://jup.ag/favicon.ico"],
+    },
+    notificationCallback: {
+      onConnect: () => console.log("Wallet connected"),
+      onDisconnect: () => console.log("Wallet disconnected"),
+      onNotInstalled: (wallet) => console.log("Wallet not installed", wallet),
+    },
+    walletPrecedence: ["OKX Wallet", "WalletConnect"],
+    hardcodedWallets: [
           {
             id: "Phantom",
             name: "Phantom",
@@ -66,7 +62,13 @@ export const WalletProvider = ({ children }) => {
         },
         theme: "dark",
         lang: "en",
-      }}
+      };
+
+  return (
+    <UnifiedWalletProvider
+      wallets={[]}
+      endpoint="https://solana-mainnet.rpc.extrnode.com"
+      config={walletConfig}
     >
       {children}
     </UnifiedWalletProvider>

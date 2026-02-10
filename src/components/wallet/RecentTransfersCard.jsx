@@ -65,7 +65,7 @@ function formatRelativeTime(dateStr, language) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   const now = new Date();
-  const diffMs = now - date;
+  const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
@@ -210,7 +210,7 @@ export default function RecentTransfersCard({ language = "en", limit = 5, onView
       }
 
       // Sort by date descending
-      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+      items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setTransfers(items.slice(0, limit));
     } catch (err) {
       console.error("Failed to load transfers:", err);

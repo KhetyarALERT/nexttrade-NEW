@@ -18,6 +18,7 @@ export const formatPrice = (price) => {
 };
 
 // Enhanced Row Component for Photon-like density
+/** @param {{ data: any, index: number, style: any }} props */
 const Row = memo(({ data, index, style }) => {
   const token = data[index];
   const isPositive = token.priceChange24h >= 0;

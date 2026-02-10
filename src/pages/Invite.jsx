@@ -1,3 +1,7 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
 // Redirect old /Invite page to the unified Rewards Hub
 export default function Invite() {
   const navigate = useNavigate();

@@ -65,6 +65,7 @@ const formatTimeAgo = (timestamp) => {
 // MOBILE TOKEN CARD
 // ============================================================================
 
+/** @param {{ token: any, onTrade: Function, onDetail: Function, isFavorite: boolean, onToggleFavorite: Function, isPumpfun: boolean }} props */
 const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
@@ -85,7 +86,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
                 src={imageUrl} 
                 alt={token.symbol}
                 className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
               />
             ) : null}
             <div className={`w-full h-full flex items-center justify-center text-sm font-bold text-white ${imageUrl ? 'hidden' : ''}`}>
@@ -185,6 +186,7 @@ const MobileTokenCard = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
 // DESKTOP TOKEN ROW
 // ============================================================================
 
+/** @param {{ token: any, onTrade: Function, onDetail: Function, isFavorite: boolean, onToggleFavorite: Function, isPumpfun: boolean }} props */
 const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onToggleFavorite, isPumpfun }) => {
   const txns = (token.buys_5m || 0) + (token.sells_5m || 0);
   const priceChange = token.priceChange5m || 0;
@@ -210,7 +212,7 @@ const DesktopTokenRow = React.memo(({ token, onTrade, onDetail, isFavorite, onTo
               src={imageUrl} 
               alt={token.symbol}
               className="w-full h-full object-cover"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              onError={(e) => { /** @type {HTMLImageElement} */ (e.target).style.display = 'none'; }}
             />
           ) : null}
           <div className={`w-full h-full flex items-center justify-center text-xs font-bold text-white ${imageUrl ? 'hidden' : ''}`}>

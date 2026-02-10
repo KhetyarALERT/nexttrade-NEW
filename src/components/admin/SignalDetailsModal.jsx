@@ -348,7 +348,7 @@ export default function SignalDetailsModal({ open, onOpenChange, signalId, onFor
                                 // OPEN first, then newest
                                 if (a.status === "OPEN" && b.status !== "OPEN") return -1;
                                 if (a.status !== "OPEN" && b.status === "OPEN") return 1;
-                                return new Date(b.openedAt || 0) - new Date(a.openedAt || 0);
+                                return new Date(b.openedAt || 0).getTime() - new Date(a.openedAt || 0).getTime();
                               })
                               .map((pos) => (
                                 <TableRow

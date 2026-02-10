@@ -245,8 +245,8 @@ export default function Trading({ language = "en" }) {
   // WebSocket connection status - check both public and business WS
   useEffect(() => {
     const updateConnectionStatus = () => {
-      const publicConnected = binanceFuturesStore.wsConnected?.public === true;
-      const businessConnected = binanceFuturesStore.wsConnected?.business === true;
+      const publicConnected = /** @type {any} */ (binanceFuturesStore).wsConnected?.public === true;
+      const businessConnected = /** @type {any} */ (binanceFuturesStore).wsConnected?.business === true;
       setWsConnected(publicConnected || businessConnected);
     };
 

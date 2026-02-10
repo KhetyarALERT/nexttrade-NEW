@@ -115,7 +115,7 @@ VoucherItem.propTypes = {
 
 export default function VoucherLedger({ 
   vouchers = [], 
-  vouchersByCategory = {},
+  vouchersByCategory = /** @type {{referral?: any[], levelUp?: any[], depositBonus?: any[]}} */ ({}),
   totalValue = 0, 
   redeemableValue = 0,
   totalDepositBonusValue = 0,

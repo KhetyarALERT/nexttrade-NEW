@@ -135,6 +135,8 @@ export default function AssetsPage({ wallets = [], language = "en", onRefresh })
   const location = useLocation();
   const navigate = useNavigate();
   const t = localizations[language] || localizations.en;
+  // liveAccount was removed as a prop but referenced below; declare as null to preserve behavior
+  const liveAccount = /** @type {any} */ (null);
 
   const getSearchParam = (key) => new URLSearchParams(location.search).get(key);
 

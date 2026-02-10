@@ -291,7 +291,7 @@ export default function FuturesTradePanel({
     });
     
     // Get initial value
-    const prem = binanceFuturesStore.getPremiumIndex?.(symbol);
+    const prem = /** @type {any} */ (binanceFuturesStore.getPremiumIndex?.(symbol));
     if (prem?.fundingRate !== undefined) {
       setFundingRate(Number(prem.fundingRate));
     }

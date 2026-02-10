@@ -25,6 +25,7 @@ const COMMODITIES = [
 
 
 // Memoized Sparkline component to prevent unnecessary re-renders
+/** @param {{ data?: any[], width?: number, height?: number }} props */
 const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 }) {
   if (!data || data.length < 2) return <div className="w-[120px] h-[40px] bg-gray-800/50 rounded" />;
 
@@ -50,7 +51,7 @@ const Sparkline = memo(function Sparkline({ data = [], width = 120, height = 40 
   );
 });
 
-Sparkline.propTypes = {
+/** @type {any} */ (Sparkline).propTypes = {
   data: PropTypes.array,
   width: PropTypes.number,
   height: PropTypes.number

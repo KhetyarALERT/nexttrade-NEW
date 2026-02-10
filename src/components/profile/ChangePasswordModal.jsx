@@ -113,7 +113,7 @@ export default function ChangePasswordModal({ open, onOpenChange, language = "en
   const [success, setSuccess] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
+  const [fieldErrors, setFieldErrors] = useState(/** @type {{current?: string, new?: string, confirm?: string}} */ ({}));
 
   const resetForm = () => {
     setCurrentPassword("");
